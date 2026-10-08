@@ -201,7 +201,7 @@
       "id": "PW-007",
       "phase": "P01",
       "title": "Monorepo와 검증 명령 scaffold",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-006"
       ],

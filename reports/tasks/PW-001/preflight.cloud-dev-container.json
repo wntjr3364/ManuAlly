@@ -1,0 +1,117 @@
+{
+  "label": "cloud dev container (NOT user's PC or lab server)",
+  "scope": "PREFLIGHT_ONLY_NOT_PRODUCT_TEST",
+  "generated_at": "2026-10-08T07:01:28.014Z",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.44-fc-v80",
+    "arch": "x64",
+    "cpus": 4,
+    "mem_total_bytes": 16876494848,
+    "os_user": "root"
+  },
+  "tools": {
+    "node": {
+      "found": true,
+      "version": "v22.22.0"
+    },
+    "pnpm": {
+      "found": true,
+      "version": "10.28.0"
+    },
+    "npm": {
+      "found": true,
+      "version": "10.9.4"
+    },
+    "psql": {
+      "found": true,
+      "version": "psql (PostgreSQL) 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)"
+    },
+    "docker": {
+      "found": true,
+      "version": "Docker version 29.8.2, build 7fc2dff"
+    },
+    "pandoc": {
+      "found": true,
+      "version": "pandoc 3.1.3"
+    },
+    "java": {
+      "found": true,
+      "version": "openjdk 21.0.12.1 2026-08-18"
+    },
+    "git": {
+      "found": true,
+      "version": "git version 2.43.0"
+    },
+    "claude": {
+      "found": true,
+      "version": "2.1.294 (Claude Code)"
+    },
+    "codex": {
+      "found": false,
+      "version": null
+    }
+  },
+  "data_root": {
+    "path": null,
+    "status": "undecided",
+    "reason": "data root not specified by user",
+    "free_bytes": null
+  },
+  "paths": {
+    "approved": [],
+    "undecided": [
+      {
+        "kind": "data_root",
+        "path": null,
+        "reason": "data root not specified by user"
+      },
+      {
+        "kind": "backup_location",
+        "path": null,
+        "reason": "off-host encrypted backup target not chosen"
+      },
+      {
+        "kind": "runtime_os_user",
+        "path": null,
+        "reason": "dedicated OS user for provider runner not created"
+      },
+      {
+        "kind": "provider_auth_profile_dir",
+        "path": null,
+        "reason": "isolated CLAUDE_CONFIG_DIR / CODEX_HOME not chosen"
+      }
+    ],
+    "protected": [
+      {
+        "path": "/root/.claude",
+        "kind": "dev_cli_state",
+        "exists": true,
+        "type": "directory",
+        "access": "never_read_never_write"
+      },
+      {
+        "path": "/root/.claude.json",
+        "kind": "dev_cli_state",
+        "exists": true,
+        "type": "file",
+        "access": "never_read_never_write"
+      },
+      {
+        "path": "/root/.codex",
+        "kind": "dev_cli_state",
+        "exists": false,
+        "type": null,
+        "access": "never_read_never_write"
+      },
+      {
+        "path": "/root/.config/claude",
+        "kind": "dev_cli_state",
+        "exists": false,
+        "type": null,
+        "access": "never_read_never_write"
+      }
+    ]
+  },
+  "blocked": []
+}

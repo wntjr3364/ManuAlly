@@ -1,0 +1,13 @@
+{
+ "probed_at": "2026-10-08T07:03:55.191Z",
+ "host": "cloud dev container",
+ "note": "--version only; no prompt, scrubbed HOME",
+ "claude": {
+  "found": true,
+  "version": "2.1.294 (Claude Code)"
+ },
+ "codex": {
+  "found": true,
+  "version": "codex-cli 0.161.0"
+ }
+}

@@ -1,0 +1,271 @@
+{
+ "schema": "contracts/provider_capability.schema.json",
+ "checked_at": "2026-10-08",
+ "rule": "admission=approved only for mock or with live_evidence recorded from the user's own machine; documented_not_verified is not support",
+ "entries": [
+  {
+   "capability": {
+    "provider": "mock",
+    "version": "spike",
+    "auth_mode": "none",
+    "deployment_profile": "PERSONAL_LOCAL",
+    "admission": "approved",
+    "features": {
+     "explicit_resume": "unknown",
+     "structured_tools": "unknown",
+     "interrupt": "unknown",
+     "manual_compact": "unknown",
+     "context_usage": "unknown",
+     "quota_read": "unknown",
+     "reset_at": "unknown"
+    }
+   },
+   "evidence": {
+    "sources": [
+     "internal"
+    ],
+    "checked_at": "2026-10-08",
+    "test_status": "n/a",
+    "user_decision": "default provider",
+    "live_evidence": null,
+    "notes": "No network, no account. Default for all automated tests."
+   }
+  },
+  {
+   "capability": {
+    "provider": "claude_agent",
+    "version": "claude-code 2.1.294",
+    "auth_mode": "subscription_cli_login",
+    "deployment_profile": "PERSONAL_LOCAL",
+    "admission": "requires_verification",
+    "features": {
+     "explicit_resume": "documented_not_verified",
+     "structured_tools": "documented_not_verified",
+     "interrupt": "documented_not_verified",
+     "manual_compact": "unknown",
+     "context_usage": "documented_not_verified",
+     "quota_read": "unknown",
+     "reset_at": "unknown"
+    }
+   },
+   "evidence": {
+    "sources": [
+     "S01",
+     "S02",
+     "S03",
+     "claude --help (2.1.294)",
+     "env-vars: CLAUDE_CONFIG_DIR, CLAUDE_CODE_OAUTH_TOKEN"
+    ],
+    "checked_at": "2026-10-08",
+    "test_status": "not_run_live",
+    "user_decision": "2026-10-08 user: runtime AI must be Claude Code / Codex via the user's own CLI login, not API keys; deploy on both personal PC and private lab server",
+    "live_evidence": null,
+    "notes": "Official CLI headless mode (-p, stream-json) run by the account owner for their own use. --bare cannot be used (it never reads OAuth). Auth via an isolated CLAUDE_CONFIG_DIR logged in by the user, or a user-generated `claude setup-token` value stored outside the repo. ANTHROPIC_API_KEY must never reach the child (it silently overrides the subscription). S01: third-party products may not offer claude.ai login to others unless approved — this platform is single-owner and never shares the login."
+   }
+  },
+  {
+   "capability": {
+    "provider": "claude_agent",
+    "version": "claude-code 2.1.294",
+    "auth_mode": "subscription_cli_login",
+    "deployment_profile": "PRIVATE_SELF_HOSTED",
+    "admission": "requires_verification",
+    "features": {
+     "explicit_resume": "documented_not_verified",
+     "structured_tools": "documented_not_verified",
+     "interrupt": "documented_not_verified",
+     "manual_compact": "unknown",
+     "context_usage": "documented_not_verified",
+     "quota_read": "unknown",
+     "reset_at": "unknown"
+    }
+   },
+   "evidence": {
+    "sources": [
+     "S01",
+     "S02",
+     "S03",
+     "claude --help (2.1.294)",
+     "env-vars: CLAUDE_CONFIG_DIR, CLAUDE_CODE_OAUTH_TOKEN"
+    ],
+    "checked_at": "2026-10-08",
+    "test_status": "not_run_live",
+    "user_decision": "2026-10-08 user: runtime AI must be Claude Code / Codex via the user's own CLI login, not API keys; deploy on both personal PC and private lab server",
+    "live_evidence": null,
+    "notes": "Official CLI headless mode (-p, stream-json) run by the account owner for their own use. --bare cannot be used (it never reads OAuth). Auth via an isolated CLAUDE_CONFIG_DIR logged in by the user, or a user-generated `claude setup-token` value stored outside the repo. ANTHROPIC_API_KEY must never reach the child (it silently overrides the subscription). S01: third-party products may not offer claude.ai login to others unless approved — this platform is single-owner and never shares the login. Lab server: the same person logs in on that server; no other user may reach the runner."
+   }
+  },
+  {
+   "capability": {
+    "provider": "claude_agent",
+    "version": "claude-code 2.1.294",
+    "auth_mode": "subscription_cli_login",
+    "deployment_profile": "MULTIUSER_HOSTED",
+    "admission": "disabled",
+    "features": {
+     "explicit_resume": "documented_not_verified",
+     "structured_tools": "documented_not_verified",
+     "interrupt": "documented_not_verified",
+     "manual_compact": "unknown",
+     "context_usage": "documented_not_verified",
+     "quota_read": "unknown",
+     "reset_at": "unknown"
+    }
+   },
+   "evidence": {
+    "sources": [
+     "S01"
+    ],
+    "checked_at": "2026-10-08",
+    "test_status": "not_applicable",
+    "user_decision": "out of v1 scope",
+    "live_evidence": null,
+    "notes": "Offering claude.ai login to other users requires Anthropic approval (S01)."
+   }
+  },
+  {
+   "capability": {
+    "provider": "claude_agent",
+    "version": "claude-code 2.1.294",
+    "auth_mode": "api_key",
+    "deployment_profile": "PERSONAL_LOCAL",
+    "admission": "disabled",
+    "features": {
+     "explicit_resume": "documented_not_verified",
+     "structured_tools": "documented_not_verified",
+     "interrupt": "documented_not_verified",
+     "manual_compact": "unknown",
+     "context_usage": "documented_not_verified",
+     "quota_read": "unknown",
+     "reset_at": "unknown"
+    }
+   },
+   "evidence": {
+    "sources": [
+     "S02"
+    ],
+    "checked_at": "2026-10-08",
+    "test_status": "not_applicable",
+    "user_decision": "2026-10-08 user: runtime AI must be Claude Code / Codex via the user's own CLI login, not API keys; deploy on both personal PC and private lab server",
+    "live_evidence": null,
+    "notes": "User chose subscription CLI instead of API billing. Re-enable only by explicit user decision."
+   }
+  },
+  {
+   "capability": {
+    "provider": "codex",
+    "version": "codex-cli 0.161.0",
+    "auth_mode": "chatgpt_login",
+    "deployment_profile": "PERSONAL_LOCAL",
+    "admission": "requires_verification",
+    "features": {
+     "explicit_resume": "documented_not_verified",
+     "structured_tools": "documented_not_verified",
+     "interrupt": "documented_not_verified",
+     "manual_compact": "documented_not_verified",
+     "context_usage": "documented_not_verified",
+     "quota_read": "documented_not_verified",
+     "reset_at": "documented_not_verified"
+    }
+   },
+   "evidence": {
+    "sources": [
+     "S07",
+     "S08",
+     "codex app-server generate-json-schema (0.161.0)"
+    ],
+    "checked_at": "2026-10-08",
+    "test_status": "schema_inventory_only",
+    "user_decision": "2026-10-08 user: runtime AI must be Claude Code / Codex via the user's own CLI login, not API keys; deploy on both personal PC and private lab server",
+    "live_evidence": null,
+    "notes": "Private stdio `codex app-server` with CODEX_HOME isolated and logged in by the user (`codex login`). Methods: thread/start|resume, turn/start|interrupt, thread/compact/start, account/rateLimits/read (usedPercent, resetsAt), thread/tokenUsage/updated. Tools via MCP config, sandbox read-only, approvalPolicy never. Hosted/commercial use distinction in S08 to be re-read before enabling on the lab server."
+   }
+  },
+  {
+   "capability": {
+    "provider": "codex",
+    "version": "codex-cli 0.161.0",
+    "auth_mode": "chatgpt_login",
+    "deployment_profile": "PRIVATE_SELF_HOSTED",
+    "admission": "requires_verification",
+    "features": {
+     "explicit_resume": "documented_not_verified",
+     "structured_tools": "documented_not_verified",
+     "interrupt": "documented_not_verified",
+     "manual_compact": "documented_not_verified",
+     "context_usage": "documented_not_verified",
+     "quota_read": "documented_not_verified",
+     "reset_at": "documented_not_verified"
+    }
+   },
+   "evidence": {
+    "sources": [
+     "S07",
+     "S08",
+     "codex app-server generate-json-schema (0.161.0)"
+    ],
+    "checked_at": "2026-10-08",
+    "test_status": "schema_inventory_only",
+    "user_decision": "2026-10-08 user: runtime AI must be Claude Code / Codex via the user's own CLI login, not API keys; deploy on both personal PC and private lab server",
+    "live_evidence": null,
+    "notes": "Private stdio `codex app-server` with CODEX_HOME isolated and logged in by the user (`codex login`). Methods: thread/start|resume, turn/start|interrupt, thread/compact/start, account/rateLimits/read (usedPercent, resetsAt), thread/tokenUsage/updated. Tools via MCP config, sandbox read-only, approvalPolicy never. Hosted/commercial use distinction in S08 to be re-read before enabling on the lab server."
+   }
+  },
+  {
+   "capability": {
+    "provider": "codex",
+    "version": "codex-cli 0.161.0",
+    "auth_mode": "chatgpt_login",
+    "deployment_profile": "MULTIUSER_HOSTED",
+    "admission": "disabled",
+    "features": {
+     "explicit_resume": "documented_not_verified",
+     "structured_tools": "documented_not_verified",
+     "interrupt": "documented_not_verified",
+     "manual_compact": "documented_not_verified",
+     "context_usage": "documented_not_verified",
+     "quota_read": "documented_not_verified",
+     "reset_at": "documented_not_verified"
+    }
+   },
+   "evidence": {
+    "sources": [
+     "S08"
+    ],
+    "checked_at": "2026-10-08",
+    "test_status": "not_applicable",
+    "user_decision": "out of v1 scope",
+    "live_evidence": null,
+    "notes": "Multi-user hosting needs separate auth/billing design."
+   }
+  },
+  {
+   "capability": {
+    "provider": "codex",
+    "version": "codex-cli 0.161.0",
+    "auth_mode": "api_key",
+    "deployment_profile": "PERSONAL_LOCAL",
+    "admission": "disabled",
+    "features": {
+     "explicit_resume": "documented_not_verified",
+     "structured_tools": "documented_not_verified",
+     "interrupt": "documented_not_verified",
+     "manual_compact": "documented_not_verified",
+     "context_usage": "documented_not_verified",
+     "quota_read": "documented_not_verified",
+     "reset_at": "documented_not_verified"
+    }
+   },
+   "evidence": {
+    "sources": [
+     "S19"
+    ],
+    "checked_at": "2026-10-08",
+    "test_status": "not_applicable",
+    "user_decision": "2026-10-08 user: runtime AI must be Claude Code / Codex via the user's own CLI login, not API keys; deploy on both personal PC and private lab server",
+    "live_evidence": null,
+    "notes": "User chose CLI login instead of API billing."
+   }
+  }
+ ]
+}

@@ -1,0 +1,4 @@
+#     throw new ERR_MODULE_NOT_FOUND(
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/ManuAlly/spikes/provider-admission/admission.mjs' imported from /home/user/ManuAlly/tests/tasks/PW-002/admission.test.mjs
+#   code: 'ERR_MODULE_NOT_FOUND',
+# tests 1

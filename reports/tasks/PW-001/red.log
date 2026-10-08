@@ -1,0 +1,4 @@
+#     throw new ERR_MODULE_NOT_FOUND(
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/ManuAlly/spikes/preflight/preflight.mjs' imported from /home/user/ManuAlly/tests/tasks/PW-001/preflight.test.mjs
+#   code: 'ERR_MODULE_NOT_FOUND',
+# tests 1

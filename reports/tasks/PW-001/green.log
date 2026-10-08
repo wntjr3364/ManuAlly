@@ -1,0 +1,10 @@
+ok 1 - TST-001A: report separates approved, undecided and protected paths
+ok 2 - TST-001A: data root given without user approval stays undecided
+ok 3 - TST-001A: protected paths are only stat-ed, never read or listed
+ok 4 - TST-001B: missing data root is blocked and never created
+ok 5 - TST-001B: data root that is a file or a symlink is blocked
+ok 6 - TST-001B: unknown free space blocks instead of guessing
+ok 7 - TST-001B: insufficient free space is blocked
+# tests 7
+# pass 7
+# fail 0

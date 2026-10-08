@@ -27,7 +27,8 @@
 | PW-005 | in_review | 5de9421 | REQ-005 / TST-005A,B | 14/14, mutation check | 모델 출력 평가, 실제 문단 gold |
 | PW-006 | in_review | 5de9421 | REQ-006 / TST-006A,B | 4/4, P00 회귀 70/70, pack validator PASS | — |
 | PW-007 | in_review | (P01) | REQ-007 / TST-007A,B | `pnpm test` exit 0, 깨끗한 clone exit 0, 리뷰 1회 반영 | GitHub CI 실제 실행 |
-| PW-008 | in_review | (P01) | REQ-008 / TST-008A,B | 통합 11/11, mutation 2종 탐지 | 브라우저 로그인 UI(PW-010/014) |
+| PW-008 | in_review | (P01) | REQ-008 / TST-008A,B | 통합 21/21(리뷰 회귀 10 포함), mutation 2종 탐지, 리뷰 1회 반영 | 브라우저 로그인 UI(PW-010/014), SSE·blob·search route 없음 |
+| PW-009 | in_review | (P01) | REQ-009 / TST-009A,B | 통합 7/7, 직접 SQL 불변성 확인 | 대용량 성능, 서지·asset API(P04) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 

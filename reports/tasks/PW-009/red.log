@@ -1,0 +1,12 @@
+     × restore copies an old revision forward without touching history 18ms
+     × a named snapshot keeps returning the exact revisions it captured 9ms
+     × a stale save is a 409 and two concurrent saves on the same head cannot both win 6ms
+     × content must be a JSON document of bounded size with a schema version 7ms
+     × revisions and snapshots cannot be updated, deleted or truncated, even with direct SQL 6ms
+     × the database rejects links between one paper's entities and another paper's 8ms
+     × the API refuses revision ids from another paper or document, and other owners see nothing 8ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/tasks/PW-009/revisions.int.test.ts > TST-009A: restore makes a new revision; snapshots reproduce what they referenced > restore copies an old revision forward without touching history
+ FAIL  tests/tasks/PW-009/revisions.int.test.ts > TST-009A: restore makes a new revision; snapshots reproduce what they referenced > a named snapshot keeps returning the exact revisions it captured
+ FAIL  tests/tasks/PW-009/revisions.int.test.ts > TST-009A: restore makes a new revision; snapshots reproduce what they referenced > a stale save is a 409 and two concurrent saves on the same head cannot both win
+ FAIL  tests/tasks/PW-009/revisions.int.test.ts > TST-009A: restore makes a new revision; snapshots reproduce what they referenced > content must be a JSON document of bounded size with a schema version

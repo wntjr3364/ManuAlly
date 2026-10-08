@@ -5,7 +5,7 @@
       "id": "PW-001",
       "phase": "P00",
       "title": "환경·저장소·운영 경계 확인",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [],
       "requirements": [
         "REQ-001"
@@ -36,7 +36,7 @@
       "id": "PW-002",
       "phase": "P00",
       "title": "Provider 인증·배포 admission",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-001"
       ],
@@ -69,7 +69,7 @@
       "id": "PW-003",
       "phase": "P00",
       "title": "문서 선택·포맷 왕복 spike",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-002"
       ],
@@ -102,7 +102,7 @@
       "id": "PW-004",
       "phase": "P00",
       "title": "실행 세션·권한 격리 spike",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-003"
       ],
@@ -135,7 +135,7 @@
       "id": "PW-005",
       "phase": "P00",
       "title": "집필 품질 baseline fixture",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-004"
       ],
@@ -168,7 +168,7 @@
       "id": "PW-006",
       "phase": "P00",
       "title": "P00 검토·ADR·버전 고정안",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-005"
       ],

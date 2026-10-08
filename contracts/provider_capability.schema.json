@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:paper-workspace:provider-capability:v1",
+  "type": "object",
+  "required": [
+    "provider",
+    "version",
+    "auth_mode",
+    "deployment_profile",
+    "admission",
+    "features"
+  ],
+  "properties": {
+    "provider": {
+      "enum": [
+        "mock",
+        "claude_agent",
+        "codex"
+      ]
+    },
+    "version": {
+      "type": "string"
+    },
+    "auth_mode": {
+      "type": "string"
+    },
+    "deployment_profile": {
+      "enum": [
+        "PERSONAL_LOCAL",
+        "PRIVATE_SELF_HOSTED",
+        "MULTIUSER_HOSTED"
+      ]
+    },
+    "admission": {
+      "enum": [
+        "disabled",
+        "requires_verification",
+        "approved"
+      ]
+    },
+    "features": {
+      "type": "object",
+      "required": [
+        "explicit_resume",
+        "structured_tools",
+        "interrupt",
+        "manual_compact",
+        "context_usage",
+        "quota_read",
+        "reset_at"
+      ],
+      "properties": {
+        "explicit_resume": {
+          "enum": [
+            "verified",
+            "documented_not_verified",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "structured_tools": {
+          "enum": [
+            "verified",
+            "documented_not_verified",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "interrupt": {
+          "enum": [
+            "verified",
+            "documented_not_verified",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "manual_compact": {
+          "enum": [
+            "verified",
+            "documented_not_verified",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "context_usage": {
+          "enum": [
+            "verified",
+            "documented_not_verified",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "quota_read": {
+          "enum": [
+            "verified",
+            "documented_not_verified",
+            "unsupported",
+            "unknown"
+          ]
+        },
+        "reset_at": {
+          "enum": [
+            "verified",
+            "documented_not_verified",
+            "unsupported",
+            "unknown"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

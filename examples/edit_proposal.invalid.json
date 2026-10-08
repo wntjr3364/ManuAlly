@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "proposal_id": "00000000-0000-4000-8000-000000000001",
+  "paper_id": "00000000-0000-4000-8000-000000000002",
+  "document_id": "00000000-0000-4000-8000-000000000003",
+  "base_revision_id": "00000000-0000-4000-8000-000000000004",
+  "outline_revision_id": "00000000-0000-4000-8000-000000000005",
+  "operation": {
+    "type": "run_shell",
+    "selection_handle_id": "00000000-0000-4000-8000-000000000006",
+    "block_id": "00000000-0000-4000-8000-000000000007",
+    "expected_block_hash": "2eb3f6215bbe653975349fcdc133f63c131339971311729db4c0f81d926bb2ad",
+    "from": 0,
+    "to": 70,
+    "replacement": [
+      {
+        "type": "text",
+        "text": "These results indicate an association between treatment and growth."
+      }
+    ]
+  },
+  "source_evidence_ids": [
+    "00000000-0000-4000-8000-000000000008"
+  ],
+  "checks": [
+    {
+      "check": "scope",
+      "result": "pass"
+    },
+    {
+      "check": "facts",
+      "result": "not_applicable",
+      "details": "Synthetic wording-only example; not a statement about an actual experiment."
+    }
+  ],
+  "explanation": "Synthetic example. Approval and CAS remain server responsibilities."
+}

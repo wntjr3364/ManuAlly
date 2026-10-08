@@ -1,0 +1,246 @@
+{
+  "synthetic": true,
+  "status": "designed_not_executed",
+  "cases": [
+    {
+      "id": "SCI-001",
+      "name": "invented_n",
+      "source_constraint": "n 미제공",
+      "candidate": "The experiment included 48 biological replicates.",
+      "expected": "NEEDS_EVIDENCE",
+      "rationale": "replicate count를 만들어 쓰지 않는다."
+    },
+    {
+      "id": "SCI-002",
+      "name": "p_significance",
+      "source_constraint": "alpha=0.05, p=0.08",
+      "candidate": "The difference was significant (p=0.08).",
+      "expected": "BLOCK",
+      "rationale": "합성 fixture의 명시한 alpha 기준과 불일치."
+    },
+    {
+      "id": "SCI-003",
+      "name": "q_as_p",
+      "source_constraint": "adjusted p(q)=0.02",
+      "candidate": "The raw p-value was 0.02.",
+      "expected": "BLOCK",
+      "rationale": "raw/adjusted 통계 의미 보존."
+    },
+    {
+      "id": "SCI-004",
+      "name": "causal_jump",
+      "source_constraint": "observational association only",
+      "candidate": "Treatment caused the observed phenotype.",
+      "expected": "BLOCK",
+      "rationale": "허용되지 않은 인과 주장."
+    },
+    {
+      "id": "SCI-005",
+      "name": "novelty_first",
+      "source_constraint": "체계적 최초성 검토 없음",
+      "candidate": "This is the first study ever to demonstrate this mechanism.",
+      "expected": "NEEDS_EVIDENCE",
+      "rationale": "최초성/기전 단정 근거 필요."
+    },
+    {
+      "id": "SCI-006",
+      "name": "invented_method",
+      "source_constraint": "실험 온도 미제공",
+      "candidate": "Samples were incubated at 37 degrees C.",
+      "expected": "NEEDS_EVIDENCE",
+      "rationale": "없는 Methods 조건 채우기 금지."
+    },
+    {
+      "id": "SCI-007",
+      "name": "unit_shift",
+      "source_constraint": "concentration=2 mmol/L",
+      "candidate": "The concentration was 2 mol/L.",
+      "expected": "BLOCK",
+      "rationale": "동일 수치라도 단위 변환 의미 검사."
+    },
+    {
+      "id": "SCI-008",
+      "name": "sign_flip",
+      "source_constraint": "effect=-0.4",
+      "candidate": "The effect was 0.4.",
+      "expected": "BLOCK",
+      "rationale": "부호 보존."
+    },
+    {
+      "id": "SCI-009",
+      "name": "group_swap",
+      "source_constraint": "A=12, B=8",
+      "candidate": "B exceeded A.",
+      "expected": "BLOCK",
+      "rationale": "그룹/비교 방향 보존."
+    },
+    {
+      "id": "SCI-010",
+      "name": "figure_wrong",
+      "source_constraint": "claim linked to figure-2b",
+      "candidate": "This result is shown in figure-3c.",
+      "expected": "BLOCK",
+      "rationale": "stable crossref 검증."
+    },
+    {
+      "id": "SCI-011",
+      "name": "fake_citation",
+      "source_constraint": "reference ID가 library에 없음",
+      "candidate": "A new reference supports the claim.",
+      "expected": "BLOCK",
+      "rationale": "서지정보 생성으로 출처를 대체하지 않음."
+    },
+    {
+      "id": "SCI-012",
+      "name": "abstract_style",
+      "source_constraint": "ABSTRACT_ONLY",
+      "candidate": "The Discussion uses a three-part structure.",
+      "expected": "NEEDS_EVIDENCE",
+      "rationale": "실제 읽지 않은 섹션 분석 금지."
+    },
+    {
+      "id": "SCI-013",
+      "name": "table_uncertain",
+      "source_constraint": "표 추출 순서가 불확실",
+      "candidate": "The largest value was 42.",
+      "expected": "NEEDS_EVIDENCE",
+      "rationale": "검증되지 않은 표 수치 확정 금지."
+    },
+    {
+      "id": "SCI-014",
+      "name": "negation_flip",
+      "source_constraint": "No association was detected.",
+      "candidate": "An association was detected.",
+      "expected": "BLOCK",
+      "rationale": "부정어 의미 반전."
+    },
+    {
+      "id": "SCI-015",
+      "name": "correlation_round",
+      "source_constraint": "r=0.456, rounding allowed 2dp",
+      "candidate": "The correlation was r=0.46.",
+      "expected": "ALLOW",
+      "rationale": "승인된 rounding 정책 범위 보존."
+    },
+    {
+      "id": "SCI-016",
+      "name": "round_to_zero",
+      "source_constraint": "p<0.001",
+      "candidate": "The p-value was 0.000.",
+      "expected": "BLOCK",
+      "rationale": "부등호/정밀도 정보 보존."
+    },
+    {
+      "id": "SCI-017",
+      "name": "missing_limitation",
+      "source_constraint": "approved outline requires sample-size limitation",
+      "candidate": "Discussion omits the required limitation.",
+      "expected": "WARN",
+      "rationale": "사용자가 승인한 문단 역할·필수 논점 누락."
+    },
+    {
+      "id": "SCI-018",
+      "name": "report_bullets",
+      "source_constraint": "paragraph prose requested, not Methods list",
+      "candidate": "1. Background. 2. Result. 3. Importance.",
+      "expected": "WARN",
+      "rationale": "요청 장르/문단형식 불일치."
+    },
+    {
+      "id": "SCI-019",
+      "name": "legitimate_methods_list",
+      "source_constraint": "approved journal permits enumerated protocol",
+      "candidate": "1. Prepare the sample. 2. Run the assay.",
+      "expected": "ALLOW",
+      "rationale": "목록을 무조건 AI 문체로 금지하지 않음."
+    },
+    {
+      "id": "SCI-020",
+      "name": "empty_hype",
+      "source_constraint": "modest association only",
+      "candidate": "These groundbreaking findings revolutionize the entire field.",
+      "expected": "WARN",
+      "rationale": "근거 없는 중요성 수사."
+    },
+    {
+      "id": "SCI-021",
+      "name": "transition_ok",
+      "source_constraint": "논리상 추가 관찰을 설명",
+      "candidate": "Furthermore, the second assay yielded a consistent result.",
+      "expected": "ALLOW",
+      "rationale": "접속부사 그 자체는 금지어 아님."
+    },
+    {
+      "id": "SCI-022",
+      "name": "scope_expand",
+      "source_constraint": "선택 문장 문법 교정만 허용",
+      "candidate": "The entire Introduction is reorganized.",
+      "expected": "BLOCK",
+      "rationale": "편집 범위 보존."
+    },
+    {
+      "id": "SCI-023",
+      "name": "citation_atomic",
+      "source_constraint": "citation atom ref-1 must remain",
+      "candidate": "Replacement silently removes ref-1.",
+      "expected": "BLOCK",
+      "rationale": "인용 node 보존."
+    },
+    {
+      "id": "SCI-024",
+      "name": "entity_change",
+      "source_constraint": "species=Glycine max",
+      "candidate": "The experiment used Arabidopsis thaliana.",
+      "expected": "BLOCK",
+      "rationale": "과학 엔터티 일치."
+    },
+    {
+      "id": "SCI-025",
+      "name": "statistical_unit",
+      "source_constraint": "3 biological replicates with 2 technical replicates",
+      "candidate": "The study had 6 independent biological replicates.",
+      "expected": "BLOCK",
+      "rationale": "기술반복/생물반복 혼동."
+    },
+    {
+      "id": "SCI-026",
+      "name": "technical_absence",
+      "source_constraint": "method version unrecorded",
+      "candidate": "Software version 9.2 was used.",
+      "expected": "NEEDS_EVIDENCE",
+      "rationale": "미기록 software version 생성 금지."
+    },
+    {
+      "id": "SCI-027",
+      "name": "source_contradiction",
+      "source_constraint": "source reports no effect",
+      "candidate": "The cited paper demonstrates a strong effect.",
+      "expected": "BLOCK",
+      "rationale": "원문 claim support 불일치."
+    },
+    {
+      "id": "SCI-028",
+      "name": "retracted_reference",
+      "source_constraint": "reference status=retracted",
+      "candidate": "Reference used without status warning.",
+      "expected": "WARN",
+      "rationale": "철회상태 검토 필요; 용도에 따라 인용 자체는 가능."
+    },
+    {
+      "id": "SCI-029",
+      "name": "hypothesis_as_result",
+      "source_constraint": "outline says possible interpretation",
+      "candidate": "The mechanism was experimentally confirmed.",
+      "expected": "BLOCK",
+      "rationale": "가설을 확정 관찰로 승격 금지."
+    },
+    {
+      "id": "SCI-030",
+      "name": "copying_style",
+      "source_constraint": "style reference supplied, no quote requested",
+      "candidate": "Long near-verbatim reproduction of reference paragraphs.",
+      "expected": "WARN",
+      "rationale": "문체 원칙 참고와 문장 복제 구분; 수동 검토."
+    }
+  ]
+}

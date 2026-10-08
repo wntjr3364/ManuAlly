@@ -1,0 +1,1183 @@
+{
+  "version": "1.0",
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "환경·저장소·운영 경계 확인",
+      "phase": "P00",
+      "description": "전용 저장소, data root, OS 사용자, 설치 버전, 디스크/메모리/원본 경로를 비파괴적으로 조사한다.",
+      "acceptance": [
+        {
+          "id": "REQ-001-A",
+          "test_id": "TST-001A",
+          "expected": "승인된 경로·미정 경로·기존 세션 보호 경계가 preflight 보고서에 구분된다."
+        },
+        {
+          "id": "REQ-001-B",
+          "test_id": "TST-001B",
+          "expected": "경로/권한/용량을 확인할 수 없으면 안전한 기본값으로 추정해 운영 파일을 생성하지 않고 blocked를 기록한다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-002",
+      "title": "Provider 인증·배포 admission",
+      "phase": "P00",
+      "description": "Claude/Codex 인증모드와 local/private/hosted 이용범위를 공식 문서와 실제 환경으로 분리 검증한다.",
+      "acceptance": [
+        {
+          "id": "REQ-002-A",
+          "test_id": "TST-002A",
+          "expected": "각 provider/auth/deployment에 permitted/unknown/disabled 및 출처·확인일·테스트 상태가 있다."
+        },
+        {
+          "id": "REQ-002-B",
+          "test_id": "TST-002B",
+          "expected": "기존 OAuth 파일 복사나 구독 사용을 가정한 private endpoint 접근은 거절되고 비용승인 전 모델 호출은 0회다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-003",
+      "title": "문서 선택·포맷 왕복 spike",
+      "phase": "P00",
+      "description": "인용·한글·emoji·그리스문자·수식·표가 있는 소형 문서에서 shared editor 위치와 DOCX export 손실을 검증한다.",
+      "acceptance": [
+        {
+          "id": "REQ-003-A",
+          "test_id": "TST-003A",
+          "expected": "선택 전후 텍스트와 citation atom이 보존되고 export preview와 손실 보고서가 있다."
+        },
+        {
+          "id": "REQ-003-B",
+          "test_id": "TST-003B",
+          "expected": "같은 문장 두 곳/조합문자/atom 경계에서 위치가 모호하면 자동 치환하지 않고 불가 사례를 남긴다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-004",
+      "title": "실행 세션·권한 격리 spike",
+      "phase": "P00",
+      "description": "별도 identity/state/cwd로 합성 요청을 실행하고 기존 작업폴더 sentinel과 세션을 보호한다.",
+      "acceptance": [
+        {
+          "id": "REQ-004-A",
+          "test_id": "TST-004A",
+          "expected": "전용 native session ID를 얻고 명시 resume·interrupt가 확인되며 원본 sentinel hash가 유지된다."
+        },
+        {
+          "id": "REQ-004-B",
+          "test_id": "TST-004B",
+          "expected": "암묵 continue, symlink로 원본 접근, inherited HOME/config 접근, sandbox 밖 shell surface가 차단된다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-005",
+      "title": "집필 품질 baseline fixture",
+      "phase": "P00",
+      "description": "합성 사실·개요·좋은/나쁜 문단과 권리 확인된 향후 평가자료 수집 절차를 준비한다.",
+      "acceptance": [
+        {
+          "id": "REQ-005-A",
+          "test_id": "TST-005A",
+          "expected": "수치·부정어·인용·장문·보고서식 서술의 기대 결과가 포함된 평가 fixture와 rubric이 있다."
+        },
+        {
+          "id": "REQ-005-B",
+          "test_id": "TST-005B",
+          "expected": "본문을 읽지 않은 reference에 fulltext_style_verified 상태를 주거나 실제 없는 결과를 gold로 등록하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-006",
+      "title": "P00 검토·ADR·버전 고정안",
+      "phase": "P00",
+      "description": "앞선 위험검증을 바탕으로 기능 축소·대체 경로와 기술 선택을 확정 제안한다.",
+      "acceptance": [
+        {
+          "id": "REQ-006-A",
+          "test_id": "TST-006A",
+          "expected": "compatibility matrix, proposed ADR, library license/version pin 후보, go/no-go와 사용자 승인 항목이 작성된다."
+        },
+        {
+          "id": "REQ-006-B",
+          "test_id": "TST-006B",
+          "expected": "미검증 provider나 export 지원을 검증됨으로 보고하거나 승인 없이 전체 scaffold 구현을 시작하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-007",
+      "title": "Monorepo와 검증 명령 scaffold",
+      "phase": "P01",
+      "description": "apps/packages/test 경계와 타입·lint·단위·통합·E2E·pack-check 명령을 실제로 등록한다.",
+      "acceptance": [
+        {
+          "id": "REQ-007-A",
+          "test_id": "TST-007A",
+          "expected": "clean install에서 정해진 명령이 실행되고 MockProvider만 사용한다."
+        },
+        {
+          "id": "REQ-007-B",
+          "test_id": "TST-007B",
+          "expected": "secret이 없다는 이유로 기본 테스트가 유료 provider를 호출하거나 전체 suite를 skip하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-008",
+      "title": "Owner 인증과 PaperProject",
+      "phase": "P01",
+      "description": "단일 소유자, 로그인 세션, 논문 프로젝트 CRUD/아카이브 및 scope authorization을 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-008-A",
+          "test_id": "TST-008A",
+          "expected": "논문 A/B를 독립 생성하고 owner의 요청만 읽기·수정 가능하다."
+        },
+        {
+          "id": "REQ-008-B",
+          "test_id": "TST-008B",
+          "expected": "다른 owner/project ID로 API/SSE/blob/search 요청 시 데이터가 반환되지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-009",
+      "title": "불변 revision·snapshot 저장",
+      "phase": "P01",
+      "description": "문서/개요/서지/asset revision과 named PaperSnapshot의 참조 구조를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-009-A",
+          "test_id": "TST-009A",
+          "expected": "복원이 새 revision을 만들며 과거 snapshot이 당시 참조를 재현한다."
+        },
+        {
+          "id": "REQ-009-B",
+          "test_id": "TST-009B",
+          "expected": "승인 revision 덮어쓰기나 다른 paper 엔터티 참조를 DB/API가 거절한다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-010",
+      "title": "수동 Story·Outline 승인",
+      "phase": "P01",
+      "description": "AI 없이 research brief/story/문단계획을 편집하고 exact revision 승인·이력을 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-010-A",
+          "test_id": "TST-010A",
+          "expected": "사용자가 지정한 revision만 승인되고 관련 outline node가 생성 허용 상태가 된다."
+        },
+        {
+          "id": "REQ-010-B",
+          "test_id": "TST-010B",
+          "expected": "미승인 개요의 AI draft 요청은 서버에서 차단되지만 수동 메모/원고 입력은 가능하다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-011",
+      "title": "Claim·Fact·Evidence 최소 모델",
+      "phase": "P01",
+      "description": "검증된 연구 사실과 추출 후보·해석·가설을 구분하고 원문 locator를 저장한다.",
+      "acceptance": [
+        {
+          "id": "REQ-011-A",
+          "test_id": "TST-011A",
+          "expected": "사실에 값·단위·그룹·출처·검증 주체가 연결된다."
+        },
+        {
+          "id": "REQ-011-B",
+          "test_id": "TST-011B",
+          "expected": "AI 또는 import가 verification/approval 주체를 위조하거나 p와 q를 동일 통계로 병합하지 못한다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-012",
+      "title": "Shared editor schema·계약",
+      "phase": "P01",
+      "description": "citation/figure/math/문단 ID와 typed selection/proposal schema를 browser/server 공용으로 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-012-A",
+          "test_id": "TST-012A",
+          "expected": "동일 fixture가 양쪽 schema와 position engine에서 같은 결과를 낸다."
+        },
+        {
+          "id": "REQ-012-B",
+          "test_id": "TST-012B",
+          "expected": "unknown node, raw HTML, duplicate block ID 또는 schema-version 불일치는 거절·명시 migration 경로로 간다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-013",
+      "title": "DB job·outbox·audit 기반",
+      "phase": "P01",
+      "description": "durable job intent와 발행 outbox, state/event audit를 트랜잭션으로 저장한다.",
+      "acceptance": [
+        {
+          "id": "REQ-013-A",
+          "test_id": "TST-013A",
+          "expected": "DB commit 후 재시작해도 논리 job이 queue로 전달되고 동일 intent는 중복 등록되지 않는다."
+        },
+        {
+          "id": "REQ-013-B",
+          "test_id": "TST-013B",
+          "expected": "publish 중 장애·중복 message에도 job 유실·중복 정본 변경이 발생하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-014",
+      "title": "수동 논문 수직경로 검증",
+      "phase": "P01",
+      "description": "Paper→개요 승인→사실 등록→문단 수동 입력→snapshot→새로고침을 연결한다.",
+      "acceptance": [
+        {
+          "id": "REQ-014-A",
+          "test_id": "TST-014A",
+          "expected": "브라우저 재접속 후 원고·승인·근거·snapshot이 재현된다."
+        },
+        {
+          "id": "REQ-014-B",
+          "test_id": "TST-014B",
+          "expected": "DB 실패 시 저장됨을 표시하지 않고 미저장 상태를 유지한다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-015",
+      "title": "에디터·자동저장·IME",
+      "phase": "P02",
+      "description": "rich text 편집, 저장 ack, 로컬 복구 정책, IME 안정성을 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-015-A",
+          "test_id": "TST-015A",
+          "expected": "한글 조합·italic·sub/superscript·인용 입력을 저장/복구한다."
+        },
+        {
+          "id": "REQ-015-B",
+          "test_id": "TST-015B",
+          "expected": "조합 중 AI patch를 적용하거나 실패한 저장을 성공으로 표시하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-016",
+      "title": "Selection toolbar·Short Chat",
+      "phase": "P02",
+      "description": "선택 유지·작업 범위 표시·키보드 조작 가능한 짧은 AI 명령 UI를 만든다.",
+      "acceptance": [
+        {
+          "id": "REQ-016-A",
+          "test_id": "TST-016A",
+          "expected": "문장 선택 후 팝업에 한국어 지시를 입력해도 원래 선택 handle이 유지된다."
+        },
+        {
+          "id": "REQ-016-B",
+          "test_id": "TST-016B",
+          "expected": "포커스 이동으로 범위가 바뀌거나 선택 없음에 전체 원고를 암묵 대상으로 삼지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-017",
+      "title": "Proposal·CAS·원자 적용",
+      "phase": "P02",
+      "description": "replacement proposal, server 검증, diff, expected revision, idempotent apply를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-017-A",
+          "test_id": "TST-017A",
+          "expected": "사용자 apply 한 번으로 해당 범위만 새 revision에 반영된다."
+        },
+        {
+          "id": "REQ-017-B",
+          "test_id": "TST-017B",
+          "expected": "stale/중복 apply/숫자 보호 위반/늦은 응답은 무음 덮어쓰기 없이 거절 또는 기존 결과 반환된다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-018",
+      "title": "Highlight·Comment anchor",
+      "phase": "P02",
+      "description": "선택 코멘트·스레드·resolve/reopen·orphaned anchor를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-018-A",
+          "test_id": "TST-018A",
+          "expected": "문단 이동/작은 편집 뒤 코멘트가 확실한 위치에 유지된다."
+        },
+        {
+          "id": "REQ-018-B",
+          "test_id": "TST-018B",
+          "expected": "선택 문장이 삭제되거나 동일 후보가 여럿이면 코멘트를 엉뚱한 문장에 자동 부착하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-019",
+      "title": "Citation·Figure crossref node",
+      "phase": "P02",
+      "description": "인용과 그림/표 참조를 stable ID 객체로 삽입·렌더한다.",
+      "acceptance": [
+        {
+          "id": "REQ-019-A",
+          "test_id": "TST-019A",
+          "expected": "그림 순서나 인용 스타일 변경 후 번호가 일관되게 재계산된다."
+        },
+        {
+          "id": "REQ-019-B",
+          "test_id": "TST-019B",
+          "expected": "LLM 생성 bibliography 텍스트나 존재하지 않는 reference ID가 확정 citation으로 저장되지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-020",
+      "title": "Mock AI·스트리밍 UI",
+      "phase": "P02",
+      "description": "deterministic mock으로 질문/수정 intent와 SSE 이벤트·job 상태를 연결한다.",
+      "acceptance": [
+        {
+          "id": "REQ-020-A",
+          "test_id": "TST-020A",
+          "expected": "답변 스트림·proposal 준비·적용 전 상태가 웹에서 구분된다."
+        },
+        {
+          "id": "REQ-020-B",
+          "test_id": "TST-020B",
+          "expected": "브라우저 연결 종료를 job 취소로 처리하거나 mock을 실제 provider 응답으로 표시하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-021",
+      "title": "Version compare·Undo·기본 import",
+      "phase": "P02",
+      "description": "원고 비교·새 revision 복원·텍스트/Markdown 기본 가져오기를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-021-A",
+          "test_id": "TST-021A",
+          "expected": "적용된 AI 수정의 undo와 과거 version 비교가 새로고침 뒤에도 동작한다."
+        },
+        {
+          "id": "REQ-021-B",
+          "test_id": "TST-021B",
+          "expected": "restore가 audit/과거 revision을 삭제하거나 import가 현재 원고를 예고 없이 덮지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-022",
+      "title": "선택편집 브라우저 gate",
+      "phase": "P02",
+      "description": "실제 selection→short chat→diff→apply→undo와 다중 탭·해상도 회귀를 검사한다.",
+      "acceptance": [
+        {
+          "id": "REQ-022-A",
+          "test_id": "TST-022A",
+          "expected": "1366×768/1920×1080에서 핵심 workflow와 키보드 조작이 통과한다."
+        },
+        {
+          "id": "REQ-022-B",
+          "test_id": "TST-022B",
+          "expected": "복제 문장·emoji·citation atom·멀티탭 충돌에서 잘못된 위치 변경이 1건도 승인되지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-023",
+      "title": "Provider registry·이벤트 정규화",
+      "phase": "P03",
+      "description": "공통 adapter contract와 capability registry, raw event와 domain event 변환을 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-023-A",
+          "test_id": "TST-023A",
+          "expected": "provider/version/auth별 verified/unsupported/unknown capability가 표시된다."
+        },
+        {
+          "id": "REQ-023-B",
+          "test_id": "TST-023B",
+          "expected": "지원되지 않는 compact/quota 필드를 있는 것으로 가정하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-024",
+      "title": "Claude Agent adapter",
+      "phase": "P03",
+      "description": "허용된 인증의 SDK로 structured turn·tools·explicit session/resume·stream을 연결한다.",
+      "acceptance": [
+        {
+          "id": "REQ-024-A",
+          "test_id": "TST-024A",
+          "expected": "승인된 합성 live smoke에서 native ID 저장·재개·범위 제한 response가 확인된다."
+        },
+        {
+          "id": "REQ-024-B",
+          "test_id": "TST-024B",
+          "expected": "인증/예산 없으면 disabled/blocked이며 사용자 기존 Claude 세션이나 config를 재사용하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-025",
+      "title": "Codex App Server adapter",
+      "phase": "P03",
+      "description": "버전 고정 stdio JSON-RPC와 thread/turn/resume/interrupt/events를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-025-A",
+          "test_id": "TST-025A",
+          "expected": "initialize→thread→turn 흐름과 normalized event가 contract에 맞는다."
+        },
+        {
+          "id": "REQ-025-B",
+          "test_id": "TST-025B",
+          "expected": "raw server 외부 공개, unknown RPC forwarding, sandbox 밖 shellCommand 노출은 차단된다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-026",
+      "title": "Isolated runner·입출력 mount",
+      "phase": "P03",
+      "description": "전용 OS identity/state/cwd·리소스 한도·read-only evidence와 environment whitelist를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-026-A",
+          "test_id": "TST-026A",
+          "expected": "run 파일은 자기 sandbox에만 생기고 원본 sentinel/기존 session state는 불변이다."
+        },
+        {
+          "id": "REQ-026-B",
+          "test_id": "TST-026B",
+          "expected": "symlink/path traversal/host HOME/Docker socket/원본 쓰기 경로에 접근할 수 없다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-027",
+      "title": "Typed tool gateway·scope",
+      "phase": "P03",
+      "description": "run token에 결합한 paper scope와 읽기/제안 도구 allowlist를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-027-A",
+          "test_id": "TST-027A",
+          "expected": "허용된 개요·문단·증거 조회와 proposal만 생성한다."
+        },
+        {
+          "id": "REQ-027-B",
+          "test_id": "TST-027B",
+          "expected": "모델이 paper_id/approved_by/tool 이름을 바꿔 다른 논문·정본 적용·승인을 획득하지 못한다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-028",
+      "title": "Interrupt·취소·재연결",
+      "phase": "P03",
+      "description": "사용자 stop, provider interrupt, 좁은 process termination, late event와 SSE replay를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-028-A",
+          "test_id": "TST-028A",
+          "expected": "취소가 지속 저장되고 재연결 화면은 DB의 최종 run 상태와 일치한다."
+        },
+        {
+          "id": "REQ-028-B",
+          "test_id": "TST-028B",
+          "expected": "취소 후 늦은 response가 문서를 변경하거나 broad pkill로 타 세션이 종료되지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-029",
+      "title": "Usage·quota 관측 기본",
+      "phase": "P03",
+      "description": "토큰·추정 비용·계정 quota·관측 시각·unknown을 정규화한다.",
+      "acceptance": [
+        {
+          "id": "REQ-029-A",
+          "test_id": "TST-029A",
+          "expected": "누적/turn/context metrics가 서로 구분돼 UI와 ledger에 저장된다."
+        },
+        {
+          "id": "REQ-029-B",
+          "test_id": "TST-029B",
+          "expected": "같은 cumulative event 재전달을 중복 합산하거나 null reset을 임의 시각으로 채우지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-030",
+      "title": "실제 provider 통합 gate",
+      "phase": "P03",
+      "description": "승인된 provider에서 개요 기반 1문단·부분 수정·중단·재개를 종단 검증한다.",
+      "acceptance": [
+        {
+          "id": "REQ-030-A",
+          "test_id": "TST-030A",
+          "expected": "실제 실행한 provider와 미실행 adapter를 구분한 보고서가 있다."
+        },
+        {
+          "id": "REQ-030-B",
+          "test_id": "TST-030B",
+          "expected": "계정/약관/비용 미승인 상태를 테스트 통과 또는 v1 전체연동 완료로 기록하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-031",
+      "title": "서지 검색 adapter",
+      "phase": "P04",
+      "description": "Crossref와 승인된 생명과학 검색 adapter를 bounded/cached 요청으로 연결한다.",
+      "acceptance": [
+        {
+          "id": "REQ-031-A",
+          "test_id": "TST-031A",
+          "expected": "실제 검색식·출처·관측일·metadata가 candidate에 연결된다."
+        },
+        {
+          "id": "REQ-031-B",
+          "test_id": "TST-031B",
+          "expected": "API key/한도/endpoint가 바뀌면 fabricated 결과 대신 source unavailable을 반환한다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-032",
+      "title": "서지 정규화·출판본 관계",
+      "phase": "P04",
+      "description": "DOI/PMID/무식별 논문과 preprint/publication/correction metadata를 versioned 구조로 정리한다.",
+      "acceptance": [
+        {
+          "id": "REQ-032-A",
+          "test_id": "TST-032A",
+          "expected": "중복 후보는 확인 가능한 identifier로 정리되고 출판본 관계가 보존된다."
+        },
+        {
+          "id": "REQ-032-B",
+          "test_id": "TST-032B",
+          "expected": "제목 유사성만으로 다른 연구를 병합하거나 metadata 변경으로 과거 인용 snapshot을 바꾸지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-033",
+      "title": "AI 문헌 후보 선정",
+      "phase": "P04",
+      "description": "주제/논문유형/문체적합성/읽은 범위로 후보와 선정 이유를 정리한다.",
+      "acceptance": [
+        {
+          "id": "REQ-033-A",
+          "test_id": "TST-033A",
+          "expected": "scientific/writing/both 용도와 적합성·제외 사유가 사용자에게 보인다."
+        },
+        {
+          "id": "REQ-033-B",
+          "test_id": "TST-033B",
+          "expected": "높은 인용수만으로 writing quality를 확정하거나 후보 발견만으로 승인 profile을 변경하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-034",
+      "title": "원문 권리·안전한 업로드",
+      "phase": "P04",
+      "description": "PDF 원본 불변 저장, media/size/license/external-send 권한, 안전 다운로드를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-034-A",
+          "test_id": "TST-034A",
+          "expected": "파일 hash·source·license/unknown·전송 허용 상태가 함께 저장된다."
+        },
+        {
+          "id": "REQ-034-B",
+          "test_id": "TST-034B",
+          "expected": "유료벽 우회·무제한 crawling·SSRF·악성 파일·무승인 외부 LLM 전송은 차단된다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-035",
+      "title": "PDF parsing·highlight locator",
+      "phase": "P04",
+      "description": "PDF.js viewer와 추출·페이지 좌표·읽기 깊이·품질 상태를 연결한다.",
+      "acceptance": [
+        {
+          "id": "REQ-035-A",
+          "test_id": "TST-035A",
+          "expected": "확인한 문장의 페이지/quadpoint/quote/source hash를 다시 열 수 있다."
+        },
+        {
+          "id": "REQ-035-B",
+          "test_id": "TST-035B",
+          "expected": "추출 실패/회전/새 PDF revision에서 근거 위치를 추측해 확정하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-036",
+      "title": "Figure/Table/Fact 출처 연결",
+      "phase": "P04",
+      "description": "panel/cell·caption·asset version과 fact 검증·본문 impact를 연결한다.",
+      "acceptance": [
+        {
+          "id": "REQ-036-A",
+          "test_id": "TST-036A",
+          "expected": "원고 claim에서 해당 figure/table/source 값을 추적할 수 있다."
+        },
+        {
+          "id": "REQ-036-B",
+          "test_id": "TST-036B",
+          "expected": "새 그림/단위/그룹 변경이 연결 문단의 검토필요 표시 없이 조용히 반영되지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-037",
+      "title": "필요한 근거만 retrieval",
+      "phase": "P04",
+      "description": "project-scoped lexical retrieval과 명시 context selection·cache invalidation을 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-037-A",
+          "test_id": "TST-037A",
+          "expected": "선택 paragraph와 관련된 source excerpt/locator만 context에 포함된다."
+        },
+        {
+          "id": "REQ-037-B",
+          "test_id": "TST-037B",
+          "expected": "다른 프로젝트·삭제한 자료·전송불가 원문·오래된 approved state가 cache에서 유출되지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-038",
+      "title": "문헌 이식성·읽기 연동 gate",
+      "phase": "P04",
+      "description": "CSL-JSON/RIS/BibTeX 가져오기와 선택적 Zotero read-only adapter를 검증한다.",
+      "acceptance": [
+        {
+          "id": "REQ-038-A",
+          "test_id": "TST-038A",
+          "expected": "지원 포맷을 가져와 안정된 reference ID/출처 metadata로 인용할 수 있다."
+        },
+        {
+          "id": "REQ-038-B",
+          "test_id": "TST-038B",
+          "expected": "외부 Zotero library를 자동 수정하거나 양방향 sync가 없는 것을 있는 것처럼 표시하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-039",
+      "title": "Story 대안·주장 범위 AI",
+      "phase": "P05",
+      "description": "자료 기반 story 대안·경쟁 설명·근거 부족을 웹에서 검토한다.",
+      "acceptance": [
+        {
+          "id": "REQ-039-A",
+          "test_id": "TST-039A",
+          "expected": "후보별 main message·증거·한계가 보이고 사용자가 채택한다."
+        },
+        {
+          "id": "REQ-039-B",
+          "test_id": "TST-039B",
+          "expected": "AI가 주장을 확정하거나 원래 데이터에 맞지 않는 결과를 story에 추가하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-040",
+      "title": "Detailed outline·영향 추적",
+      "phase": "P05",
+      "description": "문단별 목적·증거·제외사항·전환과 outline 변경 영향 graph를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-040-A",
+          "test_id": "TST-040A",
+          "expected": "승인된 node에서 필요한 범위만 새 생성되고 변경된 source의 영향을 추적한다."
+        },
+        {
+          "id": "REQ-040-B",
+          "test_id": "TST-040B",
+          "expected": "새 draft outline을 승인본 대신 사용하거나 관련 없는 문법수정까지 전면 잠그지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-041",
+      "title": "WritingProfile 생성·승인",
+      "phase": "P05",
+      "description": "실제 읽은 섹션·사용자 선호·저널 정책 snapshot에서 versioned profile을 제안한다.",
+      "acceptance": [
+        {
+          "id": "REQ-041-A",
+          "test_id": "TST-041A",
+          "expected": "profile은 근거 reference/섹션/규칙/반례와 승인 상태를 가진다."
+        },
+        {
+          "id": "REQ-041-B",
+          "test_id": "TST-041B",
+          "expected": "abstract-only로 Discussion style을 만들거나 특정 문구를 대량 복사해 profile로 저장하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-042",
+      "title": "ParagraphContract·Writer",
+      "phase": "P05",
+      "description": "승인 story/outline와 exact facts에서 부분 생성·보수적 교정·재작성 mode를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-042-A",
+          "test_id": "TST-042A",
+          "expected": "생성 결과가 지정 scope/목적/근거/용어를 사용하며 proposal로만 반환된다."
+        },
+        {
+          "id": "REQ-042-B",
+          "test_id": "TST-042B",
+          "expected": "missing evidence를 지어내거나 한 문단 요청을 전체 원고 작성으로 확장하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-043",
+      "title": "Deterministic scientific gate",
+      "phase": "P05",
+      "description": "수치/단위/대조군/인용/보호 span/허용 claim의 일치 검증과 unknown 처리를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-043-A",
+          "test_id": "TST-043A",
+          "expected": "정확히 매칭된 fact와 citation은 근거 locator를 포함한 check 결과를 가진다."
+        },
+        {
+          "id": "REQ-043-B",
+          "test_id": "TST-043B",
+          "expected": "p↔q·단위·negation·group 변경/존재하지 않는 citation을 통과시키거나 모호한 매칭을 verified로 표시하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-044",
+      "title": "문체·과학 검토와 human review",
+      "phase": "P05",
+      "description": "AI reviewer findings·간결함/장르 rubric·의미 검토와 bounded repair를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-044-A",
+          "test_id": "TST-044A",
+          "expected": "구체 span·이유·근거·대안으로 findings를 제시하고 사용자가 최종 채택한다."
+        },
+        {
+          "id": "REQ-044-B",
+          "test_id": "TST-044B",
+          "expected": "단어 blacklist나 model 자체 점수로 품질을 보장하거나 repair loop가 무한 실행되지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-045",
+      "title": "과학적 부정 fixture·rubric gate",
+      "phase": "P05",
+      "description": "합성 hard fixture와 권리 확인된 수동 blind 평가를 분리 운영한다.",
+      "acceptance": [
+        {
+          "id": "REQ-045-A",
+          "test_id": "TST-045A",
+          "expected": "최소 hard-case suite와 human rubric의 결과·미실행·회귀를 기록한다."
+        },
+        {
+          "id": "REQ-045-B",
+          "test_id": "TST-045B",
+          "expected": "AI 탐지 회피 점수/자기평가만으로 release quality 통과를 선언하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-046",
+      "title": "개요→집필 연구자 workflow",
+      "phase": "P05",
+      "description": "생물학·Software/Resource 유형에서 문헌/개요/paragraph/수정까지 검증한다.",
+      "acceptance": [
+        {
+          "id": "REQ-046-A",
+          "test_id": "TST-046A",
+          "expected": "서로 다른 article type의 outline과 섹션 역할이 원고에 반영된다."
+        },
+        {
+          "id": "REQ-046-B",
+          "test_id": "TST-046B",
+          "expected": "모든 유형을 고정 IMRaD나 보고서 목록으로 강제하거나 사용자 승인 없이 novelty를 바꾸지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-047",
+      "title": "Checkpoint·영구기억 재수화",
+      "phase": "P06",
+      "description": "LLM 호출 없이 current IDs/hashes/진행·권한·근거를 저장하고 새 세션을 구성한다.",
+      "acceptance": [
+        {
+          "id": "REQ-047-A",
+          "test_id": "TST-047A",
+          "expected": "새 provider session에서 승인된 story/outline/facts와 미완료 step을 복원한다."
+        },
+        {
+          "id": "REQ-047-B",
+          "test_id": "TST-047B",
+          "expected": "AI summary가 승인/사실/작업완료를 바꾸거나 quota 소진 뒤 추가 요약 호출을 필수로 요구하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-048",
+      "title": "Context budget·compact 전환",
+      "phase": "P06",
+      "description": "request별 token 예산·출력/도구 여유와 안전 boundary compaction/hydration을 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-048-A",
+          "test_id": "TST-048A",
+          "expected": "지원 provider는 compact 완료 확인 후, 미지원은 새 세션 후 같은 작업을 잇는다."
+        },
+        {
+          "id": "REQ-048-B",
+          "test_id": "TST-048B",
+          "expected": "누적 과금 token을 context 점유율로 쓰거나 실행중 tool/compact 미완료를 무시하고 다음 turn을 시작하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-049",
+      "title": "Quota 대기·리셋 재검증",
+      "phase": "P06",
+      "description": "known/unknown reset와 여러 bucket·스케줄 wake-up·auto-resume policy를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-049-A",
+          "test_id": "TST-049A",
+          "expected": "공급자 시각 이후 실제 사용 가능성을 재확인하고 승인 범위의 미완료 작업을 재개한다."
+        },
+        {
+          "id": "REQ-049-B",
+          "test_id": "TST-049B",
+          "expected": "다른 bucket이 남았거나 unknown reset·취소·승인 만료 상태에서 무조건 실행하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-050",
+      "title": "비용 예약·budget guard",
+      "phase": "P06",
+      "description": "project/run/provider 예산 예약·usage 정산·상한·repair/search 한도를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-050-A",
+          "test_id": "TST-050A",
+          "expected": "승인 예산 내 작업만 admitted되며 per-turn/누적 usage가 중복 없이 정산된다."
+        },
+        {
+          "id": "REQ-050-B",
+          "test_id": "TST-050B",
+          "expected": "한도 소진 시 무단 API 전환·추가 결제·reset credit 소비·무한 재시도를 하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-051",
+      "title": "Lease fencing·경합·outbox 복구",
+      "phase": "P06",
+      "description": "한 writer·stale worker 차단·중복 queue 전송·inflight recovery를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-051-A",
+          "test_id": "TST-051A",
+          "expected": "worker 재시작/경합에도 문서 commit은 한 번 발생하고 진행 상태가 reconcile된다."
+        },
+        {
+          "id": "REQ-051-B",
+          "test_id": "TST-051B",
+          "expected": "expired worker가 fence를 무시해 수정하거나 외부 모델 과금까지 exactly-once라고 보고하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-052",
+      "title": "오류 분류·bounded retry",
+      "phase": "P06",
+      "description": "auth/network/quota/budget/schema/evidence/cancel 오류를 구분하고 재개 조건을 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-052-A",
+          "test_id": "TST-052A",
+          "expected": "각 오류가 올바른 WAITING/FAILED 상태와 다음 행동을 표시한다."
+        },
+        {
+          "id": "REQ-052-B",
+          "test_id": "TST-052B",
+          "expected": "401을 quota reset으로 처리하거나 계정 문제에서 무한 반복 모델 호출하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-053",
+      "title": "Crash·disk full·stale 재개 시험",
+      "phase": "P06",
+      "description": "강제 프로세스 중단·디스크 포화·응답 유실·문서 변경·승인 철회 상황을 주입한다.",
+      "acceptance": [
+        {
+          "id": "REQ-053-A",
+          "test_id": "TST-053A",
+          "expected": "checkpoint에서 복구하며 중간 응답은 검증된 proposal 상태로만 보존된다."
+        },
+        {
+          "id": "REQ-053-B",
+          "test_id": "TST-053B",
+          "expected": "복구 과정이 새 문서를 덮거나 저장 실패를 성공으로 표시하거나 취소 작업을 부활시키지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-054",
+      "title": "Run 상태 UI·운영 reliability gate",
+      "phase": "P06",
+      "description": "사용량 출처·대기 이유·reset·stop/resume·checkpoint를 사용자 UI와 맞춘다.",
+      "acceptance": [
+        {
+          "id": "REQ-054-A",
+          "test_id": "TST-054A",
+          "expected": "AI 대기 중에도 수동 원고 편집·자료 열람이 되고 상태가 DB와 일치한다."
+        },
+        {
+          "id": "REQ-054-B",
+          "test_id": "TST-054B",
+          "expected": "unknown 사용량을 0/정확한 백분율로 표시하거나 자동재개를 자동원고승인으로 취급하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-055",
+      "title": "DOCX import와 손실 보고",
+      "phase": "P07",
+      "description": "Word 원본 보존, unresolved changes 처리, 수식·표·comments의 손실 preview를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-055-A",
+          "test_id": "TST-055A",
+          "expected": "사용자가 변환 손실을 확인하고 새 문서/새 revision으로 가져온다."
+        },
+        {
+          "id": "REQ-055-B",
+          "test_id": "TST-055B",
+          "expected": "track changes/인용 field가 소실돼도 원본을 삭제하거나 완전 round-trip 지원이라고 표시하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-056",
+      "title": "DOCX·CSL export",
+      "phase": "P07",
+      "description": "고정 renderer에서 style·caption·crossref·bibliography·기본 표/수식 출력과 검사한다.",
+      "acceptance": [
+        {
+          "id": "REQ-056-A",
+          "test_id": "TST-056A",
+          "expected": "golden fixture의 의미/인용/표/글자 formatting이 내보낸 문서에서 확인된다."
+        },
+        {
+          "id": "REQ-056-B",
+          "test_id": "TST-056B",
+          "expected": "LLM이 인용번호를 만들거나 누락된 reference를 채운 뒤 정상 export로 표시하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-057",
+      "title": "PDF·재현 source archive",
+      "phase": "P07",
+      "description": "읽기용 PDF와 JSON/CSL/assets/hash/version manifest bundle을 생성한다.",
+      "acceptance": [
+        {
+          "id": "REQ-057-A",
+          "test_id": "TST-057A",
+          "expected": "archive만으로 해당 논문 snapshot 참조와 출력물을 검증할 수 있다."
+        },
+        {
+          "id": "REQ-057-B",
+          "test_id": "TST-057B",
+          "expected": "권한 없는 원문을 외부 공유 bundle에 자동 포함하거나 manifest에 없는 blob을 누락시켜 성공 표시하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-058",
+      "title": "Reviewer·제출판 freeze",
+      "phase": "P07",
+      "description": "review comment→edit→response trace와 제출 snapshot/일관성 검사를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-058-A",
+          "test_id": "TST-058A",
+          "expected": "response의 수정완료 주장이 실제 revision·locator와 연결되고 제출판이 불변이다."
+        },
+        {
+          "id": "REQ-058-B",
+          "test_id": "TST-058B",
+          "expected": "미수정 내용을 수정완료로 답하거나 critical issue가 남은 원고를 submission-ready로 표시하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-059",
+      "title": "Security release audit",
+      "phase": "P07",
+      "description": "cross-project·injection·egress·credential·file parser·auth·dependency license를 독립 점검한다.",
+      "acceptance": [
+        {
+          "id": "REQ-059-A",
+          "test_id": "TST-059A",
+          "expected": "최소권한/secret redaction/명시 외부전송 정책에 대한 부정 테스트와 보고서가 있다."
+        },
+        {
+          "id": "REQ-059-B",
+          "test_id": "TST-059B",
+          "expected": "critical leak/IDOR/host 접근이 남았거나 테스트 미실행을 은폐하면 release gate를 거절한다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-060",
+      "title": "Backup·restore·migration drill",
+      "phase": "P07",
+      "description": "DB+immutable blobs+manifest를 새 환경에 실제 복원하고 migration 호환성을 확인한다.",
+      "acceptance": [
+        {
+          "id": "REQ-060-A",
+          "test_id": "TST-060A",
+          "expected": "원고·개요·근거·comment·reference·figure·snapshot이 함께 복원된다."
+        },
+        {
+          "id": "REQ-060-B",
+          "test_id": "TST-060B",
+          "expected": "DB만 되거나 blob checksum/참조가 깨진 백업을 성공으로 보고하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-061",
+      "title": "배포·storage·upgrade runbook",
+      "phase": "P07",
+      "description": "data root/리소스 제한/health/AI pause/버전 고정/로그 retention/업그레이드 절차를 구현한다.",
+      "acceptance": [
+        {
+          "id": "REQ-061-A",
+          "test_id": "TST-061A",
+          "expected": "깨끗한 전용 환경에서 private deployment·상태조회·안전중단이 가능하다."
+        },
+        {
+          "id": "REQ-061-B",
+          "test_id": "TST-061B",
+          "expected": "root overlay 무제한 저장·공개 agent port·운영/테스트 DB 혼용·latest 무검증 업데이트를 허용하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "REQ-062",
+      "title": "v1 최종 pilot·추적성 gate",
+      "phase": "P07",
+      "description": "전체 요구사항 evidence, 두 provider 상태, 과학 품질, export, security, restore와 사용자 pilot을 검토한다.",
+      "acceptance": [
+        {
+          "id": "REQ-062-A",
+          "test_id": "TST-062A",
+          "expected": "필수 capability의 pass/blocked/not_run과 사용자 승인 범위가 일치하는 release report가 있다."
+        },
+        {
+          "id": "REQ-062-B",
+          "test_id": "TST-062B",
+          "expected": "mock·문서 완성·미실행 live test를 제품 완성으로 포장하거나 남은 blocker를 제거 없이 완료 처리하지 않는다."
+        }
+      ],
+      "status": "specified_not_implemented"
+    }
+  ]
+}

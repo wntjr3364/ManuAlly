@@ -1,0 +1,30 @@
+{
+  "status": "PASS",
+  "scope": "PLANNING_PACK_ONLY_NOT_PRODUCT_TESTS",
+  "checked_at": "2026-10-08T05:38:56.241639+00:00",
+  "tasks": 62,
+  "requirements": 62,
+  "acceptance_test_designs": 124,
+  "scientific_case_designs": 30,
+  "schema_examples_checked": 5,
+  "checks": [
+    "unique task/requirement/test identifiers",
+    "requirement→task→acceptance mapping",
+    "acyclic prior-task dependencies",
+    "read-first file existence",
+    "repository-relative write scopes",
+    "all JSON files parse",
+    "positive/negative starter JSON Schema examples",
+    "30 scientific scenario designs structurally valid; model evaluation NOT RUN"
+  ],
+  "errors": [],
+  "warnings": [],
+  "not_validated": [
+    "web application implementation",
+    "live Claude/Codex accounts or policy admission",
+    "OS isolation effectiveness",
+    "scientific writing performance",
+    "document export rendering",
+    "backup/restore of a deployed application"
+  ]
+}

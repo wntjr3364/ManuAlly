@@ -1,0 +1,63 @@
+﻿id,phase,title,status,depends_on,requirements,tests,write_scope
+PW-001,P00,환경·저장소·운영 경계 확인,planned,,REQ-001,"TST-001A,TST-001B",spikes/preflight/**;tests/tasks/PW-001/**;reports/tasks/PW-001/**
+PW-002,P00,Provider 인증·배포 admission,planned,PW-001,REQ-002,"TST-002A,TST-002B",spikes/provider-admission/**;tests/tasks/PW-002/**;reports/tasks/PW-002/**
+PW-003,P00,문서 선택·포맷 왕복 spike,planned,PW-002,REQ-003,"TST-003A,TST-003B",spikes/editor-export/**;tests/tasks/PW-003/**;reports/tasks/PW-003/**
+PW-004,P00,실행 세션·권한 격리 spike,planned,PW-003,REQ-004,"TST-004A,TST-004B",spikes/isolation/**;tests/tasks/PW-004/**;reports/tasks/PW-004/**
+PW-005,P00,집필 품질 baseline fixture,planned,PW-004,REQ-005,"TST-005A,TST-005B",spikes/writing-baseline/**;tests/tasks/PW-005/**;reports/tasks/PW-005/**
+PW-006,P00,P00 검토·ADR·버전 고정안,planned,PW-005,REQ-006,"TST-006A,TST-006B",docs/adr/**;tests/tasks/PW-006/**;reports/tasks/PW-006/**
+PW-007,P01,Monorepo와 검증 명령 scaffold,planned,PW-006,REQ-007,"TST-007A,TST-007B",infra/dev/**;package.json;pnpm-workspace.yaml;packages/config/**;tests/tasks/PW-007/**;reports/tasks/PW-007/**;db/migrations/pw_007_*;apps/*/package.json;apps/*/tsconfig.json;apps/*/src/index.ts;packages/*/package.json;tsconfig.base.json;pnpm-lock.yaml;.gitignore;.github/workflows/**;.env.example
+PW-008,P01,Owner 인증과 PaperProject,planned,PW-007,REQ-008,"TST-008A,TST-008B",apps/api/src/auth/**;packages/domain/src/papers/**;db/migrations/p01_owner*;tests/tasks/PW-008/**;reports/tasks/PW-008/**;db/migrations/pw_008_*
+PW-009,P01,불변 revision·snapshot 저장,planned,PW-008,REQ-009,"TST-009A,TST-009B",packages/domain/src/revisions/**;db/migrations/p01_revision*;tests/tasks/PW-009/**;reports/tasks/PW-009/**;db/migrations/pw_009_*
+PW-010,P01,수동 Story·Outline 승인,planned,PW-009,REQ-010,"TST-010A,TST-010B",packages/domain/src/outlines/**;apps/web/src/features/outline/**;db/migrations/p01_outline*;tests/tasks/PW-010/**;reports/tasks/PW-010/**;db/migrations/pw_010_*
+PW-011,P01,Claim·Fact·Evidence 최소 모델,planned,PW-010,REQ-011,"TST-011A,TST-011B",packages/domain/src/evidence/**;db/migrations/p01_evidence*;tests/tasks/PW-011/**;reports/tasks/PW-011/**;db/migrations/pw_011_*
+PW-012,P01,Shared editor schema·계약,planned,PW-011,REQ-012,"TST-012A,TST-012B",packages/editor-core/**;packages/contracts/**;tests/tasks/PW-012/**;reports/tasks/PW-012/**;db/migrations/pw_012_*
+PW-013,P01,DB job·outbox·audit 기반,planned,PW-012,REQ-013,"TST-013A,TST-013B",packages/domain/src/jobs/**;apps/worker/src/queue/**;db/migrations/p01_jobs*;tests/tasks/PW-013/**;reports/tasks/PW-013/**;db/migrations/pw_013_*
+PW-014,P01,수동 논문 수직경로 검증,planned,PW-013,REQ-014,"TST-014A,TST-014B",apps/web/src/features/paper/**;tests/e2e/manual-paper/**;tests/tasks/PW-014/**;reports/tasks/PW-014/**;db/migrations/pw_014_*
+PW-015,P02,에디터·자동저장·IME,planned,PW-014,REQ-015,"TST-015A,TST-015B",apps/web/src/editor/**;apps/api/src/documents/**;tests/tasks/PW-015/**;reports/tasks/PW-015/**;db/migrations/pw_015_*
+PW-016,P02,Selection toolbar·Short Chat,planned,PW-015,REQ-016,"TST-016A,TST-016B",apps/web/src/features/selection-chat/**;tests/tasks/PW-016/**;reports/tasks/PW-016/**;db/migrations/pw_016_*
+PW-017,P02,Proposal·CAS·원자 적용,planned,PW-016,REQ-017,"TST-017A,TST-017B",packages/domain/src/proposals/**;apps/api/src/proposals/**;apps/web/src/features/diff/**;tests/tasks/PW-017/**;reports/tasks/PW-017/**;db/migrations/pw_017_*
+PW-018,P02,Highlight·Comment anchor,planned,PW-017,REQ-018,"TST-018A,TST-018B",packages/domain/src/comments/**;apps/web/src/features/comments/**;tests/tasks/PW-018/**;reports/tasks/PW-018/**;db/migrations/pw_018_*
+PW-019,P02,Citation·Figure crossref node,planned,PW-018,REQ-019,"TST-019A,TST-019B",packages/editor-core/src/references/**;apps/web/src/features/references/**;tests/tasks/PW-019/**;reports/tasks/PW-019/**;db/migrations/pw_019_*
+PW-020,P02,Mock AI·스트리밍 UI,planned,PW-019,REQ-020,"TST-020A,TST-020B",packages/providers/src/mock/**;apps/api/src/events/**;apps/web/src/features/chat/**;tests/tasks/PW-020/**;reports/tasks/PW-020/**;db/migrations/pw_020_*
+PW-021,P02,Version compare·Undo·기본 import,planned,PW-020,REQ-021,"TST-021A,TST-021B",apps/web/src/features/versions/**;packages/domain/src/imports/text/**;tests/tasks/PW-021/**;reports/tasks/PW-021/**;db/migrations/pw_021_*
+PW-022,P02,선택편집 브라우저 gate,planned,PW-021,REQ-022,"TST-022A,TST-022B",tests/e2e/editor/**;tests/tasks/PW-022/**;reports/tasks/PW-022/**;db/migrations/pw_022_*
+PW-023,P03,Provider registry·이벤트 정규화,planned,PW-022,REQ-023,"TST-023A,TST-023B",packages/providers/src/core/**;packages/contracts/src/provider/**;tests/tasks/PW-023/**;reports/tasks/PW-023/**;db/migrations/pw_023_*
+PW-024,P03,Claude Agent adapter,planned,PW-023,REQ-024,"TST-024A,TST-024B",packages/providers/src/claude/**;tests/tasks/PW-024/**;reports/tasks/PW-024/**;db/migrations/pw_024_*
+PW-025,P03,Codex App Server adapter,planned,PW-024,REQ-025,"TST-025A,TST-025B",packages/providers/src/codex/**;tests/tasks/PW-025/**;reports/tasks/PW-025/**;db/migrations/pw_025_*
+PW-026,P03,Isolated runner·입출력 mount,planned,PW-025,REQ-026,"TST-026A,TST-026B",apps/worker/src/runner/**;infra/sandbox/**;tests/tasks/PW-026/**;reports/tasks/PW-026/**;db/migrations/pw_026_*
+PW-027,P03,Typed tool gateway·scope,planned,PW-026,REQ-027,"TST-027A,TST-027B",apps/api/src/agent-tools/**;packages/domain/src/tool-policy/**;tests/tasks/PW-027/**;reports/tasks/PW-027/**;db/migrations/pw_027_*
+PW-028,P03,Interrupt·취소·재연결,planned,PW-027,REQ-028,"TST-028A,TST-028B",apps/worker/src/lifecycle/**;apps/web/src/features/runs/**;tests/tasks/PW-028/**;reports/tasks/PW-028/**;db/migrations/pw_028_*
+PW-029,P03,Usage·quota 관측 기본,planned,PW-028,REQ-029,"TST-029A,TST-029B",packages/domain/src/usage/**;apps/web/src/features/usage/**;tests/tasks/PW-029/**;reports/tasks/PW-029/**;db/migrations/pw_029_*
+PW-030,P03,실제 provider 통합 gate,planned,PW-029,REQ-030,"TST-030A,TST-030B",tests/integration/providers/**;reports/p03/**;tests/tasks/PW-030/**;reports/tasks/PW-030/**;db/migrations/pw_030_*
+PW-031,P04,서지 검색 adapter,planned,PW-030,REQ-031,"TST-031A,TST-031B",packages/search/src/bibliographic/**;tests/tasks/PW-031/**;reports/tasks/PW-031/**;db/migrations/pw_031_*
+PW-032,P04,서지 정규화·출판본 관계,planned,PW-031,REQ-032,"TST-032A,TST-032B",packages/domain/src/literature/**;tests/tasks/PW-032/**;reports/tasks/PW-032/**;db/migrations/pw_032_*
+PW-033,P04,AI 문헌 후보 선정,planned,PW-032,REQ-033,"TST-033A,TST-033B",apps/worker/src/curation/**;apps/web/src/features/curation/**;tests/tasks/PW-033/**;reports/tasks/PW-033/**;db/migrations/pw_033_*
+PW-034,P04,원문 권리·안전한 업로드,planned,PW-033,REQ-034,"TST-034A,TST-034B",apps/api/src/assets/**;packages/domain/src/asset-policy/**;tests/tasks/PW-034/**;reports/tasks/PW-034/**;db/migrations/pw_034_*
+PW-035,P04,PDF parsing·highlight locator,planned,PW-034,REQ-035,"TST-035A,TST-035B",apps/worker/src/pdf/**;apps/web/src/features/pdf/**;tests/tasks/PW-035/**;reports/tasks/PW-035/**;db/migrations/pw_035_*
+PW-036,P04,Figure/Table/Fact 출처 연결,planned,PW-035,REQ-036,"TST-036A,TST-036B",packages/domain/src/figures/**;apps/web/src/features/evidence/**;tests/tasks/PW-036/**;reports/tasks/PW-036/**;db/migrations/pw_036_*
+PW-037,P04,필요한 근거만 retrieval,planned,PW-036,REQ-037,"TST-037A,TST-037B",packages/search/src/retrieval/**;tests/tasks/PW-037/**;reports/tasks/PW-037/**;db/migrations/pw_037_*
+PW-038,P04,문헌 이식성·읽기 연동 gate,planned,PW-037,REQ-038,"TST-038A,TST-038B",packages/domain/src/imports/references/**;packages/search/src/zotero/**;tests/tasks/PW-038/**;reports/tasks/PW-038/**;db/migrations/pw_038_*
+PW-039,P05,Story 대안·주장 범위 AI,planned,PW-038,REQ-039,"TST-039A,TST-039B",apps/worker/src/story/**;apps/web/src/features/story-ai/**;tests/tasks/PW-039/**;reports/tasks/PW-039/**;db/migrations/pw_039_*
+PW-040,P05,Detailed outline·영향 추적,planned,PW-039,REQ-040,"TST-040A,TST-040B",packages/domain/src/outline-impact/**;apps/web/src/features/outline-impact/**;tests/tasks/PW-040/**;reports/tasks/PW-040/**;db/migrations/pw_040_*
+PW-041,P05,WritingProfile 생성·승인,planned,PW-040,REQ-041,"TST-041A,TST-041B",apps/worker/src/writing-profile/**;packages/domain/src/writing-profile/**;tests/tasks/PW-041/**;reports/tasks/PW-041/**;db/migrations/pw_041_*
+PW-042,P05,ParagraphContract·Writer,planned,PW-041,REQ-042,"TST-042A,TST-042B",apps/worker/src/writer/**;packages/contracts/src/writing/**;tests/tasks/PW-042/**;reports/tasks/PW-042/**;db/migrations/pw_042_*
+PW-043,P05,Deterministic scientific gate,planned,PW-042,REQ-043,"TST-043A,TST-043B",packages/domain/src/scientific-checks/**;tests/tasks/PW-043/**;reports/tasks/PW-043/**;db/migrations/pw_043_*
+PW-044,P05,문체·과학 검토와 human review,planned,PW-043,REQ-044,"TST-044A,TST-044B",apps/worker/src/reviewer/**;apps/web/src/features/scientific-review/**;tests/tasks/PW-044/**;reports/tasks/PW-044/**;db/migrations/pw_044_*
+PW-045,P05,과학적 부정 fixture·rubric gate,planned,PW-044,REQ-045,"TST-045A,TST-045B",evals/**;tests/scientific/**;tests/tasks/PW-045/**;reports/tasks/PW-045/**;db/migrations/pw_045_*
+PW-046,P05,개요→집필 연구자 workflow,planned,PW-045,REQ-046,"TST-046A,TST-046B",tests/e2e/scientific-workflow/**;reports/p05/**;tests/tasks/PW-046/**;reports/tasks/PW-046/**;db/migrations/pw_046_*
+PW-047,P06,Checkpoint·영구기억 재수화,planned,PW-046,REQ-047,"TST-047A,TST-047B",apps/worker/src/checkpoints/**;packages/domain/src/checkpoints/**;tests/tasks/PW-047/**;reports/tasks/PW-047/**;db/migrations/pw_047_*
+PW-048,P06,Context budget·compact 전환,planned,PW-047,REQ-048,"TST-048A,TST-048B",apps/worker/src/context/**;tests/tasks/PW-048/**;reports/tasks/PW-048/**;db/migrations/pw_048_*
+PW-049,P06,Quota 대기·리셋 재검증,planned,PW-048,REQ-049,"TST-049A,TST-049B",apps/worker/src/quota-scheduler/**;tests/tasks/PW-049/**;reports/tasks/PW-049/**;db/migrations/pw_049_*
+PW-050,P06,비용 예약·budget guard,planned,PW-049,REQ-050,"TST-050A,TST-050B",packages/domain/src/budget/**;apps/worker/src/admission/**;tests/tasks/PW-050/**;reports/tasks/PW-050/**;db/migrations/pw_050_*
+PW-051,P06,Lease fencing·경합·outbox 복구,planned,PW-050,REQ-051,"TST-051A,TST-051B",apps/worker/src/recovery/**;packages/domain/src/leases/**;tests/tasks/PW-051/**;reports/tasks/PW-051/**;db/migrations/pw_051_*
+PW-052,P06,오류 분류·bounded retry,planned,PW-051,REQ-052,"TST-052A,TST-052B",apps/worker/src/errors/**;packages/providers/src/error-normalization/**;tests/tasks/PW-052/**;reports/tasks/PW-052/**;db/migrations/pw_052_*
+PW-053,P06,Crash·disk full·stale 재개 시험,planned,PW-052,REQ-053,"TST-053A,TST-053B",tests/faults/**;tests/tasks/PW-053/**;reports/tasks/PW-053/**;db/migrations/pw_053_*
+PW-054,P06,Run 상태 UI·운영 reliability gate,planned,PW-053,REQ-054,"TST-054A,TST-054B",apps/web/src/features/run-control/**;reports/p06/**;tests/tasks/PW-054/**;reports/tasks/PW-054/**;db/migrations/pw_054_*
+PW-055,P07,DOCX import와 손실 보고,planned,PW-054,REQ-055,"TST-055A,TST-055B",packages/domain/src/imports/docx/**;apps/web/src/features/import/**;tests/tasks/PW-055/**;reports/tasks/PW-055/**;db/migrations/pw_055_*
+PW-056,P07,DOCX·CSL export,planned,PW-055,REQ-056,"TST-056A,TST-056B",packages/exports/src/docx/**;tests/export/docx/**;tests/tasks/PW-056/**;reports/tasks/PW-056/**;db/migrations/pw_056_*
+PW-057,P07,PDF·재현 source archive,planned,PW-056,REQ-057,"TST-057A,TST-057B",packages/exports/src/pdf/**;packages/exports/src/archive/**;tests/tasks/PW-057/**;reports/tasks/PW-057/**;db/migrations/pw_057_*
+PW-058,P07,Reviewer·제출판 freeze,planned,PW-057,REQ-058,"TST-058A,TST-058B",packages/domain/src/submissions/**;apps/web/src/features/submission/**;tests/tasks/PW-058/**;reports/tasks/PW-058/**;db/migrations/pw_058_*
+PW-059,P07,Security release audit,planned,PW-058,REQ-059,"TST-059A,TST-059B",tests/security/**;reports/security/**;tests/tasks/PW-059/**;reports/tasks/PW-059/**;db/migrations/pw_059_*
+PW-060,P07,Backup·restore·migration drill,planned,PW-059,REQ-060,"TST-060A,TST-060B",infra/backup/**;tests/restore/**;tests/tasks/PW-060/**;reports/tasks/PW-060/**;db/migrations/pw_060_*
+PW-061,P07,배포·storage·upgrade runbook,planned,PW-060,REQ-061,"TST-061A,TST-061B",infra/deploy/**;docs/runbooks/**;tests/tasks/PW-061/**;reports/tasks/PW-061/**;db/migrations/pw_061_*
+PW-062,P07,v1 최종 pilot·추적성 gate,planned,PW-061,REQ-062,"TST-062A,TST-062B",reports/release/**;PROGRESS.md;tests/tasks/PW-062/**;reports/tasks/PW-062/**;db/migrations/pw_062_*

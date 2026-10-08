@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:paper-workspace:checkpoint:v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "job_id",
+    "paper_id",
+    "intent",
+    "source_versions",
+    "completed_action_ids",
+    "pending_step",
+    "provider_binding",
+    "state",
+    "created_at",
+    "summary_note"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "paper_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "intent": {
+      "enum": [
+        "draft_paragraph",
+        "edit_selection",
+        "review",
+        "curate_references"
+      ]
+    },
+    "source_versions": {
+      "type": "object",
+      "required": [
+        "story",
+        "outline",
+        "document",
+        "profile"
+      ],
+      "properties": {
+        "story": {
+          "type": "object",
+          "required": [
+            "revision_id",
+            "sha256"
+          ],
+          "properties": {
+            "revision_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "outline": {
+          "type": "object",
+          "required": [
+            "revision_id",
+            "sha256"
+          ],
+          "properties": {
+            "revision_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "document": {
+          "type": "object",
+          "required": [
+            "revision_id",
+            "sha256"
+          ],
+          "properties": {
+            "revision_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "profile": {
+          "type": "object",
+          "required": [
+            "revision_id",
+            "sha256"
+          ],
+          "properties": {
+            "revision_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "completed_action_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "uniqueItems": true
+    },
+    "pending_step": {
+      "type": "string"
+    },
+    "provider_binding": {
+      "type": "object",
+      "required": [
+        "provider",
+        "native_session_id",
+        "capability_snapshot_id"
+      ],
+      "properties": {
+        "provider": {
+          "enum": [
+            "mock",
+            "claude_agent",
+            "codex"
+          ]
+        },
+        "native_session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capability_snapshot_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "enum": [
+        "READY",
+        "WAITING_QUOTA",
+        "WAITING_AUTH",
+        "WAITING_BUDGET",
+        "WAITING_USER",
+        "CANCELED"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "summary_note": {
+      "type": "string",
+      "description": "Untrusted convenience note. Never an approval or authoritative fact."
+    }
+  },
+  "additionalProperties": false
+}

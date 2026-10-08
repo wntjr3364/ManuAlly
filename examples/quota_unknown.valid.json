@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "provider": "claude_agent",
+  "auth_mode": "unknown",
+  "observed_at": "2026-10-08T00:00:00Z",
+  "source": "unavailable",
+  "confidence": "unknown",
+  "buckets": [],
+  "unknown_reason": "No supported quota surface verified for this execution mode."
+}

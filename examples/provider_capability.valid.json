@@ -1,0 +1,16 @@
+{
+  "provider": "codex",
+  "version": "P00_NOT_YET_PINNED",
+  "auth_mode": "not_configured",
+  "deployment_profile": "PRIVATE_SELF_HOSTED",
+  "admission": "requires_verification",
+  "features": {
+    "explicit_resume": "documented_not_verified",
+    "structured_tools": "documented_not_verified",
+    "interrupt": "documented_not_verified",
+    "manual_compact": "documented_not_verified",
+    "context_usage": "documented_not_verified",
+    "quota_read": "documented_not_verified",
+    "reset_at": "documented_not_verified"
+  }
+}

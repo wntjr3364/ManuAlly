@@ -1,0 +1,29 @@
+{
+  "examples": [
+    {
+      "file": "examples/edit_proposal.valid.json",
+      "schema": "contracts/edit_proposal.schema.json",
+      "valid": true
+    },
+    {
+      "file": "examples/checkpoint.valid.json",
+      "schema": "contracts/checkpoint.schema.json",
+      "valid": true
+    },
+    {
+      "file": "examples/quota_unknown.valid.json",
+      "schema": "contracts/quota_snapshot.schema.json",
+      "valid": true
+    },
+    {
+      "file": "examples/provider_capability.valid.json",
+      "schema": "contracts/provider_capability.schema.json",
+      "valid": true
+    },
+    {
+      "file": "examples/edit_proposal.invalid.json",
+      "schema": "contracts/edit_proposal.schema.json",
+      "valid": false
+    }
+  ]
+}

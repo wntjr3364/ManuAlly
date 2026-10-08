@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:paper-workspace:quota-snapshot:v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "provider",
+    "auth_mode",
+    "observed_at",
+    "source",
+    "confidence",
+    "buckets",
+    "unknown_reason"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "provider": {
+      "enum": [
+        "mock",
+        "claude_agent",
+        "codex"
+      ]
+    },
+    "auth_mode": {
+      "enum": [
+        "api_key",
+        "approved_local_subscription",
+        "approved_hosted_identity",
+        "unknown"
+      ]
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "enum": [
+        "official_adapter_event",
+        "official_quota_read",
+        "estimate",
+        "unavailable"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "provider_reported",
+        "estimated",
+        "unknown"
+      ]
+    },
+    "unknown_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "buckets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "used_percent",
+          "reset_at",
+          "blocked"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "used_percent": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "blocked": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

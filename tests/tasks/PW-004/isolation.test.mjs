@@ -68,7 +68,11 @@ function setup(t) {
     SSH_AUTH_SOCK: '/tmp/ssh-agent.sock',
     DATABASE_URL: 'postgres://prod',
   };
-  return { root, runsRoot: path.join(root, 'runs'), devHome, research, authProfile, parentEnv };
+  // the fake CLI must be readable by the runtime user wherever the repo is checked out
+  const fakeCli = path.join(root, 'fake-cli.mjs');
+  fs.copyFileSync(FAKE_CLI, fakeCli);
+  fs.chmodSync(fakeCli, 0o644);
+  return { root, runsRoot: path.join(root, 'runs'), devHome, research, authProfile, parentEnv, fakeCli };
 }
 
 // An admission issued by decideModelCall, as the server would produce once a provider is admitted.
@@ -89,7 +93,7 @@ function runFake(ctx, { sessionId, resumeSessionId, mode = 'normal' }) {
   const run = prepareRun({ runsRoot: ctx.runsRoot, runId: randomUUID(), inputs: [{ sourceRoot: ctx.research, relPath: 'results.tsv' }], owner: RUNTIME_OWNER });
   const env = { ...buildChildEnv({ provider: 'claude_agent', authProfileDir: ctx.authProfile, run, parentEnv: ctx.parentEnv, homes: [ctx.devHome], owner: RUNTIME_OWNER }), FAKE_MODE: mode };
   const args = buildClaudeArgs({ sessionId, resumeSessionId, mcpConfigPath: path.join(run.dir, 'mcp.json') });
-  const handle = startProviderRun({ admission: issuedAdmission(), provider: 'claude_agent', cmd: process.execPath, cmdPrefix: [FAKE_CLI], args, env, run, owner: RUNTIME_OWNER });
+  const handle = startProviderRun({ admission: issuedAdmission(), provider: 'claude_agent', cmd: process.execPath, cmdPrefix: [ctx.fakeCli], args, env, run, owner: RUNTIME_OWNER });
   return { run, args, handle };
 }
 const record = (run) => JSON.parse(fs.readFileSync(path.join(run.cwd, 'fake-cli-record.json'), 'utf8'));

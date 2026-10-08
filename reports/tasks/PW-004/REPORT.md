@@ -100,3 +100,12 @@ PW-005 집필 품질 baseline fixture.
 - 이 경우 sentinel은 실패 시 거부(fail-closed)로 동작했다.
 
 테스트: 12/12 (`green.log`).
+
+## 2차 리뷰 후속 (5de9421)
+- **N1 (major)**: `startProviderRun`이 `-p`/`app-server` 뒤쪽만 검사하던 문제를 고쳤다. 이제 전체 argv를 검증하고, 테스트용 인터프리터 경로는 `cmdPrefix`로 분리해 따로 검증한다(절대 경로 파일만, 플래그 금지).
+- **N2**: `--mcp-config`는 run 폴더 안 경로만 허용한다.
+- **위조 가능한 admission**: `decideModelCall`이 만든 frozen 결정만 받는다(WeakSet 발급 확인). sentinel은 같은 host·24시간 이내여야 한다. 이 확인은 프로세스 안에서의 실수 방지이며, 제품의 권한 근거는 서버 DB 기록이다.
+- **재사용된 pgid**: `groupStillOurs` 규칙을 쓴다. Linux는 프로세스 그룹 id로 쓰이는 PID를 재할당하지 않는다. 같은 번호를 리더로 쓰는 다른 프로세스가 있거나 /proc를 읽을 수 없으면 아무것도 kill하지 않는다. 리더 종료 뒤에는 그룹 signal을 보내지 않는다.
+- **실행 직전 재검사**: 상위 폴더의 agent-config 파일을 다시 확인한다.
+- **사용자 결정 반영**: 본인 Linux 계정 실행(RFC-004 개정). 테스트의 nobody 실행은 "root가 아닌 실행 사용자"를 흉내 내는 용도로 유지한다.
+- 테스트: 15/15.

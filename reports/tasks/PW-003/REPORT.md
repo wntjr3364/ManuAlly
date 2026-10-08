@@ -79,3 +79,9 @@ PW-004 실행 세션·권한 격리 spike.
 - base_revision_id / idempotency key의 DB 저장은 PW-017 범위다.
 
 테스트: 14/14 (`green.log`). 증거 재생성: `node spikes/editor-export/run-spike.mjs reports/tasks/PW-003`.
+
+## 2차 리뷰 후속 (5de9421)
+- 손실 보고서가 각 블록을 citeproc 렌더링한 원문과 **정확히 같은지** 비교한다. 인용 제거, 다른 문헌으로 교체, locator 변경, 단어 삽입을 탐지하며 테스트로 확인했다.
+- guard에 방향 동사(rose/fell 등), 철자 숫자(two-fold), 천 단위 구분(1,000=1000 허용), 길이·질량·시간 단위(µm/mm, kDa, mg/kg, days), 비교 단어(below/above)를 추가했다. "under stress" 같은 오탐을 피하려고 under/over는 제외했다.
+- `preserve_atom`의 잘못된 index는 `INVALID_REPLACEMENT`로 거부한다.
+- 남은 우회 목록은 RFC-003에 있다. 테스트: 17/17.

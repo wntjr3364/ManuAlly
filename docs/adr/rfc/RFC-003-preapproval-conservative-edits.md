@@ -14,6 +14,13 @@ Alternatives considered:
 Security/privacy/budget/provider terms impact: 외부 전송 정책은 동일하게 적용한다.
 Data migration / backward compatibility: 없음.
 Tests and acceptance criteria: 승인 전 conservative 교정은 proposal 생성, 승인 전 rewrite/new paragraph는 서버가 거부, 숫자·인용 변경 시 거부.
+
+Known guard bypasses (P00 2차 리뷰, 휴리스틱으로 못 잡는 것 — PW-043/044 회귀 사례로 이관):
+- 값은 그대로 두고 그룹 라벨만 교환("Control 1.2 / treated 3.4" → "Treated 1.2 / control 3.4"), 비교 주어 교환("WT higher than mutant" → "mutant higher than WT")
+- 부정 위치 이동("not A but B" → "A but not B"), 함축 부정("altered" → "failed to alter"는 탐지, "significant" → "insignificant"는 미탐지)
+- 주장 강도 변화("suggest" → "prove", "may contribute" → "is required")
+- 목록에 없는 단위·방향 표현, 영어 외 언어
+- 과잉 거부: 일부 무해한 변경(예: 방향어 목록 밖 동의어)이 거부될 수 있음
 Write scope: PW-016, PW-017 테스트에 추가.
 User decision / reviewer:
 - 처음에는 사용자 위임으로 accepted 처리했다.

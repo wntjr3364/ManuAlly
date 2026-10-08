@@ -7,10 +7,14 @@
 
 ## 0. 요약
 - 핵심 위험 4개(인증, 선택영역·인용·수식 보존, 격리, 출력)를 spike로 확인했다.
-- 독립 리뷰가 major 9건을 찾았고, spike 수준에서 수정한 뒤 재검토를 받았다(P00_REVIEW 참조).
+- 독립 리뷰가 major 9건을 찾았다. 수정 후 재검토에서 새 major 1건(N1)이 나왔고, 이것도 수정했다(P00_REVIEW 참조).
+  - 완전 해결: M1, M4, M8, N1, N2
+  - Codex 비활성으로 처리: M7
+  - 부분 해결(휴리스틱, 알려진 한계 기록): M2, M3, M5, M6, M9
+- 사용자 결정(2026-10-08 추가): Linux에서 **본인 계정**으로 실행, 논문 자료는 AI 사용을 위해 전송 허용.
 - **P01(정본·승인·수동 workflow)은 Mock provider만으로 시작할 수 있다.**
 - 실제 provider 사용은 아래 5장의 조건을 만족한 사용자 머신에서만 가능하다.
-- 측정 환경은 개발용 클라우드 컨테이너다(Linux x86_64, 4 CPU, 15 GB RAM, **테스트는 root로 실행**). 사용자 PC와 연구실 서버에서는 아직 측정하지 않았다.
+- 측정 환경은 개발용 클라우드 컨테이너다(Linux x86_64, 4 CPU, 15 GB RAM). 테스트 프로세스는 root이고, 가짜 provider는 uid 65534로 실행했다. 사용자 PC와 연구실 서버(모두 Linux)에서는 아직 측정하지 않았다.
 
 ## 1. Compatibility matrix
 상태 값:
@@ -29,7 +33,7 @@
 | context/usage | measured¹ (result.usage, total_cost_usd 추정치) | documented (`thread/tokenUsage/updated`) |
 | quota/reset | unknown (`rate_limit_event` 존재만 확인) | documented (`account/rateLimits/read`: usedPercent, resetsAt) |
 | built-in 도구 | measured¹: `--tools ""` → init.tools=[]. `--restricted` 추가는 documented(help) | **shell 차단 불완전**: `shell_tool` 등 15개 feature는 끌 수 있음(measured), **`unified_exec`는 끌 수 없음(measured)**, `approval_policy="untrusted"`는 시작 시 거부(measured) → sandbox 안 읽기 전용 명령은 승인 없이 실행 가능 |
-| 설정 표면 | hooks/CLAUDE.md 자동 로드 위험 → `--restricted` + 상위 폴더 agent-config 금지(spike-tested). managed settings는 여전히 적용 | MCP config는 documented |
+| 설정 표면 | hooks/CLAUDE.md 자동 로드 위험 → `--restricted`(documented, live 미실행) + 상위 폴더 agent-config 금지(준비 시와 실행 직전, spike-tested). managed settings는 여전히 적용(preflight가 존재 기록) | MCP config는 documented |
 | **빈 profile auth 격리** | **measured: leak** (이 컨테이너는 호스트 수준 자격증명을 공급) | **measured: isolated** |
 | 자격증명 위험 표면 | `ANTHROPIC_API_KEY`가 있으면 구독 대신 사용; OS keychain | 리셋 크레딧 소비·shell·fs 메서드 → RPC deny(spike-tested) |
 | admission | requires_verification | requires_verification, **바깥 filesystem sandbox 검증 전 비활성** |
@@ -39,8 +43,8 @@
 | 문서/출력 | 상태 (pandoc 3.1.3, API 1.23.1) |
 |---|---|
 | 선택 위치 계약 | spike-tested: UTF-16+atom=1, grapheme 분할 거부, handle에 범위 고정, 1회만 적용, STALE |
-| AI 보수적 guard | spike-tested **휴리스틱**: 수치 순서·비교기호·단위·부정어·방향어·서식·인용 locator·위치 검사. 영어 중심이며 의미 판단은 PW-043/044 |
-| DOCX 본문 보존 | measured(이 fixture 1개): 블록별 텍스트 순서, 한글·emoji·그리스문자·결합문자, italic/sub/sup, 표, OMML 수식, citeproc 인용·참고문헌 |
+| AI 보수적 guard | spike-tested **휴리스틱**: 수치 순서·비교기호(기호·단어)·단위·철자 숫자·부정어·방향어·서식·인용 locator·위치 검사. 영어 중심. **알려진 우회**: 그룹 라벨만 바꾸기, 주어 교체, 함축 부정, 주장 강도(suggest→prove) → 의미 판단은 PW-043/044 |
+| DOCX 본문 보존 | measured(이 fixture 1개): 블록마다 citeproc 렌더링한 원문과 **정확히 같은지** 비교(인용 제거·교체·locator 변경·단어 삽입을 탐지), 한글·emoji·그리스문자·결합문자, italic/sub/sup, 표, OMML 수식, 참고문헌. 수식 내용 자체는 텍스트 비교에서 제외(OMML 존재만 확인) |
 | DOCX 손실 | measured: Word/Zotero 인용 field 없음, block id 없음, figure_ref는 번호 없이 "Figure", comment·track changes 미지원 |
 | PDF 출력 / DOCX import | not_run (PW-055, PW-057) |
 
@@ -60,7 +64,7 @@
 | ADR-011 | draft export ≠ submission snapshot | 변경 없음 | accept |
 | ADR-012 | local/private 배포, multi-user 제외 | S01 문구로 더 강해짐 | accept |
 | **ADR-013 (신규)** | 두 provider 모두 같은 **MCP paper tool gateway**를 사용하고, provider 고유 shell/file 도구는 쓰지 않는다 | Claude: `--tools ""` + `--restricted` + MCP. **Codex: unified_exec를 끌 수 없어 바깥 sandbox 필수** | 승인 요청 |
-| **ADR-014 (신규)** | 런타임은 **전용 non-root OS 사용자** + auth sentinel 통과 시에만 실행. `startProviderRun`이 admission 결정 없이는 실행을 거부 | PW-004 leak 실측, spike에서 nobody 사용자로 실행 테스트 | 승인 요청 (RFC-004) |
+| **ADR-014 (신규)** | 런타임은 **본인 Linux 계정(non-root)** 에서 분리된 CLI profile로 실행. 해당 호스트에서 24시간 안에 측정한 auth sentinel이 isolated일 때만 admission. `startProviderRun`은 `decideModelCall`이 발급한 결정만 받고 전체 argv를 검증. Codex는 bubblewrap 안에서만 실행 | PW-004 leak 실측, 사용자 결정(본인 계정), spike 테스트(발급되지 않은 결정·앞에 끼운 플래그·실행 폴더 밖 mcp-config 거부) | 승인 요청 (RFC-004). 참고: 프로세스 내 발급 확인은 실수 방지용이며, 제품에서는 서버 DB 기록이 권한 근거(PW-023/030) |
 | **ADR-015 (신규)** | AI effort를 작업 종류별로 지정, 프로젝트 설정에서 변경 가능. 기본: 문법·간결화=low, 짧은 채팅·학술 재작성=medium, Story/Outline·과학 검토=high | Claude `--effort low…max` 확인(help). Codex 대응은 P03 | 승인 요청 |
 
 ## 3. RFC
@@ -69,7 +73,7 @@
 | RFC-001 | 런타임 = 사용자 본인 로그인의 Claude Code CLI / Codex CLI (API 키 아님), PC·서버 둘 다 | accepted (사용자 결정) |
 | RFC-002 | Claude CLI 최소 adapter를 P02(PW-020)로 앞당김 | accepted (위임). 단 **RFC-004 승인과 사용자 머신 sentinel isolated가 선행 조건** |
 | RFC-003 | 개요 승인 전 사용자 문장의 보수적 교정 허용, 새 생성·재작성은 차단 | **proposed** (리뷰 M2로 위임 승인 철회. guard는 강화했지만 휴리스틱이라 사용자 확인 필요) |
-| RFC-004 | 전용 OS 사용자 필수, auth sentinel, reaping init, Codex 바깥 sandbox, bubblewrap | proposed |
+| RFC-004 | 본인 Linux 계정 + 분리 profile + auth sentinel, reaping init, Codex bubblewrap, 자료 전송 기본 허용 | proposed (사용자 결정 반영) |
 | RFC-005 | edit_proposal v2: selection handle 참조(범위 미포함), proposal_id, slice hash, preserve_atom | proposed (spike 구현됨) |
 
 ## 4. Version pin 후보와 License
@@ -108,7 +112,7 @@
 2. PW-012(editor-core)는 PW-003 spike의 handle 고정·1회 적용·guard·블록별 손실 검사를 계약으로 옮긴다. 실제 원고에 쓰기 전 브라우저 selection으로 재검증한다(PW-015/022).
 3. 실제 provider 연결(RFC-002의 PW-020 최소 adapter 포함)은 아래 조건을 모두 만족한 머신에서만 활성화한다.
    - RFC-004 승인
-   - 사용자 머신의 sentinel이 isolated
+   - 그 머신에서 분리 profile로 로그인한 뒤, sentinel을 실행해 isolated 확인(24시간 유효)
    - 해당 provider의 live smoke 통과
 4. **Codex**는 바깥 filesystem sandbox(실행 폴더만 보이는 bubblewrap/컨테이너/VM)가 검증될 때까지 admission하지 않는다.
 5. writing baseline(PW-005)은 결정적 오류(수치·인용 깊이·그룹·null 결과·인과 표현)만 판정한다. 문체(장문·보고서식)는 사람/모델 검토 대상이며 점수화에 쓰기 전 PW-044/045 rubric이 필요하다.
@@ -121,17 +125,18 @@ No-go가 되는 경우:
 진행 방식 기록:
 - 사용자가 2026-10-08 "니가 적절하게 정해라"로 판단을 위임했다. 이에 따라 P00 6개 Task를 연속 진행하고, 독립 리뷰는 phase 끝에 한 번 받았다.
 - 계획서는 Task마다 리뷰를 받도록 되어 있다. P01부터는 Task 단위로 리뷰를 받는 것을 기본으로 제안한다.
+- 독립 리뷰는 두 번 받았다(1차 → 수정 → 2차). 2차가 지적한 새 결함(N1, N2)과 부정확한 문장 3개도 수정했다. 다만 그 수정에 대한 3차 리뷰는 받지 않았다.
 
 ## 6. 사용자 승인·확인 항목
-1. **실행 머신**:
-   - 개인 PC의 OS(macOS / Windows / Linux). Windows는 WSL2 사용 권장.
-   - 연구실 서버의 OS와 관리자 권한(전용 사용자 생성 가능 여부).
-2. **전용 런타임 사용자**: 각 머신에 런타임 전용 OS 사용자를 만들고, 그 사용자로 `claude` 로그인과 `codex login`을 하는 데 동의하는지 (RFC-004).
+확정된 것(2026-10-08): 실행 OS는 Linux, 본인 계정으로 실행, 논문 자료는 선택한 provider로 전송 허용(민감 자료 차단 스위치는 유지).
+
+1. **분리 로그인 동의**: 본인 계정 안의 플랫폼 전용 폴더(`CLAUDE_CONFIG_DIR`, `CODEX_HOME`)에서 `claude`와 `codex login`을 한 번씩 다시 로그인하는 데 동의하는지. 같은 구독 계정이어도 된다(RFC-004).
+2. **연구실 서버 sudo 여부**: runs/data 폴더를 홈 밖(`/srv/paper-workspace` 등)에 한 번 만들 수 있는지. 안 되면 PW-026에서 대안을 정한다.
 3. **사용자 머신에서 실행할 확인**(모델 호출 없음):
    - `node spikes/preflight/preflight.mjs --data-root <경로> --protect <연구폴더>`
-   - `node spikes/isolation/tools/auth-sentinel.mjs <runsRoot>` (런타임 사용자로 실행)
+   - `node spikes/isolation/tools/auth-sentinel.mjs <runsRoot>` (분리 로그인 전·후 각 1회)
 4. **data root / 백업 위치**: 운영 데이터 경로와 오프호스트 백업 대상.
-5. **외부 전송 정책**: 미공개 연구자료 중 Claude/Codex로 보내도 되는 범위.
+5. **민감 자료 범위**: 전송 차단 스위치를 켜야 할 자료가 있는지(예: 개인식별·인체 유래 데이터).
 6. **승인 요청**:
    - RFC-003, RFC-004, RFC-005와 ADR-013~015
    - RFC-002는 위임 결정으로 accepted 처리했으며, 이견이 있으면 알려주세요.

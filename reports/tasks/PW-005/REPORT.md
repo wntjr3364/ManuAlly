@@ -49,3 +49,9 @@ Mutation check(`mutation-check.log`): 실패 사례 10개를 ALLOW로 바꿨을 
 - B-VERB-02(장문)와 B-REP-01(보고서식)은 문체 판단이라 결정적 검사로 잡지 않는다. 점수화 전 PW-044/045 rubric이 필요하다(gate 조건 5).
 
 테스트: 12/12 (`green.log`).
+
+## 2차 리뷰 후속 (5de9421)
+- 그룹 별칭(OE/WT)을 추가했다. 방향어를 확장했다(fell, less often 등). null 결과를 추세로 포장하는 표현(tended to, trend, marginally)을 금지했다. 인과 동사(essential for, confers, directly regulates 등)도 금지했다.
+- 본문의 p·n 값이 선언된 사실의 값과 같아야 한다. 이전에는 사실 안의 아무 숫자(count, note)나 통과됐다.
+- 과학적 근거로 인용하는 문헌은 use_role이 `scientific` 또는 `both`여야 한다.
+- 2차 리뷰의 우회 9개를 모두 테스트로 거부 확인했다. 테스트: 14/14.

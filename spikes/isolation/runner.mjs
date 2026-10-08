@@ -10,9 +10,10 @@
 // - explicit session ids only; Claude flags are validated against an allowlist
 // - no built-in shell/file tools for Claude; Codex shell/browser/computer-use features are disabled
 //   (except `unified_exec`, which 0.161.0 cannot disable — see PW-004 report)
-// - a provider process starts only with an admission decision for that provider (auth sentinel)
-// - cancel signals the run's own process group; leftovers are cleaned up only if they started
-//   after the run leader (no blind kill of a recycled process-group id)
+// - a provider process starts only with an admission decision issued by decideModelCall for that
+//   provider (registry + user approval + fresh same-host auth sentinel); the full argv is validated
+// - cancel signals the run's own process group while its leader is alive; afterwards leftovers are
+//   killed only while the group id is provably still ours (see groupStillOurs)
 // What it does NOT guarantee: kernel-level isolation. A dedicated OS user plus a sandbox
 // (bubblewrap/container) is still required on the deployment host (RFC-004).
 import fs from 'node:fs';
@@ -20,7 +21,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import readline from 'node:readline';
-import { assertSafeProfileDir } from '../provider-admission/admission.mjs';
+import { assertSafeProfileDir, isIssuedAdmission } from '../provider-admission/admission.mjs';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const refuse = (msg) => { throw new Error(`refused: ${msg}`); };
@@ -158,7 +159,7 @@ const CLAUDE_REQUIRED = ['-p', '--output-format', '--tools', '--strict-mcp-confi
 
 // Allowlist: every flag must be known, carry a valid value, appear once, and the required
 // lock-down flags must all be present. Prompts go through stdin, never argv.
-export function assertSafeClaudeArgs(args) {
+export function assertSafeClaudeArgs(args, { runDir = null } = {}) {
   const seen = new Set();
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -169,6 +170,8 @@ export function assertSafeClaudeArgs(args) {
     if (check) {
       const v = args[++i];
       if (v === undefined || !check(v)) refuse(`invalid value for ${a}: ${JSON.stringify(v)}`);
+      // an MCP config can launch arbitrary stdio servers: it must be the run's own file
+      if (a === '--mcp-config' && runDir && (v.split(/[\\/]/).includes('..') || !within(path.resolve(v), runDir))) refuse(`--mcp-config ${v} is outside the run directory`);
     }
   }
   for (const r of CLAUDE_REQUIRED) if (!seen.has(r)) refuse(`required flag ${r} missing`);
@@ -240,57 +243,77 @@ export function spawnIsolated({ cmd, args, env, cwd, owner = null }) {
   const handle = { child, pgid: child.pid, spawnError: null, leaderStart: child.pid ? procStat(child.pid)?.starttime ?? null : null };
   handle.exited = new Promise((resolve) => {
     child.on('error', (err) => { handle.spawnError = err; resolve({ code: null, signal: null, error: err }); });
-    child.on('exit', (code, signal) => resolve({ code, signal }));
+    child.on('exit', (code, signal) => { handle.leaderExited = true; resolve({ code, signal }); });
   });
   return handle;
 }
 
-// The only way to start a provider: requires an admission decision (registry + user approval +
-// auth sentinel, see decideModelCall) for exactly this provider, and validated arguments.
-export function startProviderRun({ admission, provider, cmd, args, env, cwd, owner = null }) {
-  if (!admission?.allowed) refuse(`no admission for ${provider}${admission?.reason ? `: ${admission.reason}` : ''}`);
+// The only way to start a provider. Requires a decision issued by decideModelCall (registry + user
+// approval + fresh same-host auth sentinel) for exactly this provider, and validates the FULL argv.
+// cmdPrefix exists only for tests (interpreter script standing in for the CLI binary).
+export function startProviderRun({ admission, provider, cmd, cmdPrefix = [], args, env, run, owner = null }) {
+  if (!isIssuedAdmission(admission)) refuse(`admission for ${provider} was not issued by decideModelCall`);
+  if (!admission.allowed) refuse(`no admission for ${provider}: ${admission.reason}`);
   if (admission.provider !== provider) refuse(`admission is for ${admission.provider}, not ${provider}`);
-  if (provider === 'claude_agent') {
-    const i = args.indexOf('-p');
-    if (i < 0) refuse('claude runs must use -p');
-    assertSafeClaudeArgs(args.slice(i));
-  } else if (provider === 'codex') {
-    const i = args.indexOf('app-server');
-    if (i < 0 || JSON.stringify(args.slice(i)) !== JSON.stringify(buildCodexArgs({}))) refuse('codex args must be exactly buildCodexArgs()');
-  } else {
-    refuse(`unknown provider ${provider}`);
+  for (const p of cmdPrefix) {
+    if (typeof p !== 'string' || p.startsWith('-') || !path.isAbsolute(p) || !fs.statSync(p, { throwIfNoEntry: false })?.isFile()) refuse(`cmdPrefix entry ${JSON.stringify(p)} must be an absolute path to a file`);
   }
-  return spawnIsolated({ cmd, args, env, cwd, owner });
+  assertNoAgentConfigAbove(run.dir); // re-checked: an instruction file may have appeared since prepareRun
+  if (provider === 'claude_agent') assertSafeClaudeArgs(args, { runDir: run.dir });
+  else if (provider === 'codex') {
+    if (JSON.stringify(args) !== JSON.stringify(buildCodexArgs({}))) refuse('codex args must be exactly buildCodexArgs()');
+  } else refuse(`unknown provider ${provider}`);
+  return spawnIsolated({ cmd, args: [...cmdPrefix, ...args], env, cwd: run.cwd, owner });
 }
 
 const waitOrTimeout = (p, ms) => Promise.race([p.then(() => true), new Promise((r) => setTimeout(() => r(false), ms))]);
 
-// Kills processes left in the run's group after the leader exited, but only those that started
-// after the leader did, so a recycled process-group id is never hit. Linux (/proc) only.
-function killLeftovers(handle) {
-  if (handle.leaderStart === null || !fs.existsSync('/proc/self/stat')) return [];
-  const killed = [];
+function listProcs() {
+  if (!fs.existsSync('/proc/self/stat')) return null;
+  const out = [];
   for (const name of fs.readdirSync('/proc')) {
     if (!/^\d+$/.test(name)) continue;
     const st = procStat(name);
-    if (st && st.pgrp === handle.pgid && st.starttime >= handle.leaderStart && st.state !== 'Z') {
-      try { process.kill(Number(name), 'SIGKILL'); killed.push(Number(name)); } catch { /* gone */ }
+    if (st) out.push({ pid: Number(name), ...st });
+  }
+  return out;
+}
+
+// Linux never hands out a PID that is still in use as a process-group id. So while any member of
+// our group exists, the id cannot have been recycled. If a process now has pid === pgid but a
+// different start time, the group id was recycled after our group emptied: not ours any more.
+export function groupStillOurs({ pgid, leaderStart }, procs) {
+  if (leaderStart === null || procs === null) return false;
+  const leaderNow = procs.find((p) => p.pid === pgid);
+  if (leaderNow && leaderNow.starttime !== leaderStart) return false;
+  return procs.some((p) => p.pgrp === pgid && p.state !== 'Z');
+}
+
+function killLeftovers(handle) {
+  const procs = listProcs();
+  if (!groupStillOurs(handle, procs)) return [];
+  const killed = [];
+  for (const p of procs) {
+    if (p.pgrp === handle.pgid && p.starttime >= handle.leaderStart && p.state !== 'Z') {
+      try { process.kill(p.pid, 'SIGKILL'); killed.push(p.pid); } catch { /* gone */ }
     }
   }
   return killed;
 }
 
-// Signals only the run's own process group while its leader is alive (SIGINT → SIGTERM → SIGKILL).
+// Signals the run's process group only while its leader is alive (SIGINT → SIGTERM → SIGKILL);
+// leftovers after that go through groupStillOurs (Linux; elsewhere they are left to the OS user's
+// session cleanup and reported).
 export async function cancelRun(handle, { graceMs = 5000 } = {}) {
   const signals = [];
-  let exited = false;
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGKILL']) {
+    if (handle.leaderExited) break;
     try { process.kill(-handle.pgid, sig); } catch { break; }
     signals.push(sig);
-    if (await waitOrTimeout(handle.exited, graceMs)) { exited = true; break; }
+    if (await waitOrTimeout(handle.exited, graceMs)) break;
   }
-  const leftovers = killLeftovers(handle);
-  return { signals, exited: exited || (await waitOrTimeout(handle.exited, graceMs)), leftovers };
+  const exited = handle.leaderExited || (await waitOrTimeout(handle.exited, graceMs));
+  return { signals, exited, leftovers: killLeftovers(handle) };
 }
 
 // Reads newline-delimited JSON events. The session id we chose stays authoritative;
@@ -341,7 +364,7 @@ export async function checkAuthIsolation({ provider, cmd, cmdPrefix = [], run, p
   const emptyProfile = path.join(run.dir, 'sentinel-empty-profile');
   fs.mkdirSync(emptyProfile, { mode: 0o700 });
   const env = { ...buildChildEnv({ provider, authProfileDir: emptyProfile, run, parentEnv, homes }), ...extraEnv };
-  const result = (status, detail = {}) => ({ provider, status, detail, checked_at: new Date().toISOString() });
+  const result = (status, detail = {}) => ({ provider, status, detail, host: os.hostname(), checked_at: new Date().toISOString() });
   if (provider === 'claude_agent') {
     const r = spawnSync(cmd, [...cmdPrefix, 'auth', 'status', '--json'], { env, cwd: run.cwd, encoding: 'utf8', timeout: timeoutMs });
     try {

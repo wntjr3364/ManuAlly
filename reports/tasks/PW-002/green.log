@@ -6,7 +6,8 @@ ok 5 - TST-002B: credential copying, cookie extraction and implicit session reus
 ok 6 - TST-002B: CLI probe only asks for --version, with a scrubbed HOME and no API keys
 ok 7 - TST-002B: Codex RPC policy only allows methods present in the pinned schema and blocks dangerous surfaces
 ok 8 - TST-002B: profile dirs that alias the developer config (symlink, HOME itself, parent of HOME) are refused
-ok 9 - TST-002B: a real provider also needs an isolated auth sentinel result before any call (M5)
-# tests 9
-# pass 9
+ok 9 - TST-002B: a real provider also needs a fresh, same-host, isolated auth sentinel result before any call (M5)
+ok 10 - TST-002B: a profile dir may not contain links to files elsewhere (re-review M4)
+# tests 10
+# pass 10
 # fail 0

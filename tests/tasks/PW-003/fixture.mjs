@@ -30,6 +30,8 @@ export function buildDoc() {
     ]),
     // values, comparators, units, direction, negation, superscript and a citation locator (review M2 repros)
     p('b-p6', t('Group A had 1.2 and group B had 3.4 (p < 0.05); 5 µM treatment increased growth and did not cause damage in 10'), t('5', ['superscript']), t(' cells '), cite(REF_B, 'p. 4'), t('.')),
+    // more re-review repros: direction verbs, spelled numbers, thousands separator, length units, comparator words
+    p('b-p7', t('Uptake rose two-fold, reaching 1,000 cells within 5 µm of the surface (p below 0.05).')),
     // decomposed Hangul jamo: 한 = U+1112 U+1161 U+11AB
     p('b-p5', t('Jamo: 한 end.')),
   ]);

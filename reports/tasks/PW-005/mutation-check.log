@@ -24,5 +24,5 @@ B-INV-01 as ALLOW -> [
   'B-INV-01: gold text states 16, which no declared verified fact contains',
   'B-INV-01: gold text states 8, which no declared verified fact contains'
 ]
-B-VERB-02 as ALLOW -> NOT CAUGHT
-B-REP-01 as ALLOW -> NOT CAUGHT
+B-VERB-02 as ALLOW -> NOT CAUGHT (style judgement, by design)
+B-REP-01 as ALLOW -> NOT CAUGHT (style judgement, by design)

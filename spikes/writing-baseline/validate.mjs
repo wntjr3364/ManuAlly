@@ -37,17 +37,27 @@ function numbersInValue(value, out = new Set()) {
 
 const normalize = (n) => (n.split('.').length === 2 ? String(Number(n)) : n);
 const NEGATION = /\b(not|no|never|neither|nor|none|without|absence|absent)\b|n't\b/i;
-const DECREASE = /\b(decrease[sd]?|lower|reduced|down-?regulated|diminished)\b/i;
-const INCREASE = /\b(increase[sd]?|higher|greater|elevated|up-?regulated|enhanced)\b/i;
+const DECREASE = /\b(decrease[sd]?|lower|reduced|down-?regulated|diminished|fell|fall(?:s|en|ing)?|dropped|declined?|fewer|less (?:often|frequent(?:ly)?|likely))\b/i;
+const INCREASE = /\b(increase[sd]?|higher|greater|elevated|up-?regulated|enhanced|rose|more (?:often|frequent(?:ly)?|likely))\b/i;
+const NULL_SPIN = /\b(tend(?:ed|s)? to|trend(?:ed|ing)?|marginal(?:ly)?|approach(?:ed|ing) significance)\b/i;
 // verb uses only: "well-watered controls" (noun) must not match
-const CAUSAL = /\b(prove[sn]?|proving|establish(?:es|ed|ing)?|demonstrat(?:e|es|ed) that|controls?\s+(?:the\s+)?(?:drought|growth|tolerance|expression|response)|causes?|caused|master regulator|required for)\b/i;
+const CAUSAL = /\b(prove[sn]?|proving|establish(?:es|ed|ing)?|demonstrat(?:e|es|ed) that|controls?\s+(?:the\s+)?(?:drought|growth|tolerance|expression|response)|causes?|caused|master regulator|required for|essential for|necessary for|confers?|directly regulat(?:e|es|ed)|drives?)\b/i;
 const CITABLE_DEPTHS = new Set(['FULLTEXT_PARSED', 'SOURCE_CHECKED']);
 
 // For facts with labelled groups: the i-th group label mentioned must be paired with that group's value.
 function groupBindingErrors(caseId, text, fact) {
   if (!fact.groups || fact.groups.length < 2) return [];
-  const lower = text.toLowerCase();
-  const labels = fact.groups.map((g) => ({ g, at: lower.indexOf(g.label.toLowerCase()) })).filter((x) => x.at >= 0).sort((a, b) => a.at - b.at);
+  // earliest mention of each group by label or alias (whole words; short aliases are case-sensitive)
+  const firstMention = (g) => {
+    let best = -1;
+    for (const name of [g.label, ...(g.aliases || [])]) {
+      const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const m = new RegExp(`(?<![\\w-])${esc}(?![\\w-])`, name.length <= 3 ? '' : 'i').exec(text);
+      if (m && (best < 0 || m.index < best)) best = m.index;
+    }
+    return best;
+  };
+  const labels = fact.groups.map((g) => ({ g, at: firstMention(g) })).filter((x) => x.at >= 0).sort((a, b) => a.at - b.at);
   const tokens = resultNumbers(text).map(normalize);
   const values = fact.groups.map((g) => ({ g, at: tokens.indexOf(normalize(String(g.value))) })).filter((x) => x.at >= 0).sort((a, b) => a.at - b.at);
   if (labels.length < 2 || values.length < 2) return [];
@@ -122,15 +132,23 @@ export function validateBaseline({ papers, cases, sciMap }) {
       if (!ref) { errors.push(`${c.id}: cites ${m[1]}, which is not in the library`); continue; }
       if (ref.status === 'retracted') errors.push(`${c.id}: cites retracted reference ${ref.id}`);
       if (!CITABLE_DEPTHS.has(ref.source_depth)) errors.push(`${c.id}: cites ${ref.id} read only to ${ref.source_depth}; gold claims need full-text support`);
+      if (!['scientific', 'both'].includes(ref.use_role)) errors.push(`${c.id}: cites ${ref.id}, a ${ref.use_role}-only reference, as scientific support`);
     }
     for (const fid of c.fact_ids) {
       const fact = factById.get(fid);
       if (!fact) continue;
       errors.push(...groupBindingErrors(c.id, c.text, fact));
       if (fact.direction === 'none' && !NEGATION.test(c.text)) errors.push(`${c.id}: ${fid} is a null result but the text states an effect`);
+      if (fact.direction === 'none' && NULL_SPIN.test(c.text)) errors.push(`${c.id}: ${fid} is a null result but the text spins it as a trend ("${c.text.match(NULL_SPIN)[0]}")`);
       if (fact.direction === 'increase' && DECREASE.test(c.text) && !INCREASE.test(c.text)) errors.push(`${c.id}: ${fid} is an increase but the text states a decrease`);
       if (fact.direction === 'decrease' && INCREASE.test(c.text) && !DECREASE.test(c.text)) errors.push(`${c.id}: ${fid} is a decrease but the text states an increase`);
     }
+    // stated p and n must be the declared facts' own values, not any number that appears in a fact
+    const declared = c.fact_ids.map((fid) => factById.get(fid)).filter(Boolean);
+    const ps = new Set(declared.map((f) => f.statistic?.p).filter((v) => v !== undefined).map((v) => normalize(String(v))));
+    const ns = new Set(declared.map((f) => f.n).filter((v) => v !== null && v !== undefined).map(String));
+    for (const m of c.text.matchAll(/\bp\s*[=<>≤≥]\s*(\d*\.?\d+)/gi)) if (!ps.has(normalize(m[1]))) errors.push(`${c.id}: states p = ${m[1]}, declared facts have p ${[...ps].join(', ') || 'none'}`);
+    for (const m of c.text.matchAll(/\bn\s*=\s*(\d+)/gi)) if (!ns.has(m[1])) errors.push(`${c.id}: states n = ${m[1]}, declared facts have n ${[...ns].join(', ') || 'none'}`);
     const node = paper.outline.nodes.find((n) => n.id === c.outline_node_id);
     if (node && !/causal/i.test(node.allowed_interpretation) && CAUSAL.test(c.text)) errors.push(`${c.id}: causal/proof language ("${c.text.match(CAUSAL)[0]}") exceeds the node's allowed interpretation (${node.allowed_interpretation})`);
     for (const n of resultNumbers(c.text.replace(/\[@[^\]]+\]/g, ''))) {

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-export const DEFAULT_TOOLS = ['node', 'pnpm', 'npm', 'psql', 'docker', 'pandoc', 'java', 'git', 'claude', 'codex'];
+export const DEFAULT_TOOLS = ['node', 'pnpm', 'npm', 'psql', 'docker', 'pandoc', 'java', 'git', 'claude', 'codex', 'bwrap'];
 const DEFAULT_MIN_FREE_BYTES = 20 * 1024 ** 3;
 export const HOST_POLICY_PATHS = [
   '/etc/claude-code/managed-settings.json',
@@ -98,7 +98,7 @@ export function collectPreflight({
   const dr = inspectDataRoot(fsApi, dataRoot, approvedDataRoot, minFreeBytes);
   const undecided = [
     { kind: 'backup_location', path: null, reason: 'off-host encrypted backup target not chosen' },
-    { kind: 'runtime_os_user', path: null, reason: 'dedicated OS user for provider runner not created' },
+    { kind: 'codex_outer_sandbox', path: null, reason: 'bubblewrap sandbox for codex app-server not verified (RFC-004)' },
     { kind: 'provider_auth_profile_dir', path: null, reason: 'isolated CLAUDE_CONFIG_DIR / CODEX_HOME not chosen' },
   ];
   if (dr.status === 'undecided') undecided.unshift({ kind: 'data_root', path: dr.path, reason: dr.reason });

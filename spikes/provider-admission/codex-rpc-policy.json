@@ -52,7 +52,7 @@
     "approvalPolicy": "on-request",
     "ephemeral": false
   },
-  "status": "documented_not_verified: decline response shapes and the effect of approval_policy=untrusted on unified_exec are checked live in P03 (PW-025). Until an outer filesystem sandbox is verified, Codex stays non-admitted (RFC-004).",
+  "status": "documented_not_verified: decline response shapes and the behaviour of in-sandbox unified_exec under approval_policy=on-request are checked live in P03 (PW-025). Until an outer filesystem sandbox (bubblewrap) is verified, Codex stays non-admitted (RFC-004).",
   "feature_flags": {
     "disabled": [
       "shell_tool",

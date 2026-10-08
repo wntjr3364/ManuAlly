@@ -10,6 +10,8 @@ ok 9 - TST-005B: fixtures must be marked synthetic
 ok 10 - TST-005B: failing cases relabelled as gold are rejected (source depth, retraction, group swap, negation, overclaim)
 ok 11 - TST-005B: reading depth must be consistent with the sections recorded as read
 ok 12 - TST-005B: group percentages must match their counts (review M8: 62% of 40 plants is impossible)
-# tests 12
-# pass 12
+ok 13 - TST-005B: re-review bypasses are rejected as gold
+ok 14 - TST-005B: a writing-only reference cannot support a scientific claim in gold text
+# tests 14
+# pass 14
 # fail 0

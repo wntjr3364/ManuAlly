@@ -6,10 +6,13 @@ ok 5 - TST-004A: the original research folder and the read-only input copy are b
 ok 6 - TST-004B: implicit continue / latest-session / unknown flags are refused (allowlist)
 ok 7 - TST-004B: symlinks, hardlinks, traversal and unsafe run roots cannot pull originals into a run
 ok 8 - TST-004B: the child gets a fresh HOME and none of the parent credentials; profile aliases are refused
-ok 9 - TST-004B: no provider process starts without an admission decision for that provider (M5)
-ok 10 - TST-004B: a missing provider binary fails fast instead of hanging
-ok 11 - TST-004B: no shell or file-tool surface is configured for either provider
-ok 12 - TST-004B: an empty runtime profile that still reports a login is detected as a credential leak
-# tests 12
-# pass 12
+ok 9 - TST-004B: no provider process starts without an issued admission for that provider (M5, re-review)
+ok 10 - TST-004B: the full argv is validated — nothing can be smuggled before -p or app-server (re-review N1/N2)
+ok 11 - TST-004B: an agent instruction file that appears above the run after prepareRun blocks the start
+ok 12 - TST-004B: leftover cleanup only targets a process group that is provably still ours
+ok 13 - TST-004B: a missing provider binary fails fast instead of hanging
+ok 14 - TST-004B: no shell or file-tool surface is configured for either provider
+ok 15 - TST-004B: an empty runtime profile that still reports a login is detected as a credential leak
+# tests 15
+# pass 15
 # fail 0

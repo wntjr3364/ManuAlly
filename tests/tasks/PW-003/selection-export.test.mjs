@@ -215,3 +215,52 @@ test('TST-003B: math and figure atoms need explicit preserve_atom items (RFC-005
   ok.doc.descendants((n) => { if (n.type.name === 'math_inline') latex = n.attrs.latex; });
   assert.equal(latex, '\\beta = 0.5');
 });
+
+// ---------- added after the P00 re-review ----------
+
+test('TST-003A: guard catches direction verbs, spelled numbers, length units and comparator words; allows harmless rewording', () => {
+  const doc = buildDoc();
+  const c = ctx();
+  const h = select(doc, c.handles, 'b-p7', 'Uptake', { endNeedle: '0.05).' });
+  const base = 'Uptake rose two-fold, reaching 1,000 cells within 5 µm of the surface (p below 0.05).';
+  for (const [name, txt, code] of [
+    ['rose → fell', base.replace('rose', 'fell'), 'DIRECTION_CHANGED'],
+    ['two-fold → three-fold', base.replace('two-fold', 'three-fold'), 'NUMBERS_CHANGED'],
+    ['µm → mm', base.replace('µm', 'mm'), 'NUMBERS_CHANGED'],
+    ['below → above', base.replace('below', 'above'), 'NUMBERS_CHANGED'],
+  ]) assert.equal(applyAiProposal(doc, proposal(h, [text(txt)]), c).code, code, name);
+  for (const [name, txt] of [['1,000 → 1000', base.replace('1,000', '1000')], ['rose → increased', base.replace('rose', 'increased')]]) {
+    const c2 = ctx();
+    const h2 = select(doc, c2.handles, 'b-p7', 'Uptake', { endNeedle: '0.05).' });
+    assert.equal(applyAiProposal(doc, proposal(h2, [text(txt)]), c2).status, 'APPLIED', name);
+  }
+});
+
+test('TST-003B: an invalid preserve_atom index is a coded rejection', () => {
+  const doc = buildDoc();
+  const c = ctx();
+  const h = select(doc, c.handles, 'b-p4', ' with ', { endNeedle: '￼ and ' });
+  for (const atom_index of ['length', 5, -1, 0.5]) {
+    assert.equal(applyAiProposal(doc, proposal(h, [{ type: 'preserve_atom', atom_index }]), c).code, 'INVALID_REPLACEMENT', String(atom_index));
+  }
+});
+
+test('TST-003A: the loss report compares each block with its citeproc-rendered source text (citations, locators, inserted words)', (t) => {
+  const out = tmp(t);
+  const doc = buildDoc();
+  const { roundTrip, docxXml, info, expected } = exportDocument(doc, { bibliography, outDir: out });
+  const mutate = (fn) => { const rt = structuredClone(roundTrip); fn(rt); return buildLossReport({ doc, docxXml, roundTrip: rt, bibliography, info, expected }).features.find((f) => f.feature === 'block_text'); };
+  const replaceStr = (rt, from, to) => JSON.parse(JSON.stringify(rt).replace(`"c":"${from}"`, `"c":"${to}"`));
+  assert.equal(mutate(() => {}).status, 'preserved');
+  // citation substituted (Okafor → Kimura) inside b-p4
+  assert.equal(buildLossReport({ doc, docxXml, roundTrip: replaceStr(roundTrip, '(Okafor', '(Kimura'), bibliography, info, expected }).features.find((f) => f.feature === 'block_text').status, 'lost');
+  // locator changed (4 → 9)
+  assert.equal(buildLossReport({ doc, docxXml, roundTrip: replaceStr(roundTrip, '4).', '9).'), bibliography, info, expected }).features.find((f) => f.feature === 'block_text').status, 'lost');
+  // an extra word inserted into the first paragraph
+  const inserted = mutate((rt) => { rt.blocks[1].c.splice(2, 0, { t: 'Str', c: 'NOT' }, { t: 'Space' }); });
+  assert.equal(inserted.status, 'lost');
+  assert.ok(inserted.blocks.includes('b-p1'));
+  // a citation removed cleanly
+  const removed = mutate((rt) => { rt.blocks[1].c = rt.blocks[1].c.filter((n) => !JSON.stringify(n).includes('Kimura')); });
+  assert.equal(removed.status, 'lost');
+});

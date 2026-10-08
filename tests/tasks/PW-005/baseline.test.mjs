@@ -111,3 +111,30 @@ test('TST-005B: group percentages must match their counts (review M8: 62% of 40 
   fact.groups[0].value = 62;
   assert.ok(validateBaseline(b).some((e) => e.includes('fact-survival') && e.includes('inconsistent')));
 });
+
+// ---------- added after the P00 re-review ----------
+test('TST-005B: re-review bypasses are rejected as gold', () => {
+  const variants = [
+    ['B-VERB-01', 'Drought survival was higher in WT than in OE lines (62.5% vs 37.5%; 25/40 vs 15/40 plants; chi-square test, p = 0.025; Figure 2).', 'wrong groups'],
+    ['B-VERB-01', 'ABC1-overexpressing lines survived drought less often than wild type (62.5% vs 37.5%; 25/40 vs 15/40 plants; chi-square test, p = 0.025; Figure 2).', 'decrease'],
+    ['B-NUM-01', 'Under drought, ABC1 expression fell 2.4-fold relative to well-watered controls (n = 6 plants per group; Welch\'s t-test, p = 0.003; Figure 1A).', 'decrease'],
+    ['B-NEG-01', 'ABC1 expression tended to increase with root length, though not significantly (Pearson r = 0.08, p = 0.71, n = 24 plants).', 'null result'],
+    ['B-CLM-01', 'These results show that ABC1 is essential for drought tolerance.', 'causal'],
+    ['B-CLM-01', 'ABC1 confers drought tolerance.', 'causal'],
+    ['B-CLM-01', 'ABC1 directly regulates the drought response.', 'causal'],
+    ['B-VERB-01', 'Drought survival was higher in ABC1-overexpressing lines than in wild type (62.5% vs 37.5%; 25/40 vs 15/40 plants; chi-square test, p = 0.044; Figure 2).', 'p ='],
+    ['B-VERB-01', 'Drought survival was higher in ABC1-overexpressing lines than in wild type (62.5% vs 37.5%, n = 15 per group; chi-square test, p = 0.025; Figure 2).', 'n ='],
+  ];
+  for (const [id, text, why] of variants) {
+    const b = loadBaseline();
+    b.cases.find((c) => c.id === id).text = text;
+    const errors = validateBaseline(b).filter((e) => e.startsWith(`${id}:`));
+    assert.ok(errors.length > 0, `${why}: ${text}`);
+  }
+});
+
+test('TST-005B: a writing-only reference cannot support a scientific claim in gold text', () => {
+  const b = loadBaseline();
+  b.papers[0].references.find((r) => r.id === 'ref-kimura2021').use_role = 'writing';
+  assert.ok(validateBaseline(b).some((e) => e.startsWith('B-CIT-01:') && e.includes('writing')));
+});

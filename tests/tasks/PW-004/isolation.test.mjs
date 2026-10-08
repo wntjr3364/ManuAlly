@@ -22,8 +22,9 @@ import {
   createCodexRpcGuard,
   checkAuthIsolation,
   CODEX_DISABLED_FEATURES,
+  groupStillOurs,
 } from '../../../spikes/isolation/runner.mjs';
-import { loadCodexRpcPolicy } from '../../../spikes/provider-admission/admission.mjs';
+import { loadCodexRpcPolicy, loadRegistry, decideModelCall } from '../../../spikes/provider-admission/admission.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FAKE_CLI = path.join(here, 'fake-cli.mjs');
@@ -69,13 +70,25 @@ function setup(t) {
   return { root, runsRoot: path.join(root, 'runs'), devHome, research, authProfile, parentEnv };
 }
 
-const mockAdmission = { allowed: true, provider: 'claude_agent', reason: 'test: fake CLI stands in for the provider' };
+// An admission issued by decideModelCall, as the server would produce once a provider is admitted.
+// Test-only registry change: the fake CLI stands in for an admitted Claude provider.
+function issuedAdmission(provider = 'claude_agent') {
+  const registry = loadRegistry();
+  const auth_mode = provider === 'claude_agent' ? 'subscription_cli_login' : 'chatgpt_login';
+  const entry = registry.entries.find((e) => e.capability.provider === provider && e.capability.auth_mode === auth_mode && e.capability.deployment_profile === 'PERSONAL_LOCAL');
+  entry.capability.admission = 'approved';
+  entry.evidence.live_evidence = { note: 'test only: fake CLI' };
+  const authSentinel = { provider, status: 'isolated', host: os.hostname(), checked_at: new Date().toISOString() };
+  const d = decideModelCall(registry, { provider, auth_mode, deployment_profile: 'PERSONAL_LOCAL', userApprovedUsage: true, authSentinel });
+  assert.equal(d.allowed, true);
+  return d;
+}
 
 function runFake(ctx, { sessionId, resumeSessionId, mode = 'normal' }) {
   const run = prepareRun({ runsRoot: ctx.runsRoot, runId: randomUUID(), inputs: [{ sourceRoot: ctx.research, relPath: 'results.tsv' }], owner: RUNTIME_OWNER });
   const env = { ...buildChildEnv({ provider: 'claude_agent', authProfileDir: ctx.authProfile, run, parentEnv: ctx.parentEnv, homes: [ctx.devHome], owner: RUNTIME_OWNER }), FAKE_MODE: mode };
   const args = buildClaudeArgs({ sessionId, resumeSessionId, mcpConfigPath: path.join(run.dir, 'mcp.json') });
-  const handle = startProviderRun({ admission: mockAdmission, provider: 'claude_agent', cmd: process.execPath, args: [FAKE_CLI, ...args], env, cwd: run.cwd, owner: RUNTIME_OWNER });
+  const handle = startProviderRun({ admission: issuedAdmission(), provider: 'claude_agent', cmd: process.execPath, cmdPrefix: [FAKE_CLI], args, env, run, owner: RUNTIME_OWNER });
   return { run, args, handle };
 }
 const record = (run) => JSON.parse(fs.readFileSync(path.join(run.cwd, 'fake-cli-record.json'), 'utf8'));
@@ -214,13 +227,52 @@ test('TST-004B: the child gets a fresh HOME and none of the parent credentials; 
   assert.equal(withToken.CLAUDE_CODE_OAUTH_TOKEN, 'runtime-token');
 });
 
-test('TST-004B: no provider process starts without an admission decision for that provider (M5)', (t) => {
+test('TST-004B: no provider process starts without an issued admission for that provider (M5, re-review)', (t) => {
   const ctx = setup(t);
   const run = prepareRun({ runsRoot: ctx.runsRoot, runId: randomUUID(), inputs: [] });
-  const base = { provider: 'claude_agent', cmd: process.execPath, args: [FAKE_CLI], env: { PATH: process.env.PATH }, cwd: run.cwd };
-  assert.throws(() => startProviderRun({ ...base, admission: null }), /refused/);
-  assert.throws(() => startProviderRun({ ...base, admission: { allowed: false, provider: 'claude_agent', reason: 'sentinel leak' } }), /refused.*sentinel leak/);
-  assert.throws(() => startProviderRun({ ...base, admission: { allowed: true, provider: 'codex' } }), /refused/);
+  const args = buildClaudeArgs({ sessionId: randomUUID(), mcpConfigPath: path.join(run.dir, 'mcp.json') });
+  const base = { provider: 'claude_agent', cmd: process.execPath, cmdPrefix: [FAKE_CLI], args, env: { PATH: process.env.PATH }, run };
+  assert.throws(() => startProviderRun({ ...base, admission: null }), /refused.*not issued/);
+  assert.throws(() => startProviderRun({ ...base, admission: { allowed: true, provider: 'claude_agent' } }), /refused.*not issued/, 'forged look-alike');
+  assert.throws(() => startProviderRun({ ...base, admission: decideModelCall(loadRegistry(), { provider: 'claude_agent', auth_mode: 'subscription_cli_login', deployment_profile: 'PERSONAL_LOCAL', userApprovedUsage: true }) }), /refused.*no admission/);
+  assert.throws(() => startProviderRun({ ...base, admission: issuedAdmission('codex') }), /refused.*not claude_agent/);
+});
+
+test('TST-004B: the full argv is validated — nothing can be smuggled before -p or app-server (re-review N1/N2)', (t) => {
+  const ctx = setup(t);
+  const run = prepareRun({ runsRoot: ctx.runsRoot, runId: randomUUID(), inputs: [] });
+  const good = buildClaudeArgs({ sessionId: randomUUID(), mcpConfigPath: path.join(run.dir, 'mcp.json') });
+  const env = { PATH: process.env.PATH };
+  const claude = (args, cmdPrefix = [FAKE_CLI]) => () => startProviderRun({ admission: issuedAdmission(), provider: 'claude_agent', cmd: process.execPath, cmdPrefix, args, env, run });
+  assert.throws(claude(['--dangerously-skip-permissions', '--settings', '{}', ...good]), /refused/);
+  assert.throws(claude(good, ['-e']), /refused.*cmdPrefix/);
+  assert.throws(claude(good, [FAKE_CLI, '--dangerously-skip-permissions']), /refused.*cmdPrefix/);
+  for (const mcp of ['/etc/mcp.json', path.join(run.dir, '..', 'other', 'mcp.json')]) {
+    const bad = [...good];
+    bad[bad.indexOf('--mcp-config') + 1] = mcp;
+    assert.throws(claude(bad), /refused.*outside the run directory/, mcp);
+  }
+  const codex = (args) => () => startProviderRun({ admission: issuedAdmission('codex'), provider: 'codex', cmd: process.execPath, cmdPrefix: [FAKE_CLI], args, env, run });
+  assert.throws(codex(['-c', 'sandbox_mode="danger-full-access"', '--dangerously-bypass-approvals-and-sandbox', ...buildCodexArgs({})]), /refused/);
+  assert.throws(codex([...buildCodexArgs({}), '-c', 'sandbox_mode="danger-full-access"']), /refused/);
+});
+
+test('TST-004B: an agent instruction file that appears above the run after prepareRun blocks the start', (t) => {
+  const ctx = setup(t);
+  const run = prepareRun({ runsRoot: ctx.runsRoot, runId: randomUUID(), inputs: [] });
+  fs.writeFileSync(path.join(ctx.root, 'CLAUDE.md'), 'planted later');
+  const args = buildClaudeArgs({ sessionId: randomUUID(), mcpConfigPath: path.join(run.dir, 'mcp.json') });
+  assert.throws(() => startProviderRun({ admission: issuedAdmission(), provider: 'claude_agent', cmd: process.execPath, cmdPrefix: [FAKE_CLI], args, env: { PATH: process.env.PATH }, run }), /refused.*CLAUDE\.md/);
+});
+
+test('TST-004B: leftover cleanup only targets a process group that is provably still ours', () => {
+  const ours = { pgid: 500, leaderStart: 1000 };
+  assert.equal(groupStillOurs(ours, [{ pid: 501, pgrp: 500, starttime: 1001, state: 'S' }]), true, 'leader gone, member alive → id cannot be recycled');
+  assert.equal(groupStillOurs(ours, [{ pid: 500, pgrp: 500, starttime: 1000, state: 'S' }]), true, 'leader itself');
+  assert.equal(groupStillOurs(ours, [{ pid: 500, pgrp: 500, starttime: 9000, state: 'S' }, { pid: 777, pgrp: 500, starttime: 9001, state: 'S' }]), false, 'recycled: new leader with a later start');
+  assert.equal(groupStillOurs(ours, []), false, 'group empty');
+  assert.equal(groupStillOurs(ours, null), false, 'no /proc → never kill blindly');
+  assert.equal(groupStillOurs({ pgid: 500, leaderStart: null }, []), false);
 });
 
 test('TST-004B: a missing provider binary fails fast instead of hanging', async (t) => {

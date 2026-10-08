@@ -114,11 +114,15 @@ export function createSelectionHandle(doc, { blockId, from, to }) {
 // ---------- conservative guard ----------
 // Facts that a grammar/concision edit must not change. Heuristic, English-oriented; the
 // FactRecord-based scientific gate (PW-043) is the authoritative check.
-const UNIT = String.raw`%|[µμ]M|mM|nM|pM|M|mg|[µμ]g|ng|g|kg|mL|[µμ]L|L|°C|h|min|s|bp|kb|Mb|fold|×`;
-const QUANTITY_RE = new RegExp(String.raw`(?:([<>≤≥=])\s*)?([-−]?\d+(?:[.,]\d+)*)(?:\s*-?\s*(${UNIT})(?![A-Za-z]))?`, 'g');
-const NEGATION_RE = /\b(not|no|never|neither|nor|none|without|cannot|absence|absent|lack(?:ed|s|ing)?)\b|n't\b/gi;
-const DIRECTION_RE = /\b(increase[sd]?|increasing|higher|greater|elevated|up-?regulated|enhanced|decrease[sd]?|decreasing|lower|reduced|down-?regulated|diminished|positive(?:ly)?|negative(?:ly)?)\b/gi;
-const directionSign = (w) => (/^(increas|higher|greater|elevated|up|enhanced|positive)/i.test(w) ? '+' : '-');
+const UNIT = String.raw`%|[µμ]M|mM|nM|pM|M|[µμ]m|nm|mm|cm|km|kDa|Da|bp|kb|Mb|mg\/kg|mg\/g|mg\/L|mg|[µμ]g|ng|g|kg|mL|[µμ]L|L|°C|h|min|s|days?|weeks?|months?|years?|fold|×`;
+const QUANTITY_RE = new RegExp(String.raw`(?:([<>≤≥=])\s*)?([-−]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|[-−]?\d+(?:\.\d+)*)(?:\s*-?\s*(${UNIT})(?![A-Za-z]))?`, 'g');
+const SPELLED = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twice: 2, half: 0.5, double: 2, triple: 3 };
+const SPELLED_RE = new RegExp(String.raw`\b(${Object.keys(SPELLED).join('|')})(?:-?(fold))?\b`, 'gi');
+const COMPARATOR_WORD_RE = /\b(below|less than|lower than|above|more than|greater than|exceed(?:s|ed|ing)?)\b/gi; // not "under"/"over": "under stress"
+const comparatorSign = (w) => (/^(below|less|lower)/i.test(w) ? '<' : '>');
+const NEGATION_RE = /\b(not|no|never|neither|nor|none|without|cannot|absence|absent|lack(?:ed|s|ing)?|fail(?:ed|s)? to)\b|n't\b/gi;
+const DIRECTION_RE = /\b(increase[sd]?|increasing|rose|rise[sn]?|rising|higher|greater|elevated|up-?regulated|enhanced|gain(?:ed|s)?|decrease[sd]?|decreasing|fell|fall(?:s|en|ing)?|dropped|declined?|lower|reduced|down-?regulated|diminished|lost|positive(?:ly)?|negative(?:ly)?)\b/gi;
+const directionSign = (w) => (/^(increas|rose|rise|rising|higher|greater|elevated|up|enhanced|gain|positive)/i.test(w) ? '+' : '-');
 
 // Inline items as {kind:'text', text, marks} | {kind:'atom', node}, in document order.
 function itemsOf(nodes) {
@@ -134,7 +138,12 @@ function facts(items) {
   for (const it of items) {
     if (it.kind === 'text') {
       // quantities are tokenised per run so that 10 + superscript 5 differs from plain 105
-      for (const m of it.text.matchAll(QUANTITY_RE)) quantities.push(`${m[1] || ''}${m[2].replace('−', '-')}${m[3] ? ' ' + m[3].replace('μ', 'µ') : ''}`);
+      // spelled numbers, numerals and comparator words in reading order
+      const found = [];
+      for (const m of it.text.matchAll(QUANTITY_RE)) found.push([m.index, `${m[1] || ''}${m[2].replace('−', '-').replaceAll(',', '')}${m[3] ? ' ' + m[3].replace('μ', 'µ') : ''}`]);
+      for (const m of it.text.matchAll(SPELLED_RE)) found.push([m.index, `${SPELLED[m[1].toLowerCase()]}${m[2] ? ' fold' : ''}`]);
+      for (const m of it.text.matchAll(COMPARATOR_WORD_RE)) found.push([m.index, comparatorSign(m[1])]);
+      found.sort((x, y) => x[0] - y[0]).forEach(([, q]) => quantities.push(q));
       if (it.marks.length) marked.push(`${it.marks.join('+')}:${it.text}`);
       prose += it.text;
     } else if (it.node.type.name === 'citation') {
@@ -146,7 +155,7 @@ function facts(items) {
       prose += ' ';
     }
   }
-  const negations = [...prose.matchAll(NEGATION_RE)].map((m) => (m[1] || 'not').toLowerCase().replace(/^lack.*/, 'lack'));
+  const negations = [...prose.matchAll(NEGATION_RE)].map((m) => (m[1] || 'not').toLowerCase().replace(/^lack.*/, 'lack').replace(/^fail.*/, 'fail'));
   const directions = [...prose.matchAll(DIRECTION_RE)].map((m) => directionSign(m[1]));
   return { quantities, marked, citations, otherAtoms, negations, directions };
 }
@@ -177,6 +186,7 @@ function buildReplacement(schema, replacement, selectionAtoms) {
     }
     if (item.type === 'citation') return schema.nodes.citation.create({ referenceId: item.reference_id, locator: item.locator ?? null });
     if (item.type === 'preserve_atom') {
+      if (!Number.isInteger(item.atom_index)) throw new SelectionError('INVALID_REPLACEMENT', `atom_index must be an integer, got ${JSON.stringify(item.atom_index)}`);
       const atom = selectionAtoms[item.atom_index];
       if (!atom) throw new SelectionError('INVALID_REPLACEMENT', `no atom ${item.atom_index} in the selection`);
       return atom;

@@ -854,6 +854,113 @@
    "c": [
     {
      "t": "Str",
+     "c": "Uptake"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "rose"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "two-fold,"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "reaching"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "1,000"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "cells"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "within"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "5"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "µm"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "of"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "the"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "surface"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "(p"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "below"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "0.05)."
+    }
+   ]
+  },
+  {
+   "t": "Para",
+   "c": [
+    {
+     "t": "Str",
      "c": "Jamo:"
     },
     {

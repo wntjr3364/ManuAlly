@@ -247,12 +247,21 @@
     {
      "label": "ABC1-overexpressing",
      "count": "25/40",
-     "value": 62.5
+     "value": 62.5,
+     "aliases": [
+      "ABC1-OE",
+      "OE",
+      "overexpressing"
+     ]
     },
     {
      "label": "wild type",
      "count": "15/40",
-     "value": 37.5
+     "value": 37.5,
+     "aliases": [
+      "WT",
+      "wild-type"
+     ]
     }
    ],
    "comparison": {

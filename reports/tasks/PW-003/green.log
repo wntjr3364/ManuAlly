@@ -12,6 +12,9 @@ ok 11 - TST-003B: positions that split an emoji, a combining sequence or decompo
 ok 12 - TST-003B: out-of-range, inverted, empty and non-text selections are refused
 ok 13 - TST-003B: a block edited by the user after the selection makes the AI proposal STALE
 ok 14 - TST-003B: math and figure atoms need explicit preserve_atom items (RFC-005)
-# tests 14
-# pass 14
+ok 15 - TST-003A: guard catches direction verbs, spelled numbers, length units and comparator words; allows harmless rewording
+ok 16 - TST-003B: an invalid preserve_atom index is a coded rejection
+ok 17 - TST-003A: the loss report compares each block with its citeproc-rendered source text (citations, locators, inserted words)
+# tests 17
+# pass 17
 # fail 0

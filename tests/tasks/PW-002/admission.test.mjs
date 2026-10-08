@@ -118,7 +118,7 @@ test('TST-002B: Codex RPC policy only allows methods present in the pinned schem
 });
 
 // ---------- added after the independent P00 review (M4, M5) ----------
-import { assertSafeProfileDir } from '../../../spikes/provider-admission/admission.mjs';
+import { assertSafeProfileDir, isIssuedAdmission } from '../../../spikes/provider-admission/admission.mjs';
 
 test('TST-002B: profile dirs that alias the developer config (symlink, HOME itself, parent of HOME) are refused', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pw002-'));
@@ -138,15 +138,41 @@ test('TST-002B: profile dirs that alias the developer config (symlink, HOME itse
   assert.equal(assertSafeProfileDir(ok, { homes: [home] }), fs.realpathSync(ok));
 });
 
-test('TST-002B: a real provider also needs an isolated auth sentinel result before any call (M5)', () => {
+test('TST-002B: a real provider also needs a fresh, same-host, isolated auth sentinel result before any call (M5)', () => {
   const approved = structuredClone(registry);
   const entry = approved.entries.find((e) => e.capability.provider === 'codex' && e.capability.deployment_profile === 'PERSONAL_LOCAL' && e.capability.auth_mode === 'chatgpt_login');
   entry.capability.admission = 'approved';
   entry.evidence.live_evidence = { note: 'hypothetical, test only' };
   const req = { provider: 'codex', auth_mode: 'chatgpt_login', deployment_profile: 'PERSONAL_LOCAL', userApprovedUsage: true };
+  const sentinel = (over = {}) => ({ provider: 'codex', status: 'isolated', host: os.hostname(), checked_at: new Date().toISOString(), ...over });
   assert.equal(decideModelCall(approved, req).allowed, false, 'no sentinel');
-  assert.equal(decideModelCall(approved, { ...req, authSentinel: { provider: 'codex', status: 'leak' } }).allowed, false, 'leak');
-  assert.equal(decideModelCall(approved, { ...req, authSentinel: { provider: 'codex', status: 'unknown' } }).allowed, false, 'unknown');
-  assert.equal(decideModelCall(approved, { ...req, authSentinel: { provider: 'claude_agent', status: 'isolated' } }).allowed, false, 'sentinel for another provider');
-  assert.equal(decideModelCall(approved, { ...req, authSentinel: { provider: 'codex', status: 'isolated' } }).allowed, true);
+  assert.equal(decideModelCall(approved, { ...req, authSentinel: sentinel({ status: 'leak' }) }).allowed, false, 'leak');
+  assert.equal(decideModelCall(approved, { ...req, authSentinel: sentinel({ status: 'unknown' }) }).allowed, false, 'unknown');
+  assert.equal(decideModelCall(approved, { ...req, authSentinel: sentinel({ provider: 'claude_agent' }) }).allowed, false, 'other provider');
+  assert.equal(decideModelCall(approved, { ...req, authSentinel: sentinel({ host: 'another-host' }) }).allowed, false, 'other host');
+  assert.equal(decideModelCall(approved, { ...req, authSentinel: sentinel({ checked_at: new Date(Date.now() - 25 * 3600e3).toISOString() }) }).allowed, false, 'stale');
+  const ok = decideModelCall(approved, { ...req, authSentinel: sentinel() });
+  assert.equal(ok.allowed, true);
+  // only decisions produced by decideModelCall count; look-alike objects do not
+  assert.equal(isIssuedAdmission(ok), true);
+  assert.equal(isIssuedAdmission({ ...ok }), false);
+  assert.equal(isIssuedAdmission({ allowed: true, provider: 'codex' }), false);
+  assert.ok(Object.isFrozen(ok));
+});
+
+test('TST-002B: a profile dir may not contain links to files elsewhere (re-review M4)', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pw002-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const home = path.join(root, 'home');
+  fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.claude', '.credentials.json'), 'DEV');
+  for (const kind of ['symlink', 'hardlink']) {
+    const prof = path.join(root, `profile-${kind}`);
+    fs.mkdirSync(path.join(prof, 'nested'), { recursive: true, mode: 0o700 });
+    fs.chmodSync(prof, 0o700);
+    const target = path.join(prof, 'nested', '.credentials.json');
+    if (kind === 'symlink') fs.symlinkSync(path.join(home, '.claude', '.credentials.json'), target);
+    else fs.linkSync(path.join(home, '.claude', '.credentials.json'), target);
+    assert.throws(() => assertSafeProfileDir(prof, { homes: [home] }), /refused.*(symlink|hard link)/, kind);
+  }
 });

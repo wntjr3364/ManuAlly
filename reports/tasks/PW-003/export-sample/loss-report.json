@@ -6,13 +6,13 @@
     23,
     1
   ],
-  "generated_at": "2026-10-08T07:34:29.157Z",
+  "generated_at": "2026-10-08T07:50:12.201Z",
   "features": [
     {
       "feature": "block_text",
       "status": "preserved",
       "blocks": [],
-      "note": "per-block ordered text comparison (8 source blocks, 8 round-trip body blocks)"
+      "note": "per-block exact text comparison against the citeproc-rendered source (9 source blocks, 9 round-trip body blocks)"
     },
     {
       "feature": "korean_text",

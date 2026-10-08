@@ -190,7 +190,7 @@ function sourceBlocks(doc) {
 
 // Compares what the source document contains with what the DOCX actually holds when read back,
 // block by block (text order and formatted runs), plus document-level features.
-export function buildLossReport({ doc, docxXml, roundTrip, bibliography, info }) {
+export function buildLossReport({ doc, docxXml, roundTrip, bibliography, info, expected = null }) {
   const src = docFeatures(doc);
   const tags = countTags(roundTrip);
   const back = astStrings(roundTrip).normalize('NFC');
@@ -202,14 +202,22 @@ export function buildLossReport({ doc, docxXml, roundTrip, bibliography, info })
   const rtBlocks = bodyBlocks(roundTrip);
   const lostBlocks = [];
   const lostMarks = { subscript: [], superscript: [], italic: [], bold: [] };
+  // With the citeproc-rendered source (expected), each block must match exactly: this catches removed,
+  // substituted or re-located citations and inserted words. Without it, fall back to ordered segments.
+  const expBlocks = expected ? bodyBlocks(expected) : null;
   srcBlocks.forEach((sb, i) => {
     const rtMarked = [];
     const rt = rtBlocks[i] ? norm(blockTextOf(rtBlocks[i], rtMarked)) : '';
-    let at = 0;
-    for (const seg of sb.segments) {
-      const k = rt.indexOf(seg, at);
-      if (k < 0) { lostBlocks.push(sb.id); break; }
-      at = k + seg.length;
+    if (expBlocks) {
+      const want = expBlocks[i] ? norm(blockTextOf(expBlocks[i], [])) : null;
+      if (want === null || want !== rt) lostBlocks.push(sb.id);
+    } else {
+      let at = 0;
+      for (const seg of sb.segments) {
+        const k = rt.indexOf(seg, at);
+        if (k < 0) { lostBlocks.push(sb.id); break; }
+        at = k + seg.length;
+      }
     }
     for (const [mark, text] of sb.marked) {
       if (!rtMarked.some(([m, t]) => m === mark && norm(t).includes(text))) lostMarks[mark]?.push(sb.id);
@@ -224,7 +232,9 @@ export function buildLossReport({ doc, docxXml, roundTrip, bibliography, info })
       feature: 'block_text',
       status: lostBlocks.length || rtBlocks.length !== srcBlocks.length ? 'lost' : 'preserved',
       blocks: lostBlocks,
-      note: `per-block ordered text comparison (${srcBlocks.length} source blocks, ${rtBlocks.length} round-trip body blocks)`,
+      note: expBlocks
+        ? `per-block exact text comparison against the citeproc-rendered source (${srcBlocks.length} source blocks, ${rtBlocks.length} round-trip body blocks)`
+        : `per-block ordered segment comparison, citations not checked (${srcBlocks.length} source blocks, ${rtBlocks.length} round-trip body blocks)`,
     },
     feature('korean_text', has(/[가-힣ᄀ-ᇿ]/), /[가-힣]/.test(back)),
     feature('emoji', has(/\p{Extended_Pictographic}/u), /\p{Extended_Pictographic}/u.test(back)),
@@ -262,7 +272,8 @@ export function exportDocument(doc, { bibliography, outDir }) {
   run('pandoc', [...common, '-t', 'html5', '--standalone', '--metadata', 'title=Export preview', '--mathml', '-o', htmlPath, inputPath]);
   const docxXml = run('unzip', ['-p', docxPath, 'word/document.xml']);
   const roundTrip = JSON.parse(run('pandoc', ['-f', 'docx', '-t', 'json', docxPath]));
-  const report = buildLossReport({ doc, docxXml, roundTrip, bibliography, info });
+  const expected = JSON.parse(run('pandoc', [...common, '-t', 'json', inputPath]));
+  const report = buildLossReport({ doc, docxXml, roundTrip, bibliography, info, expected });
   fs.writeFileSync(path.join(outDir, 'loss-report.json'), JSON.stringify(report, null, 2) + '\n');
-  return { docxPath, htmlPath, report, roundTrip, docxXml, info };
+  return { docxPath, htmlPath, report, roundTrip, docxXml, info, expected };
 }

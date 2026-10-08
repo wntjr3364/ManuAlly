@@ -50,19 +50,35 @@ export function validateRegistry(registry, schema = loadCapabilitySchema()) {
   return errors;
 }
 
+const SENTINEL_MAX_AGE_MS = 24 * 3600e3;
+// Decisions produced here are frozen and remembered; startProviderRun accepts only those.
+// (In-process spike. In the product the admission is a server-side DB record, PW-023/030.)
+const issued = new WeakSet();
+export const isIssuedAdmission = (decision) => Boolean(decision) && issued.has(decision);
+function decision(obj) {
+  const d = Object.freeze({ ...obj, decided_at: new Date().toISOString() });
+  issued.add(d);
+  return d;
+}
+
 // The only gate in front of a model call. Unknown combinations are denied.
-export function decideModelCall(registry, { provider, auth_mode, deployment_profile, userApprovedUsage, authSentinel = null }) {
+export function decideModelCall(registry, { provider, auth_mode, deployment_profile, userApprovedUsage, authSentinel = null, now = Date.now(), host = os.hostname() }) {
+  const deny = (reason) => decision({ allowed: false, provider, reason });
   const entry = registry.entries.find((e) => e.capability.provider === provider && e.capability.auth_mode === auth_mode && e.capability.deployment_profile === deployment_profile);
-  if (!entry) return { allowed: false, reason: 'unregistered provider/auth/deployment combination' };
-  if (entry.capability.admission !== 'approved') return { allowed: false, reason: `admission is ${entry.capability.admission}` };
-  if (provider !== 'mock' && !entry.evidence.live_evidence) return { allowed: false, reason: 'no live evidence recorded' };
-  if (provider !== 'mock' && !userApprovedUsage) return { allowed: false, reason: 'user has not approved usage for this run' };
-  // The auth isolation sentinel (spikes/isolation checkAuthIsolation) must have shown that an empty
-  // runtime profile is NOT logged in on this host, for this provider.
-  if (provider !== 'mock' && !(authSentinel && authSentinel.provider === provider && authSentinel.status === 'isolated')) {
-    return { allowed: false, reason: `auth isolation sentinel is ${authSentinel?.provider === provider ? authSentinel.status : 'missing'} for ${provider}` };
-  }
-  return { allowed: true, provider, reason: provider === 'mock' ? 'mock provider' : 'admitted' };
+  if (!entry) return deny('unregistered provider/auth/deployment combination');
+  if (entry.capability.admission !== 'approved') return deny(`admission is ${entry.capability.admission}`);
+  if (provider === 'mock') return decision({ allowed: true, provider, reason: 'mock provider' });
+  if (!entry.evidence.live_evidence) return deny('no live evidence recorded');
+  if (!userApprovedUsage) return deny('user has not approved usage for this run');
+  // The auth isolation sentinel (spikes/isolation checkAuthIsolation) must have shown, recently and on
+  // this host, that an empty runtime profile is NOT logged in for this provider.
+  const s = authSentinel;
+  if (!s || s.provider !== provider) return deny(`auth isolation sentinel missing for ${provider}`);
+  if (s.status !== 'isolated') return deny(`auth isolation sentinel is ${s.status}`);
+  if (s.host !== host) return deny(`auth isolation sentinel was taken on ${s.host}, not ${host}`);
+  const age = now - Date.parse(s.checked_at);
+  if (!(age >= 0 && age <= SENTINEL_MAX_AGE_MS)) return deny('auth isolation sentinel is stale or undated');
+  return decision({ allowed: true, provider, reason: 'admitted' });
 }
 
 const REFUSED_MODES = {
@@ -88,6 +104,18 @@ function realLocation(p) {
   return path.join(realOrNull(head) ?? head, ...tail);
 }
 
+// Contents of a profile must be its own files: no symlinks and no hard links to files elsewhere.
+function assertNoLinksInside(dir, depth = 0) {
+  if (depth > 8) throw new Error(`refused: profile dir nesting too deep at ${dir}`);
+  for (const name of fs.readdirSync(dir)) {
+    const p = path.join(dir, name);
+    const st = fs.lstatSync(p);
+    if (st.isSymbolicLink()) throw new Error(`refused: profile contains a symlink ${p}`);
+    if (st.isFile() && st.nlink > 1) throw new Error(`refused: profile file ${p} has a hard link elsewhere`);
+    if (st.isDirectory()) assertNoLinksInside(p, depth + 1);
+  }
+}
+
 // A runtime auth profile dir must not be, contain, or alias any developer CLI state.
 export function assertSafeProfileDir(dir, { homes = [os.homedir()], allowMissing = false, ownerUid = process.getuid ? process.getuid() : null } = {}) {
   if (!dir || !path.isAbsolute(dir)) throw new Error('refused: profile dir must be an absolute path');
@@ -100,6 +128,7 @@ export function assertSafeProfileDir(dir, { homes = [os.homedir()], allowMissing
     if (!st.isDirectory()) throw new Error(`refused: profile dir ${resolved} is not a directory`);
     if (st.mode & 0o022) throw new Error(`refused: profile dir ${resolved} is group/world-writable`);
     if (ownerUid !== null && st.uid !== ownerUid) throw new Error(`refused: profile dir ${resolved} is not owned by the runtime user (uid ${ownerUid})`);
+    assertNoLinksInside(resolved);
   }
   const candidates = new Set([resolved, realLocation(resolved)]);
   for (const home of homes) {

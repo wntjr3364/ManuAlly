@@ -72,3 +72,42 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-010
 
 ## 다음 Task
 PW-011 Claim·Fact·Evidence 최소 모델(자동 시작하지 않음).
+
+## 독립 리뷰 결과 반영 (2026-10-08)
+- 결론
+  - A(PW-010): changes requested. major 3, minor 5.
+  - B(PW-009 수정 재확인): approve. minor 4.
+- 수정 위치
+  - 새 migration `pw_010_0002_review_fixes.sql`
+  - `outlines/index.ts`, `shared/db.ts`
+- 회귀 시험: `tests/tasks/PW-010/review-fixes.int.test.ts` 8건
+  - 수정 전 6건 실패(`review-red.log`). 2건은 이미 맞게 동작하던 경로의 보강 시험이다.
+  - xid 위조 시험은 처음에 SQL 타입 오류로 실패했다. 시험을 고친 뒤 fix migration 없이 다시 돌려 의도한 이유(위조값 저장)로 실패함을 확인했다.
+
+| 지적 | 조치 |
+|---|---|
+| A-M1 active pointer가 가리키는 revision을 직접 SQL로 SUPERSEDED로 바꿔도 gate 통과 | deferred constraint trigger 3개(paper_projects, story_revisions, outline_revisions): commit 시점에 active pointer가 APPROVED만 가리켜야 함. gate도 status를 join해 확인 |
+| A-M2 승인된 outline에 node·approval 직접 삽입 → gate 통과 | `outline_revisions.created_xid`(BEFORE INSERT로 강제). node는 생성 트랜잭션에서만 삽입. approval은 FK `(outline_revision_id, content_hash)`로 해당 revision hash만 허용. DRAFT/IN_REVIEW일 때만 허용. 증거 필요 node는 DB에서도 승인 거부 |
+| A-M3 story/brief의 짝 없는 surrogate → 500, outline text는 무음 치환 | `storable()`을 shared로 옮겨 story·brief·node 모든 text/list에 적용 → 422 |
+| A-m1 상태 guard 느슨함 | CHECK: 승인 열 쌍, superseded 쌍. INSERT는 DRAFT만. DRAFT↔IN_REVIEW에서 승인 열 변경 금지 |
+| A-m2 gate TOCTOU | gate를 한 트랜잭션에서 paper 행 `FOR SHARE`로 수행. PW-013은 enqueue 트랜잭션 안에서 gate를 다시 실행하고, 고정한 story/outline/node를 저장해야 함(이월) |
+| A-m3 대문자 parent id → 409 | parent id를 소문자화 |
+| A-m4 spec 차이 | 아래 "결정 필요" |
+| A-m5 시험 공백 | 이전 revision 승인 거부(story·outline), 재승인 멱등, 다른 논문 outline gate, surrogate, 노드 추가, 위조 승인을 시험에 추가 |
+| B-m1 snapshot `created_xid` 위조 | BEFORE INSERT trigger로 현재 트랜잭션 값 강제 |
+| B-m2 교차 owner 행이 있으면 pw_009_0002 적용 실패 | 기록만 한다. 아직 이 테이블을 쓰는 API가 없어 운영 데이터가 없다. 적용 실패 시 해당 행을 정리한 뒤 migration을 실행한다 |
+| B-m3 owner_id를 호출자가 지정 | 이월: P04 참조 API는 owner_id를 paper에서 가져와야 함 |
+| B-m4 removed_at 되돌리기·use_role 변경 이력 없음 | 의도된 동작(재추가 허용). 변경 이력은 PW-013 audit에서 기록 |
+
+### 결정 필요 (P01 gate에서 사용자 확인)
+spec 03은 "범위별 승인 → 문단 생성"과 "논문은 active_outline_revision을 별도 선택"을 말한다. 현재 구현은 보수적이다.
+- outline은 **모든** node가 승인되어야 active가 되고, 그때 AI 초안이 허용된다. 일부 node만 승인된 상태로는 초안을 만들 수 없다.
+- 전체 승인이 곧 활성화다. 별도의 "활성화" 동작은 없다. 승인 자체가 사용자 행위이고, 이전 승인본은 SUPERSEDED로 남는다.
+
+대안: 승인된 node만 초안 허용 + 별도 activate endpoint. 사용자가 원하면 PW-011 전에 바꾼다.
+
+### 실행 결과
+- PW-010 통합: 22/22(`green.log`)
+- `pnpm test`: exit 0
+  - unit 9, integration 60, contracts 6, e2e 1, spikes 70
+  - evals PASS, pack-check PASS

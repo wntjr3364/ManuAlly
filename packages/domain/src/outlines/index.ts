@@ -4,7 +4,7 @@
 // The paper's active story/outline move only through approval. The AI draft gate is checked here,
 // on the server, against those active, approved revisions.
 import { randomUUID } from 'node:crypto';
-import { DomainError, UUID_RE, hasNul, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
+import { DomainError, UUID_RE, inTransaction, storable, type Queryable, type TxPool } from '../shared/db.ts';
 import { contentHash } from '../revisions/index.ts';
 
 // A DomainError that carries machine-readable details (missing fields, gate reasons …).
@@ -34,13 +34,13 @@ function text(v: unknown, field: string, max: number, { required = false } = {})
     if (required) throw invalid(`${field} is required`, field);
     return '';
   }
-  if (typeof v !== 'string' || v.length > max || hasNul(v)) throw invalid(`${field} must be text up to ${max} characters`, field);
+  if (typeof v !== 'string' || v.length > max || !storable(v)) throw invalid(`${field} must be text up to ${max} characters (no NUL or unpaired surrogate)`, field);
   if (required && !v.trim()) throw invalid(`${field} must not be empty`, field);
   return v;
 }
 function list(v: unknown, field: string, { maxItems = 100, maxLen = 2000 } = {}): string[] {
   if (v === undefined || v === null) return [];
-  if (!Array.isArray(v) || v.length > maxItems || v.some((x) => typeof x !== 'string' || x.length > maxLen || hasNul(x))) {
+  if (!Array.isArray(v) || v.length > maxItems || v.some((x) => typeof x !== 'string' || x.length > maxLen || !storable(x))) {
     throw invalid(`${field} must be a list of up to ${maxItems} strings`, field);
   }
   return [...v] as string[];
@@ -106,7 +106,7 @@ async function latestId(tx: Queryable, table: 'story_revisions' | 'outline_revis
 }
 function checkParent(parent: unknown): string | null {
   if (parent !== null && !isUuid(parent)) throw invalid('parent_revision_id must be the id of the latest revision, or null for the first one', 'parent_revision_id');
-  return parent;
+  return parent === null ? null : parent.toLowerCase();
 }
 
 export async function createStoryRevision(pool: TxPool, a: { paperId: string; ownerId: string; parent: unknown; brief: unknown; story: unknown }): Promise<StoryRevision> {
@@ -396,14 +396,26 @@ export async function approveOutlineRevision(pool: TxPool, a: { paperId: string;
 
 // Server-side check before any AI draft for a paragraph is accepted (spec 03 "AI generation 요청 시").
 // Manual saves never go through this gate.
-export async function checkDraftGate(db: Queryable, paperId: string, body: unknown) {
+// One transaction holding the paper row (FOR SHARE), so an approval cannot commit between the reads;
+// PW-013 reruns this inside the enqueue transaction and stores what it pinned.
+export async function checkDraftGate(pool: TxPool, paperId: string, body: unknown) {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   text(b.instruction, 'instruction', 4000, { required: true });
   if (typeof b.node_id !== 'string') throw invalid('node_id is required', 'node_id');
   const outlineId = b.outline_revision_id ?? null;
   if (outlineId !== null && typeof outlineId !== 'string') throw invalid('outline_revision_id must be a string or null', 'outline_revision_id');
+  return inTransaction(pool, (db) => gateIn(db, paperId, b, outlineId));
+}
+
+async function gateIn(db: Queryable, paperId: string, b: Record<string, unknown>, outlineId: string | null) {
+  // pointers count only while the revisions they name are APPROVED (the DB also enforces this at commit)
   const { rows: pr } = await db.query<{ active_story_revision_id: string | null; active_outline_revision_id: string | null }>(
-    'SELECT active_story_revision_id, active_outline_revision_id FROM paper_projects WHERE id = $1', [paperId],
+    `SELECT CASE WHEN s.status = 'APPROVED' THEN p.active_story_revision_id END AS active_story_revision_id,
+            CASE WHEN o.status = 'APPROVED' THEN p.active_outline_revision_id END AS active_outline_revision_id
+     FROM paper_projects p
+     LEFT JOIN story_revisions s ON s.id = p.active_story_revision_id
+     LEFT JOIN outline_revisions o ON o.id = p.active_outline_revision_id
+     WHERE p.id = $1 FOR SHARE OF p`, [paperId],
   );
   const paper = pr[0];
   if (!paper) throw new DomainError('NOT_FOUND', 'paper not found');

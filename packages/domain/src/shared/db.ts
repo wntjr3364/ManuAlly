@@ -35,3 +35,6 @@ export async function inTransaction<T>(pool: TxPool, fn: (tx: Queryable) => Prom
 
 // Text that PostgreSQL cannot store (and that has no place in user input).
 export const hasNul = (s: string) => s.includes('\u0000');
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+// NUL and unpaired surrogates: PostgreSQL rejects them in jsonb and replaces them in text.
+export const storable = (s: string) => !hasNul(s) && !LONE_SURROGATE.test(s);

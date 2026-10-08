@@ -2,7 +2,7 @@
 // the document head moves only by compare-and-set inside a transaction. Restore never rewrites
 // history: it appends a new revision whose content equals the restored one.
 import { createHash, randomUUID } from 'node:crypto';
-import { DomainError, UUID_RE, hasNul, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
+import { DomainError, UUID_RE, inTransaction, storable, type Queryable, type TxPool } from '../shared/db.ts';
 
 export type { TxPool };
 
@@ -39,8 +39,6 @@ export type RevisionMeta = Omit<Revision, 'content_json'>;
 const META = 'id, paper_id, document_id, parent_revision_id, restored_from_revision_id, schema_version, content_hash, created_by, reason, created_at';
 
 const MAX_DEPTH = 100;
-const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
-const storable = (s: string) => !hasNul(s) && !LONE_SURROGATE.test(s);
 
 // Strings PostgreSQL cannot store (NUL, lone surrogates) and pathological nesting are input errors, not 500s.
 function checkTree(v: unknown, depth: number): void {

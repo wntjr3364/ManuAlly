@@ -1,0 +1,4 @@
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/ManuAlly/spikes/editor-export/src/selection.mjs' imported from /home/user/ManuAlly/tests/tasks/PW-003/selection-export.test.mjs
+# tests 1
+# pass 0
+# fail 1

@@ -1,0 +1,40 @@
+[
+ {
+  "id": "0a5d2c1e-7b1f-4c2e-9d3a-1f2e3d4c5b6a",
+  "type": "article-journal",
+  "title": "Synthetic stress response in a model plant",
+  "author": [
+   {
+    "family": "Kimura",
+    "given": "A."
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2021
+    ]
+   ]
+  },
+  "container-title": "Journal of Synthetic Biology Fixtures"
+ },
+ {
+  "id": "6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b",
+  "type": "article-journal",
+  "title": "A second invented reference",
+  "author": [
+   {
+    "family": "Okafor",
+    "given": "B."
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2019
+    ]
+   ]
+  },
+  "container-title": "Fixture Letters"
+ }
+]

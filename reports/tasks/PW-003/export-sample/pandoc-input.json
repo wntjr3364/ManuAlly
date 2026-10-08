@@ -1,0 +1,607 @@
+{
+ "pandoc-api-version": [
+  1,
+  23,
+  1
+ ],
+ "meta": {},
+ "blocks": [
+  {
+   "t": "Header",
+   "c": [
+    1,
+    [
+     "b-h1",
+     [],
+     []
+    ],
+    [
+     {
+      "t": "Str",
+      "c": "Results"
+     }
+    ]
+   ]
+  },
+  {
+   "t": "Para",
+   "c": [
+    {
+     "t": "Str",
+     "c": "Expression"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "of"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Emph",
+     "c": [
+      {
+       "t": "Str",
+       "c": "ABC1"
+      }
+     ]
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "increased"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "2.4-fold"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "(n"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "="
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "6)"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "🌱"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "under"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "stress;"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "α-tubulin"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "was"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "stable"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Cite",
+     "c": [
+      [
+       {
+        "citationId": "0a5d2c1e-7b1f-4c2e-9d3a-1f2e3d4c5b6a",
+        "citationPrefix": [],
+        "citationSuffix": [],
+        "citationMode": {
+         "t": "NormalCitation"
+        },
+        "citationNoteNum": 0,
+        "citationHash": 0
+       }
+      ],
+      [
+       {
+        "t": "Str",
+        "c": "[@0a5d2c1e-7b1f-4c2e-9d3a-1f2e3d4c5b6a]"
+       }
+      ]
+     ]
+    },
+    {
+     "t": "Str",
+     "c": "."
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "한국어"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "문장도"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "포함된다."
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "Café"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "vs"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "Café."
+    }
+   ]
+  },
+  {
+   "t": "Para",
+   "c": [
+    {
+     "t": "Str",
+     "c": "The"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "pathway"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "may"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "contribute"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "to"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "growth."
+    }
+   ]
+  },
+  {
+   "t": "Para",
+   "c": [
+    {
+     "t": "Str",
+     "c": "The"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "pathway"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "may"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "contribute"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "to"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "growth."
+    }
+   ]
+  },
+  {
+   "t": "Para",
+   "c": [
+    {
+     "t": "Str",
+     "c": "H"
+    },
+    {
+     "t": "Subscript",
+     "c": [
+      {
+       "t": "Str",
+       "c": "2"
+      }
+     ]
+    },
+    {
+     "t": "Str",
+     "c": "O"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "and"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "x"
+    },
+    {
+     "t": "Superscript",
+     "c": [
+      {
+       "t": "Str",
+       "c": "2"
+      }
+     ]
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "with"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Math",
+     "c": [
+      {
+       "t": "InlineMath"
+      },
+      "\\beta = 0.5"
+     ]
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "and"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Cite",
+     "c": [
+      [
+       {
+        "citationId": "6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b",
+        "citationPrefix": [],
+        "citationSuffix": [
+         {
+          "t": "Str",
+          "c": ","
+         },
+         {
+          "t": "Space"
+         },
+         {
+          "t": "Str",
+          "c": "p."
+         },
+         {
+          "t": "Space"
+         },
+         {
+          "t": "Str",
+          "c": "4"
+         }
+        ],
+        "citationMode": {
+         "t": "NormalCitation"
+        },
+        "citationNoteNum": 0,
+        "citationHash": 0
+       }
+      ],
+      [
+       {
+        "t": "Str",
+        "c": "[@6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b]"
+       }
+      ]
+     ]
+    },
+    {
+     "t": "Str",
+     "c": "."
+    }
+   ]
+  },
+  {
+   "t": "Table",
+   "c": [
+    [
+     "b-t1",
+     [],
+     []
+    ],
+    [
+     null,
+     []
+    ],
+    [
+     [
+      {
+       "t": "AlignDefault"
+      },
+      {
+       "t": "ColWidthDefault"
+      }
+     ],
+     [
+      {
+       "t": "AlignDefault"
+      },
+      {
+       "t": "ColWidthDefault"
+      }
+     ]
+    ],
+    [
+     [
+      "",
+      [],
+      []
+     ],
+     [
+      [
+       [
+        "",
+        [],
+        []
+       ],
+       [
+        [
+         [
+          "",
+          [],
+          []
+         ],
+         {
+          "t": "AlignDefault"
+         },
+         1,
+         1,
+         [
+          {
+           "t": "Plain",
+           "c": [
+            {
+             "t": "Str",
+             "c": "Group"
+            }
+           ]
+          }
+         ]
+        ],
+        [
+         [
+          "",
+          [],
+          []
+         ],
+         {
+          "t": "AlignDefault"
+         },
+         1,
+         1,
+         [
+          {
+           "t": "Plain",
+           "c": [
+            {
+             "t": "Str",
+             "c": "Mean"
+            }
+           ]
+          }
+         ]
+        ]
+       ]
+      ]
+     ]
+    ],
+    [
+     [
+      [
+       "",
+       [],
+       []
+      ],
+      0,
+      [],
+      [
+       [
+        [
+         "",
+         [],
+         []
+        ],
+        [
+         [
+          [
+           "",
+           [],
+           []
+          ],
+          {
+           "t": "AlignDefault"
+          },
+          1,
+          1,
+          [
+           {
+            "t": "Plain",
+            "c": [
+             {
+              "t": "Str",
+              "c": "Control"
+             }
+            ]
+           }
+          ]
+         ],
+         [
+          [
+           "",
+           [],
+           []
+          ],
+          {
+           "t": "AlignDefault"
+          },
+          1,
+          1,
+          [
+           {
+            "t": "Plain",
+            "c": [
+             {
+              "t": "Str",
+              "c": "1.0"
+             }
+            ]
+           }
+          ]
+         ]
+        ]
+       ]
+      ]
+     ]
+    ],
+    [
+     [
+      "",
+      [],
+      []
+     ],
+     []
+    ]
+   ]
+  },
+  {
+   "t": "Para",
+   "c": [
+    {
+     "t": "Str",
+     "c": "Jamo:"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "한"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "end."
+    }
+   ]
+  }
+ ]
+}

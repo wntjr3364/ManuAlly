@@ -1,0 +1,13 @@
+ok 1 - TST-004A: a new run gets the explicit session id we chose and reports it back
+ok 2 - TST-004A: resume passes exactly the stored session id
+ok 3 - TST-004A: a provider reporting a different session id is flagged, not adopted
+ok 4 - TST-004A: interrupt ends the run and its process group only
+ok 5 - TST-004A: the original research folder is byte-identical after a run that tampers with its copy
+ok 6 - TST-004B: implicit continue / latest-session / missing resume id are refused
+ok 7 - TST-004B: symlinks, traversal and symlinked parents cannot pull originals into a run
+ok 8 - TST-004B: the child gets a fresh HOME and none of the parent credentials or sockets
+ok 9 - TST-004B: no shell or file-tool surface is exposed to the model
+ok 10 - TST-004B: an empty runtime profile that still reports a login is detected as a credential leak
+# tests 10
+# pass 10
+# fail 0

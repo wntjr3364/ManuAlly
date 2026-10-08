@@ -1,0 +1,61 @@
+{
+  "note": "positions the server refuses instead of guessing",
+  "cases": [
+    {
+      "name": "inside emoji surrogate pair",
+      "blockId": "b-p1",
+      "from": 47,
+      "to": 48,
+      "outcome": "REFUSED",
+      "code": "SPLITS_SURROGATE_PAIR"
+    },
+    {
+      "name": "between base letter and combining acute",
+      "blockId": "b-p1",
+      "from": 109,
+      "to": 113,
+      "outcome": "REFUSED",
+      "code": "SPLITS_GRAPHEME"
+    },
+    {
+      "name": "inside decomposed Hangul syllable",
+      "blockId": "b-p5",
+      "from": 6,
+      "to": 7,
+      "outcome": "REFUSED",
+      "code": "SPLITS_GRAPHEME"
+    },
+    {
+      "name": "empty selection",
+      "blockId": "b-p2",
+      "from": 5,
+      "to": 5,
+      "outcome": "REFUSED",
+      "code": "EMPTY_SELECTION"
+    },
+    {
+      "name": "range beyond block end",
+      "blockId": "b-p2",
+      "from": 5,
+      "to": 9999,
+      "outcome": "REFUSED",
+      "code": "RANGE_OUT_OF_BOUNDS"
+    },
+    {
+      "name": "table block (not a textblock)",
+      "blockId": "b-t1",
+      "from": 0,
+      "to": 1,
+      "outcome": "REFUSED",
+      "code": "NOT_TEXTBLOCK"
+    },
+    {
+      "name": "unknown block id",
+      "blockId": "b-zz",
+      "from": 0,
+      "to": 1,
+      "outcome": "REFUSED",
+      "code": "BLOCK_NOT_FOUND"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "pw-spike-editor-export",
+  "private": true,
+  "type": "module",
+  "description": "PW-003 spike: shared ProseMirror position contract and DOCX export loss check",
+  "dependencies": {
+    "prosemirror-model": "1.25.12",
+    "prosemirror-transform": "1.12.2"
+  }
+}

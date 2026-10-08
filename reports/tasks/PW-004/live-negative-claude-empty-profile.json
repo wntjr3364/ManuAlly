@@ -1,0 +1,82 @@
+{
+ "exitCode": 0,
+ "reportedSessionId": "c0d475d6-6d73-47ce-a097-315a4b214bb3",
+ "sessionMismatch": false,
+ "event_types": [
+  "system/init",
+  "assistant",
+  "rate_limit_event",
+  "result/success"
+ ],
+ "result": {
+  "subtype": "success",
+  "is_error": false,
+  "result": "ping",
+  "total_cost_usd": 0.00918,
+  "usage": {
+   "input_tokens": 2,
+   "cache_creation_input_tokens": 2284,
+   "cache_read_input_tokens": 0,
+   "output_tokens": 4,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "server_tool_use": {
+    "web_search_requests": 0,
+    "web_fetch_requests": 0
+   },
+   "service_tier": "standard",
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 2284,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "inference_geo": "not_available",
+   "iterations": [],
+   "speed": "standard",
+   "fallback_credit": null
+  }
+ },
+ "init": {
+  "tools": [],
+  "mcp_servers": [],
+  "apiKeySource": "none",
+  "permissionMode": "dontAsk",
+  "model": "claude-sonnet-5-5",
+  "capabilities": [
+   "interrupt_receipt_v1",
+   "interrupt_cancel_queued_v1",
+   "interrupt_send_now_v1",
+   "msg_lifecycle_v1",
+   "request_marker_lists_v1",
+   "sdk_mcp_tools_list_changed",
+   "sdk_mcp_manifests",
+   "mcp_read_resource_v1",
+   "mcp_tool_ui_meta_v1",
+   "ui_surface_v1"
+  ]
+ },
+ "stderr": "",
+ "args": [
+  "-p",
+  "--output-format",
+  "stream-json",
+  "--verbose",
+  "--tools",
+  "",
+  "--strict-mcp-config",
+  "--mcp-config",
+  "/tmp/pw004-live-neg-eEs3ef/runs/250c4d22-d1d2-4b5b-a7d1-514ced31c843/mcp.json",
+  "--allowedTools",
+  "mcp__paper",
+  "--permission-mode",
+  "dontAsk",
+  "--permission-prompts",
+  "none",
+  "--disable-slash-commands",
+  "--no-chrome",
+  "--session-id",
+  "c0d475d6-6d73-47ce-a097-315a4b214bb3",
+  "--effort",
+  "low"
+ ]
+}

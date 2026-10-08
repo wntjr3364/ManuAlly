@@ -1,0 +1,15 @@
+{
+ "host": "cloud dev container (not a user machine)",
+ "checked_at": "2026-10-08T07:15:12.542Z",
+ "claude_agent": {
+  "status": "leak",
+  "detail": {
+   "authMethod": "oauth_token",
+   "apiProvider": "firstParty"
+  }
+ },
+ "codex": {
+  "status": "isolated",
+  "detail": {}
+ }
+}

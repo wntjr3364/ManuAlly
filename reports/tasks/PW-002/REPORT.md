@@ -54,3 +54,13 @@ RED: `ERR_MODULE_NOT_FOUND` (`red.log`). GREEN: 7/7 (`green.log`).
 
 ## 다음 Task
 PW-003 문서 선택·포맷 왕복 spike.
+
+## 독립 리뷰 후속 (bf76f80)
+| 리뷰 | 조치 |
+|---|---|
+| M4 개발 config 우회(symlink, HOME 자체, 다른 HOME의 `.codex`) | `assertSafeProfileDir`로 처리. realpath 비교, symlink 거부, HOME 자체·HOME의 상위 폴더 거부, `.claude.json` 포함, 런타임 사용자 소유·group/world 쓰기 불가 확인. 테스트 추가 |
+| M5 sentinel 미연결 | `decideModelCall`이 해당 provider의 sentinel `isolated` 결과를 요구한다(leak·unknown·다른 provider면 거부). 테스트 추가 |
+| M7 Codex shell | 정책에 `approvalPolicy: on-request`, 끌 수 있는 feature 15개, 끌 수 없는 `unified_exec`를 기록. Codex는 바깥 sandbox 검증 전 비활성(RFC-004) |
+| 재현성 | inventory 생성 스크립트(`tools/generate-codex-inventory.py`)와 버전 probe(`tools/probe-cli-versions.mjs`) 커밋 |
+
+테스트: 9/9 (`green.log`).

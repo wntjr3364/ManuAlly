@@ -1,5 +1,5 @@
 # RFC-003 — 개요 승인 전에도 사용자가 쓴 문장의 보수적 AI 교정은 허용
-Status: accepted (delegated)
+Status: proposed
 Trigger task: PW-006
 Affected requirements/specs/contracts: REQ-010, REQ-016, REQ-017; docs/specs/03_STORY_AND_OUTLINE.md, 04_EDITOR_AND_INTERACTION.md
 Problem and evidence:
@@ -15,4 +15,7 @@ Security/privacy/budget/provider terms impact: 외부 전송 정책은 동일하
 Data migration / backward compatibility: 없음.
 Tests and acceptance criteria: 승인 전 conservative 교정은 proposal 생성, 승인 전 rewrite/new paragraph는 서버가 거부, 숫자·인용 변경 시 거부.
 Write scope: PW-016, PW-017 테스트에 추가.
-User decision / reviewer: 사용자가 2026-10-08 위임. phase gate에서 재확인.
+User decision / reviewer:
+- 처음에는 사용자 위임으로 accepted 처리했다.
+- 독립 리뷰 M2(guard가 그룹값 교환·부등호·단위·부정어·위첨자·인용 locator 변경을 통과시킴)를 반영해 **proposed로 되돌렸다**.
+- guard는 bf76f80에서 강화했지만 영어 중심 휴리스틱이므로, P00 gate에서 사용자가 직접 승인해야 한다.

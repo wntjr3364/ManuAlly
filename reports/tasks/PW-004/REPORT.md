@@ -28,7 +28,7 @@ RED: `ERR_MODULE_NOT_FOUND`. 이후 auth sentinel 추가 시 export 없음으로
 ## 진행 중 수정한 것
 1. interrupt 테스트가 실패해 멈춤(hang). 원인은 이 컨테이너의 PID 1(`process_api`)이 고아 프로세스를 회수하지 않아, 종료된 손자 프로세스가 **zombie**로 남은 것이다(`/proc/<pid>/status`에서 `State: Z` 확인).
    - kill 자체는 정상 동작했다. 테스트의 생존 판정을 "zombie = 종료"로 수정했다.
-   - 정리 코드는 `t.after`로 옮겼다.
+   - (정정) 최초 보고서는 "정리 코드를 `t.after`로 옮겼다"고 썼지만 실제로는 반영되지 않았었다(편집 명령이 앞선 `pkill`로 중단됨). 리뷰 후 bf76f80에서 실제로 반영했다.
    - **운영 발견:** runner는 고아를 회수하는 init(systemd 서비스 또는 컨테이너에서 `tini`/`--init`) 아래에서 돌아야 한다.
 
 ## ⚠️ 중요 발견 — env/HOME 격리만으로는 자격증명 격리가 안 된다
@@ -56,7 +56,7 @@ RED: `ERR_MODULE_NOT_FOUND`. 이후 auth sentinel 추가 시 export 없음으로
 - 원인: "실패할 것"을 전제로 실제 호출 경로를 실행했다. Constitution상 실제 호출은 사용자 승인 계정·예산이 필요하다.
 - 재발 방지:
   - 음성 검사는 이제 `claude auth status`(모델 호출 없음)로 **먼저** 인증 상태를 확인한다.
-  - runner는 sentinel이 `isolated`가 아니면 실행을 거부한다(admission 조건).
+  - (정정) 최초 보고서는 "runner가 sentinel 결과로 실행을 거부한다"고 썼지만, 당시에는 sentinel이 구현만 되고 어디에서도 호출되지 않았다(리뷰 M5). bf76f80에서 `decideModelCall`과 `startProviderRun`에 연결했다.
   - 이후 이 컨테이너에서 실제 provider 실행은 하지 않았다.
 - 부수 효과로 얻은 사실: 2.1.294가 위 플래그 조합을 그대로 받아들임을 확인했다.
   - `system/init`에서 tools=[], mcp_servers=[], permissionMode=dontAsk.
@@ -81,3 +81,22 @@ RED: `ERR_MODULE_NOT_FOUND`. 이후 auth sentinel 추가 시 export 없음으로
 
 ## 다음 Task
 PW-005 집필 품질 baseline fixture.
+
+## 독립 리뷰 후속 (bf76f80)
+| 리뷰 | 조치 |
+|---|---|
+| M4 profile 경로 우회 | `buildChildEnv`가 `assertSafeProfileDir`를 사용한다(realpath·symlink·HOME·소유자). 소유자는 control plane이 아니라 **런타임 사용자** 기준 |
+| M5 sentinel 미연결 | `startProviderRun`이 해당 provider의 admission 결정(`allowed:true`) 없이는 프로세스를 띄우지 않는다. 인자도 provider별로 검증 |
+| M6 Claude 설정 표면 | `--restricted` 필수(user/project/local 설정·hooks 무시). runs root 상위에 CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude, .mcp.json, .codex가 있으면 거부. preflight가 managed settings 경로 존재를 기록 |
+| M7 Codex shell | feature 15개를 `-c features.X=false`로 끔(측정: `codex-features.txt`). **`unified_exec`는 끌 수 없음.** `approval_policy="untrusted"`는 0.161.0에서 시작 거부(측정) → `on-request` 사용. 결론: Codex는 바깥 filesystem sandbox 필수(RFC-004) |
+| 인자 denylist | `assertSafeClaudeArgs`를 allowlist로 교체. 값 검증, 중복 금지, 필수 잠금 플래그 확인, `=` 형태·묶음 short flag·위치 인자(prompt) 거부. prompt는 stdin으로만 전달 |
+| prepareRun 허점 | hardlink(nlink>1) 거부. `O_NOFOLLOW` open + inode 재확인 후 fd에서 복사(TOCTOU). 실패 시 run 폴더 삭제. runs root는 group/world 쓰기·symlink·타 소유자 거부 |
+| 프로세스 처리 | 리더 종료 후에는 그룹 일괄 kill 대신 `/proc`에서 같은 그룹이면서 리더보다 늦게 시작한 프로세스만 정리. spawn `error` 처리로 바이너리가 없으면 즉시 실패 |
+| root에서 생략되던 검사 | root로 테스트할 때 가짜 provider를 **nobody(65534)로 실행**. 읽기 전용 입력 검사가 항상 수행되고, 실행 사용자 uid도 확인 |
+| 임시 폴더 누수 | 모든 테스트가 `t.after`/`after`로 정리 |
+
+재측정(`auth-sentinel.cloud-dev-container.json`, `tools/auth-sentinel.mjs`): claude=leak, codex=isolated.
+- 중간에 Codex가 `unknown`으로 나온 적이 있다. 원인은 `untrusted` 설정으로 app-server가 시작하지 못한 것이다.
+- 이 경우 sentinel은 실패 시 거부(fail-closed)로 동작했다.
+
+테스트: 12/12 (`green.log`).

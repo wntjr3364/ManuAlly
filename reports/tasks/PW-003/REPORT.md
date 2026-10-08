@@ -65,3 +65,17 @@
 
 ## 다음 Task
 PW-004 실행 세션·권한 격리 spike.
+
+## 독립 리뷰 후속 (bf76f80)
+| 리뷰 | 조치 |
+|---|---|
+| M1 수정안이 사용자 선택에 묶이지 않음, 재생 가능 | `HandleStore` + `applyAiProposal`: 범위·블록·hash는 서버에 저장된 handle에서만 가져옴. proposal의 다른 범위는 `HANDLE_RANGE_MISMATCH`. `proposal_id` 재사용은 `ALREADY_APPLIED`, 적용된 handle은 `HANDLE_CONSUMED`. slice hash에 block_id·from·to 포함 |
+| M2 guard가 약함, `mode` 우회 | 수치는 run별·순서 비교(비교기호·단위 포함), 부정어·방향어 순서, 서식 run(위첨자 등), 인용 locator, 인용 앞 단어(위치)를 검사. AI 경로는 mode를 무시하고 항상 guard. 사용자 입력은 `applyUserEdit` 별도 경로. 리뷰어 재현 9개를 모두 테스트로 만들었고 각각 기대 코드로 거부됨 |
+| M3 손실 보고서가 본문 누락을 못 봄, figure_ref 행 없음 | 블록별 순서 텍스트 비교(`block_text`), 블록별 서식 run 비교, `figure_ref: degraded` 행 추가. 블록 2개를 지운 round-trip, Subscript를 지운 round-trip에서 `lost`가 나오는 테스트 추가 |
+| RFC-005 | `preserve_atom`으로 수식·그림참조 atom을 순서대로 보존해 수정 가능 |
+
+남은 한계:
+- guard는 영어 중심 휴리스틱이다. 동의어 반전("rose"→"fell"이 목록 밖 단어인 경우), 다국어 표현은 놓칠 수 있다. 의미 검사는 PW-043/044 담당이다.
+- base_revision_id / idempotency key의 DB 저장은 PW-017 범위다.
+
+테스트: 14/14 (`green.log`). 증거 재생성: `node spikes/editor-export/run-spike.mjs reports/tasks/PW-003`.

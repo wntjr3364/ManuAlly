@@ -37,3 +37,15 @@ Mutation check(`mutation-check.log`): 실패 사례를 ALLOW로 바꾸면 검증
 
 ## 다음 Task
 PW-006 P00 검토·ADR·버전 고정안.
+
+## 독립 리뷰 후속 (bf76f80)
+| 리뷰 | 조치 |
+|---|---|
+| M8 통계 오류 | 생존율을 25/40 = 62.5% vs 15/40 = 37.5%로 수정. χ²(df=1) = 5.0, p = 0.025(보정 없음; Yates p = 0.044 병기). DEG 수(312)는 새 근거 `ev-table3`에 연결. `n_unit`("plants per group" 등) 추가 |
+| M9 검증기 | gold 인용은 철회 문헌 금지, `FULLTEXT_PARSED`/`SOURCE_CHECKED`만 허용. METADATA_ONLY는 sections_read가 없어야 하고, ABSTRACT_ONLY는 Abstract만 읽은 상태여야 함. 그룹 라벨-값 결합 검사, null 결과는 부정 표현 필수, 증감 방향 일치, 개요 노드가 허용하지 않은 인과 표현 금지, 그룹 백분율-count 일치 검사 |
+
+Mutation check(`mutation-check.log`): 실패 사례 10개를 ALLOW로 바꿨을 때 8개를 정확한 사유로 잡는다.
+- 수치 위조, 그룹 뒤바뀜, 부정 반전, abstract-only 인용, 없는 인용, 철회 문헌, 과장, 지어낸 Methods 값.
+- B-VERB-02(장문)와 B-REP-01(보고서식)은 문체 판단이라 결정적 검사로 잡지 않는다. 점수화 전 PW-044/045 rubric이 필요하다(gate 조건 5).
+
+테스트: 12/12 (`green.log`).

@@ -11,11 +11,22 @@ Proposed change:
 3. 실제 로그인은 그 다음에 런타임 사용자가 자신의 profile dir에서 한다.
 4. runner는 고아를 회수하는 init 아래에서 실행한다(systemd, 또는 컨테이너 `--init`/tini).
 5. Linux 서버에는 Codex sandbox용 `bubblewrap` 패키지를 설치한다.
+6. **Codex 바깥 sandbox 필수.** codex 0.161.0 실측 결과:
+   - `unified_exec`(명령 실행)는 `-c features.unified_exec=false`, `--disable`, config.toml 어느 방법으로도 꺼지지 않는다.
+   - `approval_policy="untrusted"`는 시작 시 거부된다("no longer supported").
+   - 따라서 read-only sandbox 안의 명령은 승인 없이 실행되고, 런타임 사용자가 읽을 수 있는 파일은 모두 읽힌다.
+   - Codex는 실행 폴더만 보이는 바깥 sandbox(bubblewrap bind mount, 컨테이너, VM)가 검증될 때까지 admission하지 않는다.
+7. admission 강제(spike 구현):
+   - `decideModelCall`은 해당 provider의 sentinel이 isolated일 때만 허용한다.
+   - `startProviderRun`은 그 결정 없이는 프로세스를 띄우지 않는다.
+8. runs root는 CLAUDE.md, AGENTS.md, .claude, .mcp.json, .codex가 있는 폴더 아래에 둘 수 없다. Claude는 `--restricted`로 실행한다(user/project/local 설정 파일 무시). managed settings는 여전히 적용되므로 preflight가 그 존재를 기록한다.
 Alternatives considered:
 - env/HOME 격리만: 실측으로 불충분함이 확인돼 기각.
 - 개발 계정과 같은 OS 사용자에서 keychain 항목만 분리: OS별 동작이 불명확하고 검증 수단이 없어 기각.
 Security/privacy/budget/provider terms impact: 개발 세션의 quota·자격증명이 논문 런타임에 섞이는 것을 막는다. 설치 단계가 늘어난다(사용자 1회 작업).
 Data migration / backward compatibility: 없음.
-Tests and acceptance criteria: sentinel 단위 테스트(통과), 각 배포 호스트에서 sentinel 실측 isolated, 런타임 사용자로 개발 HOME 읽기 시도 실패(PW-026), non-root에서 0444 입력 수정 실패.
+Tests and acceptance criteria:
+- 이미 통과(spike): sentinel 단위 테스트, admission 없는 실행 거부, nobody 사용자 실행에서 0444 입력 수정 실패(PW-004).
+- 앞으로 필요: 각 배포 호스트에서 sentinel 실측 isolated, 런타임 사용자로 개발 HOME 읽기 시도 실패(PW-026), Codex 바깥 sandbox에서 실행 폴더 밖 읽기 실패(PW-025/026).
 Write scope: spikes/isolation/**(완료), P03 PW-026 runner, infra 문서.
 User decision / reviewer: P00 gate에서 사용자 승인 필요.

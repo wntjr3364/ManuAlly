@@ -42,3 +42,28 @@ RED: route 없음으로 7건 실패(`red.log`). GREEN: 7/7.
 
 ## 다음 Task
 PW-010 수동 Story·Outline 승인.
+
+## 독립 리뷰 결과 반영 (2026-10-08)
+리뷰 결론은 changes requested였다(major 3, minor 4). 수정은 새 migration `pw_009_0002_snapshot_seal_reference_owner.sql`과 `revisions/index.ts`로 했다. 회귀 시험은 `tests/tasks/PW-009/review-fixes.int.test.ts`(6건)다.
+- M1 snapshot에 나중에 행 추가 가능
+  - `paper_snapshots.created_xid`를 두고, 하위 3개 테이블에 AFTER INSERT trigger를 건다.
+  - 스냅샷을 만든 트랜잭션에서만 행을 추가할 수 있다.
+  - AFTER로 둔 이유: 다른 논문 행은 FK 오류가 먼저 보고되도록 하기 위해서다(기존 TST-009B 유지).
+- M2 다른 owner의 문헌 연결 가능
+  - `project_references.owner_id`를 추가한다.
+  - FK `(paper_id, owner_id)`→paper, `(owner_id, reference_id)`→reference_works.
+- M3 snapshot에 쓰인 문헌을 논문에서 제거할 수 없음
+  - `removed_at`으로 소프트 제거한다. DELETE·식별자 변경·TRUNCATE는 금지한다.
+  - 다음 snapshot은 제거된 문헌을 제외한다.
+- minor 4 (500 대신 4xx)
+  - content의 NUL·짝 없는 surrogate는 422.
+  - 깊이 100 초과는 422.
+  - schema_version이 int4 범위를 넘으면 422.
+  - label의 NUL은 422.
+- minor 7: 문서 잠금에 `ORDER BY id` 추가.
+- 보류(기록):
+  - minor 5: 문서별 seq 열은 불변 테이블에 열 추가와 백필이 필요하다. P04 이전 RFC로 처리한다.
+  - minor 6: DB 수준 created_by=owner, content_hash 검증은 PW-013 audit와 함께 처리한다.
+  - 잔여 위험: 앱 DB 계정이 superuser·테이블 owner다. trigger를 끌 수 있으므로 운영용 runtime role을 분리해야 한다(PW-061/P07 배포 전 필수).
+  - 잔여 위험: 보존 정책에 따른 프로젝트 영구 삭제 경로는 아직 없다.
+- 리뷰 시 테스트 공백(문헌·asset이 든 snapshot, 기존 snapshot에 삽입)은 위 회귀 시험으로 채웠다.

@@ -4,6 +4,7 @@ import { getPaper, type Paper } from '@pw/domain/papers/index.ts';
 import { registerAuth } from './auth/plugin.ts';
 import { registerPaperRoutes } from './routes/papers/index.ts';
 import { registerRevisionRoutes } from './routes/revisions/index.ts';
+import { registerOutlineRoutes } from './routes/outlines/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -17,6 +18,9 @@ declare module 'fastify' {
     paperScoped?: boolean;
   }
 }
+
+// 4xx kinds that are safe and useful to name (no internal detail)
+const CLIENT_ERRORS: Record<number, string> = { 404: 'not_found', 405: 'method_not_allowed', 413: 'payload_too_large', 415: 'unsupported_media_type', 429: 'rate_limited' };
 
 export interface ServerOptions {
   pool: TxPool;
@@ -64,7 +68,8 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   app.setErrorHandler((err: FastifyError, req, reply) => {
     const status = err.statusCode && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 500;
     if (status === 500) req.log.error({ err }, 'unhandled error');
-    return reply.code(status).send({ error: status === 500 ? 'internal' : 'bad_request' });
+    const kind = status === 500 ? 'internal' : (CLIENT_ERRORS[status] ?? 'bad_request');
+    return reply.code(status).send({ error: kind });
   });
   registerAuth(app, {
     db,
@@ -76,5 +81,6 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   });
   registerPaperRoutes(app, db);
   registerRevisionRoutes(app, db);
+  registerOutlineRoutes(app, db);
   return app;
 }

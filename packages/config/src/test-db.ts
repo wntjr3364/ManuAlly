@@ -35,6 +35,13 @@ export async function createTempDatabase(baseUrl = requireTestDatabaseUrl()): Pr
       const c = new pg.Client({ connectionString: baseUrl });
       await c.connect();
       try {
+        // let closing pools finish their own disconnect first; FORCE then only hits real leftovers
+        // (terminating a client that is mid-close surfaces as an unhandled 57P01 in the test run)
+        for (let i = 0; i < 40; i++) {
+          const { rows } = await c.query('SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1', [name]);
+          if (rows[0].n === 0) break;
+          await new Promise((r) => setTimeout(r, 50));
+        }
         await c.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
       } finally {
         await c.end();

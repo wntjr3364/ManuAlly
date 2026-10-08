@@ -2,7 +2,7 @@
 // the document head moves only by compare-and-set inside a transaction. Restore never rewrites
 // history: it appends a new revision whose content equals the restored one.
 import { createHash, randomUUID } from 'node:crypto';
-import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
+import { DomainError, UUID_RE, hasNul, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
 
 export type { TxPool };
 
@@ -38,12 +38,34 @@ export interface Revision {
 export type RevisionMeta = Omit<Revision, 'content_json'>;
 const META = 'id, paper_id, document_id, parent_revision_id, restored_from_revision_id, schema_version, content_hash, created_by, reason, created_at';
 
+const MAX_DEPTH = 100;
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+const storable = (s: string) => !hasNul(s) && !LONE_SURROGATE.test(s);
+
+// Strings PostgreSQL cannot store (NUL, lone surrogates) and pathological nesting are input errors, not 500s.
+function checkTree(v: unknown, depth: number): void {
+  if (depth > MAX_DEPTH) throw new DomainError('INVALID', `content_json is nested deeper than ${MAX_DEPTH} levels`, 'content_json');
+  if (typeof v === 'string') {
+    if (!storable(v)) throw new DomainError('INVALID', 'content_json contains a NUL character or an unpaired surrogate', 'content_json');
+  } else if (Array.isArray(v)) {
+    for (const x of v) checkTree(x, depth + 1);
+  } else if (v && typeof v === 'object') {
+    for (const [k, x] of Object.entries(v)) {
+      if (!storable(k)) throw new DomainError('INVALID', 'content_json contains a NUL character or an unpaired surrogate', 'content_json');
+      checkTree(x, depth + 1);
+    }
+  }
+}
+
 function validateContent(content: unknown, schemaVersion: unknown) {
   if (!content || typeof content !== 'object' || Array.isArray(content) || (content as { type?: unknown }).type !== 'doc') {
     throw new DomainError('INVALID', 'content_json must be a document object with type "doc"', 'content_json');
   }
+  checkTree(content, 0);
   if (Buffer.byteLength(JSON.stringify(content)) > MAX_CONTENT_BYTES) throw new DomainError('INVALID', 'content_json is larger than 2 MB', 'content_json');
-  if (!Number.isInteger(schemaVersion) || (schemaVersion as number) < 1) throw new DomainError('INVALID', 'schema_version must be a positive integer', 'schema_version');
+  if (!Number.isInteger(schemaVersion) || (schemaVersion as number) < 1 || (schemaVersion as number) > 2_147_483_647) {
+    throw new DomainError('INVALID', 'schema_version must be a positive 32-bit integer', 'schema_version');
+  }
 }
 
 const ids = (...v: unknown[]) => v.every((x) => typeof x === 'string' && UUID_RE.test(x));
@@ -122,19 +144,27 @@ export async function restoreRevision(pool: TxPool, a: { paperId: string; docume
 
 // A snapshot pins the current head of every document plus the latest bibliographic revision of
 // every project reference and the latest revision of every asset, by id.
+const SNAP = 'id, paper_id, label, created_by, created_at, story_revision_id, outline_revision_id';
+
 export async function createSnapshot(pool: TxPool, paperId: string, ownerId: string, label: unknown) {
-  if (typeof label !== 'string' || !label.trim() || label.length > 200) throw new DomainError('INVALID', 'label must be 1–200 characters', 'label');
+  if (typeof label !== 'string' || !label.trim() || label.length > 200 || !storable(label)) throw new DomainError('INVALID', 'label must be 1–200 characters', 'label');
   return inTransaction(pool, async (tx) => {
     // lock documents so heads cannot move while the manifest is written
-    await tx.query('SELECT id FROM documents WHERE paper_id = $1 FOR SHARE', [paperId]);
-    const { rows } = await tx.query<{ id: string }>('INSERT INTO paper_snapshots (paper_id, label, created_by) VALUES ($1, $2, $3) RETURNING id, paper_id, label, created_by, created_at', [paperId, label.trim(), ownerId]);
+    await tx.query('SELECT id FROM documents WHERE paper_id = $1 ORDER BY id FOR SHARE', [paperId]);
+    // the active story/outline are pinned too (PW-010); the paper row lock keeps them from moving meanwhile
+    const { rows } = await tx.query<{ id: string }>(
+      `INSERT INTO paper_snapshots (paper_id, label, created_by, story_revision_id, outline_revision_id)
+       SELECT id, $2, $3, active_story_revision_id, active_outline_revision_id FROM paper_projects WHERE id = $1 FOR SHARE
+       RETURNING ${SNAP}`,
+      [paperId, label.trim(), ownerId],
+    );
     const snap = rows[0]!;
     await tx.query('INSERT INTO snapshot_document_revisions (snapshot_id, paper_id, document_id, revision_id) SELECT $1, paper_id, id, head_revision_id FROM documents WHERE paper_id = $2', [snap.id, paperId]);
     await tx.query(
       `INSERT INTO snapshot_reference_revisions (snapshot_id, paper_id, reference_id, bibliographic_revision_id)
        SELECT DISTINCT ON (pr.reference_id) $1, pr.paper_id, pr.reference_id, b.id
        FROM project_references pr JOIN bibliographic_revisions b ON b.reference_id = pr.reference_id
-       WHERE pr.paper_id = $2 ORDER BY pr.reference_id, b.created_at DESC, b.id`,
+       WHERE pr.paper_id = $2 AND pr.removed_at IS NULL ORDER BY pr.reference_id, b.created_at DESC, b.id`,
       [snap.id, paperId],
     );
     await tx.query(
@@ -147,13 +177,13 @@ export async function createSnapshot(pool: TxPool, paperId: string, ownerId: str
 }
 
 export async function listSnapshots(db: Queryable, paperId: string) {
-  const { rows } = await db.query('SELECT id, paper_id, label, created_by, created_at FROM paper_snapshots WHERE paper_id = $1 ORDER BY created_at DESC', [paperId]);
+  const { rows } = await db.query(`SELECT ${SNAP} FROM paper_snapshots WHERE paper_id = $1 ORDER BY created_at DESC`, [paperId]);
   return rows;
 }
 
 export async function getSnapshot(db: Queryable, paperId: string, snapshotId: string) {
   if (!ids(snapshotId)) return null;
-  const { rows } = await db.query('SELECT id, paper_id, label, created_by, created_at FROM paper_snapshots WHERE id = $1 AND paper_id = $2', [snapshotId, paperId]);
+  const { rows } = await db.query(`SELECT ${SNAP} FROM paper_snapshots WHERE id = $1 AND paper_id = $2`, [snapshotId, paperId]);
   if (!rows[0]) return null;
   const docs = await db.query<{ document_id: string; revision_id: string }>('SELECT document_id, revision_id FROM snapshot_document_revisions WHERE snapshot_id = $1 AND paper_id = $2 ORDER BY document_id', [snapshotId, paperId]);
   const documents = [];

@@ -325,7 +325,7 @@
       "id": "PW-010",
       "phase": "P01",
       "title": "수동 Story·Outline 승인",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-009"
       ],

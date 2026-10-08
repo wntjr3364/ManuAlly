@@ -1,0 +1,11 @@
+     × story approval needs the exact content hash and an explicit intent; approver comes from the session 23ms
+     × a new story revision does not retire the approved one until it is approved itself 9ms
+     × saving a story on a stale parent is a 409; required fields are listed before approval 6ms
+     × outline nodes can be approved selectively; the revision becomes active when every node is approved 7ms
+     × a node that needs evidence but has none cannot be approved 8ms
+     × an outline must be built on an approved story of the same paper 8ms
+     × draft requests are refused with a reason at every unapproved step, and accepted once everything is approved 5ms
+     × a newly approved story puts the existing outline under impact review 5ms
+     × approved story/outline content cannot be changed or deleted, and statuses only move forward, even with direct SQL 6ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  9 failed | 1 passed (10)

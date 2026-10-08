@@ -33,6 +33,8 @@ export async function revokeSession(db: Queryable, tokenHash: string): Promise<v
 }
 
 export function csrfMatches(header: unknown, expected: string): boolean {
-  if (typeof header !== 'string' || header.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(header), Buffer.from(expected));
+  if (typeof header !== 'string') return false;
+  const a = Buffer.from(header);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b); // compare byte lengths: non-ASCII headers must not throw
 }

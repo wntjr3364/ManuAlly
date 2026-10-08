@@ -62,3 +62,10 @@ PW-009 불변 revision·snapshot 저장.
 - SSE·blob·search route는 아직 없어 TST-008B의 해당 부분은 not_run이다. 생기면 `:paperId` 규칙과 기본 비공개 규칙으로 같은 테스트에 들어간다.
 
 테스트: PW-008 원래 11 + 리뷰 회귀 10 = 21/21.
+
+## 재리뷰 결과 (2026-10-08)
+결론: approve(이전 major 7건 모두 해결 확인). minor 처리:
+- 1 CSRF header 바이트 길이 비교: 비ASCII 헤더로 500이 나던 문제. 이제 403(`sessions.ts`, 회귀 시험 PW-009/review-fixes).
+- 2 4xx 종류 보존: 413 `payload_too_large`, 415, 404, 405, 429는 이름을 유지하고 내부 정보는 계속 숨긴다.
+- 3 public route allowlist: 보류. 기존 PW-008 시험이 임의 public route를 등록하므로, 시험 전용 옵션을 정한 뒤 PW-014에서 처리한다.
+- 4 `sessions.csrf_hash` 미사용 열: 보류. 다음 auth migration에서 제거한다.

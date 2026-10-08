@@ -16,13 +16,15 @@ export interface Paper {
   external_send_policy: 'allow_selected' | 'block';
   data_classification: 'unpublished' | 'public' | 'sensitive';
   allowed_providers: string[];
+  active_story_revision_id: string | null;
+  active_outline_revision_id: string | null;
   version: number;
   created_at: string;
   updated_at: string;
   archived_at: string | null;
 }
 
-const COLUMNS = 'id, owner_id, working_title, article_type, language, target_journal, status, external_send_policy, data_classification, allowed_providers, version, created_at, updated_at, archived_at';
+const COLUMNS = 'id, owner_id, working_title, article_type, language, target_journal, status, external_send_policy, data_classification, allowed_providers, active_story_revision_id, active_outline_revision_id, version, created_at, updated_at, archived_at';
 
 export interface PaperInput {
   working_title?: unknown;

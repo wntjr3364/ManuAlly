@@ -1,0 +1,9 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  09:49:54
+   Duration  1.78s (tests 63%, transform 29%, import 8%)
+

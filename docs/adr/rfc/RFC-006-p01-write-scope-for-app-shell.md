@@ -46,3 +46,14 @@ Write scope: docs/adr/rfc/**, scripts/validate_pack.py(`node_modules` 제외 한
 User decision / reviewer:
 - 사용자가 2026-10-08 "작업해"로 P01 진행을 승인했고, 그 전에 계획 세부 결정을 위임했다.
 - 이 RFC는 파일 경로 범위만 넓히며, 요구사항·인수조건·보안 규칙은 바꾸지 않는다.
+
+PW-010 및 PW-009 리뷰 반영 시 추가 기록(2026-10-08):
+- PW-010이 범위 밖에서 고친 연결 지점(동작 추가만, 기존 계약 유지):
+  - `apps/api/src/server.ts`: outline route 등록
+  - `packages/domain/src/papers/index.ts`: 응답에 active_story/outline_revision_id
+  - `packages/domain/src/revisions/index.ts`: snapshot이 활성 story/outline 고정
+- PW-009 리뷰 수정:
+  - `db/migrations/pw_009_0002_*`(PW-009 범위의 새 migration)
+  - `tests/tasks/PW-009/review-fixes.int.test.ts`
+- PW-008 재리뷰 minor: `apps/api/src/auth/sessions.ts`, `apps/api/src/server.ts`(오류 종류)
+- `packages/config/src/test-db.ts`(PW-007 범위): 임시 DB drop 전에 접속이 닫히기를 기다린다. 끊기는 중인 client를 FORCE가 종료해 57P01이 unhandled로 한 번 보고된 시험 인프라 결함이다.

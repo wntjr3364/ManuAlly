@@ -234,7 +234,15 @@
         "pnpm-lock.yaml",
         ".gitignore",
         ".github/workflows/**",
-        ".env.example"
+        ".env.example",
+        "apps/web/index.html",
+        "apps/web/vite.config.ts",
+        "apps/web/src/main.tsx",
+        "apps/web/src/app/**",
+        "apps/api/src/server.ts",
+        "apps/api/src/db/**",
+        "packages/*/src/index.ts",
+        "eslint.config.js"
       ],
       "objective": "apps/packages/test 경계와 타입·lint·단위·통합·E2E·pack-check 명령을 실제로 등록한다.",
       "positive_acceptance": "clean install에서 정해진 명령이 실행되고 MockProvider만 사용한다.",
@@ -269,7 +277,10 @@
         "db/migrations/p01_owner*",
         "tests/tasks/PW-008/**",
         "reports/tasks/PW-008/**",
-        "db/migrations/pw_008_*"
+        "db/migrations/pw_008_*",
+        "apps/api/src/routes/papers/**",
+        "apps/web/src/features/papers/**",
+        "apps/web/src/app/**"
       ],
       "objective": "단일 소유자, 로그인 세션, 논문 프로젝트 CRUD/아카이브 및 scope authorization을 구현한다.",
       "positive_acceptance": "논문 A/B를 독립 생성하고 owner의 요청만 읽기·수정 가능하다.",
@@ -301,7 +312,8 @@
         "db/migrations/p01_revision*",
         "tests/tasks/PW-009/**",
         "reports/tasks/PW-009/**",
-        "db/migrations/pw_009_*"
+        "db/migrations/pw_009_*",
+        "apps/api/src/routes/revisions/**"
       ],
       "objective": "문서/개요/서지/asset revision과 named PaperSnapshot의 참조 구조를 구현한다.",
       "positive_acceptance": "복원이 새 revision을 만들며 과거 snapshot이 당시 참조를 재현한다.",
@@ -334,7 +346,8 @@
         "db/migrations/p01_outline*",
         "tests/tasks/PW-010/**",
         "reports/tasks/PW-010/**",
-        "db/migrations/pw_010_*"
+        "db/migrations/pw_010_*",
+        "apps/api/src/routes/outlines/**"
       ],
       "objective": "AI 없이 research brief/story/문단계획을 편집하고 exact revision 승인·이력을 구현한다.",
       "positive_acceptance": "사용자가 지정한 revision만 승인되고 관련 outline node가 생성 허용 상태가 된다.",
@@ -367,7 +380,9 @@
         "db/migrations/p01_evidence*",
         "tests/tasks/PW-011/**",
         "reports/tasks/PW-011/**",
-        "db/migrations/pw_011_*"
+        "db/migrations/pw_011_*",
+        "apps/api/src/routes/evidence/**",
+        "apps/web/src/features/evidence/**"
       ],
       "objective": "검증된 연구 사실과 추출 후보·해석·가설을 구분하고 원문 locator를 저장한다.",
       "positive_acceptance": "사실에 값·단위·그룹·출처·검증 주체가 연결된다.",
@@ -433,7 +448,8 @@
         "db/migrations/p01_jobs*",
         "tests/tasks/PW-013/**",
         "reports/tasks/PW-013/**",
-        "db/migrations/pw_013_*"
+        "db/migrations/pw_013_*",
+        "apps/api/src/routes/jobs/**"
       ],
       "objective": "durable job intent와 발행 outbox, state/event audit를 트랜잭션으로 저장한다.",
       "positive_acceptance": "DB commit 후 재시작해도 논리 job이 queue로 전달되고 동일 intent는 중복 등록되지 않는다.",
@@ -466,7 +482,9 @@
         "tests/e2e/manual-paper/**",
         "tests/tasks/PW-014/**",
         "reports/tasks/PW-014/**",
-        "db/migrations/pw_014_*"
+        "db/migrations/pw_014_*",
+        "apps/web/src/app/**",
+        "apps/api/src/routes/**"
       ],
       "objective": "Paper→개요 승인→사실 등록→문단 수동 입력→snapshot→새로고침을 연결한다.",
       "positive_acceptance": "브라우저 재접속 후 원고·승인·근거·snapshot이 재현된다.",

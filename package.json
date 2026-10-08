@@ -1,0 +1,32 @@
+{
+  "name": "paper-workspace",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p packages/config/tsconfig.check.json",
+    "test:unit": "vitest run --config packages/config/vitest.unit.config.ts",
+    "test:integration": "vitest run --config packages/config/vitest.integration.config.ts",
+    "test:e2e": "playwright test --config packages/config/playwright.config.ts",
+    "test:contracts": "vitest run --config packages/config/vitest.contracts.config.ts",
+    "test:evals": "node spikes/writing-baseline/validate.mjs",
+    "test:spikes": "node --test --test-timeout=30000 'tests/tasks/PW-00[1-6]/*.test.mjs'",
+    "pack-check": "python3 -I scripts/validate_pack.py",
+    "db:dev": "sh infra/dev/pg-dev.sh",
+    "test": "pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:integration && pnpm run test:spikes && pnpm run test:evals && pnpm run pack-check"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.20.4",
+    "@types/pg": "8.23.1",
+    "eslint": "10.11.0",
+    "pg": "8.23.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "5.0.1"
+  }
+}

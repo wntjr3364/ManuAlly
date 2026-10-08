@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+coverage/
+playwright-report/
+test-results/
+*.log
+!reports/**/*.log
+.env
+.env.*
+!.env.example

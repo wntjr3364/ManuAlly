@@ -23,6 +23,8 @@ def main() -> int:
             return None
     # Parse every JSON so examples and tables cannot silently become invalid.
     for file in sorted(root.rglob('*.json')):
+        if 'node_modules' in file.parts:  # installed dependencies are not part of the pack (RFC-006)
+            continue
         load(file.relative_to(root).as_posix())
     tm = load('tasks/TASK_MANIFEST.json')
     rm = load('docs/REQUIREMENTS.json')

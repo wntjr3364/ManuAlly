@@ -1,0 +1,22 @@
+{
+  "name": "@pw/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "fastify": "5.12.5",
+    "pg": "8.23.0",
+    "@pw/domain": "workspace:*",
+    "@pw/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "@pw/config": "workspace:*"
+  },
+  "scripts": {
+    "dev": "node --experimental-strip-types src/index.ts"
+  }
+}

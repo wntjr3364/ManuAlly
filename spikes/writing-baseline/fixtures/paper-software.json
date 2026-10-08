@@ -1,0 +1,120 @@
+{
+ "id": "paper-software-fixture",
+ "synthetic": true,
+ "article_type": "software_resource",
+ "working_title": "FixtureSeq: a toolkit for synthetic sequencing QC (SYNTHETIC FIXTURE)",
+ "brief": {
+  "purpose": "Describe a QC toolkit and its benchmark",
+  "audience": "bioinformaticians",
+  "known_facts": [
+   "fact-runtime",
+   "fact-version"
+  ],
+  "missing_material": [
+   "user study"
+  ],
+  "avoid_claims": [
+   "'fastest available tool'"
+  ]
+ },
+ "story": {
+  "question": "Can sequencing QC be made reproducible and faster on commodity hardware?",
+  "main_message": "FixtureSeq runs the standard QC steps reproducibly and was faster than the baseline pipeline on one benchmark dataset.",
+  "novelty": "Packaging and reproducibility, not new algorithms.",
+  "limitations": [
+   "single benchmark dataset"
+  ],
+  "status": "APPROVED"
+ },
+ "outline": {
+  "sections": [
+   "Introduction",
+   "Design and Implementation",
+   "Benchmarks",
+   "Availability",
+   "Limitations"
+  ],
+  "nodes": [
+   {
+    "id": "s-bench-runtime",
+    "section": "Benchmarks",
+    "paragraph_goal": "Report runtime against the baseline",
+    "claim_ids": [
+     "c-faster"
+    ],
+    "evidence_ids": [
+     "ev-bench-table"
+    ],
+    "allowed_interpretation": "observation on this dataset only",
+    "exclusions": [
+     "generalising to all datasets"
+    ],
+    "word_budget": [
+     50,
+     100
+    ]
+   },
+   {
+    "id": "s-availability",
+    "section": "Availability",
+    "paragraph_goal": "Required availability items as an enumerated list",
+    "claim_ids": [],
+    "evidence_ids": [],
+    "allowed_interpretation": "facts only",
+    "exclusions": [],
+    "word_budget": [
+     30,
+     80
+    ]
+   }
+  ]
+ },
+ "claims": [
+  {
+   "id": "c-faster",
+   "type": "observation",
+   "text": "FixtureSeq was faster than the baseline on the benchmark dataset.",
+   "approval_state": "approved"
+  }
+ ],
+ "evidence": [
+  {
+   "id": "ev-bench-table",
+   "kind": "table_cell",
+   "locator": "table-1",
+   "extraction_state": "user_verified"
+  }
+ ],
+ "facts": [
+  {
+   "id": "fact-runtime",
+   "entity": "FixtureSeq vs baseline",
+   "metric": "wall-clock runtime (median)",
+   "value": 14,
+   "unit": "min",
+   "comparison": {
+    "baseline": 41,
+    "dataset_size_gb": 10
+   },
+   "n": 5,
+   "statistic": null,
+   "uncertainty": null,
+   "source_locator": "ev-bench-table",
+   "verification_state": "verified"
+  },
+  {
+   "id": "fact-version",
+   "entity": "FixtureSeq",
+   "metric": "released version",
+   "value": "1.4.0",
+   "unit": null,
+   "comparison": null,
+   "n": null,
+   "statistic": null,
+   "uncertainty": null,
+   "source_locator": "release-notes",
+   "verification_state": "verified"
+  }
+ ],
+ "references": []
+}

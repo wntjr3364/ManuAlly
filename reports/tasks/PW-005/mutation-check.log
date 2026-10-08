@@ -1,0 +1,10 @@
+B-NUM-01 numbers: [ '2.4', '6', '0.003' ]
+B-NUM-02 as ALLOW -> [
+  'B-NUM-02: gold text states 4.2, which no declared verified fact contains'
+]
+B-CIT-03 as ALLOW -> [ 'B-CIT-03: cites ref-not-in-library, which is not in the library' ]
+B-INV-01 as ALLOW -> [
+  'B-INV-01: gold text states 22, which no declared verified fact contains',
+  'B-INV-01: gold text states 16, which no declared verified fact contains',
+  'B-INV-01: gold text states 8, which no declared verified fact contains'
+]

@@ -1,0 +1,7 @@
+ok 1 - TST-006A: the P00 decision record has every required part
+ok 2 - TST-006A: every RFC follows the template and has a status
+ok 3 - TST-006B: nothing unverified is reported as verified
+ok 4 - TST-006B: no product scaffold exists before the P00 gate is approved
+# tests 4
+# pass 4
+# fail 0

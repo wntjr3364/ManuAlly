@@ -1,0 +1,122 @@
+# P00 결정 기록 — 사전 타당성·위험 검증 결과
+
+작성: 2026-10-08 / 상태: **사용자 gate 승인 대기**
+근거 보고서: `reports/tasks/PW-001 … PW-005/REPORT.md`
+
+## 0. 요약
+- 핵심 위험 4개(인증, 선택영역·인용·수식 보존, 격리, 출력)를 spike로 확인했다.
+- **P01(정본·승인·수동 workflow)은 시작해도 된다.** P01에는 외부 AI가 필요 없다.
+- 실제 provider 사용은 사용자 머신에서 아래 6장의 확인을 거친 뒤에만 가능하다.
+- 측정 환경은 개발용 클라우드 컨테이너다(Linux x86_64, 4 CPU, 15 GB RAM). 사용자 PC·연구실 서버 측정은 아직 하지 않았다.
+
+## 1. Compatibility matrix
+상태 값:
+- **measured** = 이 환경에서 실제 실행으로 확인
+- **documented** = 공식 문서/설치 버전 help·schema로만 확인
+- **unknown** = 근거 없음
+- **blocked** = 사용자 머신·로그인 필요
+
+| 항목 | Claude Code CLI 2.1.294 (구독 로그인) | Codex CLI 0.161.0 (ChatGPT 로그인) |
+|---|---|---|
+| 구조화 실행 | measured (`-p --output-format stream-json`: system/init → assistant → rate_limit_event → result)¹ | measured: stdio JSON-RPC `initialize`, `account/read` 왕복(로그인 없음) |
+| 명시 세션 id | measured(`--session-id` 반영)¹ / resume: documented | documented (`thread/start`, `thread/resume`) |
+| interrupt | documented (SIGINT=turn 종료, init capabilities에 `interrupt_receipt_v1`) | documented (`turn/interrupt`) |
+| 수동 compact | unknown (`--autocompact`만 확인) | documented (`thread/compact/start`, `thread/compacted`) |
+| context/usage | measured (result.usage, total_cost_usd 추정치)¹ | documented (`thread/tokenUsage/updated`) |
+| quota/reset | unknown (`rate_limit_event` 존재만 확인, 필드 미분석) | documented (`account/rateLimits/read`: usedPercent, windowDurationMins, resetsAt) |
+| built-in 도구 차단 | measured (`--tools ""` → init.tools=[])¹ | documented (sandbox read-only, approvalPolicy never, RPC allowlist) |
+| 도구 연결 | documented (`--strict-mcp-config --mcp-config`) | documented (MCP 서버 config, `item/tool/call`) |
+| **빈 profile auth 격리** | **measured: leak** (이 컨테이너는 호스트 수준 자격증명 공급) | **measured: isolated** |
+| 자격증명 위험 표면 | `ANTHROPIC_API_KEY`가 있으면 구독 대신 사용; OS keychain | `account/rateLimitResetCredit/consume`, `thread/shellCommand`, `command/exec`, `fs/*` → deny |
+| admission | requires_verification | requires_verification |
+
+¹ PW-004의 의도치 않은 1회 호출에서 얻은 측정값(합성 "ping", 추정 $0.009). 사고 기록은 PW-004 보고서 참조.
+
+| 문서/출력 | 결과 (pandoc 3.1.3, API 1.23.1) |
+|---|---|
+| ProseMirror 위치 계약 | measured: UTF-16 + atom=1, grapheme 분할 거부, 동일 문장 두 곳, STALE, slice hash |
+| DOCX 보존 | measured: 한글, emoji, 그리스문자, 결합문자, italic/sub/sup, 표, OMML 수식, citeproc 인용·참고문헌 |
+| DOCX 손실 | measured: Word/Zotero 인용 field 없음, block id 없음, comment·track changes 미지원 |
+| PDF 출력 / DOCX import | not_run (PW-055, PW-057) |
+
+## 2. ADR — 상태 갱신 (proposed → 승인 요청)
+| ID | 결정 | P00 근거 | 제안 상태 |
+|---|---|---|---|
+| ADR-001 | PaperProject = 논문 1편 | 사용자 확정 | accept |
+| ADR-002 | PostgreSQL + immutable revision이 정본 | 변경 없음 | accept |
+| ADR-003 | TypeScript monorepo + shared editor-core | PW-003: 위치·hash 로직이 JS에서 동작, 서버/브라우저 공유 가능 | accept |
+| ADR-004 | Tiptap OSS + 자체 comment/proposal | Tiptap 3.31.4 MIT. Pro 기능 미사용 | accept |
+| ADR-005 | 단일 owner + optimistic concurrency | 변경 없음 | accept |
+| ADR-006 | AI는 proposal만, 서버가 적용 | PW-003 guard 동작 확인 | accept |
+| ADR-007 | provider capability admission | PW-002 registry·검증기 | accept, RFC-001 반영 |
+| ADR-008 | pg-boss + DB job/outbox | 미검증(P01 PW-013) | accept (P01 검증 조건) |
+| ADR-009 | checkpoint + compact/새 세션 재수화 | Claude 수동 compact unknown → 새 세션 재수화가 기본 | accept |
+| ADR-010 | 문서당 writer 1개, 제한된 review | 변경 없음 | accept |
+| ADR-011 | draft export ≠ submission snapshot | 변경 없음 | accept |
+| ADR-012 | local/private 배포, multi-user 제외 | S01 문구로 더 강해짐 | accept |
+| **ADR-013 (신규)** | 두 provider 모두 같은 **MCP paper tool gateway**를 사용하고, provider 고유 shell/file 도구는 쓰지 않는다 | Claude `--tools ""` + MCP, Codex MCP config + RPC deny | 승인 요청 |
+| **ADR-014 (신규)** | 런타임은 **전용 non-root OS 사용자** + auth sentinel 통과 시에만 admission | PW-004 leak 실측 | 승인 요청 (RFC-004) |
+| **ADR-015 (신규)** | AI effort를 작업 종류별로 지정하고 프로젝트 설정에서 변경 가능하게 한다. 기본: 문법·간결화=low, 짧은 채팅·학술 재작성=medium, Story/Outline·과학 검토=high | Claude `--effort low…max` 확인; Codex 대응은 P03 확인 | 승인 요청 |
+
+## 3. RFC
+| RFC | 내용 | 상태 |
+|---|---|---|
+| RFC-001 | 런타임 = 사용자 본인 로그인의 Claude Code CLI / Codex CLI (API 키 아님), PC·서버 둘 다 | accepted (사용자 결정) |
+| RFC-002 | Claude CLI 최소 adapter를 P02(PW-020)로 앞당김 | accepted (위임) |
+| RFC-003 | 개요 승인 전 사용자 문장의 보수적 교정 허용, 새 생성·재작성은 차단 | accepted (위임) |
+| RFC-004 | 전용 OS 사용자 필수, auth sentinel, reaping init, bubblewrap | proposed |
+| RFC-005 | edit_proposal v2: selected_slice_hash, preserve_atom, 위치 규칙 명시 | proposed |
+
+## 4. Version pin 후보와 License
+원칙:
+- P01(PW-007)에서 lockfile로 정확히 고정한다.
+- 공급망 안정성을 위해 **릴리스 후 14일 이상 지난 버전**을 우선한다. 아래 "확인 버전"은 2026-10-08 npm `latest`이며 고정값이 아니다.
+- 업그레이드는 contract/eval/export fixture 회귀를 통과한 뒤에만 한다.
+
+| 구성요소 | 확인 버전 (2026-10-08) | License | 비고 |
+|---|---|---|---|
+| Node.js | 22.22.0 (컨테이너) | MIT | LTS 계열로 고정 |
+| pnpm | 10.28.0 | MIT | |
+| TypeScript | 7.0.2 latest | Apache-2.0 | 7.x 메이저 전환 직후 → PW-007에서 호환성 확인 후 결정 |
+| React / react-dom | 19.3.0 (2026-10-07 릴리스) | MIT | 14일 규칙상 직전 안정 버전 우선 |
+| Vite | 8.3.3 (2026-10-06) | MIT | 상동 |
+| @tiptap/core, /pm, /starter-kit | 3.31.4 | MIT | OSS만 사용 |
+| prosemirror-model / -transform / -state | 1.25.12 / 1.12.2 / 1.4.4 | MIT | PW-003 spike 고정값 |
+| fastify | 5.12.5 | MIT | |
+| pg-boss | 12.37.0 (2026-10-06) | MIT | 직전 안정 버전 우선 |
+| pg (node-postgres) | 8.23.1 | MIT | |
+| PostgreSQL | 16.x (컨테이너에는 client 16.15만 있음) | PostgreSQL License | 서버는 docker image digest로 고정 |
+| vitest | 5.0.3 | MIT | spike는 node:test 사용 |
+| @playwright/test | 1.64.0 (2026-10-08) | Apache-2.0 | 직전 버전 우선, 브라우저는 사전 설치본 |
+| pdfjs-dist | 6.4.299 | Apache-2.0 | P04 |
+| ajv | 8.20.0 | MIT | JSON Schema 검증 |
+| @modelcontextprotocol/sdk | 1.32.1 | MIT | paper tool gateway (ADR-013) |
+| pandoc | ≥ 3.1.3 (측정 3.1.3) | GPL-2.0-or-later | 별도 프로세스로 실행(링크 안 함). 사용자 머신 버전은 런타임에 `pandocInfo()`로 확인 |
+| claude-code (CLI) | 2.1.294 | Anthropic 상용 약관 | 사용자 설치본. 업그레이드 시 sentinel·플래그 재검증 |
+| codex (CLI) | 0.161.0 | Apache-2.0 | schema inventory sha256으로 drift 검사 |
+| @anthropic-ai/claude-agent-sdk | 0.3.293 | "SEE LICENSE IN README" (Anthropic 약관) | PW-024 비교 대안. 기본 경로 아님 |
+| GROBID | P04에서 확인 | Apache-2.0 | 선택 서비스 |
+
+## 5. Go / No-go
+**판정: CONDITIONAL GO** — P01 진행 가능. 조건:
+1. P01은 Mock provider만 사용한다(외부 AI 호출 0회).
+2. 실제 provider 연결(RFC-002의 PW-020 최소 adapter 포함)은 아래 6장 1–3이 끝난 머신에서만 활성화한다.
+3. RFC-004/005는 이 gate에서 승인받은 경우 P01 계약(PW-012)과 P03 runner(PW-026)에 반영한다. 거부 시 대안 RFC를 먼저 작성한다.
+4. 미검증 항목(PDF, DOCX import, 실제 resume/interrupt/quota)은 해당 Task에서 blocked로 관리하며 "지원됨"으로 표시하지 않는다.
+
+No-go가 되는 경우:
+- 사용자 머신에서 auth sentinel이 isolated가 될 수 없고(전용 OS 사용자 불가), 대안(VM/WSL2)도 거부되는 경우 → Claude provider는 disabled 유지.
+- 사용자 요금제 약관상 개인 headless 사용이 허용되지 않는 경우 → 해당 provider disabled.
+
+## 6. 사용자 승인·확인 항목
+1. **실행 머신**:
+   - 개인 PC의 OS(macOS / Windows / Linux). Windows는 WSL2 사용 권장.
+   - 연구실 서버의 OS와 관리자 권한(전용 사용자 생성 가능 여부).
+2. **전용 런타임 사용자**: 각 머신에 런타임 전용 OS 사용자를 만들고, 그 사용자로 `claude` 로그인과 `codex login`을 하는 데 동의하는지 (RFC-004).
+3. **사용자 머신에서 실행할 확인**(모델 호출 없음):
+   - `node spikes/preflight/preflight.mjs --data-root <경로> --protect <연구폴더>`
+   - auth sentinel
+4. **data root / 백업 위치**: 운영 데이터 경로와 오프호스트 백업 대상.
+5. **외부 전송 정책**: 미공개 연구자료 중 Claude/Codex로 보내도 되는 범위.
+6. **RFC-004, RFC-005, ADR-013~015 승인**. RFC-002/003은 위임 결정으로 accepted 처리됨 — 이견이 있으면 알려주세요.
+7. **평가용 실제 문단**: COLLECTION_PROCEDURE에 따라 tune 10 + held-out 10 제공 가능 여부(P05까지 필요).

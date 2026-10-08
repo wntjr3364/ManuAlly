@@ -1,0 +1,206 @@
+{
+ "synthetic": true,
+ "note": "All numbers, genes and references are invented for testing.",
+ "cases": [
+  {
+   "id": "B-NUM-01",
+   "paper_id": "paper-bio-fixture",
+   "category": "numbers",
+   "outline_node_id": "n-res-expression",
+   "expected": "ALLOW",
+   "fact_ids": [
+    "fact-abc1-fold"
+   ],
+   "text": "Under drought, ABC1 expression increased 2.4-fold relative to well-watered controls (n = 6 plants per group; Welch's t-test, p = 0.003; Figure 1A).",
+   "reason": "All values match fact-abc1-fold; observation only."
+  },
+  {
+   "id": "B-NUM-02",
+   "paper_id": "paper-bio-fixture",
+   "category": "numbers",
+   "outline_node_id": "n-res-expression",
+   "expected": "BLOCK",
+   "fact_ids": [
+    "fact-abc1-fold"
+   ],
+   "text": "Under drought, ABC1 expression increased 4.2-fold relative to well-watered controls (n = 6; p = 0.003).",
+   "reason": "Fold change does not match the verified fact (2.4)."
+  },
+  {
+   "id": "B-NUM-03",
+   "paper_id": "paper-bio-fixture",
+   "category": "numbers",
+   "outline_node_id": "n-res-survival",
+   "expected": "BLOCK",
+   "fact_ids": [
+    "fact-survival"
+   ],
+   "text": "Survival after drought was 38% in ABC1-overexpressing lines and 62% in wild type.",
+   "reason": "Groups swapped: every number exists in the fact, so only a group-aware check catches it."
+  },
+  {
+   "id": "S-NUM-01",
+   "paper_id": "paper-software-fixture",
+   "category": "numbers",
+   "outline_node_id": "s-bench-runtime",
+   "expected": "ALLOW",
+   "fact_ids": [
+    "fact-runtime"
+   ],
+   "text": "On the 10 GB benchmark dataset, FixtureSeq completed in a median of 14 min, compared with 41 min for the baseline pipeline (n = 5 runs each).",
+   "reason": "Matches fact-runtime and stays within this dataset."
+  },
+  {
+   "id": "B-NEG-01",
+   "paper_id": "paper-bio-fixture",
+   "category": "negation",
+   "outline_node_id": "n-res-root",
+   "expected": "ALLOW",
+   "fact_ids": [
+    "fact-root-assoc"
+   ],
+   "text": "ABC1 expression was not associated with root length (Pearson r = 0.08, p = 0.71, n = 24 plants).",
+   "reason": "Null result stated as not detected."
+  },
+  {
+   "id": "B-NEG-02",
+   "paper_id": "paper-bio-fixture",
+   "category": "negation",
+   "outline_node_id": "n-res-root",
+   "expected": "BLOCK",
+   "fact_ids": [
+    "fact-root-assoc"
+   ],
+   "text": "Higher ABC1 expression was associated with longer roots (r = 0.08).",
+   "reason": "Negation flipped: the source reports no association."
+  },
+  {
+   "id": "B-CIT-01",
+   "paper_id": "paper-bio-fixture",
+   "category": "citation",
+   "outline_node_id": "n-intro-gap",
+   "expected": "ALLOW",
+   "fact_ids": [],
+   "text": "Drought-induced transcription factors have been reported to regulate ABC1-like genes in model plants [@ref-kimura2021].",
+   "reason": "Background claim supported by a full-text-parsed reference."
+  },
+  {
+   "id": "B-CIT-02",
+   "paper_id": "paper-bio-fixture",
+   "category": "citation",
+   "outline_node_id": "n-intro-gap",
+   "expected": "NEEDS_EVIDENCE",
+   "fact_ids": [],
+   "text": "The detailed knockout phenotypes described in its Results section show that ABC1 is required for stomatal closure [@ref-okafor2019].",
+   "reason": "Only the abstract was read; a Results-level claim cannot be supported."
+  },
+  {
+   "id": "B-CIT-03",
+   "paper_id": "paper-bio-fixture",
+   "category": "citation",
+   "outline_node_id": "n-intro-gap",
+   "expected": "BLOCK",
+   "fact_ids": [],
+   "text": "ABC1 was first cloned two decades ago [@ref-not-in-library].",
+   "reason": "Citation key does not exist in the project library."
+  },
+  {
+   "id": "B-CIT-04",
+   "paper_id": "paper-bio-fixture",
+   "category": "citation",
+   "outline_node_id": "n-intro-gap",
+   "expected": "WARN",
+   "fact_ids": [],
+   "text": "A related regulator was described previously [@ref-lee2023].",
+   "reason": "Reference is retracted; must be reviewed before use."
+  },
+  {
+   "id": "B-VERB-01",
+   "paper_id": "paper-bio-fixture",
+   "category": "verbosity",
+   "outline_node_id": "n-res-survival",
+   "expected": "ALLOW",
+   "fact_ids": [
+    "fact-survival"
+   ],
+   "text": "Drought survival was higher in ABC1-overexpressing lines than in wild type (62% vs 38%, n = 40 plants per group; chi-square test, p = 0.012; Figure 2).",
+   "reason": "One sentence carries the finding, numbers and evidence."
+  },
+  {
+   "id": "B-VERB-02",
+   "paper_id": "paper-bio-fixture",
+   "category": "verbosity",
+   "outline_node_id": "n-res-survival",
+   "expected": "WARN",
+   "fact_ids": [
+    "fact-survival"
+   ],
+   "text": "It is important to note that, remarkably, a truly striking and noteworthy difference was observed. Furthermore, it is worth mentioning that survival was 62% versus 38%, which clearly and powerfully underscores the groundbreaking importance of these findings for the field as a whole.",
+   "reason": "Empty emphasis and filler; same information as B-VERB-01 at three times the length."
+  },
+  {
+   "id": "B-REP-01",
+   "paper_id": "paper-bio-fixture",
+   "category": "report_style",
+   "outline_node_id": "n-res-expression",
+   "expected": "WARN",
+   "fact_ids": [
+    "fact-abc1-fold"
+   ],
+   "text": "Key findings:\n- Expression: up 2.4-fold\n- Statistics: p = 0.003\n- Conclusion: ABC1 is important",
+   "reason": "Report-style bullets where the outline asks for a Results paragraph; also drops n and evidence."
+  },
+  {
+   "id": "S-REP-01",
+   "paper_id": "paper-software-fixture",
+   "category": "report_style",
+   "outline_node_id": "s-availability",
+   "expected": "ALLOW",
+   "fact_ids": [
+    "fact-version"
+   ],
+   "text": "Project name: FixtureSeq\nVersion: 1.4.0\nOperating system: Linux\nLicense: MIT",
+   "reason": "The outline node asks for an enumerated availability list; lists are correct here."
+  },
+  {
+   "id": "B-CLM-01",
+   "paper_id": "paper-bio-fixture",
+   "category": "claim_strength",
+   "outline_node_id": "n-disc-meaning",
+   "expected": "ALLOW",
+   "fact_ids": [],
+   "text": "These results suggest that ABC1 may contribute to drought tolerance, although a direct regulatory role remains to be tested.",
+   "reason": "Hypothesis language matches the approved claim type."
+  },
+  {
+   "id": "B-CLM-02",
+   "paper_id": "paper-bio-fixture",
+   "category": "claim_strength",
+   "outline_node_id": "n-disc-meaning",
+   "expected": "BLOCK",
+   "fact_ids": [],
+   "text": "These results prove that ABC1 controls drought tolerance, establishing it as the master regulator of the response.",
+   "reason": "Causal/proof language exceeds an association and a hypothesis."
+  },
+  {
+   "id": "B-INV-01",
+   "paper_id": "paper-bio-fixture",
+   "category": "invented_detail",
+   "outline_node_id": "n-methods-growth",
+   "expected": "NEEDS_EVIDENCE",
+   "fact_ids": [],
+   "text": "Plants were grown at 22 °C under a 16 h light/8 h dark photoperiod.",
+   "reason": "Temperature and photoperiod are listed as missing material; they must not be invented."
+  },
+  {
+   "id": "B-INV-02",
+   "paper_id": "paper-bio-fixture",
+   "category": "invented_detail",
+   "outline_node_id": "n-methods-growth",
+   "expected": "ALLOW",
+   "fact_ids": [],
+   "text": "Plants were grown in a controlled-environment chamber; the recorded growth conditions are listed in Table S1.",
+   "reason": "Refers to the method record instead of inventing values."
+  }
+ ]
+}

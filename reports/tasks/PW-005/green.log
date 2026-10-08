@@ -1,0 +1,12 @@
+ok 1 - TST-005A: the shipped baseline is internally consistent
+ok 2 - TST-005A: every required category has expected outcomes, including both pass and fail examples
+ok 3 - TST-005A: two article types are covered and the rubric/procedure documents exist
+ok 4 - TST-005A: every designed SCI case is mapped to a baseline category
+ok 5 - TST-005B: an abstract-only reference cannot carry fulltext_style_verified
+ok 6 - TST-005B: style verification of a section requires that exact section to have been read
+ok 7 - TST-005B: a gold (ALLOW) paragraph may not contain results that are not in the fact records
+ok 8 - TST-005B: gold paragraphs may not cite references or facts that do not exist, or unverified facts
+ok 9 - TST-005B: fixtures must be marked synthetic
+# tests 9
+# pass 9
+# fail 0

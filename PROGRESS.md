@@ -25,15 +25,16 @@
 | PW-003 | in_review | 5de9421 | REQ-003 / TST-003A,B | 17/17, DOCX 블록별 손실 보고서 | 브라우저 selection·IME (PW-015/022) |
 | PW-004 | in_review | 5de9421 | REQ-004 / TST-004A,B | 15/15, 실제 auth sentinel: claude=leak, codex=isolated | 실제 resume/interrupt, bubblewrap, 사용자 머신 sentinel |
 | PW-005 | in_review | 5de9421 | REQ-005 / TST-005A,B | 14/14, mutation check | 모델 출력 평가, 실제 문단 gold |
-| PW-006 | in_review | (this) | REQ-006 / TST-006A,B | 4/4, P00 회귀 70/70, pack validator PASS | — |
+| PW-006 | in_review | 5de9421 | REQ-006 / TST-006A,B | 4/4, P00 회귀 70/70, pack validator PASS | — |
+| PW-007 | in_review | (P01) | REQ-007 / TST-007A,B | `pnpm test` exit 0, 깨끗한 clone exit 0, 리뷰 1회 반영 | GitHub CI 실제 실행 |
+| PW-008 | in_review | (P01) | REQ-008 / TST-008A,B | 통합 11/11, mutation 2종 탐지 | 브라우저 로그인 UI(PW-010/014) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 
 미해결 RFC:
 - RFC-003 (승인 전 보수적 교정): proposed (리뷰 후 되돌림)
-- RFC-004 (본인 Linux 계정 + 분리 profile + auth sentinel + Codex bubblewrap): proposed
-- RFC-005 (edit_proposal v2): proposed
-- RFC-001/002: accepted
+- RFC-001/002/004/005: accepted
+- RFC-006 (P01 write scope 보완): accepted (delegated) — P01 gate에서 사용자 확인
 
 ## 작업 후 기록 양식
 Task ID / 상태 / git commit(있는 경우) / REQ·TST / 실제 실행 명령과 결과 / 미실행 / 검토 결과 / 사용자 승인 / 다음 작업 / 미해결 RFC.

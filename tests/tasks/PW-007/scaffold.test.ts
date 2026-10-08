@@ -10,6 +10,21 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const readJson = (p: string) => JSON.parse(fs.readFileSync(path.join(root, p), 'utf8'));
 
 const REQUIRED_SCRIPTS = ['lint', 'typecheck', 'test:unit', 'test:integration', 'test:e2e', 'test:contracts', 'test:evals', 'test:spikes', 'pack-check', 'test'];
+const IGNORE = new Set(['node_modules', '.git', 'dist', 'coverage', 'playwright-report', 'test-results', 'spikes']);
+function allTestFiles(): string[] {
+  const out: string[] = [];
+  const walk = (rel: string) => {
+    for (const e of fs.readdirSync(path.join(root, rel), { withFileTypes: true })) {
+      if (IGNORE.has(e.name)) continue;
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(r);
+      else if (/\.(test\.(ts|tsx|mjs|js)|e2e\.ts)$/.test(e.name)) out.push(r);
+    }
+  };
+  walk('');
+  return out;
+}
+
 const WORKSPACES = ['apps/api', 'apps/web', 'apps/worker', 'packages/config', 'packages/contracts', 'packages/editor-core', 'packages/domain', 'packages/providers', 'packages/search', 'packages/exports'];
 
 describe('TST-007A: registered commands and workspace boundaries', () => {
@@ -63,22 +78,33 @@ describe('TST-007B: missing secrets never switch providers or silently skip suit
     expect(selectProvider(env).id).toBe('mock');
   });
 
-  test('test files never skip on missing credentials, and suites do not pass with no tests', () => {
-    const files: string[] = [];
-    const walk = (d: string) => {
-      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-        if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
-        const p = path.join(d, e.name);
-        if (e.isDirectory()) walk(p);
-        else if (/\.test\.(ts|tsx|mjs)$/.test(e.name)) files.push(p);
+  test('no test can skip itself conditionally, and no suite passes with no tests', () => {
+    // Any conditional skip could hide a missing credential/DB; skips need an explicit, reviewed marker.
+    const conditionalSkip = /\b(skipIf|runIf)\s*\(|\b(ctx|context|t)\.skip\s*\(|\b(test|it|describe)\.skip\b|\b(test|it|describe)\.todo\b/;
+    for (const f of allTestFiles()) {
+      for (const [i, line] of fs.readFileSync(path.join(root, f), 'utf8').split('\n').entries()) {
+        if (/allowed-skip:/.test(line) || /conditionalSkip =/.test(line)) continue;
+        expect(conditionalSkip.test(line), `${f}:${i + 1}: ${line.trim()}`).toBe(false);
       }
-    };
-    for (const d of ['tests', 'apps', 'packages']) if (fs.existsSync(path.join(root, d))) walk(path.join(root, d));
-    expect(files.length).toBeGreaterThan(0);
-    const secretSkip = /(skipIf|runIf|\.skip|todo)\s*\([^)]*(API_KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL)/;
-    for (const f of files) expect(secretSkip.test(fs.readFileSync(f, 'utf8')), f).toBe(false);
+    }
     const pkg = readJson('package.json');
     for (const s of REQUIRED_SCRIPTS) expect(pkg.scripts[s], s).not.toMatch(/passWithNoTests/);
+    for (const c of fs.readdirSync(path.join(root, 'packages/config')).filter((n) => /\.config\.ts$/.test(n))) {
+      expect(fs.readFileSync(path.join(root, 'packages/config', c), 'utf8'), c).not.toMatch(/passWithNoTests/);
+    }
+  });
+
+  test('every test file in the repo is collected by exactly one registered command', async () => {
+    const { commandFor } = await import('../../../packages/config/test-patterns.ts');
+    const files = allTestFiles();
+    expect(files.length).toBeGreaterThan(10);
+    const orphans = files.filter((f) => commandFor(f) === null);
+    expect(orphans, 'test files no command runs').toEqual([]);
+    // probes: names that previously slipped through every command
+    for (const probe of ['tests/tasks/PW-099/a.test.tsx', 'tests/misc.test.ts', 'packages/domain/src/d.test.tsx']) expect(commandFor(probe), probe).toBe('unit');
+    expect(commandFor('tests/tasks/PW-012/x.contract.test.ts')).toBe('contracts');
+    expect(commandFor('apps/api/src/x/c.contract.test.ts')).toBe('contracts');
+    expect(commandFor('tests/tasks/PW-099/e.test.mjs')).toBeNull();
   });
 
   test('integration tests fail loudly (not skip) when PostgreSQL is unavailable', async () => {
@@ -86,5 +112,7 @@ describe('TST-007B: missing secrets never switch providers or silently skip suit
     expect(() => requireTestDatabaseUrl({})).toThrow(/PW_TEST_DATABASE_URL/);
     expect(() => requireTestDatabaseUrl({ PW_TEST_DATABASE_URL: 'postgres://u@localhost/pw_prod' })).toThrow(/test database/);
     expect(requireTestDatabaseUrl({ PW_TEST_DATABASE_URL: 'postgres://u@localhost:54329/pw_test' })).toContain('pw_test');
+    expect(requireTestDatabaseUrl({ PW_TEST_DATABASE_URL: 'postgres://u@x:5432/pw_test?host=/tmp/sock' })).toContain('pw_test');
+    expect(() => requireTestDatabaseUrl({ PW_TEST_DATABASE_URL: 'postgres://u@db.example.com:5432/pw_test' })).toThrow(/non-local/);
   });
 });

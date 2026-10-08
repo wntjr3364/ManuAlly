@@ -17,13 +17,17 @@
     "test:spikes": "node --test --test-timeout=30000 'tests/tasks/PW-00[1-6]/*.test.mjs'",
     "pack-check": "python3 -I scripts/validate_pack.py",
     "db:dev": "sh infra/dev/pg-dev.sh",
-    "test": "pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:integration && pnpm run test:spikes && pnpm run test:evals && pnpm run pack-check"
+    "test": "pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:integration && pnpm run test:contracts && pnpm run test:e2e && pnpm run test:spikes && pnpm run test:evals && pnpm run pack-check"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@types/node": "22.20.4",
     "@types/pg": "8.23.1",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "eslint": "10.11.0",
+    "fastify": "5.12.5",
     "pg": "8.23.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",

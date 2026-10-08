@@ -253,7 +253,7 @@
       "id": "PW-008",
       "phase": "P01",
       "title": "Owner 인증과 PaperProject",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-007"
       ],
@@ -280,7 +280,8 @@
         "db/migrations/pw_008_*",
         "apps/api/src/routes/papers/**",
         "apps/web/src/features/papers/**",
-        "apps/web/src/app/**"
+        "apps/web/src/app/**",
+        "packages/domain/src/shared/**"
       ],
       "objective": "단일 소유자, 로그인 세션, 논문 프로젝트 CRUD/아카이브 및 scope authorization을 구현한다.",
       "positive_acceptance": "논문 A/B를 독립 생성하고 owner의 요청만 읽기·수정 가능하다.",

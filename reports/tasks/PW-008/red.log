@@ -1,0 +1,3 @@
+ FAIL  tests/tasks/PW-008/papers.int.test.ts [ tests/tasks/PW-008/papers.int.test.ts ]
+Error: Cannot find module '../../../apps/api/src/auth/owners.ts' imported from /home/user/ManuAlly/tests/tasks/PW-008/papers.int.test.ts
+      Tests  no tests

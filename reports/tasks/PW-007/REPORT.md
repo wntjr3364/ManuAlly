@@ -39,3 +39,21 @@ TypeScript는 **6.0.3**이다. typescript-eslint 8.70.1이 `typescript <6.1.0`�
 
 ## 다음 Task
 PW-008 Owner 인증과 PaperProject.
+
+## 독립 리뷰 후속 (verdict: changes requested → 수정)
+| 리뷰 | 조치 |
+|---|---|
+| M1 `pg-dev.sh` root 경로 symlink/선점 | data dir가 symlink이거나, 다른 소유자이거나, 0700이 아니면 거부한다. `mkdir -m 0700`(이미 있으면 실패)과 `chown -h`를 쓴다. symlink·0777 폴더로 재현했을 때 exit 3 |
+| M2 migration 정렬 | 파일명은 `pw_NNN_NNNN_name.sql`만 허용(`p01_*` 거부). 마지막 적용분보다 앞에 정렬되는 새 파일, 적용 후 삭제된 파일, 수정된 파일을 모두 거부. 통합 테스트 추가 |
+| M3 e2e/contracts가 실제로 안 돎 | `@playwright/test` 1.63.0 고정 + config + 실제 headless Chromium smoke(API health). starter schema contract 6개(ajv 2020 + formats). 둘 다 `pnpm test`에 포함 |
+| M4 어떤 명령도 안 도는 테스트 파일 | 테스트 패턴을 `packages/config/test-patterns.ts` 한 곳에서 정의. 모든 `*.test.*`/`*.e2e.ts`가 정확히 한 명령에 수집되는지 가드 테스트로 확인(리뷰어 probe 6개 포함). typecheck가 `.tsx`와 `apps/**`도 포함 |
+| M5 범위 기록 | RFC-006에 eslint.config.js, tests/contracts·e2e, PW-004/PW-006 테스트 변경, migration 명명 규칙을 추가. 사용자 확인은 P01 gate에서 요청 |
+| minor | migration: ROLLBACK·unlock 실패가 원래 오류를 가리지 않음, lock 대기 시간 제한(30초), 동시 실행 테스트 / 조건부 skip 전면 금지(`allowed-skip:` 표시만 예외), vitest 설정의 passWithNoTests 검사 / CI `persist-credentials: false`, playwright 브라우저 설치 / `.env.example` socket URL 예시 / tasks.csv write_scope 동기화 / 테스트 DB는 로컬(unix socket·loopback)만 허용 / health 응답은 provider 선택 결과를 사용 |
+
+남은 것:
+- CI action은 SHA가 아닌 tag로 고정돼 있다. 이 세션에서는 해당 저장소 SHA를 조회할 수 없다.
+- pandoc apt 버전은 고정하지 않았다.
+- GitHub에서 CI를 실제로 실행하지 않았다.
+
+실행: `pnpm test` exit 0 — unit 9, integration 15, contracts 6, e2e 1, spikes 70, evals PASS, pack-check PASS.
+e2e는 `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`(이 컨테이너에 미리 설치된 Chromium 141)로 실행했다.

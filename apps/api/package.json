@@ -10,7 +10,8 @@
     "fastify": "5.12.5",
     "pg": "8.23.0",
     "@pw/domain": "workspace:*",
-    "@pw/contracts": "workspace:*"
+    "@pw/contracts": "workspace:*",
+    "@pw/providers": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "8.23.1",

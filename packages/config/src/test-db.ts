@@ -8,8 +8,12 @@ export function requireTestDatabaseUrl(env: Record<string, string | undefined> =
   if (!url) {
     throw new Error('PW_TEST_DATABASE_URL is not set. Start the dev cluster with `pnpm db:dev start` and export the URL it prints. Integration tests do not skip.');
   }
-  const name = new URL(url).pathname.replace(/^\//, '');
+  const u = new URL(url);
+  const name = u.pathname.replace(/^\//, '');
   if (!/^pw_test(_|$)/.test(name)) throw new Error(`refusing to use "${name}": the test database name must start with pw_test`);
+  const socket = u.searchParams.get('host');
+  const local = socket ? socket.startsWith('/') : ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
+  if (!local) throw new Error(`refusing to use a non-local test database host (${socket ?? u.hostname})`);
   return url;
 }
 

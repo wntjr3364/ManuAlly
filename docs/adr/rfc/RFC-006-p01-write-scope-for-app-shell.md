@@ -1,5 +1,5 @@
 # RFC-006 — P01 write scope 보완: 앱 shell·route 연결·DB migration 실행기
-Status: accepted (delegated)
+Status: accepted (delegated) — P01 gate에서 사용자 확인 요청
 Trigger task: PW-007
 Affected requirements/specs/contracts: REQ-007, REQ-008, REQ-010, REQ-014 (write_scope만 변경, 요구사항·인수조건 변경 없음)
 
@@ -14,17 +14,24 @@ pack의 P01 write scope에는 다음이 어느 Task에도 없다.
 Proposed change:
 아래 경로를 해당 Task의 write_scope에 추가한다.
 - PW-007:
+  - `eslint.config.js`(루트 lint 설정), `tests/contracts/**`, `tests/e2e/**`(명령마다 실제로 도는 smoke 테스트, PW-007 리뷰 M3)
   - `apps/web/index.html`, `apps/web/vite.config.ts`, `apps/web/src/main.tsx`, `apps/web/src/app/**`
   - `apps/api/src/server.ts`, `apps/api/src/db/**`
   - `packages/*/src/index.ts`, `packages/config/**`(기존)
   - `infra/dev/**`(기존)
 - PW-008:
+  - `packages/domain/src/shared/**` (도메인 공용 query 인터페이스·오류 타입)
   - `apps/api/src/routes/papers/**`, `apps/web/src/features/papers/**`, `apps/web/src/app/**`
 - PW-009: `apps/api/src/routes/revisions/**`
 - PW-010: `apps/api/src/routes/outlines/**`
 - PW-011: `apps/api/src/routes/evidence/**`, `apps/web/src/features/evidence/**`
 - PW-013: `apps/api/src/routes/jobs/**`
 - PW-014: `apps/web/src/app/**`, `apps/api/src/routes/**`(연결 보정만)
+
+PW-007 리뷰(M5) 후 추가 기록:
+- `tests/tasks/PW-004/isolation.test.mjs`: 가짜 CLI를 테스트 임시 폴더로 복사하는 수정. 깨끗한 clone 위치에서 실패하던 테스트 결함이다(PW-004 범위, 동작 변경 없음).
+- `tests/tasks/PW-006/gate.test.mjs`(39f0ddb): scaffold 금지 검사를 "승인 기록이 있으면 허용"으로 변경.
+- migration 파일 이름은 `pw_NNN_NNNN_name.sql` 하나로 통일한다. 매니페스트의 `p01_*` 패턴은 쓰지 않으며, 실행기가 거부한다(PW-007 리뷰 M2: 사전순 정렬 시 의존 순서가 뒤집힘).
 
 Alternatives considered: 각 Task에서 RFC를 따로 발행 — 내용이 같은 조립 코드라 하나로 묶는다.
 

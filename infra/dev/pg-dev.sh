@@ -16,10 +16,24 @@ else
 fi
 SOCK="$DIR/socket"
 
+# The data dir must be ours: never a symlink, never pre-created by another user, mode 0700.
+check_dir() {
+  if [ -L "$DIR" ]; then echo "refusing: $DIR is a symlink" >&2; exit 3; fi
+  if [ -e "$DIR" ]; then
+    owner=$(stat -c %U "$DIR"); mode=$(stat -c %a "$DIR")
+    want=$( [ -n "$AS" ] && echo postgres || id -un )
+    if [ "$owner" != "$want" ] || [ "$mode" != "700" ]; then
+      echo "refusing: $DIR is owned by $owner with mode $mode (expected $want, 700)" >&2; exit 3
+    fi
+  fi
+}
+
 init() {
+  check_dir
   [ -f "$DIR/data/PG_VERSION" ] && return 0
-  mkdir -p "$DIR"
-  [ -n "$AS" ] && chown postgres "$DIR"
+  mkdir -p "$(dirname "$DIR")"
+  mkdir -m 0700 "$DIR"            # fails if it appeared in the meantime
+  [ -n "$AS" ] && chown -h postgres "$DIR"
   $AS "$BIN/initdb" -D "$DIR/data" -U pw -A trust --no-instructions >/dev/null
   $AS mkdir -p "$SOCK"
   # local socket only; trust is acceptable because the socket dir is private to the cluster owner
@@ -29,6 +43,7 @@ init() {
 case "${1:-status}" in
   start)
     init
+    check_dir
     $AS "$BIN/pg_ctl" -D "$DIR/data" -l "$DIR/server.log" -w status >/dev/null 2>&1 || $AS "$BIN/pg_ctl" -D "$DIR/data" -l "$DIR/server.log" -w start >/dev/null
     for db in pw_test pw_dev; do
       $AS "$BIN/psql" -h "$SOCK" -p "$PORT" -U pw -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1 || $AS "$BIN/createdb" -h "$SOCK" -p "$PORT" -U pw "$db"

@@ -128,13 +128,13 @@ No-go가 되는 경우:
 - 독립 리뷰는 두 번 받았다(1차 → 수정 → 2차). 2차가 지적한 새 결함(N1, N2)과 부정확한 문장 3개도 수정했다. 다만 그 수정에 대한 3차 리뷰는 받지 않았다.
 
 ## 6. 사용자 승인·확인 항목
-확정된 것(2026-10-08): 실행 OS는 Linux, 본인 계정으로 실행, 논문 자료는 선택한 provider로 전송 허용(민감 자료 차단 스위치는 유지).
+확정된 것(2026-10-08): 실행 OS는 Linux, 본인 계정으로 실행, **sudo 없이 동작**, 논문 자료는 선택한 provider로 전송 허용(민감 자료 차단 스위치는 유지).
 
 1. **분리 로그인 동의**: 본인 계정 안의 플랫폼 전용 폴더(`CLAUDE_CONFIG_DIR`, `CODEX_HOME`)에서 `claude`와 `codex login`을 한 번씩 다시 로그인하는 데 동의하는지. 같은 구독 계정이어도 된다(RFC-004).
-2. **연구실 서버 sudo 여부**: runs/data 폴더를 홈 밖(`/srv/paper-workspace` 등)에 한 번 만들 수 있는지. 안 되면 PW-026에서 대안을 정한다.
+2. ~~연구실 서버 sudo 여부~~ → **불필요(사용자 결정 반영)**. 실행 폴더는 `$XDG_RUNTIME_DIR` 또는 `/tmp` 아래 본인 전용 폴더를 쓴다. Codex sandbox는 codex에 들어 있는 bwrap을 쓴다. 남은 확인은 각 머신의 비특권 user namespace 허용 여부(preflight가 확인).
 3. **사용자 머신에서 실행할 확인**(모델 호출 없음):
    - `node spikes/preflight/preflight.mjs --data-root <경로> --protect <연구폴더>`
-   - `node spikes/isolation/tools/auth-sentinel.mjs <runsRoot>` (분리 로그인 전·후 각 1회)
+   - `node spikes/isolation/tools/auth-sentinel.mjs` (분리 로그인 전·후 각 1회; runsRoot 생략 시 sudo 없는 기본 위치)
 4. **data root / 백업 위치**: 운영 데이터 경로와 오프호스트 백업 대상.
 5. **민감 자료 범위**: 전송 차단 스위치를 켜야 할 자료가 있는지(예: 개인식별·인체 유래 데이터).
 6. **승인 요청**:

@@ -31,6 +31,28 @@ export function createRecordingFs(base) {
   return { fs: wrapped, calls };
 }
 
+// true/false when `unshare -Ur true` ran, null when it could not be tried. bubblewrap (system or the
+// copy bundled with Codex) needs unprivileged user namespaces to sandbox without sudo.
+export function probeUnprivilegedUserns() {
+  const r = spawnSync('unshare', ['-Ur', 'true'], { timeout: 10000, env: { PATH: process.env.PATH } });
+  if (r.error) return null;
+  return r.status === 0;
+}
+
+function inspectXdgRuntime(fsApi, dir) {
+  if (!dir) return { path: null, usable: false, reason: 'XDG_RUNTIME_DIR not set (no systemd user session)' };
+  const st = statPath(fsApi, dir);
+  if (!st.exists || st.type !== 'directory') return { path: dir, usable: false, reason: 'missing or not a directory' };
+  try {
+    const s = fsApi.statSync(dir);
+    const own = process.getuid ? s.uid === process.getuid() : true;
+    const priv = (s.mode & 0o077) === 0;
+    return { path: dir, usable: own && priv, reason: own && priv ? 'owned by this user, private' : 'not owned by this user or not private' };
+  } catch (e) {
+    return { path: dir, usable: false, reason: String(e.code || e) };
+  }
+}
+
 export function probeTool(name) {
   const r = spawnSync(name, ['--version'], { encoding: 'utf8', timeout: 15000, env: { PATH: process.env.PATH, HOME: os.tmpdir() } });
   if (r.error || r.status !== 0) return { found: false, version: null };
@@ -84,6 +106,8 @@ export function collectPreflight({
   fsApi = fs,
   minFreeBytes = DEFAULT_MIN_FREE_BYTES,
   hostPolicyPaths = HOST_POLICY_PATHS,
+  env = process.env,
+  probeUserns = probeUnprivilegedUserns,
 } = {}) {
   const tools = {};
   for (const name of toolNames) tools[name] = runTool(name);
@@ -127,6 +151,11 @@ export function collectPreflight({
       host_agent_policy: hostAgentPolicy,
     },
     blocked,
+    no_sudo: {
+      xdg_runtime_dir: inspectXdgRuntime(fsApi, env.XDG_RUNTIME_DIR || null),
+      unprivileged_userns: (() => { const u = probeUserns(); return u === null ? 'unknown' : u; })(),
+      note: 'runs use $XDG_RUNTIME_DIR or a private tmp folder; Codex sandbox uses system bwrap or the bwrap bundled with the codex npm package',
+    },
   };
 }
 

@@ -109,3 +109,14 @@ test('TST-001B: insufficient free space is blocked', () => {
   assert.equal(report.data_root.status, 'blocked');
   assert.match(report.data_root.reason, /free space/);
 });
+
+test('TST-001A: the report says whether sandboxing works without sudo (XDG runtime dir, user namespaces)', () => {
+  const root = tmpdir();
+  const report = collectPreflight({ home: root, runTool, toolNames: [], env: { XDG_RUNTIME_DIR: root }, probeUserns: () => true });
+  assert.equal(report.no_sudo.xdg_runtime_dir.path, root);
+  assert.equal(typeof report.no_sudo.xdg_runtime_dir.usable, 'boolean');
+  assert.equal(report.no_sudo.unprivileged_userns, true);
+  const r2 = collectPreflight({ home: root, runTool, toolNames: [], env: {}, probeUserns: () => null });
+  assert.equal(r2.no_sudo.xdg_runtime_dir.path, null);
+  assert.equal(r2.no_sudo.unprivileged_userns, 'unknown');
+});

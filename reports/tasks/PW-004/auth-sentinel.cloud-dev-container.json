@@ -1,6 +1,10 @@
 {
  "host": "cloud dev container (not a user machine)",
- "checked_at": "2026-10-08T07:53:15.499Z",
+ "runs_root": {
+  "kind": "tmp_private",
+  "runsRoot": "/tmp/paper-workspace-0/runs"
+ },
+ "checked_at": "2026-10-08T08:59:43.483Z",
  "claude_agent": {
   "provider": "claude_agent",
   "status": "leak",
@@ -9,13 +13,13 @@
    "apiProvider": "firstParty"
   },
   "host": "vm",
-  "checked_at": "2026-10-08T07:53:15.772Z"
+  "checked_at": "2026-10-08T08:59:43.877Z"
  },
  "codex": {
   "provider": "codex",
   "status": "isolated",
   "detail": {},
   "host": "vm",
-  "checked_at": "2026-10-08T07:53:16.037Z"
+  "checked_at": "2026-10-08T08:59:57.186Z"
  }
 }

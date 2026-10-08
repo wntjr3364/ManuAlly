@@ -1,7 +1,7 @@
 {
   "label": "cloud dev container (NOT user's PC or lab server)",
   "scope": "PREFLIGHT_ONLY_NOT_PRODUCT_TEST",
-  "generated_at": "2026-10-08T07:53:17.808Z",
+  "generated_at": "2026-10-08T08:59:59.861Z",
   "host": {
     "platform": "linux",
     "release": "6.18.44-fc-v80",
@@ -143,5 +143,14 @@
       }
     ]
   },
-  "blocked": []
+  "blocked": [],
+  "no_sudo": {
+    "xdg_runtime_dir": {
+      "path": null,
+      "usable": false,
+      "reason": "XDG_RUNTIME_DIR not set (no systemd user session)"
+    },
+    "unprivileged_userns": true,
+    "note": "runs use $XDG_RUNTIME_DIR or a private tmp folder; Codex sandbox uses system bwrap or the bwrap bundled with the codex npm package"
+  }
 }

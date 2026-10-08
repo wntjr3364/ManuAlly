@@ -13,6 +13,8 @@ ok 12 - TST-004B: leftover cleanup only targets a process group that is provably
 ok 13 - TST-004B: a missing provider binary fails fast instead of hanging
 ok 14 - TST-004B: no shell or file-tool surface is configured for either provider
 ok 15 - TST-004B: an empty runtime profile that still reports a login is detected as a credential leak
-# tests 15
-# pass 15
+ok 16 - TST-004B: the default runs root needs no sudo — XDG_RUNTIME_DIR first, private /tmp folder otherwise
+ok 17 - TST-004B: a pre-created /tmp folder owned by someone else, or made loose, is refused
+# tests 17
+# pass 17
 # fail 0

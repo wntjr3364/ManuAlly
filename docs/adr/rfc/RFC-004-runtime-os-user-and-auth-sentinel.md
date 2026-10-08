@@ -29,11 +29,15 @@ Proposed change:
    - 보이는 것: run 폴더(쓰기), `CODEX_HOME`(쓰기), 시스템 실행 파일·라이브러리(읽기 전용).
    - 보이지 않는 것: 홈의 나머지(~/.ssh, 연구 원본, 개발 저장소).
    - 이 sandbox가 실측으로 검증될 때까지(PW-025/026) Codex는 비활성이다.
-   - Linux 패키지 `bubblewrap`이 필요하며, preflight가 `bwrap` 설치 여부를 기록한다.
+   - 시스템 `bubblewrap` 패키지 또는 codex에 들어 있는 bwrap을 쓴다(sudo 불필요). preflight가 `bwrap` 존재와 비특권 user namespace 허용 여부를 기록한다.
 5. runner는 고아를 회수하는 init 아래에서 실행한다(systemd user service, 또는 컨테이너 `--init`/tini).
-6. runs root는 CLAUDE.md, AGENTS.md, .claude, .mcp.json, .codex가 있는 폴더(개발 저장소, 홈 루트) 아래에 둘 수 없다. 예: `~/.local/share/paper-workspace/runs`는 홈 아래지만, 홈에 `.claude`가 있으면 거부된다. 그래서 runs root는 `/srv/paper-workspace/runs`처럼 홈 밖이나 별도 데이터 경로를 권장한다. 이 검사는 실행 직전에도 다시 한다.
-   - 홈 밖 폴더를 만들려면 처음 한 번 `sudo mkdir` + `chown`이 필요하다.
-   - 연구실 서버에 sudo가 없으면 대안이 필요하다. 예: 상위 폴더 검사를 `.claude` 폴더 전체가 아니라 실제로 자동 로드되는 파일(`CLAUDE.md`, `.claude/CLAUDE.md`, `.claude/settings*.json` 등) 단위로 좁히고 실측으로 확인. 이 대안은 PW-026에서 결정한다.
+6. **sudo 없이 동작한다(사용자 결정).** 실행 폴더(run)는 잠깐 쓰는 작업 공간이고 논문 정본은 DB/data root에 있다. 그래서 run 폴더는 다음 순서로 홈 밖의 본인 전용 위치에 만든다(`defaultRunsRoot`).
+   1. `$XDG_RUNTIME_DIR/paper-workspace/runs`: 보통 `/run/user/<uid>`이며, 로그인 세션이 만들고 본인 소유 0700이다.
+   2. 이 폴더가 없으면(systemd 세션이 없는 ssh 등) `/tmp/paper-workspace-<uid>/runs`를 쓴다. 다른 사용자가 미리 만들어 둔 폴더이거나 권한이 열려 있으면 거부한다.
+   - 홈 아래(`~/.claude`가 있는 곳)에는 두지 않는다. Claude가 상위 폴더의 지침 파일을 자동으로 읽을 수 있기 때문이다.
+   - 상위 폴더에 CLAUDE.md, AGENTS.md, .claude, .mcp.json, .codex가 있으면 준비 시와 실행 직전에 모두 거부한다.
+   - data root(DB·원본 asset)는 홈 아래(`~/.local/share/paper-workspace` 등)에 두어도 된다. AI 프로세스는 거기서 실행되지 않는다.
+   - Codex용 bubblewrap은 시스템 패키지가 없어도 된다. codex npm 패키지에 들어 있는 bwrap(`codex-resources/bwrap`)을 쓸 수 있다. 필요한 것은 커널의 비특권 user namespace 허용이며, preflight가 `unshare -Ur true`로 확인한다.
 7. **외부 전송 정책 기본값(사용자 결정):** 사용자가 논문 프로젝트에 넣은 자료는 선택된 provider로 전송을 허용한다. 프로젝트별로 "민감 자료(개인식별·인체 유래) 전송 차단" 스위치는 남겨둔다. 자격증명·개발 파일·선택하지 않은 원본은 전송 대상이 아니다.
 
 Alternatives considered:
@@ -60,5 +64,5 @@ Tests and acceptance criteria:
 Write scope: spikes/isolation/**(완료), P03 PW-026 runner, infra 문서.
 
 User decision / reviewer:
-- 2026-10-08 사용자: Linux, 본인 계정, 자료 전송 허용.
+- 2026-10-08 사용자: Linux, 본인 계정, 자료 전송 허용, **sudo 없이 동작해야 함**.
 - 이 RFC의 나머지(분리 profile 로그인, sentinel, Codex bubblewrap)는 P00 gate에서 승인 필요.

@@ -109,3 +109,12 @@ PW-005 집필 품질 baseline fixture.
 - **실행 직전 재검사**: 상위 폴더의 agent-config 파일을 다시 확인한다.
 - **사용자 결정 반영**: 본인 Linux 계정 실행(RFC-004 개정). 테스트의 nobody 실행은 "root가 아닌 실행 사용자"를 흉내 내는 용도로 유지한다.
 - 테스트: 15/15.
+
+## sudo 없는 실행 위치 (사용자 결정 2026-10-08)
+- `defaultRunsRoot` 순서:
+  1. `$XDG_RUNTIME_DIR/paper-workspace/runs`: 본인 소유 0700일 때만 사용.
+  2. 그 외에는 `<tmp>/paper-workspace-<uid>/runs`: 다른 사용자가 미리 만든 폴더이거나 권한이 열려 있으면 거부.
+- 이 컨테이너에는 `XDG_RUNTIME_DIR`가 없다(→ 2번 사용). `unshare -Ur true`는 성공했다(비특권 user namespace 허용).
+- codex 0.161.0 npm 패키지에 bwrap이 들어 있다(`@openai/codex-linux-x64/vendor/.../codex-resources/bwrap`) → 시스템 bubblewrap 설치(sudo) 없이 sandbox가 가능하다. 실제 sandbox 동작 검증은 PW-025/026에서 한다.
+- `tools/auth-sentinel.mjs`는 runsRoot를 생략하면 이 기본 위치를 쓴다.
+- 테스트: 17/17. PW-001 preflight에 `no_sudo` 항목(XDG 상태, user namespace)을 추가했다: 8/8.

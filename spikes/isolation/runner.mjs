@@ -79,6 +79,27 @@ function copyInput(run, { sourceRoot, relPath }) {
   }
 }
 
+// Where per-run folders live, without sudo. Runs are short-lived scratch space (the paper itself
+// lives in the DB/data root), so a per-user runtime dir outside HOME is ideal:
+// 1. $XDG_RUNTIME_DIR (/run/user/<uid>: owned by the user, 0700, outside HOME, no agent configs above)
+// 2. otherwise a private <tmp>/paper-workspace-<uid> folder, refused if someone else pre-created it
+export function defaultRunsRoot({ env = process.env, uid = process.getuid(), tmp = os.tmpdir() } = {}) {
+  const x = env.XDG_RUNTIME_DIR;
+  if (x && path.isAbsolute(x)) {
+    const st = fs.lstatSync(x, { throwIfNoEntry: false });
+    if (st && st.isDirectory() && !st.isSymbolicLink() && st.uid === uid && (st.mode & 0o077) === 0) {
+      return { kind: 'xdg_runtime', runsRoot: path.join(x, 'paper-workspace', 'runs') };
+    }
+  }
+  const parent = path.join(tmp, `paper-workspace-${uid}`);
+  if (!fs.existsSync(parent)) fs.mkdirSync(parent, { mode: 0o700 });
+  const st = fs.lstatSync(parent);
+  if (st.isSymbolicLink() || !st.isDirectory()) refuse(`${parent} is not a real directory`);
+  if (st.uid !== uid) refuse(`${parent} is owned by uid ${st.uid}, not ${uid} (pre-created by someone else?)`);
+  if (st.mode & 0o077) refuse(`${parent} is accessible to other users (mode ${(st.mode & 0o777).toString(8)})`);
+  return { kind: 'tmp_private', runsRoot: path.join(parent, 'runs') };
+}
+
 // owner: {uid, gid} of the runtime OS user. Inputs stay owned by the control plane (read-only).
 export function prepareRun({ runsRoot, runId, inputs = [], owner = null }) {
   if (!/^[A-Za-z0-9-]{1,64}$/.test(runId)) refuse(`invalid run id ${runId}`);

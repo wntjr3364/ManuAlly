@@ -4,7 +4,7 @@
 - 승인된 구현 Task: PW-001–PW-006 (사용자 2026-10-08 "적절하게 정해라" 위임 하에 P00 범위만 진행).
 - 사용자 결정 (2026-10-08):
   - 런타임 AI = 사용자 본인 로그인의 Claude Code CLI / Codex CLI (API 키 아님) — RFC-001.
-  - 배포 = 개인 PC + 연구실 서버 둘 다. 둘 다 **Linux**, **본인 OS 계정**으로 실행.
+  - 배포 = 개인 PC + 연구실 서버 둘 다. 둘 다 **Linux**, **본인 OS 계정**으로 실행, **sudo 없이 동작**해야 함.
   - 논문 자료는 AI 사용을 위해 전송 허용(민감 자료 차단 스위치는 유지) — RFC-004.
   - Codex를 v1에 포함할지, 계획 변경(RFC-002/003)을 할지는 구현자에게 위임. RFC-003은 리뷰 후 proposed로 되돌림.
 - 승인된 라이브 AI 실행/예산: 없음.
@@ -22,7 +22,7 @@
 | PW-003 | in_review | 5de9421 | REQ-003 / TST-003A,B | 17/17, DOCX 블록별 손실 보고서 | 브라우저 selection·IME (PW-015/022) |
 | PW-004 | in_review | 5de9421 | REQ-004 / TST-004A,B | 15/15, 실제 auth sentinel: claude=leak, codex=isolated | 실제 resume/interrupt, bubblewrap, 사용자 머신 sentinel |
 | PW-005 | in_review | 5de9421 | REQ-005 / TST-005A,B | 14/14, mutation check | 모델 출력 평가, 실제 문단 gold |
-| PW-006 | in_review | (this) | REQ-006 / TST-006A,B | 4/4, P00 회귀 67/67, pack validator PASS | — |
+| PW-006 | in_review | (this) | REQ-006 / TST-006A,B | 4/4, P00 회귀 70/70, pack validator PASS | — |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 

@@ -23,6 +23,7 @@ import {
   checkAuthIsolation,
   CODEX_DISABLED_FEATURES,
   groupStillOurs,
+  defaultRunsRoot,
 } from '../../../spikes/isolation/runner.mjs';
 import { loadCodexRpcPolicy, loadRegistry, decideModelCall } from '../../../spikes/provider-admission/admission.mjs';
 
@@ -320,5 +321,44 @@ test('TST-004B: an empty runtime profile that still reports a login is detected 
     const res = await checkAuthIsolation({ provider, cmd: process.execPath, cmdPrefix: [FAKE_AUTH], run, parentEnv: ctx.parentEnv, homes: [ctx.devHome], extraEnv: { FAKE_AUTH_MODE: mode } });
     assert.equal(res.status, expected, `${provider}/${mode}: ${JSON.stringify(res)}`);
     assert.equal(res.provider, provider);
+  }
+});
+
+// ---------- no-sudo run location (user decision 2026-10-08: own account, no sudo) ----------
+
+test('TST-004B: the default runs root needs no sudo — XDG_RUNTIME_DIR first, private /tmp folder otherwise', (t) => {
+  const ctx = setup(t);
+  const uid = process.getuid();
+  const xdg = path.join(ctx.root, 'run-user');
+  fs.mkdirSync(xdg, { mode: 0o700 });
+  fs.chmodSync(xdg, 0o700);
+  const a = defaultRunsRoot({ env: { XDG_RUNTIME_DIR: xdg }, uid, tmp: ctx.root });
+  assert.equal(a.kind, 'xdg_runtime');
+  assert.equal(a.runsRoot, path.join(xdg, 'paper-workspace', 'runs'));
+  // usable straight away: no agent-config files above it
+  const run = prepareRun({ runsRoot: a.runsRoot, runId: randomUUID(), inputs: [] });
+  assert.ok(fs.existsSync(run.cwd));
+
+  // unset or unsafe XDG dir → private folder under tmp
+  fs.chmodSync(xdg, 0o777);
+  for (const env of [{}, { XDG_RUNTIME_DIR: xdg }, { XDG_RUNTIME_DIR: path.join(ctx.root, 'missing') }]) {
+    const b = defaultRunsRoot({ env, uid, tmp: ctx.root });
+    assert.equal(b.kind, 'tmp_private', JSON.stringify(env));
+    assert.equal(b.runsRoot, path.join(ctx.root, `paper-workspace-${uid}`, 'runs'));
+    assert.equal(fs.statSync(path.dirname(b.runsRoot)).mode & 0o077, 0, 'private parent');
+  }
+});
+
+test('TST-004B: a pre-created /tmp folder owned by someone else, or made loose, is refused', (t) => {
+  const ctx = setup(t);
+  const uid = process.getuid();
+  const squat = path.join(ctx.root, `paper-workspace-${uid}`);
+  fs.mkdirSync(squat);
+  fs.chmodSync(squat, 0o777);
+  assert.throws(() => defaultRunsRoot({ env: {}, uid, tmp: ctx.root }), /refused/, 'world-writable');
+  if (IS_ROOT) {
+    fs.chmodSync(squat, 0o700);
+    fs.chownSync(squat, 65534, 65534);
+    assert.throws(() => defaultRunsRoot({ env: {}, uid, tmp: ctx.root }), /refused.*owned/, 'owned by another user');
   }
 });

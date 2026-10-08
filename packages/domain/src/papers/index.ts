@@ -1,6 +1,6 @@
 // Paper projects. Every query is scoped by owner id: a paper that belongs to someone else is
 // indistinguishable from one that does not exist.
-import { DomainError, UUID_RE, type Queryable } from '../shared/db.ts';
+import { DomainError, UUID_RE, hasNul, type Queryable } from '../shared/db.ts';
 
 export const ARTICLE_TYPES = ['research_article', 'software_resource', 'methods', 'review', 'short_communication', 'other'] as const;
 export type ArticleType = (typeof ARTICLE_TYPES)[number];
@@ -15,13 +15,14 @@ export interface Paper {
   status: 'active' | 'archived';
   external_send_policy: 'allow_selected' | 'block';
   data_classification: 'unpublished' | 'public' | 'sensitive';
+  allowed_providers: string[];
   version: number;
   created_at: string;
   updated_at: string;
   archived_at: string | null;
 }
 
-const COLUMNS = 'id, owner_id, working_title, article_type, language, target_journal, status, external_send_policy, data_classification, version, created_at, updated_at, archived_at';
+const COLUMNS = 'id, owner_id, working_title, article_type, language, target_journal, status, external_send_policy, data_classification, allowed_providers, version, created_at, updated_at, archived_at';
 
 export interface PaperInput {
   working_title?: unknown;
@@ -34,6 +35,7 @@ export interface PaperInput {
 
 function validate(input: PaperInput, { partial }: { partial: boolean }): Record<string, string | null> {
   const out: Record<string, string | null> = {};
+  for (const [k, v] of Object.entries(input)) if (typeof v === 'string' && hasNul(v)) throw new DomainError('INVALID', `${k} contains a NUL character`, k);
   const has = (k: keyof PaperInput) => input[k] !== undefined;
   if (!partial || has('working_title')) {
     if (typeof input.working_title !== 'string' || !input.working_title.trim() || input.working_title.length > 500) throw new DomainError('INVALID', 'working_title must be 1–500 characters', 'working_title');
@@ -104,7 +106,9 @@ export async function updatePaper(db: Queryable, ownerId: string, paperId: strin
 }
 
 export async function setArchived(db: Queryable, ownerId: string, paperId: string, archived: boolean): Promise<Paper> {
-  if (!UUID_RE.test(paperId)) throw new DomainError('NOT_FOUND', 'paper not found');
+  const current = await getPaper(db, ownerId, paperId);
+  if (!current) throw new DomainError('NOT_FOUND', 'paper not found');
+  if ((current.status === 'archived') === archived) return current; // idempotent: nothing changes
   const { rows } = await db.query<Paper>(
     `UPDATE paper_projects SET status = $3, archived_at = ${archived ? 'now()' : 'NULL'}, version = version + 1, updated_at = now()
      WHERE id = $1 AND owner_id = $2 RETURNING ${COLUMNS}`,

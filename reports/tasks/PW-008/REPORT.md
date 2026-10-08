@@ -43,3 +43,22 @@
 
 ## 다음 Task
 PW-009 불변 revision·snapshot 저장.
+
+## 독립 리뷰 후속 (verdict: changes requested → 수정)
+리뷰가 찾은 major 5건 가운데 3건(1·2·4)은 위 보고서의 보안 주장과 실제 코드가 달랐다. 아래와 같이 정정·수정했다.
+
+| 리뷰 | 원인 | 조치 / 회귀 테스트 (`review-fixes.int.test.ts`) |
+|---|---|---|
+| 1 사용자명 열거(타이밍) | `DUMMY_HASH`의 필드가 하나 모자라 scrypt를 건너뜀(있는 계정 45–70 ms, 없는 계정 1 ms) | 실제 해시와 같은 형식으로 수정. 형식 일치 테스트 + 응답 시간 비교 테스트 |
+| 2 동시 요청이 rate limit 우회 | 실패를 비밀번호 확인 **뒤에** 기록 | 확인 **전에** 슬롯을 예약하고 성공 시 반환. 20개 동시 요청, max 3 → 401은 3개 이하 |
+| 3 동시 setup으로 owner 여러 명 | 개수 확인과 삽입 사이에 잠금 없음 | 트랜잭션 + `pg_advisory_xact_lock`. 4개 동시 요청 → 201 하나, 409 셋 |
+| 4 인코딩 경로(`/%61pi/…`)로 인증 hook 우회 | 원문 URL 접두어로 판단 | **매칭된 route** 기준으로 판단. route는 `config.public`을 선언하지 않으면 모두 비공개. 인코딩 경로 → 403/401, 새 route 기본 401 |
+| 5 500 응답에 내부 정보 노출 | 오류 처리기 없음 | 공통 오류 처리기(500은 `{"error":"internal"}`만 반환, 상세는 서버 로그). NUL 문자 → 422. 깨진 쿠키 → 세션 없음(401) |
+| minor | — | 같은 세션의 CSRF 토큰이 탭마다 같도록 세션 토큰에서 HMAC로 파생(회전 불필요), `allowed_providers` 열 추가(migration pw_008_0002), archive 재요청은 아무것도 바꾸지 않음, 로그인 시 기존 세션 폐기, Secure일 때 `__Host-` 쿠키, 실패 기록 map 정리, `/api/papers/:x`는 반드시 `:paperId` 사용 |
+
+남은 것:
+- spec 02의 `policy_id`는 별도 정책 테이블 대신 열(`external_send_policy`, `data_classification`, `allowed_providers`)로 대체했다(편차로 기록).
+- archive된 논문의 PATCH는 허용한다(spec에 금지 규정 없음).
+- SSE·blob·search route는 아직 없어 TST-008B의 해당 부분은 not_run이다. 생기면 `:paperId` 규칙과 기본 비공개 규칙으로 같은 테스트에 들어간다.
+
+테스트: PW-008 원래 11 + 리뷰 회귀 10 = 21/21.

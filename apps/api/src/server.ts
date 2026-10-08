@@ -1,8 +1,9 @@
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, type HTTPMethods, type RouteOptions } from 'fastify';
-import type { Queryable } from '@pw/domain/shared/db.ts';
+import Fastify, { type FastifyError, type FastifyInstance, type FastifyReply, type FastifyRequest, type HTTPMethods, type RouteOptions } from 'fastify';
+import type { TxPool } from '@pw/domain/revisions/index.ts';
 import { getPaper, type Paper } from '@pw/domain/papers/index.ts';
 import { registerAuth } from './auth/plugin.ts';
 import { registerPaperRoutes } from './routes/papers/index.ts';
+import { registerRevisionRoutes } from './routes/revisions/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -18,7 +19,7 @@ declare module 'fastify' {
 }
 
 export interface ServerOptions {
-  pool: Queryable;
+  pool: TxPool;
   allowedOrigins: string[];
   secureCookies?: boolean;
   sessionTtlMs?: number;
@@ -38,6 +39,9 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   const scopedRoutes: { method: HTTPMethods; url: string }[] = [];
   app.decorate('paperScopedRoutes', () => [...scopedRoutes]);
   app.addHook('onRoute', (route: RouteOptions) => {
+    if (/^\/api\/papers\/:/.test(route.url) && !route.url.startsWith('/api/papers/:paperId')) {
+      throw new Error(`route ${String(route.method)} ${route.url}: paper routes must name the paper parameter :paperId`);
+    }
     if (!route.url.includes(':paperId')) return;
     if (route.config?.paperScoped !== true) {
       throw new Error(`route ${String(route.method)} ${route.url} is paper-scoped (:paperId) but was not declared with config.paperScoped`);
@@ -54,7 +58,14 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   });
 
   const provider = selectProvider({ PW_PROVIDER: opts.provider ?? 'mock' });
-  app.get('/api/health', async () => ({ ok: true, provider: provider.id }));
+  app.get('/api/health', { config: { public: true } }, async () => ({ ok: true, provider: provider.id }));
+
+  // Clients see a generic message; details go to the server log only.
+  app.setErrorHandler((err: FastifyError, req, reply) => {
+    const status = err.statusCode && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 500;
+    if (status === 500) req.log.error({ err }, 'unhandled error');
+    return reply.code(status).send({ error: status === 500 ? 'internal' : 'bad_request' });
+  });
   registerAuth(app, {
     db,
     allowedOrigins: opts.allowedOrigins,
@@ -64,5 +75,6 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
     allowRemoteSetup: opts.allowRemoteSetup ?? false,
   });
   registerPaperRoutes(app, db);
+  registerRevisionRoutes(app, db);
   return app;
 }

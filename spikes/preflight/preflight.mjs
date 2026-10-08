@@ -10,6 +10,12 @@ import { fileURLToPath } from 'node:url';
 
 export const DEFAULT_TOOLS = ['node', 'pnpm', 'npm', 'psql', 'docker', 'pandoc', 'java', 'git', 'claude', 'codex'];
 const DEFAULT_MIN_FREE_BYTES = 20 * 1024 ** 3;
+export const HOST_POLICY_PATHS = [
+  '/etc/claude-code/managed-settings.json',
+  '/etc/claude-code/managed-mcp.json',
+  '/Library/Application Support/ClaudeCode/managed-settings.json',
+  'C:\\ProgramData\\ClaudeCode\\managed-settings.json',
+];
 
 // Wraps an fs module and records which operations touched which paths.
 export function createRecordingFs(base) {
@@ -77,6 +83,7 @@ export function collectPreflight({
   toolNames = DEFAULT_TOOLS,
   fsApi = fs,
   minFreeBytes = DEFAULT_MIN_FREE_BYTES,
+  hostPolicyPaths = HOST_POLICY_PATHS,
 } = {}) {
   const tools = {};
   for (const name of toolNames) tools[name] = runTool(name);
@@ -85,6 +92,8 @@ export function collectPreflight({
   const devConfig = ['.claude', '.claude.json', '.codex', '.config/claude'].map((rel) => ({ path: path.join(home, rel), kind: 'dev_cli_state' }));
   const userProtected = protectPaths.map((p) => ({ path: path.resolve(p), kind: 'user_research_data' }));
   const protectedPaths = [...devConfig, ...userProtected].map((p) => ({ ...p, ...statPath(fsApi, p.path), access: 'never_read_never_write' }));
+  // Host-wide agent policy files apply to every OS user (even with --restricted); presence only.
+  const hostAgentPolicy = hostPolicyPaths.map((p) => ({ path: p, kind: 'host_agent_policy', ...statPath(fsApi, p) }));
 
   const dr = inspectDataRoot(fsApi, dataRoot, approvedDataRoot, minFreeBytes);
   const undecided = [
@@ -115,6 +124,7 @@ export function collectPreflight({
       approved: dr.status === 'approved' ? [{ kind: 'data_root', path: dr.path }] : [],
       undecided,
       protected: protectedPaths,
+      host_agent_policy: hostAgentPolicy,
     },
     blocked,
   };

@@ -5,6 +5,8 @@ ok 4 - TST-002B: no real provider may be called before live admission + user app
 ok 5 - TST-002B: credential copying, cookie extraction and implicit session reuse are refused
 ok 6 - TST-002B: CLI probe only asks for --version, with a scrubbed HOME and no API keys
 ok 7 - TST-002B: Codex RPC policy only allows methods present in the pinned schema and blocks dangerous surfaces
-# tests 7
-# pass 7
+ok 8 - TST-002B: profile dirs that alias the developer config (symlink, HOME itself, parent of HOME) are refused
+ok 9 - TST-002B: a real provider also needs an isolated auth sentinel result before any call (M5)
+# tests 9
+# pass 9
 # fail 0

@@ -102,11 +102,12 @@ function countTags(ast) {
 }
 
 function docFeatures(doc) {
-  const f = { text: '', marks: new Set(), citations: 0, math: 0, tables: 0, ids: 0 };
+  const f = { text: '', marks: new Set(), citations: 0, math: 0, tables: 0, ids: 0, figureRefs: 0 };
   doc.descendants((n) => {
     if (n.isText) { f.text += n.text; n.marks.forEach((m) => f.marks.add(m.type.name)); }
     if (n.type.name === 'citation') f.citations++;
     if (n.type.name === 'math_inline') f.math++;
+    if (n.type.name === 'figure_ref') f.figureRefs++;
     if (n.type.name === 'table') f.tables++;
     if (n.attrs?.id) f.ids++;
   });
@@ -121,7 +122,74 @@ function countNfc(back, srcText) {
   return marked.every((g) => occurrences(back, g) >= occurrences(srcText.normalize('NFC'), g));
 }
 
-// Compares what the source document contains with what the DOCX actually holds when read back.
+const norm = (s) => s.normalize('NFC').replace(/\s+/g, ' ').trim();
+const PANDOC_MARK = { Subscript: 'subscript', Superscript: 'superscript', Emph: 'italic', Strong: 'bold' };
+
+// Plain text of Pandoc inlines; also collects text inside mark wrappers as [mark, text].
+function inlineText(inls, marked) {
+  let out = '';
+  for (const n of inls || []) {
+    switch (n.t) {
+      case 'Str': out += n.c; break;
+      case 'Space': case 'SoftBreak': case 'LineBreak': out += ' '; break;
+      case 'Emph': case 'Strong': case 'Subscript': case 'Superscript': {
+        const inner = inlineText(n.c, marked);
+        marked.push([PANDOC_MARK[n.t], inner]);
+        out += inner;
+        break;
+      }
+      case 'Underline': case 'Strikeout': case 'SmallCaps': out += inlineText(n.c, marked); break;
+      case 'Span': case 'Link': case 'Quoted': case 'Cite': out += inlineText(n.c[1], marked); break;
+      default: break; // Math, Note, Code: not compared as prose
+    }
+  }
+  return out;
+}
+
+function blockTextOf(block, marked) {
+  let out = '';
+  walk(block, (n) => {
+    if (n.t === 'Para' || n.t === 'Plain') out += ' ' + inlineText(n.c, marked);
+    if (n.t === 'Header') out += ' ' + inlineText(n.c[2], marked);
+  });
+  return out;
+}
+
+// Top-level body blocks of the round trip, without the citeproc bibliography section.
+function bodyBlocks(roundTrip) {
+  const blocks = [];
+  for (const b of roundTrip.blocks) {
+    if (b.t === 'Div' && b.c[0][0] === 'refs') break;
+    // DOCX read-back has no refs Div: everything from the bibliography heading on is not body text
+    if (b.t === 'Header' && norm(inlineText(b.c[2], [])) === 'Bibliography') break;
+    blocks.push(b);
+  }
+  return blocks;
+}
+
+// Source block → text segments between atoms (in order) and its marked runs.
+function sourceBlocks(doc) {
+  const out = [];
+  doc.forEach((block) => {
+    const segments = [];
+    const marked = [];
+    let cur = '';
+    const flush = () => { if (norm(cur)) segments.push(norm(cur)); cur = ''; };
+    block.descendants((n) => {
+      if (n.type.name === 'table_cell') flush();
+      if (n.isText) {
+        cur += n.text;
+        for (const m of n.marks) marked.push([m.type.name, norm(n.text)]);
+      } else if (n.isAtom && n.isInline) flush();
+    });
+    flush();
+    out.push({ id: block.attrs.id, segments, marked });
+  });
+  return out;
+}
+
+// Compares what the source document contains with what the DOCX actually holds when read back,
+// block by block (text order and formatted runs), plus document-level features.
 export function buildLossReport({ doc, docxXml, roundTrip, bibliography, info }) {
   const src = docFeatures(doc);
   const tags = countTags(roundTrip);
@@ -129,17 +197,46 @@ export function buildLossReport({ doc, docxXml, roundTrip, bibliography, info })
   const has = (re) => re.test(src.text);
   const feature = (name, present, preserved, note) => (present ? { feature: name, status: preserved ? 'preserved' : 'lost', note } : { feature: name, status: 'not_present' });
   const families = bibliography.map((b) => b.author?.[0]?.family).filter(Boolean);
+
+  const srcBlocks = sourceBlocks(doc);
+  const rtBlocks = bodyBlocks(roundTrip);
+  const lostBlocks = [];
+  const lostMarks = { subscript: [], superscript: [], italic: [], bold: [] };
+  srcBlocks.forEach((sb, i) => {
+    const rtMarked = [];
+    const rt = rtBlocks[i] ? norm(blockTextOf(rtBlocks[i], rtMarked)) : '';
+    let at = 0;
+    for (const seg of sb.segments) {
+      const k = rt.indexOf(seg, at);
+      if (k < 0) { lostBlocks.push(sb.id); break; }
+      at = k + seg.length;
+    }
+    for (const [mark, text] of sb.marked) {
+      if (!rtMarked.some(([m, t]) => m === mark && norm(t).includes(text))) lostMarks[mark]?.push(sb.id);
+    }
+  });
+  const markFeature = (name) => (src.marks.has(name)
+    ? { feature: name, status: lostMarks[name].length ? 'lost' : 'preserved', blocks: [...new Set(lostMarks[name])] }
+    : { feature: name, status: 'not_present' });
+
   const features = [
-    feature('korean_text', has(/[가-힣]/), /[가-힣]/.test(back)),
+    {
+      feature: 'block_text',
+      status: lostBlocks.length || rtBlocks.length !== srcBlocks.length ? 'lost' : 'preserved',
+      blocks: lostBlocks,
+      note: `per-block ordered text comparison (${srcBlocks.length} source blocks, ${rtBlocks.length} round-trip body blocks)`,
+    },
+    feature('korean_text', has(/[가-힣ᄀ-ᇿ]/), /[가-힣]/.test(back)),
     feature('emoji', has(/\p{Extended_Pictographic}/u), /\p{Extended_Pictographic}/u.test(back)),
     feature('greek', has(/[Ͱ-Ͽ]/), /[Ͱ-Ͽ]/.test(back)),
     feature('combining_marks', has(/\p{M}/u), countNfc(back, src.text), 'every base+combining sequence survives (compared after NFC normalisation)'),
-    feature('italic', src.marks.has('italic'), (tags.Emph || 0) > 0),
-    feature('bold', src.marks.has('bold'), (tags.Strong || 0) > 0),
-    feature('subscript', src.marks.has('subscript'), (tags.Subscript || 0) > 0),
-    feature('superscript', src.marks.has('superscript'), (tags.Superscript || 0) > 0),
+    markFeature('italic'),
+    markFeature('bold'),
+    markFeature('subscript'),
+    markFeature('superscript'),
     feature('table', src.tables > 0, (tags.Table || 0) >= src.tables),
     feature('inline_math', src.math > 0, docxXml.includes('<m:oMath') && (tags.Math || 0) >= src.math, 'written as Office Math (OMML)'),
+    src.figureRefs ? { feature: 'figure_ref', status: 'degraded', note: 'rendered as the word "Figure" without a computed number; numbering is PW-019' } : { feature: 'figure_ref', status: 'not_present' },
     feature('citation_rendered_text', src.citations > 0, families.some((fam) => back.includes(fam)), 'citeproc author-date text in the body'),
     feature('citation_live_field', src.citations > 0, /ADDIN ZOTERO|ADDIN CSL_CITATION|w:fldSimple[^>]*CITATION/.test(docxXml), 'no Word/Zotero citation field; citations cannot be re-linked inside Word'),
     feature('bibliography', src.citations > 0, families.every((fam) => back.includes(fam)) && docxXml.includes('Bibliography'), 'generated by citeproc'),
@@ -167,5 +264,5 @@ export function exportDocument(doc, { bibliography, outDir }) {
   const roundTrip = JSON.parse(run('pandoc', ['-f', 'docx', '-t', 'json', docxPath]));
   const report = buildLossReport({ doc, docxXml, roundTrip, bibliography, info });
   fs.writeFileSync(path.join(outDir, 'loss-report.json'), JSON.stringify(report, null, 2) + '\n');
-  return { docxPath, htmlPath, report };
+  return { docxPath, htmlPath, report, roundTrip, docxXml, info };
 }

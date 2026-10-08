@@ -81,3 +81,33 @@ test('TST-005B: fixtures must be marked synthetic', () => {
   b.papers[1].synthetic = false;
   assert.ok(validateBaseline(b).some((e) => e.includes('synthetic')));
 });
+
+// ---------- added after the independent P00 review (M8, M9) ----------
+
+test('TST-005B: failing cases relabelled as gold are rejected (source depth, retraction, group swap, negation, overclaim)', () => {
+  for (const id of ['B-CIT-02', 'B-CIT-04', 'B-NUM-03', 'B-NEG-02', 'B-CLM-02']) {
+    const b = loadBaseline();
+    b.cases.find((c) => c.id === id).expected = 'ALLOW';
+    const errors = validateBaseline(b);
+    assert.ok(errors.some((e) => e.startsWith(`${id}:`)), `${id} relabelled ALLOW must fail: ${JSON.stringify(errors)}`);
+  }
+});
+
+test('TST-005B: reading depth must be consistent with the sections recorded as read', () => {
+  const b = loadBaseline();
+  const meta = b.papers[0].references.find((r) => r.source_depth === 'METADATA_ONLY');
+  meta.sections_read = ['Results'];
+  assert.ok(validateBaseline(b).some((e) => e.includes(meta.id) && e.includes('METADATA_ONLY')));
+  const b2 = loadBaseline();
+  const abs = b2.papers[0].references.find((r) => r.source_depth === 'ABSTRACT_ONLY');
+  abs.sections_read = ['Abstract', 'Results'];
+  assert.ok(validateBaseline(b2).some((e) => e.includes(abs.id) && e.includes('ABSTRACT_ONLY')));
+});
+
+test('TST-005B: group percentages must match their counts (review M8: 62% of 40 plants is impossible)', () => {
+  const b = loadBaseline();
+  const fact = b.papers[0].facts.find((f) => f.id === 'fact-survival');
+  assert.deepEqual(fact.groups.map((g) => [g.count, g.value]), [['25/40', 62.5], ['15/40', 37.5]]);
+  fact.groups[0].value = 62;
+  assert.ok(validateBaseline(b).some((e) => e.includes('fact-survival') && e.includes('inconsistent')));
+});

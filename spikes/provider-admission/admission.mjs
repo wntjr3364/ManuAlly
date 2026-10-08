@@ -51,13 +51,18 @@ export function validateRegistry(registry, schema = loadCapabilitySchema()) {
 }
 
 // The only gate in front of a model call. Unknown combinations are denied.
-export function decideModelCall(registry, { provider, auth_mode, deployment_profile, userApprovedUsage }) {
+export function decideModelCall(registry, { provider, auth_mode, deployment_profile, userApprovedUsage, authSentinel = null }) {
   const entry = registry.entries.find((e) => e.capability.provider === provider && e.capability.auth_mode === auth_mode && e.capability.deployment_profile === deployment_profile);
   if (!entry) return { allowed: false, reason: 'unregistered provider/auth/deployment combination' };
   if (entry.capability.admission !== 'approved') return { allowed: false, reason: `admission is ${entry.capability.admission}` };
   if (provider !== 'mock' && !entry.evidence.live_evidence) return { allowed: false, reason: 'no live evidence recorded' };
   if (provider !== 'mock' && !userApprovedUsage) return { allowed: false, reason: 'user has not approved usage for this run' };
-  return { allowed: true, reason: provider === 'mock' ? 'mock provider' : 'admitted' };
+  // The auth isolation sentinel (spikes/isolation checkAuthIsolation) must have shown that an empty
+  // runtime profile is NOT logged in on this host, for this provider.
+  if (provider !== 'mock' && !(authSentinel && authSentinel.provider === provider && authSentinel.status === 'isolated')) {
+    return { allowed: false, reason: `auth isolation sentinel is ${authSentinel?.provider === provider ? authSentinel.status : 'missing'} for ${provider}` };
+  }
+  return { allowed: true, provider, reason: provider === 'mock' ? 'mock provider' : 'admitted' };
 }
 
 const REFUSED_MODES = {
@@ -67,8 +72,52 @@ const REFUSED_MODES = {
   reuse_latest_session: 'attaching to the latest existing CLI session',
 };
 
-function devConfigDirs(home = os.homedir()) {
-  return [path.join(home, '.claude'), path.join(home, '.codex'), path.join(home, '.config', 'claude')];
+const within = (child, parent) => child === parent || child.startsWith(parent + path.sep);
+const realOrNull = (p) => { try { return fs.realpathSync(p); } catch { return null; } };
+
+// Resolves symlinks of the longest existing prefix so that a not-yet-created path is still compared by its real location.
+function realLocation(p) {
+  let head = p;
+  const tail = [];
+  while (!fs.existsSync(head)) {
+    tail.unshift(path.basename(head));
+    const parent = path.dirname(head);
+    if (parent === head) break;
+    head = parent;
+  }
+  return path.join(realOrNull(head) ?? head, ...tail);
+}
+
+// A runtime auth profile dir must not be, contain, or alias any developer CLI state.
+export function assertSafeProfileDir(dir, { homes = [os.homedir()], allowMissing = false, ownerUid = process.getuid ? process.getuid() : null } = {}) {
+  if (!dir || !path.isAbsolute(dir)) throw new Error('refused: profile dir must be an absolute path');
+  const resolved = path.resolve(dir);
+  const exists = fs.existsSync(resolved);
+  if (!exists && !allowMissing) throw new Error(`refused: profile dir ${resolved} does not exist`);
+  if (exists) {
+    const st = fs.lstatSync(resolved);
+    if (st.isSymbolicLink()) throw new Error(`refused: profile dir ${resolved} is a symlink`);
+    if (!st.isDirectory()) throw new Error(`refused: profile dir ${resolved} is not a directory`);
+    if (st.mode & 0o022) throw new Error(`refused: profile dir ${resolved} is group/world-writable`);
+    if (ownerUid !== null && st.uid !== ownerUid) throw new Error(`refused: profile dir ${resolved} is not owned by the runtime user (uid ${ownerUid})`);
+  }
+  const candidates = new Set([resolved, realLocation(resolved)]);
+  for (const home of homes) {
+    const homeForms = new Set([path.resolve(home), realOrNull(home)].filter(Boolean));
+    const devForms = new Set();
+    for (const h of homeForms) {
+      for (const rel of ['.claude', '.claude.json', '.codex', path.join('.config', 'claude')]) {
+        devForms.add(path.join(h, rel));
+        const r = realOrNull(path.join(h, rel));
+        if (r) devForms.add(r);
+      }
+    }
+    for (const c of candidates) {
+      for (const h of homeForms) if (within(h, c)) throw new Error(`refused: ${resolved} is or contains the home directory ${h}`);
+      for (const d of devForms) if (within(c, d)) throw new Error(`refused: ${resolved} is inside developer CLI state ${d}`);
+    }
+  }
+  return exists ? fs.realpathSync(resolved) : realLocation(resolved);
 }
 
 // Describes how a runtime auth profile is created. The user performs the login;
@@ -76,11 +125,7 @@ function devConfigDirs(home = os.homedir()) {
 export function planAuthProvision({ provider, mode, profileDir }) {
   if (REFUSED_MODES[mode]) throw new Error(`refused: ${REFUSED_MODES[mode]}`);
   if (mode !== 'isolated_login') throw new Error(`refused: unknown auth provisioning mode ${mode}`);
-  if (!profileDir || !path.isAbsolute(profileDir)) throw new Error('refused: profileDir must be an absolute path');
-  const resolved = path.resolve(profileDir);
-  for (const dev of devConfigDirs()) {
-    if (resolved === dev || resolved.startsWith(dev + path.sep)) throw new Error(`refused: ${resolved} is the developer CLI config directory`);
-  }
+  const resolved = assertSafeProfileDir(profileDir, { allowMissing: true });
   if (provider === 'claude_agent') {
     return {
       env: { CLAUDE_CONFIG_DIR: resolved },

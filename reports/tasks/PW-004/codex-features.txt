@@ -1,0 +1,35 @@
+# codex-cli 0.161.0 — features list (no login, no model call)
+## default
+apps                                     stable             true
+browser_annotation_api                   stable             true
+browser_use                              stable             true
+browser_use_external                     stable             true
+browser_use_full_cdp_access              stable             true
+code_mode_host                           stable             true
+computer_use                             stable             true
+goals                                    stable             true
+shell_snapshot                           stable             true
+shell_tool                               stable             true
+skill_search                             stable             true
+sleep_tool                               stable             true
+tool_suggest                             stable             true
+unified_exec                             stable             true
+unified_exec_tty                         stable             true
+view_image                               stable             true
+## disabled
+apps                                     stable             false
+browser_annotation_api                   stable             false
+browser_use                              stable             false
+browser_use_external                     stable             false
+browser_use_full_cdp_access              stable             false
+code_mode_host                           stable             false
+computer_use                             stable             false
+goals                                    stable             false
+shell_snapshot                           stable             false
+shell_tool                               stable             false
+skill_search                             stable             false
+sleep_tool                               stable             false
+tool_suggest                             stable             false
+unified_exec                             stable             true
+unified_exec_tty                         stable             false
+view_image                               stable             false

@@ -205,6 +205,12 @@
    "kind": "method_record",
    "locator": "table-S1",
    "extraction_state": "user_verified"
+  },
+  {
+   "id": "ev-table3",
+   "kind": "table_cell",
+   "locator": "table-3 (differential expression summary)",
+   "extraction_state": "user_verified"
   }
  ],
  "facts": [
@@ -227,23 +233,42 @@
     ]
    },
    "source_locator": "ev-fig1a",
-   "verification_state": "verified"
+   "verification_state": "verified",
+   "n_unit": "plants per group",
+   "direction": "increase"
   },
   {
    "id": "fact-survival",
-   "entity": "ABC1-OE vs wild type",
+   "entity": "ABC1-overexpressing (OE) vs wild type",
    "metric": "survival after drought",
-   "value": 62,
+   "value": 62.5,
    "unit": "%",
+   "groups": [
+    {
+     "label": "ABC1-overexpressing",
+     "count": "25/40",
+     "value": 62.5
+    },
+    {
+     "label": "wild type",
+     "count": "15/40",
+     "value": 37.5
+    }
+   ],
    "comparison": {
-    "wild_type": 38
+    "wild_type": 37.5
    },
    "n": 40,
+   "n_unit": "plants per group",
    "statistic": {
-    "test": "chi-square",
-    "p": 0.012
+    "test": "Pearson chi-square without continuity correction",
+    "chi2": 5.0,
+    "df": 1,
+    "p": 0.025,
+    "note": "Yates-corrected p = 0.044"
    },
    "uncertainty": null,
+   "direction": "increase",
    "source_locator": "ev-fig2",
    "verification_state": "verified"
   },
@@ -261,7 +286,9 @@
    },
    "uncertainty": null,
    "source_locator": "ev-table2",
-   "verification_state": "verified"
+   "verification_state": "verified",
+   "n_unit": "plants",
+   "direction": "none"
   },
   {
    "id": "fact-deg-count",
@@ -277,8 +304,10 @@
     "adjusted": true
    },
    "uncertainty": null,
-   "source_locator": "ev-table2",
-   "verification_state": "verified"
+   "source_locator": "ev-table3",
+   "verification_state": "verified",
+   "direction": null,
+   "n_unit": "biological replicates per condition"
   }
  ],
  "references": [

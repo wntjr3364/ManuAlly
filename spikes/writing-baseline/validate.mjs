@@ -36,6 +36,25 @@ function numbersInValue(value, out = new Set()) {
 }
 
 const normalize = (n) => (n.split('.').length === 2 ? String(Number(n)) : n);
+const NEGATION = /\b(not|no|never|neither|nor|none|without|absence|absent)\b|n't\b/i;
+const DECREASE = /\b(decrease[sd]?|lower|reduced|down-?regulated|diminished)\b/i;
+const INCREASE = /\b(increase[sd]?|higher|greater|elevated|up-?regulated|enhanced)\b/i;
+// verb uses only: "well-watered controls" (noun) must not match
+const CAUSAL = /\b(prove[sn]?|proving|establish(?:es|ed|ing)?|demonstrat(?:e|es|ed) that|controls?\s+(?:the\s+)?(?:drought|growth|tolerance|expression|response)|causes?|caused|master regulator|required for)\b/i;
+const CITABLE_DEPTHS = new Set(['FULLTEXT_PARSED', 'SOURCE_CHECKED']);
+
+// For facts with labelled groups: the i-th group label mentioned must be paired with that group's value.
+function groupBindingErrors(caseId, text, fact) {
+  if (!fact.groups || fact.groups.length < 2) return [];
+  const lower = text.toLowerCase();
+  const labels = fact.groups.map((g) => ({ g, at: lower.indexOf(g.label.toLowerCase()) })).filter((x) => x.at >= 0).sort((a, b) => a.at - b.at);
+  const tokens = resultNumbers(text).map(normalize);
+  const values = fact.groups.map((g) => ({ g, at: tokens.indexOf(normalize(String(g.value))) })).filter((x) => x.at >= 0).sort((a, b) => a.at - b.at);
+  if (labels.length < 2 || values.length < 2) return [];
+  return labels.some((l, i) => values[i] && values[i].g !== l.g)
+    ? [`${caseId}: group values are attached to the wrong groups for ${fact.id}`]
+    : [];
+}
 
 export function validateBaseline({ papers, cases, sciMap }) {
   const errors = [];
@@ -45,6 +64,14 @@ export function validateBaseline({ papers, cases, sciMap }) {
   for (const paper of papers) {
     if (paper.synthetic !== true) errors.push(`${paper.id}: fixture must be marked synthetic`);
     articleTypes.add(paper.article_type);
+    for (const fact of paper.facts) {
+      for (const g of fact.groups || []) {
+        const m = /^(\d+)\/(\d+)$/.exec(g.count || '');
+        if (m && Math.abs((Number(m[1]) / Number(m[2])) * 100 - g.value) > 0.05) errors.push(`${fact.id}: group ${g.label} value ${g.value}% inconsistent with count ${g.count}`);
+        if (m && fact.n && Number(m[2]) !== fact.n) errors.push(`${fact.id}: group ${g.label} denominator ${m[2]} inconsistent with n ${fact.n}`);
+      }
+      if (fact.source_locator?.startsWith('ev-') && !paper.evidence.some((e) => e.id === fact.source_locator)) errors.push(`${fact.id}: unknown evidence ${fact.source_locator}`);
+    }
     const claimIds = new Set(paper.claims.map((c) => c.id));
     const evidenceIds = new Set(paper.evidence.map((e) => e.id));
     for (const node of paper.outline.nodes) {
@@ -54,6 +81,8 @@ export function validateBaseline({ papers, cases, sciMap }) {
     }
     for (const ref of paper.references) {
       if (!DEPTHS.includes(ref.source_depth)) errors.push(`${ref.id}: invalid source_depth ${ref.source_depth}`);
+      if (ref.source_depth === 'METADATA_ONLY' && (ref.sections_read || []).length) errors.push(`${ref.id}: METADATA_ONLY reference cannot have sections_read`);
+      if (ref.source_depth === 'ABSTRACT_ONLY' && (ref.sections_read || []).some((x) => x !== 'Abstract')) errors.push(`${ref.id}: ABSTRACT_ONLY reference can only have read the Abstract`);
       if (ref.style_verification === 'fulltext_style_verified') {
         if (!STYLE_DEPTHS.has(ref.source_depth)) errors.push(`${ref.id}: style verification requires full text, but source_depth is ${ref.source_depth}`);
         if (!ref.style_sections?.length) errors.push(`${ref.id}: style verification without any analysed section`);
@@ -87,8 +116,23 @@ export function validateBaseline({ papers, cases, sciMap }) {
       if (fact.verification_state !== 'verified') errors.push(`${c.id}: fact ${fid} is ${fact.verification_state}, gold text needs verified facts`);
       for (const n of numbersInValue(fact)) allowed.add(normalize(n));
     }
-    const refIds = new Set(paper.references.map((r) => r.id));
-    for (const m of c.text.matchAll(/\[@([^\]\s;]+)\]/g)) if (!refIds.has(m[1])) errors.push(`${c.id}: cites ${m[1]}, which is not in the library`);
+    const refById = new Map(paper.references.map((r) => [r.id, r]));
+    for (const m of c.text.matchAll(/\[@([^\]\s;]+)\]/g)) {
+      const ref = refById.get(m[1]);
+      if (!ref) { errors.push(`${c.id}: cites ${m[1]}, which is not in the library`); continue; }
+      if (ref.status === 'retracted') errors.push(`${c.id}: cites retracted reference ${ref.id}`);
+      if (!CITABLE_DEPTHS.has(ref.source_depth)) errors.push(`${c.id}: cites ${ref.id} read only to ${ref.source_depth}; gold claims need full-text support`);
+    }
+    for (const fid of c.fact_ids) {
+      const fact = factById.get(fid);
+      if (!fact) continue;
+      errors.push(...groupBindingErrors(c.id, c.text, fact));
+      if (fact.direction === 'none' && !NEGATION.test(c.text)) errors.push(`${c.id}: ${fid} is a null result but the text states an effect`);
+      if (fact.direction === 'increase' && DECREASE.test(c.text) && !INCREASE.test(c.text)) errors.push(`${c.id}: ${fid} is an increase but the text states a decrease`);
+      if (fact.direction === 'decrease' && INCREASE.test(c.text) && !DECREASE.test(c.text)) errors.push(`${c.id}: ${fid} is a decrease but the text states an increase`);
+    }
+    const node = paper.outline.nodes.find((n) => n.id === c.outline_node_id);
+    if (node && !/causal/i.test(node.allowed_interpretation) && CAUSAL.test(c.text)) errors.push(`${c.id}: causal/proof language ("${c.text.match(CAUSAL)[0]}") exceeds the node's allowed interpretation (${node.allowed_interpretation})`);
     for (const n of resultNumbers(c.text.replace(/\[@[^\]]+\]/g, ''))) {
       if (!allowed.has(normalize(n))) errors.push(`${c.id}: gold text states ${n}, which no declared verified fact contains`);
     }

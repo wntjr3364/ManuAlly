@@ -1,0 +1,3 @@
+# SyntaxError: The requested module '../../../spikes/editor-export/src/selection.mjs' does not provide an export named 'HandleStore'
+# pass 0
+# fail 1

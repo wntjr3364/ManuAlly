@@ -7,6 +7,9 @@ ok 6 - TST-005B: style verification of a section requires that exact section to 
 ok 7 - TST-005B: a gold (ALLOW) paragraph may not contain results that are not in the fact records
 ok 8 - TST-005B: gold paragraphs may not cite references or facts that do not exist, or unverified facts
 ok 9 - TST-005B: fixtures must be marked synthetic
-# tests 9
-# pass 9
+ok 10 - TST-005B: failing cases relabelled as gold are rejected (source depth, retraction, group swap, negation, overclaim)
+ok 11 - TST-005B: reading depth must be consistent with the sections recorded as read
+ok 12 - TST-005B: group percentages must match their counts (review M8: 62% of 40 plants is impossible)
+# tests 12
+# pass 12
 # fail 0

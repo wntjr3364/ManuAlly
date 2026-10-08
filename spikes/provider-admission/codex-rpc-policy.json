@@ -15,7 +15,9 @@
     "model/list",
     "mcpServerStatus/list"
   ],
-  "client_notification_allowlist": ["initialized"],
+  "client_notification_allowlist": [
+    "initialized"
+  ],
   "explicit_deny_examples": {
     "thread/shellCommand": "runs commands outside the sandbox (S07)",
     "command/exec": "arbitrary command execution",
@@ -47,8 +49,32 @@
   },
   "thread_defaults": {
     "sandbox": "read-only",
-    "approvalPolicy": "never",
+    "approvalPolicy": "on-request",
     "ephemeral": false
   },
-  "status": "documented_not_verified: response shapes for decline are checked against the pinned schema in P03 (PW-025)"
+  "status": "documented_not_verified: decline response shapes and the effect of approval_policy=untrusted on unified_exec are checked live in P03 (PW-025). Until an outer filesystem sandbox is verified, Codex stays non-admitted (RFC-004).",
+  "feature_flags": {
+    "disabled": [
+      "shell_tool",
+      "unified_exec_tty",
+      "shell_snapshot",
+      "browser_use",
+      "browser_use_external",
+      "browser_use_full_cdp_access",
+      "browser_annotation_api",
+      "computer_use",
+      "apps",
+      "code_mode_host",
+      "view_image",
+      "skill_search",
+      "tool_suggest",
+      "goals",
+      "sleep_tool"
+    ],
+    "not_disableable_in_0_161_0": [
+      "unified_exec"
+    ],
+    "evidence": "reports/tasks/PW-004/codex-features.txt (codex features list with -c features.X=false; unified_exec stays true with -c, --disable and config.toml)",
+    "approval_policy_note": "0.161.0 refuses approval_policy=\"untrusted\" at startup (\"no longer supported\") although the generated schema lists it; on-request/never/on-failure start. In-sandbox commands therefore run without approval."
+  }
 }

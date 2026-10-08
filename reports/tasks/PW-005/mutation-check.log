@@ -1,10 +1,28 @@
-B-NUM-01 numbers: [ '2.4', '6', '0.003' ]
 B-NUM-02 as ALLOW -> [
   'B-NUM-02: gold text states 4.2, which no declared verified fact contains'
 ]
+B-NUM-03 as ALLOW -> [
+  'B-NUM-03: group values are attached to the wrong groups for fact-survival'
+]
+B-NEG-02 as ALLOW -> [
+  'B-NEG-02: fact-root-assoc is a null result but the text states an effect'
+]
+B-CIT-02 as ALLOW -> [
+  'B-CIT-02: cites ref-okafor2019 read only to ABSTRACT_ONLY; gold claims need full-text support',
+  `B-CIT-02: causal/proof language ("required for") exceeds the node's allowed interpretation (background only)`
+]
 B-CIT-03 as ALLOW -> [ 'B-CIT-03: cites ref-not-in-library, which is not in the library' ]
+B-CIT-04 as ALLOW -> [
+  'B-CIT-04: cites retracted reference ref-lee2023',
+  'B-CIT-04: cites ref-lee2023 read only to METADATA_ONLY; gold claims need full-text support'
+]
+B-CLM-02 as ALLOW -> [
+  `B-CLM-02: causal/proof language ("prove") exceeds the node's allowed interpretation (hypothesis)`
+]
 B-INV-01 as ALLOW -> [
   'B-INV-01: gold text states 22, which no declared verified fact contains',
   'B-INV-01: gold text states 16, which no declared verified fact contains',
   'B-INV-01: gold text states 8, which no declared verified fact contains'
 ]
+B-VERB-02 as ALLOW -> NOT CAUGHT
+B-REP-01 as ALLOW -> NOT CAUGHT

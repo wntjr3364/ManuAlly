@@ -6,8 +6,14 @@
     23,
     1
   ],
-  "generated_at": "2026-10-08T07:07:44.877Z",
+  "generated_at": "2026-10-08T07:34:29.157Z",
   "features": [
+    {
+      "feature": "block_text",
+      "status": "preserved",
+      "blocks": [],
+      "note": "per-block ordered text comparison (8 source blocks, 8 round-trip body blocks)"
+    },
     {
       "feature": "korean_text",
       "status": "preserved"
@@ -27,7 +33,8 @@
     },
     {
       "feature": "italic",
-      "status": "preserved"
+      "status": "preserved",
+      "blocks": []
     },
     {
       "feature": "bold",
@@ -35,11 +42,13 @@
     },
     {
       "feature": "subscript",
-      "status": "preserved"
+      "status": "preserved",
+      "blocks": []
     },
     {
       "feature": "superscript",
-      "status": "preserved"
+      "status": "preserved",
+      "blocks": []
     },
     {
       "feature": "table",
@@ -49,6 +58,11 @@
       "feature": "inline_math",
       "status": "preserved",
       "note": "written as Office Math (OMML)"
+    },
+    {
+      "feature": "figure_ref",
+      "status": "degraded",
+      "note": "rendered as the word \"Figure\" without a computed number; numbering is PW-019"
     },
     {
       "feature": "citation_rendered_text",

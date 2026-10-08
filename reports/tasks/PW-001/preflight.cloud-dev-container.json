@@ -1,7 +1,7 @@
 {
   "label": "cloud dev container (NOT user's PC or lab server)",
   "scope": "PREFLIGHT_ONLY_NOT_PRODUCT_TEST",
-  "generated_at": "2026-10-08T07:01:28.014Z",
+  "generated_at": "2026-10-08T07:41:09.395Z",
   "host": {
     "platform": "linux",
     "release": "6.18.44-fc-v80",
@@ -110,6 +110,32 @@
         "exists": false,
         "type": null,
         "access": "never_read_never_write"
+      }
+    ],
+    "host_agent_policy": [
+      {
+        "path": "/etc/claude-code/managed-settings.json",
+        "kind": "host_agent_policy",
+        "exists": false,
+        "type": null
+      },
+      {
+        "path": "/etc/claude-code/managed-mcp.json",
+        "kind": "host_agent_policy",
+        "exists": false,
+        "type": null
+      },
+      {
+        "path": "/Library/Application Support/ClaudeCode/managed-settings.json",
+        "kind": "host_agent_policy",
+        "exists": false,
+        "type": null
+      },
+      {
+        "path": "C:\\ProgramData\\ClaudeCode\\managed-settings.json",
+        "kind": "host_agent_policy",
+        "exists": false,
+        "type": null
       }
     ]
   },

@@ -77,8 +77,9 @@ test('TST-002B: credential copying, cookie extraction and implicit session reuse
   assert.throws(() => planAuthProvision({ provider: 'codex', mode: 'isolated_login', profileDir: path.join(os.homedir(), '.codex') }), /refused/);
 });
 
-test('TST-002B: CLI probe only asks for --version, with a scrubbed HOME and no API keys', () => {
+test('TST-002B: CLI probe only asks for --version, with a scrubbed HOME and no API keys', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw002-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const log = path.join(dir, 'argv.log');
   const fake = path.join(dir, 'claude');
   fs.writeFileSync(fake, `#!/usr/bin/env node
@@ -114,4 +115,38 @@ test('TST-002B: Codex RPC policy only allows methods present in the pinned schem
   const drifted = structuredClone(policy);
   drifted.client_request_allowlist.push('thread/doesNotExist');
   assert.ok(checkCodexRpcPolicy(inventory, drifted).some((e) => e.includes('thread/doesNotExist')));
+});
+
+// ---------- added after the independent P00 review (M4, M5) ----------
+import { assertSafeProfileDir } from '../../../spikes/provider-admission/admission.mjs';
+
+test('TST-002B: profile dirs that alias the developer config (symlink, HOME itself, parent of HOME) are refused', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pw002-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const home = path.join(root, 'home');
+  fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+  fs.mkdirSync(path.join(home, '.codex'));
+  fs.symlinkSync(path.join(home, '.claude'), path.join(root, 'innocent-looking'));
+  const ok = path.join(root, 'runtime-auth');
+  fs.mkdirSync(ok, { mode: 0o700 });
+  for (const bad of [path.join(root, 'innocent-looking'), home, root, path.join(home, '.codex', 'sub'), path.join(home, '.claude.json'), 'relative/path']) {
+    assert.throws(() => assertSafeProfileDir(bad, { homes: [home] }), /refused/, bad);
+  }
+  fs.chmodSync(ok, 0o777);
+  assert.throws(() => assertSafeProfileDir(ok, { homes: [home] }), /refused/, 'group/world-writable profile dir');
+  fs.chmodSync(ok, 0o700);
+  assert.equal(assertSafeProfileDir(ok, { homes: [home] }), fs.realpathSync(ok));
+});
+
+test('TST-002B: a real provider also needs an isolated auth sentinel result before any call (M5)', () => {
+  const approved = structuredClone(registry);
+  const entry = approved.entries.find((e) => e.capability.provider === 'codex' && e.capability.deployment_profile === 'PERSONAL_LOCAL' && e.capability.auth_mode === 'chatgpt_login');
+  entry.capability.admission = 'approved';
+  entry.evidence.live_evidence = { note: 'hypothetical, test only' };
+  const req = { provider: 'codex', auth_mode: 'chatgpt_login', deployment_profile: 'PERSONAL_LOCAL', userApprovedUsage: true };
+  assert.equal(decideModelCall(approved, req).allowed, false, 'no sentinel');
+  assert.equal(decideModelCall(approved, { ...req, authSentinel: { provider: 'codex', status: 'leak' } }).allowed, false, 'leak');
+  assert.equal(decideModelCall(approved, { ...req, authSentinel: { provider: 'codex', status: 'unknown' } }).allowed, false, 'unknown');
+  assert.equal(decideModelCall(approved, { ...req, authSentinel: { provider: 'claude_agent', status: 'isolated' } }).allowed, false, 'sentinel for another provider');
+  assert.equal(decideModelCall(approved, { ...req, authSentinel: { provider: 'codex', status: 'isolated' } }).allowed, true);
 });

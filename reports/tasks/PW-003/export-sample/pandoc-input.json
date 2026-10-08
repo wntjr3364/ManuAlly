@@ -405,6 +405,40 @@
     {
      "t": "Str",
      "c": "."
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "See"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Link",
+     "c": [
+      [
+       "",
+       [],
+       []
+      ],
+      [
+       {
+        "t": "Str",
+        "c": "Figure"
+       }
+      ],
+      [
+       "#fig-1",
+       ""
+      ]
+     ]
+    },
+    {
+     "t": "Str",
+     "c": "."
     }
    ]
   },
@@ -578,6 +612,241 @@
      ],
      []
     ]
+   ]
+  },
+  {
+   "t": "Para",
+   "c": [
+    {
+     "t": "Str",
+     "c": "Group"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "A"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "had"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "1.2"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "and"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "group"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "B"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "had"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "3.4"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "(p"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "<"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "0.05);"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "5"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "µM"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "treatment"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "increased"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "growth"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "and"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "did"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "not"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "cause"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "damage"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "in"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "10"
+    },
+    {
+     "t": "Superscript",
+     "c": [
+      {
+       "t": "Str",
+       "c": "5"
+      }
+     ]
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Str",
+     "c": "cells"
+    },
+    {
+     "t": "Space"
+    },
+    {
+     "t": "Cite",
+     "c": [
+      [
+       {
+        "citationId": "6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b",
+        "citationPrefix": [],
+        "citationSuffix": [
+         {
+          "t": "Str",
+          "c": ","
+         },
+         {
+          "t": "Space"
+         },
+         {
+          "t": "Str",
+          "c": "p."
+         },
+         {
+          "t": "Space"
+         },
+         {
+          "t": "Str",
+          "c": "4"
+         }
+        ],
+        "citationMode": {
+         "t": "NormalCitation"
+        },
+        "citationNoteNum": 0,
+        "citationHash": 0
+       }
+      ],
+      [
+       {
+        "t": "Str",
+        "c": "[@6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b]"
+       }
+      ]
+     ]
+    },
+    {
+     "t": "Str",
+     "c": "."
+    }
    ]
   },
   {

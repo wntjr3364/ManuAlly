@@ -1,14 +1,17 @@
-ok 1 - TST-003A: replacing a selection keeps everything outside it, including the citation atom
-ok 2 - TST-003A: a selection spanning a citation must keep the same citation in conservative mode
-ok 3 - TST-003A: numbers inside the selection cannot change in conservative mode
-ok 4 - TST-003A: export produces DOCX + HTML preview + loss report with the expected features
-ok 5 - TST-003B: identical sentences in two blocks — only the addressed block changes, never by text search
-ok 6 - TST-003B: duplicated block IDs are refused instead of guessing
-ok 7 - TST-003B: positions that split an emoji, a combining sequence or decomposed Hangul are refused
-ok 8 - TST-003B: out-of-range, inverted and empty selections are refused
-ok 9 - TST-003B: a block edited after the selection was taken makes the proposal STALE
-ok 10 - TST-003B: tampered slice hash is refused
-ok 11 - TST-003B: math atoms cannot be rewritten through the text-only replacement contract
-# tests 11
-# pass 11
+ok 1 - TST-003A: an AI proposal changes only its selection; the base document object is untouched
+ok 2 - TST-003A: a selection spanning a citation must keep the same citation, locator and anchor word
+ok 3 - TST-003A: conservative guard catches the value, comparator, unit, direction, negation, mark and locator changes found in review
+ok 4 - TST-003A: export writes DOCX + HTML preview + a per-block loss report
+ok 5 - TST-003A: the loss report flags dropped blocks and dropped marks, not just feature presence
+ok 6 - TST-003B: identical sentences — only the selected occurrence changes; quote-only operations are refused
+ok 7 - TST-003B: a proposal cannot move or widen the user selection (review M1)
+ok 8 - TST-003B: replaying an applied proposal is refused, even against the original base document
+ok 9 - TST-003B: an AI proposal cannot opt out of the guard by asking for manual mode
+ok 10 - TST-003B: duplicated block IDs are refused instead of guessing
+ok 11 - TST-003B: positions that split an emoji, a combining sequence or decomposed Hangul are refused
+ok 12 - TST-003B: out-of-range, inverted, empty and non-text selections are refused
+ok 13 - TST-003B: a block edited by the user after the selection makes the AI proposal STALE
+ok 14 - TST-003B: math and figure atoms need explicit preserve_atom items (RFC-005)
+# tests 14
+# pass 14
 # fail 0

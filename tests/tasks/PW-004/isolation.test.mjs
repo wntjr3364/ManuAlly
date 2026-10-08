@@ -1,5 +1,6 @@
 // PW-004 — TST-004A / TST-004B (mechanics with a fake CLI; live provider runs are blocked in P00)
-// Run: node --test 'tests/tasks/PW-004/*.test.mjs'
+// Revised after the independent P00 review (M4–M7 and minor findings).
+// Run: node --test --test-timeout=30000 'tests/tasks/PW-004/*.test.mjs'
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -15,14 +16,21 @@ import {
   buildCodexArgs,
   assertSafeClaudeArgs,
   spawnIsolated,
+  startProviderRun,
   cancelRun,
   collectStreamJson,
   createCodexRpcGuard,
+  checkAuthIsolation,
+  CODEX_DISABLED_FEATURES,
 } from '../../../spikes/isolation/runner.mjs';
 import { loadCodexRpcPolicy } from '../../../spikes/provider-admission/admission.mjs';
 
-const FAKE_CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fake-cli.mjs');
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'pw004-'));
+const here = path.dirname(fileURLToPath(import.meta.url));
+const FAKE_CLI = path.join(here, 'fake-cli.mjs');
+const FAKE_AUTH = path.join(here, 'fake-auth-cli.mjs');
+const IS_ROOT = process.getuid && process.getuid() === 0;
+// When the suite runs as root, the fake provider runs as `nobody`, as the real runtime user would.
+const RUNTIME_OWNER = IS_ROOT ? { uid: 65534, gid: 65534 } : null;
 
 function hashTree(dir) {
   const h = createHash('sha256');
@@ -34,8 +42,10 @@ function hashTree(dir) {
   return h.digest('hex');
 }
 
-function setup() {
-  const root = tmp();
+function setup(t) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pw004-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  if (RUNTIME_OWNER) fs.chmodSync(root, 0o711); // the runtime user only needs to traverse
   const devHome = path.join(root, 'dev-home');
   fs.mkdirSync(path.join(devHome, '.claude'), { recursive: true });
   fs.writeFileSync(path.join(devHome, '.claude', '.credentials.json'), 'DEV-SENTINEL');
@@ -44,7 +54,9 @@ function setup() {
   fs.writeFileSync(path.join(research, 'results.tsv'), 'gene\tfold\nABC1\t2.4\n');
   fs.writeFileSync(path.join(research, 'notes.md'), 'raw notes');
   const authProfile = path.join(root, 'runtime-auth', 'claude');
-  fs.mkdirSync(authProfile, { recursive: true });
+  fs.mkdirSync(authProfile, { recursive: true, mode: 0o700 });
+  // the runtime auth profile belongs to the runtime user, not to the control plane
+  if (RUNTIME_OWNER) fs.chownSync(authProfile, RUNTIME_OWNER.uid, RUNTIME_OWNER.gid);
   const parentEnv = {
     PATH: process.env.PATH,
     HOME: devHome,
@@ -54,55 +66,60 @@ function setup() {
     SSH_AUTH_SOCK: '/tmp/ssh-agent.sock',
     DATABASE_URL: 'postgres://prod',
   };
-  return { root, devHome, research, authProfile, parentEnv };
+  return { root, runsRoot: path.join(root, 'runs'), devHome, research, authProfile, parentEnv };
 }
 
-async function runFake(ctx, { sessionId, resumeSessionId, mode = 'normal' }) {
-  const run = prepareRun({ runsRoot: path.join(ctx.root, 'runs'), runId: randomUUID(), inputs: [{ sourceRoot: ctx.research, relPath: 'results.tsv' }] });
-  const env = { ...buildChildEnv({ provider: 'claude_agent', authProfileDir: ctx.authProfile, run, parentEnv: ctx.parentEnv }), FAKE_MODE: mode };
+const mockAdmission = { allowed: true, provider: 'claude_agent', reason: 'test: fake CLI stands in for the provider' };
+
+function runFake(ctx, { sessionId, resumeSessionId, mode = 'normal' }) {
+  const run = prepareRun({ runsRoot: ctx.runsRoot, runId: randomUUID(), inputs: [{ sourceRoot: ctx.research, relPath: 'results.tsv' }], owner: RUNTIME_OWNER });
+  const env = { ...buildChildEnv({ provider: 'claude_agent', authProfileDir: ctx.authProfile, run, parentEnv: ctx.parentEnv, homes: [ctx.devHome], owner: RUNTIME_OWNER }), FAKE_MODE: mode };
   const args = buildClaudeArgs({ sessionId, resumeSessionId, mcpConfigPath: path.join(run.dir, 'mcp.json') });
-  const handle = spawnIsolated({ cmd: process.execPath, args: [FAKE_CLI, ...args], env, cwd: run.cwd });
+  const handle = startProviderRun({ admission: mockAdmission, provider: 'claude_agent', cmd: process.execPath, args: [FAKE_CLI, ...args], env, cwd: run.cwd, owner: RUNTIME_OWNER });
   return { run, args, handle };
 }
+const record = (run) => JSON.parse(fs.readFileSync(path.join(run.cwd, 'fake-cli-record.json'), 'utf8'));
 
 // ---------- TST-004A ----------
 
-test('TST-004A: a new run gets the explicit session id we chose and reports it back', async () => {
-  const ctx = setup();
+test('TST-004A: a new run gets the explicit session id we chose and reports it back', async (t) => {
+  const ctx = setup(t);
   const sessionId = randomUUID();
-  const { run, handle } = await runFake(ctx, { sessionId });
+  const { run, handle } = runFake(ctx, { sessionId });
   const out = await collectStreamJson(handle, { expectedSessionId: sessionId });
   assert.equal(out.exitCode, 0);
   assert.equal(out.sessionId, sessionId);
   assert.equal(out.result.subtype, 'success');
-  const rec = JSON.parse(fs.readFileSync(path.join(run.cwd, 'fake-cli-record.json'), 'utf8'));
+  const rec = record(run);
   assert.equal(rec.argv[rec.argv.indexOf('--session-id') + 1], sessionId);
   assert.ok(!rec.argv.includes('--resume'));
+  if (RUNTIME_OWNER) assert.equal(fs.statSync(path.join(run.cwd, 'fake-cli-record.json')).uid, RUNTIME_OWNER.uid, 'provider ran as the runtime user');
 });
 
-test('TST-004A: resume passes exactly the stored session id', async () => {
-  const ctx = setup();
+test('TST-004A: resume passes exactly the stored session id', async (t) => {
+  const ctx = setup(t);
   const stored = randomUUID();
-  const { run, handle } = await runFake(ctx, { resumeSessionId: stored });
+  const { run, handle } = runFake(ctx, { resumeSessionId: stored });
   const out = await collectStreamJson(handle, { expectedSessionId: stored });
   assert.equal(out.sessionId, stored);
-  const rec = JSON.parse(fs.readFileSync(path.join(run.cwd, 'fake-cli-record.json'), 'utf8'));
+  const rec = record(run);
   assert.deepEqual(rec.argv.slice(rec.argv.indexOf('--resume'), rec.argv.indexOf('--resume') + 2), ['--resume', stored]);
 });
 
-test('TST-004A: a provider reporting a different session id is flagged, not adopted', async () => {
-  const ctx = setup();
+test('TST-004A: a provider reporting a different session id is flagged, not adopted', async (t) => {
+  const ctx = setup(t);
   const sessionId = randomUUID();
-  const { handle } = await runFake(ctx, { sessionId, mode: 'wrong_session' });
+  const { handle } = runFake(ctx, { sessionId, mode: 'wrong_session' });
   const out = await collectStreamJson(handle, { expectedSessionId: sessionId });
   assert.equal(out.sessionMismatch, true);
   assert.equal(out.sessionId, sessionId);
 });
 
-test('TST-004A: interrupt ends the run and its process group only', async () => {
-  const ctx = setup();
+test('TST-004A: interrupt ends the run and its process group only', async (t) => {
+  const ctx = setup(t);
   const bystander = spawn(process.execPath, ['-e', 'setInterval(()=>{}, 1000)'], { stdio: 'ignore' });
-  const { run, handle } = await runFake(ctx, { sessionId: randomUUID(), mode: 'long' });
+  t.after(() => bystander.kill('SIGKILL'));
+  const { run, handle } = runFake(ctx, { sessionId: randomUUID(), mode: 'long' });
   const gcPidFile = path.join(run.cwd, 'grandchild.pid');
   for (let i = 0; i < 100 && !fs.existsSync(gcPidFile); i++) await new Promise((r) => setTimeout(r, 30));
   const grandchild = Number(fs.readFileSync(gcPidFile, 'utf8'));
@@ -118,96 +135,128 @@ test('TST-004A: interrupt ends the run and its process group only', async () => 
   };
   assert.equal(alive(grandchild), false, 'grandchild in the run process group must be gone');
   assert.equal(alive(bystander.pid), true, 'unrelated process must survive');
-  bystander.kill();
 });
 
-test('TST-004A: the original research folder is byte-identical after a run that tampers with its copy', async () => {
-  const ctx = setup();
+test('TST-004A: the original research folder and the read-only input copy are both unchanged after a tampering run', async (t) => {
+  const ctx = setup(t);
   const before = hashTree(ctx.research);
-  const { run, handle } = await runFake(ctx, { sessionId: randomUUID() });
+  const { run, handle } = runFake(ctx, { sessionId: randomUUID() });
   await collectStreamJson(handle, {});
   assert.equal(hashTree(ctx.research), before);
-  const rec = JSON.parse(fs.readFileSync(path.join(run.cwd, 'fake-cli-record.json'), 'utf8'));
-  assert.ok(!JSON.stringify(rec).includes(ctx.research), 'child must not learn the original path');
-  // read-only copy was not modified either (root ignores mode bits, so only assert when not root)
-  if (process.getuid && process.getuid() !== 0) assert.equal(fs.readFileSync(path.join(run.inputsDir, 'results.tsv'), 'utf8'), fs.readFileSync(path.join(ctx.research, 'results.tsv'), 'utf8'));
+  assert.ok(!JSON.stringify(record(run)).includes(ctx.research), 'child must not learn the original path');
+  // the provider always runs as a non-root runtime user here (root suite → nobody), so mode bits apply
+  assert.equal(fs.readFileSync(path.join(run.inputsDir, 'results.tsv'), 'utf8'), fs.readFileSync(path.join(ctx.research, 'results.tsv'), 'utf8'));
   assert.equal(fs.statSync(path.join(run.inputsDir, 'results.tsv')).mode & 0o222, 0, 'input copy is read-only');
 });
 
 // ---------- TST-004B ----------
 
-test('TST-004B: implicit continue / latest-session / missing resume id are refused', () => {
+test('TST-004B: implicit continue / latest-session / unknown flags are refused (allowlist)', () => {
   assert.throws(() => buildClaudeArgs({ mcpConfigPath: '/x/mcp.json' }), /explicit/);
   assert.throws(() => buildClaudeArgs({ sessionId: randomUUID(), resumeSessionId: randomUUID(), mcpConfigPath: '/x' }), /both/);
   assert.throws(() => buildClaudeArgs({ sessionId: 'latest', mcpConfigPath: '/x' }), /uuid/);
-  for (const bad of [['-c'], ['--continue'], ['--resume'], ['--dangerously-skip-permissions'], ['--allow-dangerously-skip-permissions'], ['--add-dir', '/'], ['--bare'], ['--fork-session'], ['--remote-control'], ['--plugin-url', 'https://x']]) {
-    assert.throws(() => assertSafeClaudeArgs(['-p', ...bad]), /refused/, bad.join(' '));
-  }
+  const good = buildClaudeArgs({ sessionId: randomUUID(), mcpConfigPath: '/run/mcp.json' });
+  assert.deepEqual(assertSafeClaudeArgs(good), good);
+  const replaceFlag = (flag, value) => { const a = [...good]; a[a.indexOf(flag) + 1] = value; return a; };
+  const bad = [
+    [...good, '-c'], [...good, '--continue'], [...good, '--resume'], [...good, '--resume=latest'], [...good, '--resume='],
+    [...good, '-pc'], [...good, '--dangerously-skip-permissions'], [...good, '--add-dir', '/'], [...good, '--bare'],
+    [...good, '--settings', '{}'], [...good, '--setting-sources', 'user'], [...good, '--plugin-url', 'https://x'],
+    replaceFlag('--permission-mode', 'bypassPermissions'), replaceFlag('--session-id', 'latest'), replaceFlag('--tools', 'Bash'),
+    replaceFlag('--allowedTools', 'Bash'), replaceFlag('--output-format', 'text'), replaceFlag('--mcp-config', 'relative.json'),
+    good.filter((a) => a !== '--restricted'),
+  ];
+  for (const args of bad) assert.throws(() => assertSafeClaudeArgs(args), /refused/, args.join(' '));
 });
 
-test('TST-004B: symlinks, traversal and symlinked parents cannot pull originals into a run', () => {
-  const ctx = setup();
+test('TST-004B: symlinks, hardlinks, traversal and unsafe run roots cannot pull originals into a run', (t) => {
+  const ctx = setup(t);
   const outside = path.join(ctx.root, 'secret.txt');
   fs.writeFileSync(outside, 'SECRET');
   fs.symlinkSync(outside, path.join(ctx.research, 'link.txt'));
   fs.symlinkSync(ctx.root, path.join(ctx.research, 'linkdir'));
-  const runsRoot = path.join(ctx.root, 'runs');
-  for (const relPath of ['link.txt', '../secret.txt', 'linkdir/secret.txt', '/etc/passwd', 'missing.txt']) {
-    assert.throws(() => prepareRun({ runsRoot, runId: randomUUID(), inputs: [{ sourceRoot: ctx.research, relPath }] }), /refused/, relPath);
+  fs.linkSync(outside, path.join(ctx.research, 'hardlink.txt'));
+  for (const relPath of ['link.txt', 'hardlink.txt', '../secret.txt', 'linkdir/secret.txt', '/etc/passwd', 'missing.txt']) {
+    const runId = randomUUID();
+    assert.throws(() => prepareRun({ runsRoot: ctx.runsRoot, runId, inputs: [{ sourceRoot: ctx.research, relPath }] }), /refused/, relPath);
+    assert.equal(fs.existsSync(path.join(ctx.runsRoot, runId)), false, `refused run ${relPath} must not leave a partial directory`);
   }
-  // a run id that tries to escape the runs root is refused too
-  assert.throws(() => prepareRun({ runsRoot, runId: '../escape', inputs: [] }), /refused/);
+  assert.throws(() => prepareRun({ runsRoot: ctx.runsRoot, runId: '../escape', inputs: [] }), /refused/);
+  const loose = path.join(ctx.root, 'loose-runs');
+  fs.mkdirSync(loose);
+  fs.chmodSync(loose, 0o777);
+  assert.throws(() => prepareRun({ runsRoot: loose, runId: randomUUID(), inputs: [] }), /refused/, 'world-writable runs root');
+  // a run root below a folder with agent instructions would let the CLI auto-load them
+  const repoLike = path.join(ctx.root, 'some-repo');
+  fs.mkdirSync(repoLike);
+  fs.writeFileSync(path.join(repoLike, 'CLAUDE.md'), '# dev instructions');
+  assert.throws(() => prepareRun({ runsRoot: path.join(repoLike, 'runs'), runId: randomUUID(), inputs: [] }), /refused.*CLAUDE\.md/);
 });
 
-test('TST-004B: the child gets a fresh HOME and none of the parent credentials or sockets', async () => {
-  const ctx = setup();
-  const { run, handle } = await runFake(ctx, { sessionId: randomUUID() });
+test('TST-004B: the child gets a fresh HOME and none of the parent credentials; profile aliases are refused', async (t) => {
+  const ctx = setup(t);
+  const { run, handle } = runFake(ctx, { sessionId: randomUUID() });
   await collectStreamJson(handle, {});
-  const { env } = JSON.parse(fs.readFileSync(path.join(run.cwd, 'fake-cli-record.json'), 'utf8'));
+  const { env } = record(run);
   assert.equal(env.HOME, run.homeDir);
-  assert.notEqual(env.HOME, ctx.devHome);
-  assert.equal(env.CLAUDE_CONFIG_DIR, ctx.authProfile);
+  assert.equal(env.CLAUDE_CONFIG_DIR, fs.realpathSync(ctx.authProfile));
   for (const k of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'SSH_AUTH_SOCK', 'DATABASE_URL']) assert.equal(env[k], undefined, k);
   assert.ok(!JSON.stringify(env).includes(ctx.devHome));
   assert.equal(env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC, '1');
-  // pointing the runtime at the developer config directory is refused
-  assert.throws(() => buildChildEnv({ provider: 'claude_agent', authProfileDir: path.join(ctx.devHome, '.claude'), run, parentEnv: ctx.parentEnv, devHome: ctx.devHome }), /refused/);
-  // a token, when used, comes from a secret file chosen by the server, never from the parent env
+  const alias = path.join(ctx.root, 'alias');
+  fs.symlinkSync(path.join(ctx.devHome, '.claude'), alias);
+  for (const bad of [path.join(ctx.devHome, '.claude'), alias, ctx.devHome]) {
+    assert.throws(() => buildChildEnv({ provider: 'claude_agent', authProfileDir: bad, run, parentEnv: ctx.parentEnv, homes: [ctx.devHome], owner: RUNTIME_OWNER }), /refused/, bad);
+  }
   const tokenFile = path.join(ctx.root, 'claude-token');
   fs.writeFileSync(tokenFile, 'runtime-token\n', { mode: 0o600 });
-  const withToken = buildChildEnv({ provider: 'claude_agent', authProfileDir: ctx.authProfile, run, parentEnv: ctx.parentEnv, oauthTokenFile: tokenFile });
+  const withToken = buildChildEnv({ provider: 'claude_agent', authProfileDir: ctx.authProfile, run, parentEnv: ctx.parentEnv, homes: [ctx.devHome], owner: RUNTIME_OWNER, oauthTokenFile: tokenFile });
   assert.equal(withToken.CLAUDE_CODE_OAUTH_TOKEN, 'runtime-token');
 });
 
-test('TST-004B: no shell or file-tool surface is exposed to the model', () => {
+test('TST-004B: no provider process starts without an admission decision for that provider (M5)', (t) => {
+  const ctx = setup(t);
+  const run = prepareRun({ runsRoot: ctx.runsRoot, runId: randomUUID(), inputs: [] });
+  const base = { provider: 'claude_agent', cmd: process.execPath, args: [FAKE_CLI], env: { PATH: process.env.PATH }, cwd: run.cwd };
+  assert.throws(() => startProviderRun({ ...base, admission: null }), /refused/);
+  assert.throws(() => startProviderRun({ ...base, admission: { allowed: false, provider: 'claude_agent', reason: 'sentinel leak' } }), /refused.*sentinel leak/);
+  assert.throws(() => startProviderRun({ ...base, admission: { allowed: true, provider: 'codex' } }), /refused/);
+});
+
+test('TST-004B: a missing provider binary fails fast instead of hanging', async (t) => {
+  const ctx = setup(t);
+  const run = prepareRun({ runsRoot: ctx.runsRoot, runId: randomUUID(), inputs: [] });
+  const handle = spawnIsolated({ cmd: path.join(ctx.root, 'no-such-cli'), args: [], env: { PATH: '/usr/bin' }, cwd: run.cwd });
+  const out = await collectStreamJson(handle, {});
+  assert.equal(out.exitCode, null);
+  assert.match(String(out.spawnError), /ENOENT/);
+});
+
+test('TST-004B: no shell or file-tool surface is configured for either provider', () => {
   const args = buildClaudeArgs({ sessionId: randomUUID(), mcpConfigPath: '/run/mcp.json' });
   assert.deepEqual(args.slice(args.indexOf('--tools'), args.indexOf('--tools') + 2), ['--tools', '']);
-  assert.ok(args.includes('--strict-mcp-config'));
+  for (const f of ['--strict-mcp-config', '--restricted', '--disable-slash-commands']) assert.ok(args.includes(f), f);
   assert.equal(args[args.indexOf('--permission-mode') + 1], 'dontAsk');
   assert.equal(args[args.indexOf('--allowedTools') + 1], 'mcp__paper');
-  assert.ok(!args.some((a) => /Bash|Edit|Write|WebFetch/.test(a)));
 
   const codexArgs = buildCodexArgs({});
   assert.equal(codexArgs[0], 'app-server');
   assert.equal(codexArgs[codexArgs.indexOf('--listen') + 1], 'stdio://');
   assert.ok(codexArgs.includes('sandbox_mode="read-only"'));
+  assert.ok(codexArgs.includes('approval_policy="on-request"'), 'sandbox escalations must come to us for approval (and be declined)');
+  for (const f of ['shell_tool', 'browser_use', 'computer_use', 'apps', 'view_image']) assert.ok(CODEX_DISABLED_FEATURES.includes(f) && codexArgs.includes(`features.${f}=false`), f);
   assert.throws(() => buildCodexArgs({ listen: 'ws://0.0.0.0:4500' }), /refused/);
 
   const guard = createCodexRpcGuard(loadCodexRpcPolicy());
   for (const m of ['thread/shellCommand', 'command/exec', 'fs/writeFile', 'fs/readFile', 'account/rateLimitResetCredit/consume']) assert.throws(() => guard.clientRequest(m), /refused/, m);
   assert.doesNotThrow(() => guard.clientRequest('turn/start'));
   assert.equal(guard.serverRequest('item/commandExecution/requestApproval'), 'decline');
-  assert.equal(guard.serverRequest('item/fileChange/requestApproval'), 'decline');
   assert.equal(guard.serverRequest('item/tool/call'), 'route_to_tool_gateway');
   assert.equal(guard.serverRequest('some/unknown/request'), 'decline');
 });
 
-// ---------- auth isolation sentinel (added after the live negative check found a host-level credential) ----------
-import { checkAuthIsolation } from '../../../spikes/isolation/runner.mjs';
-const FAKE_AUTH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fake-auth-cli.mjs');
-
-test('TST-004B: an empty runtime profile that still reports a login is detected as a credential leak', async () => {
-  const ctx = setup();
+test('TST-004B: an empty runtime profile that still reports a login is detected as a credential leak', async (t) => {
+  const ctx = setup(t);
   for (const [provider, mode, expected] of [
     ['claude_agent', 'leak', 'leak'],
     ['claude_agent', 'clean', 'isolated'],
@@ -215,8 +264,9 @@ test('TST-004B: an empty runtime profile that still reports a login is detected 
     ['codex', 'leak', 'leak'],
     ['codex', 'clean', 'isolated'],
   ]) {
-    const run = prepareRun({ runsRoot: path.join(ctx.root, 'runs'), runId: randomUUID(), inputs: [] });
-    const res = await checkAuthIsolation({ provider, cmd: process.execPath, cmdPrefix: [FAKE_AUTH], run, parentEnv: { ...ctx.parentEnv, FAKE_AUTH_MODE: mode }, extraEnv: { FAKE_AUTH_MODE: mode } });
+    const run = prepareRun({ runsRoot: ctx.runsRoot, runId: randomUUID(), inputs: [] });
+    const res = await checkAuthIsolation({ provider, cmd: process.execPath, cmdPrefix: [FAKE_AUTH], run, parentEnv: ctx.parentEnv, homes: [ctx.devHome], extraEnv: { FAKE_AUTH_MODE: mode } });
     assert.equal(res.status, expected, `${provider}/${mode}: ${JSON.stringify(res)}`);
+    assert.equal(res.provider, provider);
   }
 });

@@ -1,14 +1,18 @@
 // PW-001 — TST-001A / TST-001B
 // Run: node --test tests/tasks/PW-001/
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { collectPreflight, createRecordingFs } from '../../../spikes/preflight/preflight.mjs';
 
+const created = [];
+after(() => created.forEach((d) => fs.rmSync(d, { recursive: true, force: true })));
 function tmpdir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'pw001-'));
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'pw001-'));
+  created.push(d);
+  return d;
 }
 
 const fakeTools = { node: 'v22.0.0', claude: null };
@@ -42,6 +46,8 @@ test('TST-001A: report separates approved, undecided and protected paths', () =>
   assert.equal(report.tools.node.found, true);
   assert.equal(report.tools.claude.found, false);
   assert.equal(report.scope, 'PREFLIGHT_ONLY_NOT_PRODUCT_TEST');
+  // host-wide agent policy locations are always reported (presence only)
+  assert.ok(report.paths.host_agent_policy.some((p) => p.path === '/etc/claude-code/managed-settings.json'));
 });
 
 test('TST-001A: data root given without user approval stays undecided', () => {

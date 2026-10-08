@@ -1,0 +1,91 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-010/review-fixes.int.test.ts (12 tests | 4 failed | 8 skipped) 1152ms
+   ❯ re-review m1–m4 (4)
+     × m4: a blank evidence or claim id is not evidence 54ms
+     × m3: a gate call that waits behind an approval sees the approved outline 338ms
+     × m1: two sessions cannot leave the active pointer on a superseded revision 332ms
+     × m2: a commit-time rule violation is a 409, not a 500 23ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-010/review-fixes.int.test.ts > re-review m1–m4 > m4: a blank evidence or claim id is not evidence
+AssertionError: {"evidence_ids":[""]}: expected 201 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 201
+
+ ❯ tests/tasks/PW-010/review-fixes.int.test.ts:184:50
+    182|     for (const over of [{ evidence_ids: [''] }, { evidence_ids: ['  ']…
+    183|       const r = await call('POST', `/api/papers/${p.id}/outline/revisi…
+    184|       expect(r.statusCode, JSON.stringify(over)).toBe(422);
+       |                                                  ^
+    185|     }
+    186|     const o = await outlineRev(p.id, s1.id, null, [node()]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/tasks/PW-010/review-fixes.int.test.ts > re-review m1–m4 > m3: a gate call that waits behind an approval sees the approved outline
+AssertionError: {"error":"conflict","message":"AI drafting is blocked until the story and this paragraph plan are approved","field":null,"reasons":["outline_not_active"]}: expected 409 to be 202 // Object.is equality
+
+- Expected
++ Received
+
+- 202
++ 409
+
+ ❯ tests/tasks/PW-010/review-fixes.int.test.ts:210:36
+    208|       await c.query('COMMIT');
+    209|       const r = await pending;
+    210|       expect(r.statusCode, r.body).toBe(202);
+       |                                    ^
+    211|     } finally {
+    212|       c.release();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/tasks/PW-010/review-fixes.int.test.ts > re-review m1–m4 > m1: two sessions cannot leave the active pointer on a superseded revision
+AssertionError: expected 'committed' to match /not approved|active/
+
+- Expected:
+/not approved|active/
+
++ Received:
+"committed"
+
+ ❯ tests/tasks/PW-010/review-fixes.int.test.ts:232:29
+    230|       await new Promise((r) => setTimeout(r, 300));
+    231|       await t1.query('COMMIT');
+    232|       expect(await commit2).toMatch(/not approved|active/);
+       |                             ^
+    233|       const { rows } = await pool.query('SELECT active_story_revision_…
+    234|       expect(rows[0].active_story_revision_id).toBeNull();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/tasks/PW-010/review-fixes.int.test.ts > re-review m1–m4 > m2: a commit-time rule violation is a 409, not a 500
+AssertionError: expected '23001' to be 'CONFLICT' // Object.is equality
+
+Expected: "CONFLICT"
+Received: "23001"
+
+ ❯ tests/tasks/PW-010/review-fixes.int.test.ts:250:45
+    248|       await tx.query("UPDATE story_revisions SET status = 'SUPERSEDED'…
+    249|     }).catch((e: unknown) => e);
+    250|     expect((err as { code?: string }).code).toBe('CONFLICT');
+       |                                             ^
+    251|   });
+    252| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 8 skipped (12)
+   Start at  10:11:24
+   Duration  1.89s (tests 67%, transform 23%, import 9%)
+

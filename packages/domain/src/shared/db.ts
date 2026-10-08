@@ -8,8 +8,9 @@ export class DomainError extends Error {
     public readonly code: 'NOT_FOUND' | 'CONFLICT' | 'INVALID' | 'FORBIDDEN',
     message: string,
     public readonly field?: string,
+    options?: { cause?: unknown },
   ) {
-    super(message);
+    super(message, options);
   }
 }
 
@@ -23,7 +24,13 @@ export async function inTransaction<T>(pool: TxPool, fn: (tx: Queryable) => Prom
   try {
     await client.query('BEGIN');
     const out = await fn(client);
-    await client.query('COMMIT');
+    try {
+      await client.query('COMMIT');
+    } catch (e) {
+      // deferred integrity rules (e.g. active pointers) fire at COMMIT: a conflict, not a server error
+      if ((e as { code?: string }).code === '23001') throw new DomainError('CONFLICT', 'the change conflicts with the current approved state; reload and retry', undefined, { cause: e });
+      throw e;
+    }
     return out;
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});

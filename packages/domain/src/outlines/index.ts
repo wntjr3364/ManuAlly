@@ -38,11 +38,13 @@ function text(v: unknown, field: string, max: number, { required = false } = {})
   if (required && !v.trim()) throw invalid(`${field} must not be empty`, field);
   return v;
 }
-function list(v: unknown, field: string, { maxItems = 100, maxLen = 2000 } = {}): string[] {
+function list(v: unknown, field: string, { maxItems = 100, maxLen = 2000, ids = false } = {}): string[] {
   if (v === undefined || v === null) return [];
   if (!Array.isArray(v) || v.length > maxItems || v.some((x) => typeof x !== 'string' || x.length > maxLen || !storable(x))) {
     throw invalid(`${field} must be a list of up to ${maxItems} strings`, field);
   }
+  // a blank id would let an evidence-required paragraph pass with no evidence behind it
+  if (ids && v.some((x) => !(x as string).trim())) throw invalid(`${field} must not contain blank ids`, field);
   return [...v] as string[];
 }
 function fields(v: unknown, prefix: string, spec: Record<string, FieldKind>): Record<string, string | string[]> {
@@ -235,8 +237,8 @@ export function validateNodes(raw: unknown): OutlineNodeInput[] {
       section: text(o.section, `${f}.section`, 120, { required: true }),
       role: o.role as OutlineNodeInput['role'],
       paragraph_goal: text(o.paragraph_goal, `${f}.paragraph_goal`, 2000, { required: true }),
-      claim_ids: list(o.claim_ids, `${f}.claim_ids`, { maxItems: 200, maxLen: 200 }),
-      evidence_ids: list(o.evidence_ids, `${f}.evidence_ids`, { maxItems: 200, maxLen: 200 }),
+      claim_ids: list(o.claim_ids, `${f}.claim_ids`, { maxItems: 200, maxLen: 200, ids: true }),
+      evidence_ids: list(o.evidence_ids, `${f}.evidence_ids`, { maxItems: 200, maxLen: 200, ids: true }),
       requires_evidence: (o.requires_evidence as boolean | undefined) ?? false,
       allowed_interpretation: text(o.allowed_interpretation, `${f}.allowed_interpretation`, 2000),
       exclusions: list(o.exclusions, `${f}.exclusions`),
@@ -408,6 +410,9 @@ export async function checkDraftGate(pool: TxPool, paperId: string, body: unknow
 }
 
 async function gateIn(db: Queryable, paperId: string, b: Record<string, unknown>, outlineId: string | null) {
+  // lock first, in its own statement: a gate that waited behind an approval then reads the committed state
+  // (a single SELECT … FOR SHARE re-reads only the locked row, not the joined revisions)
+  await db.query('SELECT 1 FROM paper_projects WHERE id = $1 FOR SHARE', [paperId]);
   // pointers count only while the revisions they name are APPROVED (the DB also enforces this at commit)
   const { rows: pr } = await db.query<{ active_story_revision_id: string | null; active_outline_revision_id: string | null }>(
     `SELECT CASE WHEN s.status = 'APPROVED' THEN p.active_story_revision_id END AS active_story_revision_id,
@@ -415,7 +420,7 @@ async function gateIn(db: Queryable, paperId: string, b: Record<string, unknown>
      FROM paper_projects p
      LEFT JOIN story_revisions s ON s.id = p.active_story_revision_id
      LEFT JOIN outline_revisions o ON o.id = p.active_outline_revision_id
-     WHERE p.id = $1 FOR SHARE OF p`, [paperId],
+     WHERE p.id = $1`, [paperId],
   );
   const paper = pr[0];
   if (!paper) throw new DomainError('NOT_FOUND', 'paper not found');

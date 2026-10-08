@@ -111,3 +111,22 @@ spec 03은 "범위별 승인 → 문단 생성"과 "논문은 active_outline_rev
 - `pnpm test`: exit 0
   - unit 9, integration 60, contracts 6, e2e 1, spikes 70
   - evals PASS, pack-check PASS
+
+## 재리뷰 결과 반영 (2026-10-08)
+- 결론: approve. 이전 지적은 재발하지 않았고, 기존 데이터 위 migration 적용도 확인했다. minor 4건은 모두 수정했다.
+- 수정 위치: `pw_010_0003_rereview_fixes.sql`, `outlines/index.ts`, `shared/db.ts`
+- 회귀 시험 4건 추가. 수정 전 4건 모두 의도한 이유로 실패(`rereview-red.log`)
+
+| 지적 | 조치 |
+|---|---|
+| m1 두 SQL 세션 동시 실행 시 pointer가 SUPERSEDED를 가리킬 수 있음 | deferred trigger가 대상 revision 행(또는 참조하는 paper 행)을 `FOR SHARE`로 잠근다. 늦게 commit하는 쪽이 대기 후 commit된 상태로 재검사해 거부한다 |
+| m2 기존 잘못된 pointer가 있으면 이후 갱신이 500 | migration이 그런 행이 있으면 이름을 밝히고 중단한다(무음 정리 없음). commit 시점 23001은 CONFLICT(409)로 변환 |
+| m3 승인 뒤에서 대기한 gate가 방금 승인된 outline을 거부(fail closed) | 잠금을 별도 statement로 먼저 잡고, commit된 상태를 다시 읽는다 |
+| m4 빈 evidence/claim id가 증거로 취급됨(과학적 실패 경로) | API 422. DB CHECK `pw_no_blank` 추가 |
+
+- 기록만 한 사항
+  - `SET CONSTRAINTS ALL IMMEDIATE` 상태에서는 승인 순서(먼저 supersede, 그다음 pointer 이동)가 실패한다. 앱은 이 명령을 쓰지 않는다.
+  - superuser 접속은 trigger 우회가 가능하다. runtime role 분리를 이월한다(PW-009 기록과 동일).
+- 실행
+  - PW-010 통합 26/26, 3회 반복 안정(`green.log`)
+  - `pnpm test` exit 0: unit 9, integration 64, contracts 6, e2e 1, spikes 70, evals/pack PASS

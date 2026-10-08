@@ -173,3 +173,80 @@ describe('PW-009 B-m1: a snapshot cannot be opened again by forging created_xid'
     expect(rows[0].x).toBe(rows[0].cur);
   });
 });
+
+describe('re-review m1–m4', () => {
+  test('m4: a blank evidence or claim id is not evidence', async () => {
+    const p = await paper();
+    const s1 = await storyRev(p.id, null);
+    await approveStory(p.id, s1);
+    for (const over of [{ evidence_ids: [''] }, { evidence_ids: ['  '] }, { claim_ids: [''] }]) {
+      const r = await call('POST', `/api/papers/${p.id}/outline/revisions`, { parent_revision_id: null, story_revision_id: s1.id, nodes: [node(over)] });
+      expect(r.statusCode, JSON.stringify(over)).toBe(422);
+    }
+    const o = await outlineRev(p.id, s1.id, null, [node()]);
+    await expect(pool.query(
+      "INSERT INTO outline_nodes (outline_revision_id, paper_id, node_id, position, section, role, paragraph_goal, evidence_ids, requires_evidence) VALUES ($1, $2, $3, 5, 'R', 'result', 'g', ARRAY[' '], true)",
+      [o.id, p.id, randomUUID()],
+    )).rejects.toThrow(/check|immutable/);
+  });
+
+  test('m3: a gate call that waits behind an approval sees the approved outline', async () => {
+    const p = await paper();
+    const s1 = await storyRev(p.id, null);
+    await approveStory(p.id, s1);
+    const n1 = node();
+    const o1 = await outlineRev(p.id, s1.id, null, [n1]);
+    const c = await pool.connect();
+    try {
+      await c.query('BEGIN');
+      await c.query('SELECT 1 FROM paper_projects WHERE id = $1 FOR UPDATE', [p.id]);
+      await c.query('INSERT INTO outline_node_approvals (outline_revision_id, paper_id, node_id, content_hash, approved_by) SELECT $1, $2, $3, $4, owner_id FROM paper_projects WHERE id = $2', [o1.id, p.id, n1.node_id, o1.content_hash]);
+      await c.query("UPDATE outline_revisions SET status = 'APPROVED', approved_by = created_by, approved_at = now() WHERE id = $1", [o1.id]);
+      await c.query('UPDATE paper_projects SET active_outline_revision_id = $2 WHERE id = $1', [p.id, o1.id]);
+      const pending = gate(p.id, o1.id, n1.node_id);
+      await new Promise((r) => setTimeout(r, 300));
+      await c.query('COMMIT');
+      const r = await pending;
+      expect(r.statusCode, r.body).toBe(202);
+    } finally {
+      c.release();
+    }
+  });
+
+  test('m1: two sessions cannot leave the active pointer on a superseded revision', async () => {
+    const p = await paper();
+    const s1 = await storyRev(p.id, null);
+    await approveStory(p.id, s1);
+    await pool.query('UPDATE paper_projects SET active_story_revision_id = NULL WHERE id = $1', [p.id]);
+    const t1 = await pool.connect();
+    const t2 = await pool.connect();
+    try {
+      await t1.query('BEGIN');
+      await t1.query("UPDATE story_revisions SET status = 'SUPERSEDED', superseded_at = now() WHERE id = $1", [s1.id]);
+      await t1.query('SET CONSTRAINTS ALL IMMEDIATE');
+      await t2.query('BEGIN');
+      await t2.query('UPDATE paper_projects SET active_story_revision_id = $2 WHERE id = $1', [p.id, s1.id]).catch(() => {});
+      const commit2 = t2.query('COMMIT').then(() => 'committed', (e: Error) => e.message);
+      await new Promise((r) => setTimeout(r, 300));
+      await t1.query('COMMIT');
+      expect(await commit2).toMatch(/not approved|active/);
+      const { rows } = await pool.query('SELECT active_story_revision_id FROM paper_projects WHERE id = $1', [p.id]);
+      expect(rows[0].active_story_revision_id).toBeNull();
+    } finally {
+      await t2.query('ROLLBACK').catch(() => {});
+      t1.release();
+      t2.release();
+    }
+  });
+
+  test('m2: a commit-time rule violation is a 409, not a 500', async () => {
+    const { inTransaction } = await import('../../../packages/domain/src/shared/db.ts');
+    const p = await paper();
+    const s1 = await storyRev(p.id, null);
+    await approveStory(p.id, s1);
+    const err = await inTransaction(pool, async (tx) => {
+      await tx.query("UPDATE story_revisions SET status = 'SUPERSEDED', superseded_at = now() WHERE id = $1", [s1.id]);
+    }).catch((e: unknown) => e);
+    expect((err as { code?: string }).code).toBe('CONFLICT');
+  });
+});

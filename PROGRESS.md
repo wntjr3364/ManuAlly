@@ -1,6 +1,8 @@
 # Progress
 - 상태: P00 사전 검증 spike 6개 구현·테스트 완료(in_review). 제품 코드(apps/packages/db)는 아직 없음.
-- 현재 단계: **P00 gate — 사용자 승인 대기** (`reports/phases/P00_GATE.md`, `docs/adr/P00_DECISION_RECORD.md`).
+- 현재 단계: **P01 진행 중** (P00 gate 승인: 사용자 2026-10-08 "작업해").
+  - 승인으로 기록: P00→P01, RFC-004, RFC-005, ADR-001~015, 분리 profile 로그인 방식.
+  - RFC-003은 P02에서 필요할 때 다시 확인한다.
 - 승인된 구현 Task: PW-001–PW-006 (사용자 2026-10-08 "적절하게 정해라" 위임 하에 P00 범위만 진행).
 - 사용자 결정 (2026-10-08):
   - 런타임 AI = 사용자 본인 로그인의 Claude Code CLI / Codex CLI (API 키 아님) — RFC-001.
@@ -12,7 +14,8 @@
 - 검증된 운영/공급자 버전: 없음(개발 컨테이너 측정만 있음).
   - claude 2.1.294, codex 0.161.0, pandoc 3.1.3, node 22.22.0.
   - 사용자 PC·서버는 미측정.
-- 다음 행동: 사용자에게 P00 gate 승인과 결정 기록 6장의 확인 항목을 요청. 승인 후 P01 PW-007(monorepo scaffold).
+- 다음 행동: P01 PW-007 → PW-014 순서로 진행. Task마다 독립 리뷰를 받는다(백그라운드).
+- 사용자 머신 preflight/sentinel 결과는 아직 받지 않음(P03 전까지 필요).
 
 ## Task 기록
 | Task | 상태 | commit | REQ·TST | 실행 | 미실행/blocked |

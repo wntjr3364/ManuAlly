@@ -1,5 +1,5 @@
 # RFC-004 — 런타임 격리: 본인 Linux 계정 + 분리된 CLI profile + auth sentinel + Codex bubblewrap
-Status: proposed
+Status: accepted
 Trigger task: PW-004
 Affected requirements/specs/contracts: REQ-004, REQ-026, REQ-059, REQ-061; docs/specs/07_AGENT_RUNTIME.md, 09_SECURITY_AND_PRIVACY.md, 12_OPERATIONS_AND_BACKUP.md
 

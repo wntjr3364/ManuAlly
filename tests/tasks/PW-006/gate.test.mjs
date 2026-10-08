@@ -44,7 +44,9 @@ test('TST-006B: nothing unverified is reported as verified', () => {
   assert.match(doc, /CONDITIONAL GO/);
 });
 
-test('TST-006B: no product scaffold exists before the P00 gate is approved', () => {
+test('TST-006B: no product scaffold exists unless the P00 gate approval is recorded', () => {
+  const approved = /상태: \*\*승인됨\*\*/.test(read(recordPath)) && /사용자 승인 2026-/.test(read('reports/phases/P00_GATE.md'));
+  if (approved) return; // P01 scaffold (PW-007) is allowed after the recorded user approval
   for (const d of ['apps', 'packages', 'db', 'infra']) assert.equal(fs.existsSync(path.join(root, d)), false, `${d}/ must not exist before P01 approval`);
   for (const f of ['package.json', 'pnpm-workspace.yaml']) assert.equal(fs.existsSync(path.join(root, f)), false, f);
 });

@@ -1,6 +1,6 @@
 # P00 결정 기록 — 사전 타당성·위험 검증 결과
 
-작성: 2026-10-08 / 상태: **사용자 gate 승인 대기**
+작성: 2026-10-08 / 상태: **승인됨** (사용자 2026-10-08 "작업해": P01 진행, RFC-004·005, ADR-013~015 승인. RFC-003은 P02에서 재확인)
 - 근거 보고서: `reports/tasks/PW-001 … PW-006/REPORT.md`
 - 독립 리뷰: `reports/phases/P00_REVIEW.md`
 - Gate 보고서: `reports/phases/P00_GATE.md`

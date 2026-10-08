@@ -1,5 +1,5 @@
 # RFC-005 — edit_proposal 계약 보완: selected_slice_hash, 보호 atom, 위치 규칙
-Status: proposed
+Status: accepted
 Trigger task: PW-003
 Affected requirements/specs/contracts: REQ-012, REQ-017; contracts/edit_proposal.schema.json; docs/specs/04_EDITOR_AND_INTERACTION.md
 Problem and evidence:

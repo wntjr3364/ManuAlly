@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
-import {
+import { retractRecord,
   approveClaim, createClaim, createEvidence, createFactCandidates, getClaim, getEvidence, getFact, linkClaimEvidence,
   listClaims, listEvidence, listFacts, reviewEvidence, reviewFact,
 } from '@pw/domain/evidence/index.ts';
@@ -56,6 +56,13 @@ export function registerEvidenceRoutes(app: FastifyInstance, pool: TxPool): void
     (await getClaim(pool, req.paper!.id, p(req.params, 'claimId'))) ?? notFound(reply));
   app.post('/api/papers/:paperId/claims/:claimId/evidence-links', scoped, async (req, reply) =>
     run(reply, () => linkClaimEvidence(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, claimId: p(req.params, 'claimId'), body: req.body }), 201));
+  // PW-040: withdrawing a settled claim, fact or evidence record
+  app.post('/api/papers/:paperId/claims/:claimId/retract', scoped, async (req, reply) =>
+    run(reply, () => retractRecord(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, kind: 'claim', id: p(req.params, 'claimId'), body: req.body })));
+  app.post('/api/papers/:paperId/facts/:factId/retract', scoped, async (req, reply) =>
+    run(reply, () => retractRecord(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, kind: 'fact', id: p(req.params, 'factId'), body: req.body })));
+  app.post('/api/papers/:paperId/evidence/:evidenceId/retract', scoped, async (req, reply) =>
+    run(reply, () => retractRecord(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, kind: 'evidence', id: p(req.params, 'evidenceId'), body: req.body })));
   app.post('/api/papers/:paperId/claims/:claimId/approve', scoped, async (req, reply) =>
     run(reply, () => approveClaim(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, id: p(req.params, 'claimId'), body: req.body })));
 }

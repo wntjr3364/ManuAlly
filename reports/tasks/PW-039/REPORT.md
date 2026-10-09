@@ -106,3 +106,5 @@ PW-040: Detailed outline·영향 추적
   - "twenty-five", "twenty-one" 같은 합성어
 - 시험: unit 4(새 시험 1). mutation 3종 탐지(대문자 단위, 앞 곱셈, 합성어).
 - 회귀: unit 282, integration 399(작업 중인 PW-040 제외). 브라우저는 PW-039 1개를 돌렸다. 바뀐 것은 수치 읽기 함수뿐이다.
+
+## 최종 확인 (58b7747): approve

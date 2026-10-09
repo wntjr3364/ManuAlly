@@ -1,0 +1,19 @@
+# PW-040 mutations (Fri Oct  9 20:43:23 UTC 2026) — integration (9) + browser (1)
+KILLED claim_withdrawn
+KILLED evidence_withdrawn
+KILLED fact_withdrawn
+KILLED figure_changed
+KILLED figure_key_per_version
+KILLED source_removed
+KILLED source_retracted
+KILLED resolve_intent
+KILLED resolve_only_open
+KILLED scope_approved_claims_only
+KILLED scope_needs_approved_node
+KILLED scope_neighbours
+KILLED link_node_exists
+KILLED gate_impact
+KILLED status_impact
+KILLED retract_only_settled
+KILLED retract_hash
+KILLED ui_resolve

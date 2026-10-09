@@ -455,6 +455,28 @@ export async function linkClaimEvidence(pool: TxPool, a: { paperId: string; owne
   return rows[0];
 }
 
+// Withdrawing a settled record (PW-040): an approved claim, or verified evidence or fact, becomes
+// RETRACTED (the record and who settled it stay; the DB allows only this move). Outline nodes that rely
+// on it then show an impact until the owner reviews it (outline-impact).
+const RETRACTABLE = {
+  claim: { table: 'claims', state: 'approval_state', done: 'APPROVED', intent: 'retract_claim' },
+  fact: { table: 'fact_records', state: 'verification_state', done: 'VERIFIED', intent: 'retract_fact' },
+  evidence: { table: 'evidence_records', state: 'extraction_state', done: 'VERIFIED', intent: 'retract_evidence' },
+} as const;
+export async function retractRecord(pool: TxPool, a: { paperId: string; ownerId: string; kind: keyof typeof RETRACTABLE; id: string; body: unknown }) {
+  const r = RETRACTABLE[a.kind];
+  const hash = reviewBody(a.body, r.intent);
+  if (!isUuid(a.id)) throw new DomainError('NOT_FOUND', `${a.kind} not found`);
+  return inTransaction(pool, async (tx) => {
+    const row = (await tx.query<Record<string, unknown>>(`SELECT * FROM ${r.table} WHERE id = $1 AND paper_id = $2 FOR UPDATE`, [a.id, a.paperId])).rows[0];
+    if (!row) throw new DomainError('NOT_FOUND', `${a.kind} not found`);
+    if (row.content_hash !== hash) throw new DomainError('CONFLICT', 'this is not the version you reviewed (content hash differs); reload it');
+    if (row[r.state] === 'RETRACTED') return row;
+    if (row[r.state] !== r.done) throw new DomainError('CONFLICT', `only a ${r.done.toLowerCase()} ${a.kind} can be withdrawn (it is ${String(row[r.state]).toLowerCase()})`);
+    return (await tx.query<Record<string, unknown>>(`UPDATE ${r.table} SET ${r.state} = 'RETRACTED', closed_at = clock_timestamp() WHERE id = $1 RETURNING *`, [a.id])).rows[0]!;
+  });
+}
+
 export async function approveClaim(pool: TxPool, a: { paperId: string; ownerId: string; id: string; body: unknown }) {
   const hash = reviewBody(a.body, 'approve_claim');
   if (!isUuid(a.id)) throw new DomainError('NOT_FOUND', 'claim not found');

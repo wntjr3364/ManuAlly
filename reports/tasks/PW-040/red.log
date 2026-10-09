@@ -1,0 +1,7 @@
+     × the generation scope of an approved node is that node: its goal, approved claims, verified evidence and facts, neighbours' transitions 174ms
+     × a withdrawn claim marks its node (and the paragraphs linked to it) for impact review; other nodes are not touched 107ms
+     × the user reviews an impact: the node may be drafted again, and the withdrawn claim is left out of its scope 103ms
+     × withdrawn evidence, a retracted fact and a redrawn figure are impacts of the nodes that rely on them; a newer figure version is a new impact 137ms
+     × retracting needs the explicit intent and the reviewed version; only approved or verified records can be retracted 80ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 3 passed (8)

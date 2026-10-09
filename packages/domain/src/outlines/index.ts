@@ -6,6 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { DomainError, UUID_RE, inTransaction, storable, type Queryable, type TxPool } from '../shared/db.ts';
 import { contentHash } from '../revisions/index.ts';
+import { unresolvedNodes } from '../outline-impact/index.ts';
 
 // A DomainError that carries machine-readable details (missing fields, gate reasons …).
 export class OutlineError extends DomainError {
@@ -324,12 +325,14 @@ async function readOutline(db: Queryable, paperId: string, revisionId: string): 
      WHERE n.outline_revision_id = $1 AND n.paper_id = $2 ORDER BY n.position`,
     [revisionId, paperId],
   );
+  // a node whose sources changed since (claim/evidence withdrawn, figure redrawn …; PW-040)
+  const impacted = rev.status === 'SUPERSEDED' ? new Set<string>() : await unresolvedNodes(db, paperId, revisionId);
   return {
     ...rev,
     impact_review_required: impact,
     nodes: nodes.rows.map((n) => ({
       ...n,
-      status: impact ? 'IMPACT_REVIEW_REQUIRED' : n.approved_at ? 'APPROVED' : n.requires_evidence && n.evidence_ids.length === 0 ? 'EVIDENCE_MISSING' : 'DRAFT',
+      status: impact || impacted.has(n.node_id) ? 'IMPACT_REVIEW_REQUIRED' : n.approved_at ? 'APPROVED' : n.requires_evidence && n.evidence_ids.length === 0 ? 'EVIDENCE_MISSING' : 'DRAFT',
     })),
   } as OutlineRevision & { nodes: OutlineNode[] };
 }
@@ -445,6 +448,8 @@ async function gateIn(db: Queryable, paperId: string, b: Record<string, unknown>
     else {
       if (!node.approved) reasons.add('node_not_approved');
       if (node.requires_evidence && node.evidence_ids.length === 0) reasons.add('evidence_missing');
+      // a source of this node changed and the owner has not reviewed it (PW-040); other nodes go on
+      if ((await unresolvedNodes(db, paperId, outline.id)).has((b.node_id as string).toLowerCase())) reasons.add('impact_review_required');
     }
   }
   if (reasons.size) {

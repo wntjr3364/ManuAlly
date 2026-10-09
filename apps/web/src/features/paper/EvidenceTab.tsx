@@ -76,6 +76,9 @@ export function EvidenceTab({ paperId, visible }: { paperId: string; visible: bo
               {e.extraction_state === 'CANDIDATE' && (
                 <button type="button" onClick={act(() => api('POST', `/api/papers/${paperId}/evidence/${e.id}/verify`, { intent: 'verify_evidence', content_hash: e.content_hash }))}>근거 검증</button>
               )}
+              {e.extraction_state === 'VERIFIED' && (
+                <button type="button" onClick={act(async () => { if (window.confirm('이 근거를 철회할까요? 이 근거에 기대는 개요 문단에 영향 검토가 표시됩니다.')) await api('POST', `/api/papers/${paperId}/evidence/${e.id}/retract`, { intent: 'retract_evidence', content_hash: e.content_hash }); })}>근거 철회</button>
+              )}
             </li>
           ))}
         </ul>
@@ -100,6 +103,9 @@ export function EvidenceTab({ paperId, visible }: { paperId: string; visible: bo
               <span>{f.entity} · {f.metric}: <strong data-testid="fact-value">{f.value_text} {f.unit}</strong> ({f.group}{f.comparison ? ` vs ${f.comparison}` : ''}{f.n ? `, n=${f.n}` : ''})</span>
               {f.verification_state === 'CANDIDATE' && (
                 <button type="button" onClick={act(() => api('POST', `/api/papers/${paperId}/facts/${f.id}/verify`, { intent: 'verify_fact', content_hash: f.content_hash }))}>사실 검증</button>
+              )}
+              {f.verification_state === 'VERIFIED' && (
+                <button type="button" onClick={act(async () => { if (window.confirm('이 사실을 철회할까요? 이 사실에 기대는 개요 문단에 영향 검토가 표시됩니다.')) await api('POST', `/api/papers/${paperId}/facts/${f.id}/retract`, { intent: 'retract_fact', content_hash: f.content_hash }); })}>사실 철회</button>
               )}
             </li>
           ))}

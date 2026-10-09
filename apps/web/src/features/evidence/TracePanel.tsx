@@ -8,7 +8,7 @@ import { api, apiRaw, errorText } from '../../app/api.ts';
 import { TARGET, reasonText } from './labels.ts';
 
 interface Flag { id: string; figure_id: string; target_kind: string; block_id: string | null; claim_id: string | null; fact_id: string | null; reasons: string[]; from_version_no: number; to_version_no: number }
-interface Claim { id: string; text: string; approval_state: string }
+interface Claim { id: string; text: string; approval_state: string; content_hash: string }
 interface Figure { id: string; kind: string; title: string; position: number }
 interface Version { id: string; version_no: number; caption: string; panels: { panel: string; unit: string; groups: string[] }[] }
 interface Trace {
@@ -67,6 +67,11 @@ export function TracePanel({ paperId, visible }: { paperId: string; visible: boo
     if (!f) return '(보관된 그림)';
     const n = figures.filter((x) => x.kind === f.kind).sort((a, b) => a.position - b.position).findIndex((x) => x.id === id) + 1;
     return `${f.kind === 'figure' ? 'Figure' : 'Table'} ${n} (${f.title})`;
+  };
+  // PW-040: withdrawing an approved claim; outline nodes that rely on it show an impact to review
+  const retractClaim = async (c: Claim) => {
+    if (!window.confirm('이 주장을 철회할까요? 이 주장을 쓰는 개요 문단에 영향 검토가 표시됩니다.')) return;
+    try { await api('POST', `/api/papers/${paperId}/claims/${c.id}/retract`, { intent: 'retract_claim', content_hash: c.content_hash }); await load(); } catch (e) { setError(errorText(e)); }
   };
   const target = (f: Flag) => (f.target_kind === 'claim' ? `“${claims.find((c) => c.id === f.claim_id)?.text ?? f.claim_id}”` : f.target_kind === 'paragraph' ? `문단 ${f.block_id?.slice(0, 8)}…` : `사실 ${f.fact_id?.slice(0, 8)}…`);
 
@@ -127,7 +132,11 @@ export function TracePanel({ paperId, visible }: { paperId: string; visible: boo
       </form>
       <h3>주장의 출처</h3>
       <ul className="plain">
-        {claims.map((c) => <li key={c.id}>“{c.text}” <button type="button" onClick={() => void showTrace(c)}>출처 추적</button></li>)}
+        {claims.map((c) => (
+          <li key={c.id} data-testid="claim-row">“{c.text}” <span className="status">{c.approval_state}</span> <button type="button" onClick={() => void showTrace(c)}>출처 추적</button>
+            {c.approval_state === 'APPROVED' && <> <button type="button" onClick={() => void retractClaim(c)}>주장 철회</button></>}
+          </li>
+        ))}
       </ul>
       {trace && (
         <div data-testid="trace">

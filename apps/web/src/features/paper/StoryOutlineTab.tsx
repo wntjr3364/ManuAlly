@@ -6,6 +6,7 @@ import type { Paper } from './PapersPage.tsx';
 import type { Evidence } from './EvidenceTab.tsx';
 import { setUnsaved } from '../../app/unsaved.ts';
 import { StoryAlternatives } from '../story-ai/StoryAlternatives.tsx';
+import { OutlineImpactPanel } from '../outline-impact/OutlineImpactPanel.tsx';
 
 interface StoryRev { id: string; status: string; content_hash: string; brief: Record<string, unknown>; story: Record<string, unknown> }
 interface Node {
@@ -176,6 +177,9 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
           {outline?.latest && <span className="hint">버전 {outline.latest.content_hash.slice(0, 8)}</span>}
         </div>
       </section>
+      {outline?.active && (
+        <OutlineImpactPanel paperId={paper.id} outlineId={outline.active.id} nodes={(outline.active.nodes ?? []).map((n) => ({ node_id: n.node_id, section: n.section, paragraph_goal: n.paragraph_goal }))} onChange={() => { void load().catch((e) => setError(errorText(e))); }} />
+      )}
     </>
   );
 }

@@ -36,3 +36,8 @@ User decision / reviewer:
   - `apps/worker/src/main.ts`, `tests/e2e/manual-paper/harness.ts`(MOCK handler 등록)
   - `apps/web/src/features/paper/StoryOutlineTab.tsx`(대안 화면 붙임)
 - PW-039 리뷰 반영: `packages/search/src/retrieval/index.ts`(`settledMaterial` 내보내기, PW-037 gate 재사용), `apps/worker/package.json`(`@pw/search` workspace 의존성; 새 외부 의존성 없음), `pnpm-lock.yaml`
+- PW-040
+  - `packages/domain/src/outlines/index.ts`: draft gate와 node 상태가 node의 미검토 영향을 본다(그 node만)
+  - `packages/domain/src/evidence/index.ts`: `retractRecord`(승인된 주장, 검증된 근거·사실의 철회; DB가 이미 허용하던 전이)
+  - `apps/api/src/routes/evidence/index.ts`(철회 route), 새 route 폴더 `apps/api/src/outline-impact/**`, `apps/api/src/server.ts`
+  - `apps/web/src/features/paper/EvidenceTab.tsx`, `apps/web/src/features/evidence/TracePanel.tsx`(철회 버튼), `apps/web/src/features/paper/StoryOutlineTab.tsx`(영향 panel)

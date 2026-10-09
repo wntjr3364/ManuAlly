@@ -1,0 +1,4 @@
+  ✘  1 tests/tasks/PW-040/impact.e2e.ts:14:1 › TST-040A/B: a withdrawn claim marks only its paragraph plan; the user reviews it (7.3s)
+    Error: expect(locator).toHaveText(expected) failed
+    Error: element(s) not found
+      - waiting for getByTestId('outline-impacts').getByTestId('impact-count')

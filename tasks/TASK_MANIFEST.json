@@ -1307,7 +1307,7 @@
       "id": "PW-040",
       "phase": "P05",
       "title": "Detailed outline·영향 추적",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-039"
       ],

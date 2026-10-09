@@ -81,3 +81,26 @@
 
 ## 다음
 PW-020: Mock AI·스트리밍 UI
+
+## 독립 리뷰 결과 반영 (2026-10-09)
+- 결론: approve with follow-ups(minor 2, nit 다수).
+- 문제없다고 확인된 것
+  - 번호·a/b 계산이 결정론적이다.
+  - 모르는 id에는 번호가 없고 참고문헌에서 빠진다.
+  - 서지 문자열은 저장하지 않는다.
+  - owner 격리가 지켜진다.
+
+| 지적 | 조치 |
+|---|---|
+| **minor-1 snapshot이 인용 형식·그림 순서를 고정하지 않음**<br>나중에 형식이나 순서를 바꾸면 옛 snapshot의 번호가 달라진다 | `pw_019_0002`가 다음을 추가한다: `paper_snapshots.citation_style`·`style_version`, 불변 `snapshot_figures`(봉인 후 추가 불가). `createSnapshot`이 둘을 함께 기록하고, `getSnapshot`이 `figures`를 돌려준다. 통합 회귀 시험: 형식·순서를 바꿔도 snapshot은 그대로이고, 수정·추가는 거부된다 |
+| **minor-2 미해결 인용이 원고에 남음**<br>제출판·AI 작성에서 막는 조건이 없다 | RFC-008(accepted, 위임)로 요구사항을 추가했다. PW-058: 미해결 인용·그림 참조가 있으면 제출판 확정을 거부한다. PW-042: AI 문단은 이 논문의 문헌 id만 인용할 수 있다. 두 Task 문서에 조건을 적었다 |
+| nit: 같은 저자의 연도 없는 문헌이 `n.d.a`로 표시됨 | `n.d.-a`(APA). 참고문헌 연도 정규식도 고쳤다. unit 시험과 mutation(하이픈 제거)으로 탐지를 확인했다 |
+| nit: BMP 밖 이름의 머리글자가 반쪽 surrogate가 됨 | 코드 포인트 단위로 자른다. unit 시험 |
+| nit: 라벨이 `font-size: 0`이라 화면 읽기 프로그램이 읽지 못함 | decoration에 `aria-label`을 단다 |
+| nit: 다른 곳에서 문헌을 바꾸면 패널이 갱신되지 않음 | head가 바뀌거나 창에 focus가 오면 다시 읽고, "새로고침" 버튼을 둔다 |
+
+- 실행
+  - PW-019: unit 10, 통합 8
+  - `pnpm test` exit 0(`pnpm-test-review.log`)
+    - unit 145, integration 171, contracts 15, e2e 61, spikes 70
+  - 작업 중인 PW-020 파일은 이 실행에서 제외했다.

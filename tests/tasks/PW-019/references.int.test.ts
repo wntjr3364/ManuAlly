@@ -138,3 +138,19 @@ describe('TST-019A: labels follow the document, the style and the figure order',
     expect((await call('POST', `/api/papers/${p}/figures`, { kind: 'chart', title: 'A' })).statusCode).toBe(422);
   });
 });
+
+describe('review MINOR-1: a snapshot keeps the citation style and the figure order it was taken with', () => {
+  test('changing the style or the order afterwards does not change the snapshot', async () => {
+    const p = await paper();
+    const f1 = (await call('POST', `/api/papers/${p}/figures`, { kind: 'figure', title: 'Induction' })).json();
+    const f2 = (await call('POST', `/api/papers/${p}/figures`, { kind: 'figure', title: 'Survival' })).json();
+    const snap = (await call('POST', `/api/papers/${p}/snapshots`, { label: 'submitted v1' })).json();
+    await call('POST', `/api/papers/${p}/citation-style`, { style: 'author_year' });
+    await call('POST', `/api/papers/${p}/figures/order`, { kind: 'figure', ids: [f2.id, f1.id] });
+    const got = (await call('GET', `/api/papers/${p}/snapshots/${snap.id}`)).json();
+    expect(got).toMatchObject({ citation_style: 'numeric', style_version: 'pw-builtin-1' });
+    expect(got.figures.map((f: { id: string; position: number }) => [f.id, f.position])).toEqual([[f1.id, 1], [f2.id, 2]]);
+    await expect(pool.query('UPDATE snapshot_figures SET position = 9 WHERE snapshot_id = $1', [snap.id])).rejects.toThrow(/immutable/);
+    await expect(pool.query('INSERT INTO snapshot_figures (snapshot_id, paper_id, figure_id, kind, position, title) VALUES ($1, $2, $3, $4, 3, $5)', [snap.id, p, f1.id, 'figure', 'late'])).rejects.toThrow();
+  });
+});

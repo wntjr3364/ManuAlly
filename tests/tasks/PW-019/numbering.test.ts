@@ -63,3 +63,18 @@ describe('figure and table numbers', () => {
     expect(r.unresolved).toEqual(['gone']);
   });
 });
+
+describe('review nits', () => {
+  test('undated works by the same author read n.d.-a / n.d.-b', () => {
+    const a: RefMeta = { id: 'a', authors: [{ family: 'Kim' }], year: null, title: 'Alpha' };
+    const b: RefMeta = { id: 'b', authors: [{ family: 'Kim' }], year: null, title: 'Beta' };
+    expect(citationLabels([cite('a'), cite('b', 'p. 2')], [a, b], 'author_year').labels).toEqual(['(Kim n.d.-a)', '(Kim n.d.-b, p. 2)']);
+    expect(bibliography([cite('a'), cite('b')], [a, b], 'author_year').map((e) => e.text)).toEqual(['Kim (n.d.-a). Alpha.', 'Kim (n.d.-b). Beta.']);
+  });
+  test('initials take a whole character, also outside the BMP', () => {
+    const r: RefMeta = { id: 'x', authors: [{ family: 'Yoshida', given: '𠮷田 太郎' }], year: 2020, title: 'T' };
+    const text = bibliography([cite('x')], [r], 'numeric')[0]!.text;
+    expect(text).toBe('Yoshida, 𠮷. 太. (2020). T.');
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(text)).toBe(false);
+  });
+});

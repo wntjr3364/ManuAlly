@@ -36,8 +36,8 @@ export const ReferenceLabels = Extension.create({
         decorations(state) {
           const { cites, figs, c, f } = labelsFor(state.doc, key.getState(state) ?? empty);
           const deco = [
-            ...cites.map((x, i) => Decoration.node(x.pos, x.pos + 1, { 'data-label': c.labels[i]!, class: c.labels[i] === '[?]' ? 'labeled unresolved' : 'labeled' })),
-            ...figs.map((x, i) => Decoration.node(x.pos, x.pos + 1, { 'data-label': f.labels[i]!, class: f.unresolved.includes(x.targetId) ? 'labeled unresolved' : 'labeled' })),
+            ...cites.map((x, i) => Decoration.node(x.pos, x.pos + 1, { 'data-label': c.labels[i]!, 'aria-label': c.labels[i] === '[?]' ? '확인 필요한 인용' : `인용 ${c.labels[i]}`, class: c.labels[i] === '[?]' ? 'labeled unresolved' : 'labeled' })),
+            ...figs.map((x, i) => Decoration.node(x.pos, x.pos + 1, { 'data-label': f.labels[i]!, 'aria-label': f.labels[i]!, class: f.unresolved.includes(x.targetId) ? 'labeled unresolved' : 'labeled' })),
           ];
           return DecorationSet.create(state.doc, deco);
         },

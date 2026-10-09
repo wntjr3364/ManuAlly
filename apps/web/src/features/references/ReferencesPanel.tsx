@@ -9,7 +9,7 @@ import { labelsFor, setReferenceContext } from './reference-labels.ts';
 
 const STYLE_LABEL: Record<CitationStyle, string> = { numeric: '번호 [1]', author_year: '저자-연도 (Kim 2020)' };
 
-export function ReferencesPanel({ paperId, editor, canInsert }: { paperId: string; editor: Editor | null; canInsert: boolean }) {
+export function ReferencesPanel({ paperId, editor, canInsert, headRevisionId }: { paperId: string; editor: Editor | null; canInsert: boolean; headRevisionId?: string }) {
   const [refs, setRefs] = useState<RefMeta[]>([]);
   const [figures, setFigures] = useState<FigureMeta[]>([]);
   const [style, setStyle] = useState<CitationStyle>('numeric');
@@ -32,7 +32,13 @@ export function ReferencesPanel({ paperId, editor, canInsert }: { paperId: strin
       setError(errorText(e));
     }
   }, [paperId]);
-  useEffect(() => { void load(); }, [load]);
+  // another tab may change references, figure order or style: reload on each stored head and on focus
+  useEffect(() => { void load(); }, [load, headRevisionId]);
+  useEffect(() => {
+    const onFocus = () => void load();
+    addEventListener('focus', onFocus);
+    return () => removeEventListener('focus', onFocus);
+  }, [load]);
   useEffect(() => { if (editor) setReferenceContext(editor.view, { refs, figures, style }); }, [editor, refs, figures, style]);
   useEffect(() => {
     if (!editor) return;
@@ -75,6 +81,7 @@ export function ReferencesPanel({ paperId, editor, canInsert }: { paperId: strin
     <section className="card" aria-label="인용과 그림/표" data-testid="references">
       <div className="toolbar">
         <h2 style={{ margin: 0 }}>인용과 그림/표</h2>
+        <button type="button" onClick={() => void load()}>새로고침</button>
         <label className="inline">인용 형식
           <select aria-label="인용 형식" value={style} onChange={(e) => void act(() => api('POST', `/api/papers/${paperId}/citation-style`, { style: e.target.value }))}>
             {(Object.keys(STYLE_LABEL) as CitationStyle[]).map((s) => <option key={s} value={s}>{STYLE_LABEL[s]}</option>)}

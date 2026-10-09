@@ -56,7 +56,8 @@ function authorYearBases(refsInOrder: RefMeta[]): Map<string, string> {
     groups.set(base, [...(groups.get(base) ?? []), r]);
   }
   const out = new Map<string, string>();
-  for (const [base, rs] of groups) rs.forEach((r, i) => out.set(r.id, rs.length > 1 ? `${base}${String.fromCharCode(97 + i)}` : base));
+  // a/b suffixes; after "n.d." a hyphen keeps it readable (APA: n.d.-a)
+  for (const [base, rs] of groups) rs.forEach((r, i) => out.set(r.id, rs.length > 1 ? `${base}${base.endsWith('n.d.') ? '-' : ''}${String.fromCharCode(97 + i)}` : base));
   return out;
 }
 
@@ -77,7 +78,8 @@ export function citationLabels(occ: readonly CitationOccurrence[], refs: readonl
   return { labels, unresolved, styleVersion: STYLE_VERSION };
 }
 
-const initials = (given?: string) => (given ? given.split(/[\s-]+/).filter(Boolean).map((g) => `${g[0]!.toUpperCase()}.`).join(' ') : '');
+// first character by code point, so names outside the BMP are not cut in half
+const initials = (given?: string) => (given ? given.split(/[\s-]+/).filter(Boolean).map((g) => `${[...g][0]!.toUpperCase()}.`).join(' ') : '');
 const authorList = (r: RefMeta) => {
   const names = r.authors.map((a) => (a.given ? `${a.family}, ${initials(a.given)}` : a.family));
   if (names.length <= 1) return names[0] ?? 'Anon.';
@@ -89,7 +91,7 @@ export function bibliography(occ: readonly CitationOccurrence[], refs: readonly 
   const order = ordered(occ, byId, style);
   const bases = authorYearBases(order);
   return order.map((r, i) => {
-    const year = style === 'author_year' ? (bases.get(r.id)!.match(/(\d{4}|n\.d\.)[a-z]?$/)?.[0] ?? yearText(r)) : yearText(r);
+    const year = style === 'author_year' ? (bases.get(r.id)!.match(/(\d{4}|n\.d\.)-?[a-z]?$/)?.[0] ?? yearText(r)) : yearText(r);
     const parts = [`${authorList(r)} (${year}).`, `${r.title.replace(/\.$/, '')}.`];
     if (r.container) parts.push(`${r.container.replace(/\.$/, '')}.`);
     if (r.doi) parts.push(`https://doi.org/${r.doi}`);

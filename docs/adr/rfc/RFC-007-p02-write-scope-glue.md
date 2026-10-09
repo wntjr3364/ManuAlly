@@ -82,4 +82,5 @@ User decision / reviewer:
   - `tests/tasks/PW-012/browser-parity.int.test.ts`: editor-core 하위 폴더도 브라우저에 제공
   - `apps/web/src/editor/ManuscriptEditor.tsx`: ReferenceLabels extension, ReferencesPanel
   - `apps/web/src/app/styles.css`: 라벨 표시(inline-block)
+  - 리뷰 반영: `packages/domain/src/revisions/index.ts`(snapshot이 인용 형식·그림 순서를 고정)와 `db/migrations/pw_019_0002_review_fixes.sql`
 

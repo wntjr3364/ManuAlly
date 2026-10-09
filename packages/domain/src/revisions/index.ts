@@ -146,7 +146,9 @@ export async function restoreRevision(pool: TxPool, a: { paperId: string; docume
 
 // A snapshot pins the current head of every document plus the latest bibliographic revision of
 // every project reference and the latest revision of every asset, by id.
-const SNAP = 'id, paper_id, label, created_by, created_at, story_revision_id, outline_revision_id';
+const SNAP = 'id, paper_id, label, created_by, created_at, story_revision_id, outline_revision_id, citation_style, style_version';
+// the built-in citation styles of PW-019 (editor-core references STYLE_VERSION)
+const CITATION_STYLE_VERSION = 'pw-builtin-1';
 
 export async function createSnapshot(pool: TxPool, paperId: string, ownerId: string, label: unknown) {
   if (typeof label !== 'string' || !label.trim() || label.length > 200 || !storable(label)) throw new DomainError('INVALID', 'label must be 1–200 characters', 'label');
@@ -155,13 +157,16 @@ export async function createSnapshot(pool: TxPool, paperId: string, ownerId: str
     await tx.query('SELECT id FROM documents WHERE paper_id = $1 ORDER BY id FOR SHARE', [paperId]);
     // the active story/outline are pinned too (PW-010); the paper row lock keeps them from moving meanwhile
     const { rows } = await tx.query<{ id: string }>(
-      `INSERT INTO paper_snapshots (paper_id, label, created_by, story_revision_id, outline_revision_id)
-       SELECT id, $2, $3, active_story_revision_id, active_outline_revision_id FROM paper_projects WHERE id = $1 FOR SHARE
+      `INSERT INTO paper_snapshots (paper_id, label, created_by, story_revision_id, outline_revision_id, citation_style, style_version)
+       SELECT id, $2, $3, active_story_revision_id, active_outline_revision_id, citation_style, $4 FROM paper_projects WHERE id = $1 FOR SHARE
        RETURNING ${SNAP}`,
-      [paperId, label.trim(), ownerId],
+      [paperId, label.trim(), ownerId, CITATION_STYLE_VERSION],
     );
     const snap = rows[0]!;
     await tx.query('INSERT INTO snapshot_document_revisions (snapshot_id, paper_id, document_id, revision_id) SELECT $1, paper_id, id, head_revision_id FROM documents WHERE paper_id = $2', [snap.id, paperId]);
+    // figure/table order as it is now (PW-019): numbers of the snapshot never change afterwards
+    await tx.query('SELECT 1 FROM figure_objects WHERE paper_id = $1 FOR SHARE', [paperId]);
+    await tx.query('INSERT INTO snapshot_figures (snapshot_id, paper_id, figure_id, kind, position, title) SELECT $1, paper_id, id, kind, position, title FROM figure_objects WHERE paper_id = $2 AND archived_at IS NULL', [snap.id, paperId]);
     await tx.query(
       `INSERT INTO snapshot_reference_revisions (snapshot_id, paper_id, reference_id, bibliographic_revision_id)
        SELECT DISTINCT ON (pr.reference_id) $1, pr.paper_id, pr.reference_id, b.id
@@ -192,5 +197,6 @@ export async function getSnapshot(db: Queryable, paperId: string, snapshotId: st
   for (const d of docs.rows) documents.push({ document_id: d.document_id, revision: await getRevision(db, paperId, d.document_id, d.revision_id) });
   const refs = await db.query('SELECT reference_id, bibliographic_revision_id FROM snapshot_reference_revisions WHERE snapshot_id = $1 AND paper_id = $2', [snapshotId, paperId]);
   const assets = await db.query('SELECT asset_revision_id FROM snapshot_asset_revisions WHERE snapshot_id = $1 AND paper_id = $2', [snapshotId, paperId]);
-  return { ...rows[0], documents, references: refs.rows, assets: assets.rows };
+  const figures = await db.query('SELECT figure_id AS id, kind, position, title FROM snapshot_figures WHERE snapshot_id = $1 AND paper_id = $2 ORDER BY kind, position', [snapshotId, paperId]);
+  return { ...rows[0], documents, references: refs.rows, assets: assets.rows, figures: figures.rows };
 }

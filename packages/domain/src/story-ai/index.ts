@@ -46,6 +46,10 @@ export async function adoptStoryAlternative(pool: TxPool, a: { paperId: string; 
        WHERE x.id = $1 AND x.paper_id = $2 FOR UPDATE OF x`, [a.alternativeId.toLowerCase(), a.paperId])).rows[0];
     if (!alt) throw new DomainError('NOT_FOUND', 'alternative not found');
     if (alt.adopted_at) throw new DomainError('CONFLICT', 'this alternative was already adopted');
+    // made from an older story: adopting it would bring back that version's brief and novelty (review MINOR 2)
+    if (typeof b.parent_revision_id === 'string' && b.parent_revision_id.toLowerCase() !== alt.base_story_revision_id) {
+      throw new DomainError('CONFLICT', 'this alternative was made from an older story version; ask for new alternatives on the current story');
+    }
     if (alt.blocked_reasons.length) throw new DomainError('INVALID', `this alternative cannot be adopted: ${alt.blocked_reasons.join(', ')} (a number its text states is not in the evidence it links or in your story)`, 'alternative');
     const base = (await getStoryRevision(tx, a.paperId, alt.base_story_revision_id))!;
     const c = alt.content;

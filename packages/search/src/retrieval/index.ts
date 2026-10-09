@@ -146,6 +146,15 @@ async function candidatePool(db: Queryable, paperId: string, provider: string): 
   return out;
 }
 
+// The paper's settled facts and approved claims that may serve as material for this provider (PW-039
+// review): the same gates as a paragraph context — not from a removed or retracted source, not from a
+// source that may not be sent, not read from an older figure version, no open review flag.
+export async function settledMaterial(db: Queryable, paperId: string, provider: string): Promise<{ factIds: Set<string>; claimIds: Set<string>; withheld: { kind: string; id: string; reason: string }[] }> {
+  const pool = await candidatePool(db, paperId, provider);
+  const ok = (k: string) => new Set(pool.filter((c) => c.kind === k && !c.withheld).map((c) => c.id));
+  return { factIds: ok('fact'), claimIds: ok('claim'), withheld: pool.filter((c) => c.kind !== 'excerpt' && c.withheld).map((c) => ({ kind: c.kind, id: c.id, reason: c.withheld! })) };
+}
+
 // Lexical search within one paper (used for the "related" part of a context, and on its own).
 export function rankLexical(query: string, pool: { id: string; text: string }[], opts: { minShared?: number; limit?: number } = {}) {
   const q = terms(query);

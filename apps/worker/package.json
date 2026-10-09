@@ -9,6 +9,7 @@
   "dependencies": {
     "@pw/domain": "workspace:*",
     "@pw/providers": "workspace:*",
+    "@pw/search": "workspace:*",
     "pdfjs-dist": "6.4.299",
     "pg": "8.23.0",
     "pg-boss": "12.34.0"

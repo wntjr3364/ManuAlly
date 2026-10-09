@@ -1,0 +1,17 @@
+     × values, not names, ordinals, labels or figure numbers 10ms
+     × review: units glued to the number, x/×, ranges, separators, scientific notation, words, fractions 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/tasks/PW-039/numbers.test.ts > numbersIn > review: units glued to the number, x/×, ranges, separators, scientific notation, words, fractions
+     18|   test('review: units glued to the number, x/×, ranges, separators, sc…
+      Tests  2 failed | 1 passed (3)
+     × MAJOR: numbers written with units, x, words, ranges or notation are checked too 62ms
+     × MINOR 1: a number from a context link (which the story does not keep) does not count 56ms
+     × MINOR 2: an alternative made from an older story version cannot bring that version back 56ms
+     × MINOR 3: material the paragraph context would withhold (here: read from an older figure version) is not given and cannot be linked 101ms
+     × nits: numbers in suggestions are flagged; digits inside ids in the story do not count as the user's numbers 52ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 11 passed (16)
+  ✓  1 tests/tasks/PW-039/story-ai.e2e.ts:13:1 › TST-039A/B: alternatives with message, evidence and limits; adopt one into a draft; a blocked one cannot be adopted (3.2s)
+  1 passed (6.9s)
+old UI:   ✘  1 tests/tasks/PW-039/story-ai.e2e.ts:13:1 › TST-039A/B: alternatives with message, evidence and limits; adopt one into a draft; a blocked one cannot be adopted (9.1s)
+old UI:     Error: expect(locator).toContainText(expected) failed

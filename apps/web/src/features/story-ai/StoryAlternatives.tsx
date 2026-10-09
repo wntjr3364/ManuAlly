@@ -19,6 +19,7 @@ const WARNING: Record<string, string> = {
   contradicting_evidence_linked: '반대되는 근거가 있습니다',
   same_as_current_story: '지금 스토리와 같은 메시지입니다',
 };
+const warningText = (w: string) => (w.startsWith('suggestion_number_not_in_evidence:') ? `제안·부족한 근거에 적힌 수치 ${w.split(':')[1]}이(가) 연결된 근거에 없습니다` : WARNING[w] ?? w);
 const blockedText = (r: string) => (r.startsWith('number_not_in_evidence:') ? `수치 ${r.split(':')[1]}이(가) 연결된 근거나 사용자의 스토리에 없습니다` : r);
 
 export function StoryAlternatives({ paperId, latestId, dirty, onAdopted }: { paperId: string; latestId: string | null; dirty: boolean; onAdopted: () => void }) {
@@ -76,7 +77,7 @@ export function StoryAlternatives({ paperId, latestId, dirty, onAdopted }: { pap
       {!latestId && <p className="hint">먼저 스토리를 저장하세요.</p>}
       {note && <p role="status">{note}</p>}
       {error && <p role="alert" className="error">{error}</p>}
-      {run && run.base_story_revision_id !== latestId && <p className="hint" data-testid="story-alt-stale">이 대안은 이전 스토리 버전을 바탕으로 했습니다.</p>}
+      {run && run.base_story_revision_id !== latestId && <p className="hint" data-testid="story-alt-stale">이 대안은 이전 스토리 버전을 바탕으로 했습니다 — 채택하려면 지금 스토리로 대안을 다시 요청하세요.</p>}
       {run?.alternatives.map((a) => (
         <article key={a.id} className="card" data-testid="story-alternative">
           <h3>{a.title}</h3>
@@ -92,11 +93,11 @@ export function StoryAlternatives({ paperId, latestId, dirty, onAdopted }: { pap
           <div><strong>한계</strong>{a.limitations.length ? <ul className="plain" data-testid="story-alt-limitations">{a.limitations.map((x, i) => <li key={i}>{x}</li>)}</ul> : <span> 적힌 한계 없음</span>}</div>
           {a.evidence_gaps.length > 0 && <div><strong>부족한 근거</strong><ul className="plain">{a.evidence_gaps.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
           {a.claim_suggestions.length > 0 && <div><strong>주장 제안(등록되지 않음)</strong><ul className="plain">{a.claim_suggestions.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
-          {a.warnings.map((w) => <p key={w} className="warn" data-testid="story-alt-warning">{WARNING[w] ?? w}</p>)}
+          {a.warnings.map((w) => <p key={w} className="warn" data-testid="story-alt-warning">{warningText(w)}</p>)}
           {a.blocked_reasons.length > 0 && <p role="alert" className="error" data-testid="story-alt-blocked">채택할 수 없음: {a.blocked_reasons.map(blockedText).join('; ')}</p>}
           {a.adopted_story_revision_id
             ? <p className="hint" data-testid="story-alt-adopted">채택됨 — 스토리 초안 {a.adopted_story_revision_id.slice(0, 8)}</p>
-            : <button type="button" disabled={a.blocked_reasons.length > 0 || dirty || !latestId} title={dirty ? '저장하지 않은 스토리 수정이 있습니다' : undefined} onClick={() => void adopt(a)}>이 안으로 새 스토리 초안</button>}
+            : <button type="button" disabled={a.blocked_reasons.length > 0 || dirty || !latestId || run.base_story_revision_id !== latestId} title={dirty ? '저장하지 않은 스토리 수정이 있습니다' : run.base_story_revision_id !== latestId ? '이전 스토리 버전에서 만든 안입니다' : undefined} onClick={() => void adopt(a)}>이 안으로 새 스토리 초안</button>}
         </article>
       ))}
     </section>

@@ -18,3 +18,16 @@ KILLED adopt_intent
 KILLED adopted_once
 KILLED ui_blocked_disabled
 KILLED ui_evidence_role
+# review fixes (Fri Oct  9 20:23:49 UTC 2026)
+KILLED glued_units_count
+KILLED number_words
+KILLED superscripts
+KILLED ranges_not_negative
+KILLED thousands
+KILLED context_not_allowed
+KILLED own_text_only
+KILLED suggestion_warning
+KILLED settled_facts_only
+KILLED base_is_parent
+KILLED ui_stale_disabled
+KILLED settled_excludes_withheld

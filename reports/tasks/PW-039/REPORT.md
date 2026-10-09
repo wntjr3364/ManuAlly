@@ -80,3 +80,20 @@
 
 ## 다음
 PW-040: Detailed outline·영향 추적
+
+## 리뷰 반영 (1차, changes requested — MAJOR 1, MINOR 3, NIT 2)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR: 흔한 수치 표기가 근거 검사를 빠져나감("9x", "tenfold", "50mM", "24h", "2-9", "10⁻⁶", "2,4", "1,200") | `numbersIn`을 다시 썼다. 아래를 수치로 읽는다. 결과는 검사에서 "근거에 없음"으로 막힌다(안전한 쪽). <br>• 단위가 붙은 수: `50mM`, `24h`, `9x`, `10µg` <br>• 곱셈 기호: `x`/`×` <br>• 범위: `2-9`, `2–3`은 두 수 <br>• 천 단위 구분(`1,200`)과 소수점 쉼표(`2,4`), 가운뎃점(`2·4`) <br>• 과학 표기: `1e-3`, `10^-6`, `10⁻⁶`, `3 × 10⁵` <br>• 백분율 <br>• 분수 `½` <br>• 수 낱말: two…hundred, `tenfold`/`two-fold`, `twice`/`double`/`half`. "one"은 일반 낱말과 구별할 수 없어 뺐다. <br>수치가 아닌 것으로 보는 것: 이름(ABC1, H2O), 서수(3rd), 한 글자 표지(2D, 5A), 그림·표 번호(Figure 2) | unit: 리뷰어 probe 문자열 전부. 통합: "9x", "tenfold", "50mM…72h", "2-9", "10⁻⁶"이 각각 막힌다 |
+| MINOR 1: 맥락 연결의 수치가 허용됐지만, 채택 때는 그 연결이 빠짐 | 허용 수치는 story에 남을 연결(근거, 반대 근거)과 사용자의 글에서만 가져온다 | 맥락으로만 연결된 0.8 → 막힘 |
+| MINOR 2: 채택이 run 바탕 revision의 brief·novelty를 되살림 | 바탕 revision이 지금 parent와 다르면 409("이전 스토리 버전에서 만든 안 — 다시 요청"). 화면은 그 안의 채택 버튼을 끄고 다시 요청하라고 안내한다 | 통합: rev2 저장 뒤 채택 409, 최신은 rev2 그대로. 브라우저: 저장 뒤 버튼 비활성과 안내 |
+| MINOR 3: story 입력이 PW-037의 gate를 거치지 않음 | `settledMaterial`(PW-037 `candidatePool`의 내보내기)로 거른다. 거르는 것: 제거·철회된 원천, 전송 불가 원천, 이전 그림 버전, 열린 검토 표시. 그런 기록에 연결한 답은 모르는 근거로 run이 실패한다. MOCK에도 같은 provider 기준을 적용한다(보수적: 문헌 인용에서 읽은 사실은 MOCK에 빠질 수 있다) | 이전 그림 버전의 사실은 입력에 없고, 그것을 연결한 답은 실패한다 |
+| NIT: 주장 제안·부족한 근거의 수치 | 근거에 없는 수치는 경고 `suggestion_number_not_in_evidence:<n>`로 표시한다(채택하지 않는 글이므로 막지는 않음) | 50-fold 제안 → 경고 |
+| NIT: 허용 수치에 id 숫자가 섞임 | brief·story의 글 값만 읽는다. `evidence_links`의 id는 뺀다 | UUID 안의 4567 → 막힘 |
+
+- 범위 밖 추가: `packages/search/src/retrieval/index.ts`의 `settledMaterial`(PW-037 모듈), `apps/worker/package.json`의 `@pw/search` workspace 의존성, `pnpm-lock.yaml`. RFC-012 부록에 적었다.
+- RED(`red-review.log`): 208f6fa 구현으로 unit 2, 통합 5가 실패하고, 이전 화면으로 브라우저 시험이 실패한다.
+- GREEN: 통합 16, unit 3, 브라우저 1.
+- mutation(`mutation.log` 하단): 12종 모두 탐지.
+- 회귀: `pnpm test` exit 0 — unit 281, integration 399, contracts 17, 브라우저 88 (`pnpm-test-review.log`)
+- 남은 위험(갱신): 수치 읽기는 넓게 막는 쪽이다. 사용자가 쓰지 않은 표지성 숫자(예: "Experiment 2")는 근거에 없으면 막힌다. 그런 안은 사용자가 직접 고쳐 쓰면 된다.

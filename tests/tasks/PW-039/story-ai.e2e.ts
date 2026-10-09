@@ -89,4 +89,12 @@ test('TST-039A/B: alternatives with message, evidence and limits; adopt one into
   const blocked = page.getByTestId('story-alternative').first();
   await expect(blocked.getByTestId('story-alt-blocked')).toContainText('수치 3.1');
   await expect(blocked.getByRole('button', { name: '이 안으로 새 스토리 초안' })).toBeDisabled();
+  // an alternative made from an older story version cannot be adopted either (review MINOR 2)
+  await page.getByTestId('story-alternatives').getByRole('button', { name: '대안 요청' }).click();
+  const fresh = page.getByTestId('story-alternative').first();
+  await expect(fresh.getByRole('button', { name: '이 안으로 새 스토리 초안' })).toBeEnabled({ timeout: 15_000 });
+  await page.getByLabel('새로운 점').fill('edited novelty');
+  await page.getByRole('button', { name: '스토리 저장' }).click();
+  await expect(page.getByTestId('story-alt-stale')).toContainText('다시 요청하세요');
+  await expect(fresh.getByRole('button', { name: '이 안으로 새 스토리 초안' })).toBeDisabled();
 });

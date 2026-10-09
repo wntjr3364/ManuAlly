@@ -15,6 +15,8 @@ import { migrate } from '../../../apps/api/src/db/migrate.ts';
 import { buildServer } from '../../../apps/api/src/server.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { approveClaim, createClaim, createEvidence, createFactCandidates, linkClaimEvidence, reviewEvidence, reviewFact } from '../../../packages/domain/src/evidence/index.ts';
+import { createFigure } from '../../../packages/domain/src/references/index.ts';
+import { addFigureVersion, linkFigureEvidence, recordFigureFile } from '../../../packages/domain/src/figures/index.ts';
 import { processDelivery } from '../../../apps/worker/src/queue/index.ts';
 import { storyHandlers, createMockStoryGenerator, type StoryGenerator, type StoryInput } from '../../../apps/worker/src/story/index.ts';
 
@@ -236,5 +238,62 @@ describe('TST-039B: the AI settles nothing and adds no result the data do not ho
     await runJob(r.json().job.id, w.paperId, g);
     expect(g.seen).toHaveLength(0);
     expect((await pool.query('SELECT status FROM jobs WHERE id = $1', [r.json().job.id])).rows[0].status).toBe('WAITING_USER');
+  });
+});
+
+describe('review (PW-039)', () => {
+  const rootsLink = (input: StoryInput) => ({ kind: 'fact', id: input.facts.find((f) => f.text.includes('roots'))!.id, role: 'supports' });
+  test('MAJOR: numbers written with units, x, words, ranges or notation are checked too', async () => {
+    const w = await world();
+    const messages = ['ABC1 rises 9x under drought', 'ABC1 rises tenfold in roots', 'ABC1 rises 50mM-dependently in 72h', 'a 2-9 fold rise in roots', 'p < 10⁻⁶ in roots'];
+    const { view } = await request(w, spy((input) => ({ alternatives: messages.map((m) => alt({ title: 'numbers', main_message: m, evidence_links: [rootsLink(input)] })) })));
+    expect(view.runs[0].alternatives.map((a: { blocked_reasons: string[] }) => a.blocked_reasons)).toEqual([
+      ['number_not_in_evidence:9'], ['number_not_in_evidence:10'], ['number_not_in_evidence:50', 'number_not_in_evidence:72'], ['number_not_in_evidence:2', 'number_not_in_evidence:9'], ['number_not_in_evidence:0.000001'],
+    ]);
+  });
+
+  test('MINOR 1: a number from a context link (which the story does not keep) does not count', async () => {
+    const w = await world();
+    const { view } = await request(w, spy((input) => ({ alternatives: [alt({ main_message: 'ABC1 rises 0.8-fold in roots', evidence_links: [rootsLink(input), { kind: 'fact', id: input.facts.find((f) => f.text.includes('leaves'))!.id, role: 'context' }] })] })));
+    expect(view.runs[0].alternatives[0].blocked_reasons).toEqual(['number_not_in_evidence:0.8']);
+  });
+
+  test('MINOR 2: an alternative made from an older story version cannot bring that version back', async () => {
+    const w = await world();
+    const { view } = await request(w);
+    const rev2 = (await call('alice', 'POST', `/api/papers/${w.paperId}/story/revisions`, { parent_revision_id: w.storyRevisionId, brief: { ...brief, purpose: 'A sharper purpose' }, story: { ...story, novelty: 'new novelty' } })).json();
+    const r = await call('alice', 'POST', `/api/papers/${w.paperId}/story-alternatives/${view.runs[0].alternatives[0].id}/adopt`, { intent: 'adopt_story_alternative', parent_revision_id: rev2.id });
+    expect(r.statusCode).toBe(409);
+    expect(r.json().message).toMatch(/older story/);
+    expect((await call('alice', 'GET', `/api/papers/${w.paperId}/story`)).json().latest.id).toBe(rev2.id);
+  });
+
+  test('MINOR 3: material the paragraph context would withhold (here: read from an older figure version) is not given and cannot be linked', async () => {
+    const w = await world();
+    const hex = () => [...Array(64)].map(() => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+    const fig = await createFigure(pool, { paperId: w.paperId, ownerId: w.owner, kind: 'figure', title: 'ABC1' });
+    const file = await recordFigureFile(pool, { paperId: w.paperId, ownerId: w.owner, sha256: hex(), byteSize: 10, media: 'image/png', name: 'f.png' });
+    const v1 = await addFigureVersion(pool, { paperId: w.paperId, ownerId: w.owner, figureId: fig.id, body: { caption: 'v1', panels: [{ panel: 'A', unit: 'fold', groups: ['WT'] }], asset_id: file.id } });
+    const fev = await createEvidence(pool, { paperId: w.paperId, ownerId: w.owner, body: { kind: 'figure_panel', source_asset_revision_id: file.id, locator: { panel: 'A' }, label: 'Fig 1A' } });
+    await reviewEvidence(pool, { paperId: w.paperId, ownerId: w.owner, id: fev.id, to: 'VERIFIED', body: { intent: 'verify_evidence', content_hash: fev.content_hash } });
+    await linkFigureEvidence(pool, { paperId: w.paperId, ownerId: w.owner, evidenceId: fev.id, body: { figure_version_id: v1.version.id, panel: 'A' } });
+    const [old] = await createFactCandidates(pool, { paperId: w.paperId, ownerId: w.owner, origin: 'user', single: true, facts: [{ evidence_id: fev.id, entity: 'ABC1 panel', metric: 'fold change', value_text: '5.5', unit: 'fold', group: 'drought', comparison: 'control', n: 3, extraction_method: 'figure_reading' }] });
+    await reviewFact(pool, { paperId: w.paperId, ownerId: w.owner, id: old!.id, to: 'VERIFIED', body: { intent: 'verify_fact', content_hash: old!.content_hash } });
+    await addFigureVersion(pool, { paperId: w.paperId, ownerId: w.owner, figureId: fig.id, body: { caption: 'v2', panels: [{ panel: 'A', unit: 'fold', groups: ['WT'] }], asset_id: file.id } });
+    const g = spy(() => ({ alternatives: [alt({ evidence_links: [{ kind: 'fact', id: old!.id, role: 'supports' }] })] }));
+    const { view, jobId } = await request(w, g);
+    expect(g.seen[0]!.facts.map((f) => f.id)).not.toContain(old!.id);
+    expect(view.runs).toHaveLength(0);
+    expect((await pool.query('SELECT status FROM jobs WHERE id = $1', [jobId])).rows[0].status).toBe('FAILED');
+  });
+
+  test('nits: numbers in suggestions are flagged; digits inside ids in the story do not count as the user\'s numbers', async () => {
+    const w = await world();
+    const rev = (await call('alice', 'POST', `/api/papers/${w.paperId}/story/revisions`, { parent_revision_id: w.storyRevisionId, brief, story: { ...story, evidence_links: ['fact:00000000-0000-4000-8000-000000004567'] } })).json();
+    const r = await call('alice', 'POST', `/api/papers/${w.paperId}/story-alternatives/runs`, { base_story_revision_id: rev.id, idempotency_key: randomUUID() });
+    await runJob(r.json().job.id, w.paperId, spy((input) => ({ alternatives: [alt({ main_message: 'ABC1 rises 4567 times', evidence_links: [rootsLink(input)], claim_suggestions: ['ABC1 rises 50-fold'] })] })));
+    const a = (await call('alice', 'GET', `/api/papers/${w.paperId}/story-alternatives`)).json().runs[0].alternatives[0];
+    expect(a.blocked_reasons).toEqual(['number_not_in_evidence:4567']);
+    expect(a.warnings).toContain('suggestion_number_not_in_evidence:50');
   });
 });

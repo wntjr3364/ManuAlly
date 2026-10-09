@@ -35,3 +35,4 @@ User decision / reviewer:
   - `packages/domain/src/jobs/index.ts`: `JOB_INTENTS`에 `propose_story`. 공유 schema 변경은 `pw_039_0001`에서 한다.
   - `apps/worker/src/main.ts`, `tests/e2e/manual-paper/harness.ts`(MOCK handler 등록)
   - `apps/web/src/features/paper/StoryOutlineTab.tsx`(대안 화면 붙임)
+- PW-039 리뷰 반영: `packages/search/src/retrieval/index.ts`(`settledMaterial` 내보내기, PW-037 gate 재사용), `apps/worker/package.json`(`@pw/search` workspace 의존성; 새 외부 의존성 없음), `pnpm-lock.yaml`

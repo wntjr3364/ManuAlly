@@ -1,6 +1,6 @@
 // Story alternatives (PW-039, spec 03 "Storyline", 06). A generator (a provider, or the MOCK one) sees
 // the brief and the current story as the user wrote them, and the paper's settled material only:
-// verified facts and approved claims. It answers with 1–5 alternatives: a question, a main message,
+// verified facts and approved claims that pass the PW-037 gates. It answers with 1–5 alternatives: a question, a main message,
 // the order of presentation, the evidence each rests on (by id), competing explanations, limitations,
 // what evidence is missing, and claims it would suggest. The answer is checked strictly (unknown or
 // unsettled evidence, extra fields — a brief, an approval — fail the run; nothing partial is stored),
@@ -16,6 +16,7 @@ import { createHash } from 'node:crypto';
 import { UUID_RE, type Queryable, type TxPool } from '@pw/domain/shared/db.ts';
 import type { Job } from '@pw/domain/jobs/index.ts';
 import { getStoryRevision } from '@pw/domain/outlines/index.ts';
+import { settledMaterial } from '@pw/search/retrieval/index.ts';
 import type { AlternativeContent, AlternativeEvidence } from '@pw/domain/story-ai/index.ts';
 import { JobOutcomeError, type JobHandler } from '../queue/index.ts';
 
@@ -43,27 +44,65 @@ const list = (v: unknown, what: string): string[] => {
   return v.map((x, i) => text(x, `${what}[${i}]`, 1, 500));
 };
 
-// Numbers as written: a sign only where it is not a hyphen inside a word ("day-3" is 3), digits glued
-// to letters ("ABC1", "H2O") are names, not numbers. "2.40" and "2.4" are the same number.
-export function numbersIn(s: string): number[] {
+// Numbers as written in scientific prose (PW-039 review MAJOR). A number counts wherever it states a
+// quantity: glued to a unit ("50mM", "24h", "9x", "10µg"), with a decimal comma or thousands separator
+// ("2,4" → 2.4, "1,200" → 1200), as a range ("2-9", "2–9" → 2 and 9), in scientific notation ("1e-3",
+// "10^-6", "10⁻⁶", "3 × 10⁵"), as a percentage, a vulgar fraction ("½") or a word ("two"…"hundred",
+// "tenfold", "two-fold", "twice", "double", "half"). What is not a quantity is skipped: names with
+// digits ("ABC1", "H2O"), ordinals ("3rd"), single-letter labels ("2D", "5A") and figure/table numbers
+// ("Figure 2"). The sign counts where it is one ("−0.5"), not where it is a hyphen ("day-3" → 3).
+const SUPER: Record<string, string> = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-', '⁺': '+' };
+const FRACTIONS: Record<string, number> = { '½': 0.5, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 0.25, '¾': 0.75, '⅕': 0.2, '⅛': 0.125 };
+const WORDS: Record<string, number> = {
+  two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+  hundred: 100, thousand: 1000, twice: 2, double: 2, doubled: 2, doubling: 2, triple: 3, tripled: 3, quadruple: 4, quadrupled: 4, half: 0.5, halved: 0.5, quarter: 0.25,
+};
+const WORD_RE = new RegExp(`(?<![\\p{L}])(${Object.keys(WORDS).join('|')})(?:-?fold)?(?![\\p{L}])`, 'giu');
+export function numbersIn(raw: string): number[] {
+  // superscripts → ^n; unicode minus → -; a middle dot between digits is a decimal point
+  const s = raw.replace(/(\d)([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+)/g, (_m, d: string, sup: string) => `${d}^${[...sup].map((c) => SUPER[c]).join('')}`)
+    .replace(/[−–—]/g, (c) => (c === '−' ? '-' : '–')).replace(/(\d)·(\d)/g, '$1.$2');
   const out: number[] = [];
-  const re = /[-−+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?/g;
+  const re = /(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)(?:[eE]([-+]?\d+))?/g;
   for (let m = re.exec(s); m; m = re.exec(s)) {
-    const before = s[m.index - 1] ?? '';
-    let tok = m[0];
-    if (/[\p{L}\p{N}_.]/u.test(before)) {
-      // glued to a name or another number: only a hyphenated sign is dropped ("day-3" → 3)
-      if (/[-−]/.test(tok[0]!) && /[\p{L}]/u.test(before)) tok = tok.slice(1);
-      else continue;
-    }
-    const after = s[m.index + m[0].length] ?? '';
-    if (/[\p{L}_]/u.test(after) && !/^[eE]/.test(after) && /^\d+$/.test(tok.replace(/^[-−+]/, '')) && /[a-zA-Z]/.test(after) && !/[-\s]/.test(after)) {
-      // "3rd", "2D": an ordinal or a label, not a measured value
-      continue;
-    }
-    out.push(Number(tok.replace('−', '-')));
+    const start = m.index;
+    const before = s[start - 1] ?? '';
+    const before2 = s[start - 2] ?? '';
+    if (/[\p{L}_]/u.test(before)) continue; // a name: ABC1, H2O
+    if (before === '.' && /\d/.test(before2)) continue;
+    if (/(?:fig(?:ure)?s?\.?|tables?|panels?|supplementary|suppl\.?|ref\.?|eq\.?|equation)\s*$/i.test(s.slice(Math.max(0, start - 16), start))) continue;
+    const tok = m[1]!;
+    let value = /^\d{1,3}(,\d{3})+(\.\d+)?$/.test(tok) ? Number(tok.replace(/,/g, '')) : Number(tok.replace(',', '.'));
+    if (m[2]) value *= 10 ** Number(m[2]);
+    let end = start + m[0].length;
+    const rest = s.slice(end);
+    // a sign is a sign where it does not join two words or numbers ("day-3", "2-9" are not negative)
+    if ((before === '-' || before === '+') && !/[\p{L}\p{N}]/u.test(before2) && before === '-') value = -value;
+    const pow = /^\^([-+]?\d+)/.exec(rest);
+    if (pow) { value = value ** Number(pow[1]); end += pow[0].length; re.lastIndex = end; }
+    const times = /^\s*[×xX*]\s*10(?:\^([-+]?\d+)|[eE]([-+]?\d+))/.exec(s.slice(end));
+    if (times) { value *= 10 ** Number(times[1] ?? times[2]); end += times[0].length; re.lastIndex = end; }
+    const after = s.slice(end);
+    if (/^(st|nd|rd|th)(?![\p{L}])/iu.test(after)) continue; // an ordinal
+    if (/^[A-Z](?![\p{L}\p{N}])/u.test(after)) continue; // a label: 2D, 5A
+    out.push(value);
   }
-  return out;
+  for (const [c, v] of Object.entries(FRACTIONS)) if (s.includes(c)) out.push(v);
+  for (let m = WORD_RE.exec(s); m; m = WORD_RE.exec(s)) out.push(WORDS[m[1]!.toLowerCase()]!);
+  return out.map((n) => (Number.isInteger(n) ? n : Number(n.toPrecision(12))));
+}
+
+// the text values the user wrote (ids in evidence_links are not text)
+function ownText(input: StoryInput): string {
+  const vals: string[] = [];
+  for (const [part, rec] of [['brief', input.brief], ['story', input.story]] as const) {
+    for (const [k, v] of Object.entries(rec)) {
+      if (part === 'story' && k === 'evidence_links') continue;
+      vals.push(...(Array.isArray(v) ? v : [v]).map(String));
+    }
+  }
+  return vals.join('\n');
 }
 
 export function checkAlternatives(raw: unknown, input: StoryInput): CheckedAlternative[] {
@@ -71,7 +110,7 @@ export function checkAlternatives(raw: unknown, input: StoryInput): CheckedAlter
   if (!raw.alternatives.length || raw.alternatives.length > MAX_ALTERNATIVES) throw new Rejected(`the answer must hold 1–${MAX_ALTERNATIVES} alternatives`);
   const facts = new Map(input.facts.map((f) => [f.id, f.text]));
   const claims = new Map(input.claims.map((c) => [c.id, c.text]));
-  const ownNumbers = new Set(numbersIn(JSON.stringify({ brief: input.brief, story: input.story })));
+  const ownNumbers = new Set(numbersIn(ownText(input)));
   const baseMessage = typeof input.story.main_message === 'string' ? input.story.main_message.trim().toLowerCase() : null;
   return raw.alternatives.map((x, i): CheckedAlternative => {
     if (!obj(x)) throw new Rejected(`alternative ${i} is not an object`);
@@ -102,10 +141,14 @@ export function checkAlternatives(raw: unknown, input: StoryInput): CheckedAlter
       claim_suggestions: list(x.claim_suggestions, `alternative ${i} claim_suggestions`),
     };
     // system rules
-    const allowed = new Set([...ownNumbers, ...numbersIn(evidence.map((e) => e.text).join('\n'))]);
+    // numbers may come from the evidence the story will record (not context links, which adoption
+    // drops — review MINOR 1) or from the user's own words
+    const allowed = new Set([...ownNumbers, ...numbersIn(evidence.filter((e) => e.role !== 'context').map((e) => e.text).join('\n'))]);
     const stated = numbersIn([content.title, content.question, content.main_message, ...content.presentation_order, ...content.competing_explanations, ...content.limitations].join('\n'));
     const blocked = [...new Set(stated.filter((n) => !allowed.has(n)))].map((n) => `number_not_in_evidence:${n}`);
     const warnings: string[] = [];
+    // suggestions and gaps are not adopted, but they are AI-stated numbers in front of the user (nit)
+    for (const n of new Set(numbersIn([...content.claim_suggestions, ...content.evidence_gaps].join('\n')).filter((x) => !allowed.has(x)))) warnings.push(`suggestion_number_not_in_evidence:${n}`);
     if (!evidence.some((e) => e.role === 'supports')) warnings.push('no_supporting_evidence');
     if (evidence.some((e) => e.role === 'contradicts')) warnings.push('contradicting_evidence_linked');
     if (baseMessage && content.main_message.toLowerCase() === baseMessage) warnings.push('same_as_current_story');
@@ -119,19 +162,21 @@ function factText(f: { entity: string; metric: string; value_text: string; unit:
   return `${f.entity} · ${f.metric} = ${f.value_text}${f.unit ? ` ${f.unit}` : ''}${f.group_label ? `; group: ${f.group_label}` : ''}${f.comparison ? `; compared with: ${f.comparison}` : ''}${f.n ? `; n=${f.n}` : ''}${stats ? `; ${stats}` : ''}`;
 }
 
-async function loadInput(db: Queryable, job: Job): Promise<{ input: StoryInput; baseId: string; inputHash: string }> {
+async function loadInput(db: Queryable, job: Job, provider: string): Promise<{ input: StoryInput; baseId: string; inputHash: string }> {
   const p = job.payload as { base_story_revision_id?: unknown };
   if (Object.keys(p ?? {}).some((k) => k !== 'base_story_revision_id') || typeof p.base_story_revision_id !== 'string' || !UUID_RE.test(p.base_story_revision_id)) {
     throw new JobOutcomeError('story payload must be { base_story_revision_id }', 'FAILED');
   }
   const base = await getStoryRevision(db, job.paper_id, p.base_story_revision_id);
   if (!base) throw new JobOutcomeError('the base story revision is not this paper\'s', 'FAILED');
+  // only material that is settled and may go to this provider (review MINOR 3: the PW-037 gates)
+  const settled = await settledMaterial(db, job.paper_id, provider);
   const facts = (await db.query<Parameters<typeof factText>[0] & { id: string }>(
     `SELECT f.id, f.entity, f.metric, f.value_text, f.unit, f.group_label, f.comparison, f.n,
             (SELECT json_agg(json_build_object('kind', s.kind, 'value_text', s.value_text) ORDER BY s.kind) FROM fact_statistics s WHERE s.fact_id = f.id) AS statistics
-     FROM fact_records f WHERE f.paper_id = $1 AND f.verification_state = 'VERIFIED' ORDER BY f.created_at, f.id LIMIT 200`, [job.paper_id])).rows;
+     FROM fact_records f WHERE f.paper_id = $1 AND f.verification_state = 'VERIFIED' AND f.id = ANY($2::uuid[]) ORDER BY f.created_at, f.id LIMIT 200`, [job.paper_id, [...settled.factIds]])).rows;
   const claims = (await db.query<{ id: string; kind: string; text: string }>(
-    "SELECT id, kind, text FROM claims WHERE paper_id = $1 AND approval_state = 'APPROVED' ORDER BY created_at, id LIMIT 200", [job.paper_id])).rows;
+    "SELECT id, kind, text FROM claims WHERE paper_id = $1 AND approval_state = 'APPROVED' AND id = ANY($2::uuid[]) ORDER BY created_at, id LIMIT 200", [job.paper_id, [...settled.claimIds]])).rows;
   const input: StoryInput = { brief: base.brief, story: base.story, facts: facts.map((f) => ({ id: f.id, text: factText(f) })), claims };
   return { input, baseId: base.id, inputHash: createHash('sha256').update(JSON.stringify(input)).digest('hex') };
 }
@@ -187,7 +232,7 @@ export function createMockStoryGenerator(): StoryGenerator {
 export function storyHandlers(pool: TxPool, generator: StoryGenerator): Record<'propose_story', JobHandler> {
   return {
     propose_story: async (job) => {
-      const { input, baseId, inputHash } = await loadInput(pool, job);
+      const { input, baseId, inputHash } = await loadInput(pool, job, generator.id);
       // a real provider sees paper material only where the paper allows it (spec 09)
       if (generator.id !== 'mock') {
         const p = (await pool.query<{ external_send_policy: string; data_classification: string; allowed_providers: string[] }>('SELECT external_send_policy, data_classification, allowed_providers FROM paper_projects WHERE id = $1', [job.paper_id])).rows[0]!;

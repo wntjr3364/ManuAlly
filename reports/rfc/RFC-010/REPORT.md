@@ -108,3 +108,13 @@ RFC 범위(`packages/providers/src/{claude,codex}/**`, `apps/worker/src/{runner,
 - 남은 위험(추가):
   - `CREDENTIAL_FILES`와 파일 bind 방식(제자리 쓰기)이 실제 CLI와 맞는지는 live smoke로 확인한다. CLI가 이름 바꾸기로 저장하면 갱신이 실패한다(인증 오류로 보임).
   - quota bucket 구분이 없다.
+
+## 재리뷰
+- approve (6e97095).
+- 남은 NIT
+  - **token 갱신을 이름 바꾸기로 하는 CLI.** bind된 credential 위치에서는 EBUSY로 실패하고, 다음 run이 인증 오류가 난다. 안전한 방향이다.
+    - live smoke에서 실제 token 갱신이 run을 지나 남는지 확인한다.
+    - 남지 않으면 provider별 전용 credential 폴더를 상위 폴더째 bind하는 방식으로 바꾼다.
+  - **심어진 파일 검사는 거부 목록이다.** 재리뷰가 짚은 이름을 더했다: Codex `instructions.md`·`rules`·`policy`, Claude `output-styles`.
+    - 고정된 CLI가 만드는 항목의 허용 목록으로 바꾸는 일은 live smoke로 실제 폴더 내용을 본 뒤에 한다.
+    - Claude `.claude.json`은 CLI가 직접 쓴다. 지금 모델은 파일 도구가 없어 쓸 수 없다.

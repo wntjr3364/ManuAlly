@@ -42,7 +42,8 @@ export const PROVIDER_EGRESS: Record<'claude_agent' | 'codex', EgressTarget[]> =
 export const CREDENTIAL_FILES: Record<'claude_agent' | 'codex', string[]> = { claude_agent: ['.credentials.json'], codex: ['auth.json'] };
 // What may never sit in a paper's CLI state folder: instructions, settings with hooks, extra tools.
 // A run could plant them for the next run of the same paper; the next start refuses instead.
-const PLANTED = ['settings.json', 'settings.local.json', 'CLAUDE.md', 'CLAUDE.local.md', 'AGENTS.md', 'AGENTS.override.md', '.mcp.json', 'hooks', 'commands', 'agents', 'plugins', 'skills', 'prompts'];
+// (a denylist for now: an allowlist of what the pinned CLIs create follows the live smoke)
+const PLANTED = ['settings.json', 'settings.local.json', 'CLAUDE.md', 'CLAUDE.local.md', 'AGENTS.md', 'AGENTS.override.md', '.mcp.json', 'hooks', 'commands', 'agents', 'plugins', 'skills', 'prompts', 'output-styles', 'instructions.md', 'rules', 'policy'];
 
 export class StateRefused extends Error {}
 export function assertCleanStateDir(dir: string): void {

@@ -1,0 +1,25 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-019/numbering.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-019/numbering.test.ts [ tests/tasks/PW-019/numbering.test.ts ]
+Error: Cannot find module '../../../packages/editor-core/src/references/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-019/numbering.test.ts
+ ❯ tests/tasks/PW-019/numbering.test.ts:4:1
+      2| // style, and are recalculated when the order or the style changes. Un…
+      3| import { describe, expect, test } from 'vitest';
+      4| import { bibliography, citationLabels, figureLabels, type RefMeta } fr…
+       | ^
+      5|
+      6| const R1 = '00000000-0000-4000-8000-0000000000f1';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  07:59:14
+   Duration  292ms (worker 95%, environment 5%)
+

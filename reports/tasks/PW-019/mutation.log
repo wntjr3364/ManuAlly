@@ -1,0 +1,7 @@
+killed: numeric numbered alphabetically, not by appearance [3 failed]
+killed: unknown reference gets a label [1 failed]
+killed: unknown reference in the bibliography [1 failed]
+killed: figure order ignored [2 failed]
+killed: no a/b suffix [1 failed]
+killed: free bibliography fields accepted [1 failed]
+killed: labels ignore the paper's references/style [2 failed]

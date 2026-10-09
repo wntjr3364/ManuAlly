@@ -76,4 +76,10 @@ User decision / reviewer:
   - `apps/web/src/features/selection-chat/SelectionChat.tsx`: "코멘트" 동작
   - `packages/domain/src/proposals/index.ts`: `verifySelection` 공용화
   - `apps/web/src/app/styles.css`
+- PW-019
+  - `packages/domain/src/references/**`, `apps/api/src/references/**`(Task 범위에 domain·API 경로가 없음), `apps/api/src/server.ts` 등록
+  - `packages/editor-core/src/index.ts`: references export
+  - `tests/tasks/PW-012/browser-parity.int.test.ts`: editor-core 하위 폴더도 브라우저에 제공
+  - `apps/web/src/editor/ManuscriptEditor.tsx`: ReferenceLabels extension, ReferencesPanel
+  - `apps/web/src/app/styles.css`: 라벨 표시(inline-block)
 

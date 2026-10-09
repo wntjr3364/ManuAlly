@@ -28,6 +28,8 @@ import type { SelectionRequest } from '../features/selection-chat/request.ts';
 import { ProposalPanel, type AppliedRevision } from '../features/diff/ProposalPanel.tsx';
 import { CommentsPanel } from '../features/comments/CommentsPanel.tsx';
 import { CommentHighlights } from '../features/comments/comment-highlights.ts';
+import { ReferenceLabels } from '../features/references/reference-labels.ts';
+import { ReferencesPanel } from '../features/references/ReferencesPanel.tsx';
 import { selectionTarget } from '../features/selection-chat/target.ts';
 import { freezeSelection } from '../features/selection-chat/request.ts';
 import type { SelectionSnapshot } from '@pw/editor-core';
@@ -51,7 +53,7 @@ function findOffers(info: DocInfo, tabId: string, openTabs: Set<string> | null):
   });
 }
 
-const extensions = [...editorExtensions, FrozenSelection, CommentHighlights];
+const extensions = [...editorExtensions, FrozenSelection, CommentHighlights, ReferenceLabels];
 
 export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { paperId: string; info: DocInfo; outlineApproved?: boolean }) {
   const [save, dispatch] = useReducer(saveReducer, info.head.id, initialSaveState);
@@ -402,6 +404,7 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
       )}
       <ProposalPanel paperId={paperId} documentId={info.document.id} headRevisionId={save.headRevisionId} canApply={save.status === 'saved' && !locked}
         onApplying={setApplying} onApplied={adoptApplied} refreshKey={proposalRefresh} />
+      <ReferencesPanel paperId={paperId} editor={editor} canInsert={!locked} />
       <CommentsPanel paperId={paperId} documentId={info.document.id} editor={editor} headRevisionId={save.headRevisionId}
         screenIsHead={save.status === 'saved'} refreshKey={commentRefresh} currentSelection={currentSelection} />
       {owner && !storageOk && <p role="alert" className="hint" data-testid="recovery-unavailable">이 브라우저가 사이트 저장소를 막아 저장되지 않은 변경을 임시 보관할 수 없습니다. 저장 상태를 확인하세요.</p>}

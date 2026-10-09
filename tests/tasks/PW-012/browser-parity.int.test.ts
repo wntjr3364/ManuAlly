@@ -33,7 +33,10 @@ const routes: Record<string, () => string> = {
   '/vendor/prosemirror-transform.js': () => fs.readFileSync(path.join(pmTransform, 'dist/index.js'), 'utf8'),
   '/vendor/orderedmap.js': () => fs.readFileSync(path.join(orderedmap, 'dist/index.js'), 'utf8'),
 };
-for (const f of fs.readdirSync(path.join(coreDir, 'src'))) routes[`/packages/editor-core/src/${f.replace(/\.ts$/, '.js')}`] = () => transpile(path.join(coreDir, 'src', f));
+// every editor-core source file, including sub-folders (e.g. src/references, PW-019)
+for (const f of fs.readdirSync(path.join(coreDir, 'src'), { recursive: true }) as string[]) {
+  if (f.endsWith('.ts')) routes[`/packages/editor-core/src/${f.replace(/\.ts$/, '.js')}`] = () => transpile(path.join(coreDir, 'src', f));
+}
 for (const f of ['fixtures.ts', 'fixture-report.ts']) routes[`/tests/tasks/PW-012/${f.replace(/\.ts$/, '.js')}`] = () => transpile(path.join(root, 'tests/tasks/PW-012', f));
 routes['/index.html'] = () => `<!doctype html><meta charset="utf-8">
 <script type="importmap">{"imports":{"prosemirror-model":"/vendor/prosemirror-model.js","prosemirror-transform":"/vendor/prosemirror-transform.js","orderedmap":"/vendor/orderedmap.js"}}</script>

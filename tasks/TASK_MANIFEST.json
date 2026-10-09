@@ -625,7 +625,7 @@
       "id": "PW-019",
       "phase": "P02",
       "title": "Citation·Figure crossref node",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-018"
       ],

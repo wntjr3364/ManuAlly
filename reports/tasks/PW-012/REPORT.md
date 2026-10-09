@@ -100,3 +100,12 @@ PW-013 DB job/outbox/audit(리뷰 후).
   - `pnpm test` exit 0: unit 50, integration 112, contracts 13, e2e 1, spikes 70, evals/pack PASS
   - 이 수치에는 작업 중인 PW-013(미커밋)이 포함되어 있다.
 - 남은 위험: `crypto.subtle`은 브라우저에서 secure context(https 또는 localhost)가 필요하다. 연구실 서버를 http로 원격 접속하면 hash가 동작하지 않는다. 배포 때 https 또는 SSH 터널을 써야 한다(PW-061/P07에 기록).
+
+### 재리뷰 (2026-10-09): approve. minor 2건과 nit 반영
+- A: 이어 붙인 텍스트 run이 문서 한도(1,000,000자)를 넘으면 거부한다(시험 추가). PW-017의 apply는 결과 문서 전체를 다시 검증해야 한다(이월).
+- B: 편집기의 Bold가 citation 같은 inline atom에도 mark를 붙인다(ProseMirror addMark). 그래서 **inline atom의 mark는 허용**하고, doc·block의 mark만 거부하도록 바꿨다. 위치·quote 계산과 hash 비교에는 영향이 없다.
+- 이월(PW-014/015): 붙여넣기·가져오기 경로에서 U+FFFC를 제거하거나 치환한다(Word·PDF에서 복사한 텍스트에 흔하다).
+- nit
+  - migration은 현재 버전으로만 가능하다.
+  - 공백뿐인 locator는 문서·계약에서도 거부한다.
+  - edit_proposal replacement는 최대 500개다.

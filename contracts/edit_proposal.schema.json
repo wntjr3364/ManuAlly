@@ -155,7 +155,8 @@
                       "null"
                     ],
                     "minLength": 1,
-                    "maxLength": 200
+                    "maxLength": 200,
+                    "pattern": "\\S"
                   }
                 },
                 "additionalProperties": false
@@ -178,7 +179,8 @@
                 "additionalProperties": false
               }
             ]
-          }
+          },
+          "maxItems": 500
         }
       },
       "additionalProperties": false

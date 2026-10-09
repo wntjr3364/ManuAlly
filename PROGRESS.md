@@ -31,7 +31,7 @@
 | PW-009 | in_review | (P01) | REQ-009 / TST-009A,B | 통합 7/7 + 리뷰 회귀 6/6, 리뷰 major 3·minor 4·7 반영 | 대용량 성능, 서지·asset API(P04), seq 열(minor 5), runtime DB role 분리 |
 | PW-010 | in_review | (P01) | REQ-010 / TST-010A,B | 통합 26/26(리뷰 회귀 12 포함), mutation 3종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | outline 웹 UI(PW-014 shell과 함께), claim 변경 impact(PW-011+), 범위별 승인 방식 사용자 결정 |
 | PW-011 | in_review | (P01) | REQ-011 / TST-011A,B | 통합 33/33(리뷰 회귀 23 포함), mutation 5종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | evidence 웹 UI(PW-014), outline evidence_ids 실제 연결(RFC 필요), CSV 파서·철회 API(P04) |
-| PW-012 | in_review | (P01) | REQ-012 / TST-012A,B | unit 41(리뷰 회귀 20 포함), Chromium↔Node parity 1, contracts 13, mutation 3종 탐지, 리뷰 1회 반영, `pnpm test` exit 0 | 저장 경로 연결(PW-014), Firefox/Safari, IME, apply 엔진(PW-017), https 필요(secure context), 재리뷰 |
+| PW-012 | in_review | (P01) | REQ-012 / TST-012A,B | unit 43(리뷰 회귀 22 포함), Chromium↔Node parity 1, contracts 13, mutation 3종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | 저장 경로 연결·붙여넣기 U+FFFC 처리(PW-014/015), Firefox/Safari, IME, apply 엔진(PW-017), https 필요(secure context) |
 | PW-013 | in_review | (P01) | REQ-013 / TST-013A,B | 통합 15/15(PostgreSQL+pg-boss), mutation 5종 탐지, `pnpm test` exit 0 | 기능 경로 연결(draft request→job, PW-014/P02), 승인 actor 기록, worker 상시 루프·재개(P02/P03), 독립 리뷰 대기 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.

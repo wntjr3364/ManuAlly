@@ -79,7 +79,8 @@ describe('review minors', () => {
   test('4/5: marks only on text; text and atoms have no content', () => {
     expect(codes(core.validateDocument({ ...doc(para(t('a'))), marks: [{ type: 'bold' }] }, V))).toContain('UNKNOWN_MARK');
     expect(codes(core.validateDocument(doc({ ...para(t('a')), marks: [{ type: 'bold' }] }), V))).toContain('UNKNOWN_MARK');
-    expect(codes(core.validateDocument(doc(para({ type: 'citation', attrs: { referenceId: ID.ref }, marks: [{ type: 'bold' }] })), V))).toContain('UNKNOWN_MARK');
+    // re-review B: Bold over a sentence also marks its citation (ProseMirror addMark) — accepted
+    expect(core.validateDocument(doc(para(t('a'), { type: 'citation', attrs: { referenceId: ID.ref }, marks: [{ type: 'bold' }] })), V).ok).toBe(true);
     expect(codes(core.validateDocument(doc(para({ type: 'text', text: 'a', content: [para(t('hidden'))] })), V))).toContain('INVALID_STRUCTURE');
   });
 
@@ -97,5 +98,19 @@ describe('review minors', () => {
   test('10: canonical JSON stays valid JSON for sparse arrays', () => {
     // eslint-disable-next-line no-sparse-arrays
     expect(JSON.parse(core.canonicalJson([1, , null, undefined]))).toEqual([1, null, null, null]);
+  });
+});
+
+describe('re-review minors', () => {
+  test('A: many joined text items cannot exceed the document text limit', () => {
+    const node = core.findBlock(core.parseDocument(manuscript, V), ID.plain).node;
+    const many = Array.from({ length: 11 }, () => ({ type: 'text', text: 'x'.repeat(100_000) }));
+    expect(() => core.buildReplacement(many, core.atomNodesIn(node, 0, 4))).toThrow(/INVALID_REPLACEMENT/);
+  });
+  test('nits: migration only to the current version; blank locators refused everywhere', () => {
+    expect(() => core.migrateDocument({ type: 'evil' }, 7, 7)).toThrow(/MIGRATION_NOT_AVAILABLE/);
+    expect(codes(core.validateDocument(doc(para({ type: 'citation', attrs: { referenceId: ID.ref, locator: '  ' } })), V))).toContain('INVALID_ATTR');
+    const base = { schema_version: 1, selection_handle_id: '00000000-0000-4000-8000-0000000000f1', outcome: 'replacement' };
+    expect(validateAiReplacement({ ...base, replacement: [{ type: 'citation', reference_id: ID.ref, locator: '   ' }] }).ok).toBe(false);
   });
 });

@@ -3,9 +3,9 @@
 
 
  Test Files  2 passed (2)
-      Tests  41 passed (41)
-   Start at  01:58:38
-   Duration  654ms (transform 49%, tests 32%, import 17%, worker 1%)
+      Tests  43 passed (43)
+   Start at  02:03:54
+   Duration  672ms (transform 49%, tests 33%, import 17%, worker 1%)
 
 
  RUN  v5.0.1 /home/user/ManuAlly
@@ -13,8 +13,8 @@
 
  Test Files  1 passed (1)
       Tests  1 passed (1)
-   Start at  01:58:39
-   Duration  1.82s (import 47%, tests 38%, transform 14%)
+   Start at  02:03:55
+   Duration  2.03s (import 47%, tests 38%, transform 15%)
 
 
  RUN  v5.0.1 /home/user/ManuAlly
@@ -22,6 +22,6 @@
 
  Test Files  2 passed (2)
       Tests  13 passed (13)
-   Start at  01:58:42
-   Duration  489ms (tests 52%, transform 27%, import 20%, worker 1%)
+   Start at  02:03:58
+   Duration  532ms (tests 47%, transform 31%, import 21%, worker 1%)
 

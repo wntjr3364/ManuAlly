@@ -49,7 +49,7 @@ function checkAttrs(type: string, rawAttrs: unknown, path: string, errors: Docum
   if (type === 'heading' && attrs.level !== undefined && !(Number.isInteger(attrs.level) && (attrs.level as number) >= 1 && (attrs.level as number) <= 6)) bad('level', 'heading level must be 1–6');
   if (type === 'citation') {
     if (typeof attrs.referenceId !== 'string' || !UUID.test(attrs.referenceId)) bad('referenceId', 'citation needs the referenceId (UUID) of a reference');
-    if (attrs.locator !== undefined && attrs.locator !== null && !goodText(attrs.locator, 200)) bad('locator', 'locator must be short text or null');
+    if (attrs.locator !== undefined && attrs.locator !== null && (!goodText(attrs.locator, 200) || !attrs.locator.trim())) bad('locator', 'locator must be short non-blank text or null');
   }
   if (type === 'math_inline' && !goodText(attrs.latex, 2000)) bad('latex', 'inline math needs its LaTeX source');
   if (type === 'figure_ref' && (typeof attrs.targetId !== 'string' || !UUID.test(attrs.targetId))) bad('targetId', 'figure/table reference needs the targetId (UUID) of the figure or table');
@@ -78,8 +78,10 @@ function walk(v: unknown, path: string, depth: number, errors: DocumentError[], 
   } else if (v.text !== undefined) {
     errors.push({ code: 'UNKNOWN_FIELD', path: `${path}.text`, message: `${type} has no text field` });
   }
-  if (v.marks !== undefined && type !== 'text') {
-    errors.push({ code: 'UNKNOWN_MARK', path: `${path}.marks`, message: 'marks are allowed on text only' });
+  // marks belong to inline content: text and inline atoms (the editor's Bold over a sentence also
+  // marks its citations); never on doc or blocks
+  if (v.marks !== undefined && type !== 'text' && !(ATOM_TYPES as readonly string[]).includes(type)) {
+    errors.push({ code: 'UNKNOWN_MARK', path: `${path}.marks`, message: 'marks are allowed on inline content only' });
   } else if (v.marks !== undefined) {
     if (!Array.isArray(v.marks)) errors.push({ code: 'UNKNOWN_MARK', path: `${path}.marks`, message: 'marks must be a list' });
     else v.marks.forEach((m, i) => {
@@ -141,11 +143,14 @@ function hasMigration(from: number, to: number): boolean {
 
 // The result is validated at the target version; an invalid input or migration output throws.
 export function migrateDocument(json: unknown, from: number, to: number = EDITOR_SCHEMA_VERSION): { json: Json; schema_version: number } {
+  if (to !== EDITOR_SCHEMA_VERSION) {
+    throw new DocumentValidationError([{ code: 'MIGRATION_NOT_AVAILABLE', path: 'schema_version', message: `documents are only migrated to the current schema ${EDITOR_SCHEMA_VERSION}` }]);
+  }
   if (from !== to && !hasMigration(from, to)) {
     throw new DocumentValidationError([{ code: 'MIGRATION_NOT_AVAILABLE', path: 'schema_version', message: `no migration from document schema ${from} to ${to}` }]);
   }
   let out = json as Json;
   for (let v = from; v < to; v++) out = MIGRATIONS[v]!(out);
-  if (to === EDITOR_SCHEMA_VERSION) parseDocument(out, to);
+  parseDocument(out, to);
   return { json: out, schema_version: to };
 }

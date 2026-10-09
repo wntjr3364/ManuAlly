@@ -68,7 +68,11 @@ export function buildReplacement(replacement: unknown, selectionAtoms: PMNode[])
     throw fail(`not valid paragraph content: ${e instanceof Error ? e.message : String(e)}`);
   }
   const out: PMNode[] = [];
-  fragment.forEach((n) => out.push(n));
+  fragment.forEach((n) => {
+    // joined runs can exceed the per-item cap; keep within the document's text limit
+    if (n.isText && !goodText(n.text, 1_000_000)) throw fail('joined text is longer than a document text node may be');
+    out.push(n);
+  });
   return out;
 }
 

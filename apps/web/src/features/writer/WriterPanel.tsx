@@ -14,7 +14,7 @@ interface Proposal {
 }
 interface Block { id: string; text: string; type: string }
 // a finding of the deterministic scientific gate (PW-043)
-interface Finding { check: string; verdict: 'pass' | 'fail' | 'unknown'; text: string; reason?: string; evidence_label?: string; label?: string; candidates?: string[] }
+interface Finding { check: string; verdict: 'pass' | 'fail' | 'unknown'; text: string; reason?: string; evidence_label?: string; label?: string; candidates?: string[]; approximate?: boolean }
 interface CheckRun { id: string; status: string; findings: Finding[]; block_id: string; created_at: string }
 const GATE_STATUS: Record<string, string> = { VERIFIED: '근거와 일치', FAILED: '불일치', UNKNOWN: '확인 안 됨 있음', NOT_APPLICABLE: '검사할 수치·인용 없음' };
 const GATE_REASON: Record<string, string> = {
@@ -23,11 +23,13 @@ const GATE_REASON: Record<string, string> = {
   n_mismatch: 'n이 다름', no_matched_fact: '맞춰진 사실이 없어 확인 못 함', no_statistic: '그 통계값이 기록되지 않음', no_n_recorded: 'n이 기록되지 않음',
   citation_not_found: '이 논문의 참고문헌이 아님', citation_retracted: '철회된 문헌', protected_span_changed: '수식·그림 참조가 바뀜',
   negation_changed: '주장의 부정이 바뀜', direction_changed: '주장의 증감 방향이 바뀜', claim_not_found: '주장이 문단에 보이지 않음',
+  entity_mismatch: '다른 대상(유전자·계통 이름)에 붙임', entity_not_stated: '어느 대상인지 없음', comparison_order_unclear: '어느 쪽이 대조군인지 분명하지 않음',
+  sign_mismatch: '부호가 반대', ambiguous_number: '쉼표 때문에 수를 하나로 읽을 수 없음', dispersion_not_recorded: '편차(SD·SE)가 기록되지 않음',
 };
 function FindingLine({ f }: { f: Finding }) {
   const mark = f.verdict === 'pass' ? '✓' : f.verdict === 'fail' ? '✗' : '?';
   const where = f.evidence_label ?? f.label;
-  return <li data-testid="sci-finding" data-verdict={f.verdict} className={f.verdict === 'fail' ? 'error' : f.verdict === 'unknown' ? 'hint' : undefined}>{mark} {f.text}{where ? ` — ${where}` : ''}{f.reason && f.reason !== 'threshold' ? ` (${GATE_REASON[f.reason] ?? f.reason})` : ''}</li>;
+  return <li data-testid="sci-finding" data-verdict={f.verdict} className={f.verdict === 'fail' ? 'error' : f.verdict === 'unknown' ? 'hint' : undefined}>{mark} {f.text}{where ? ` — ${where}` : ''}{f.reason && f.reason !== 'threshold' ? ` (${GATE_REASON[f.reason] ?? f.reason})` : ''}{f.approximate ? ' (근사 표기 — 값은 기록과 같음)' : ''}</li>;
 }
 
 const MODE: Record<Proposal['mode'], string> = { draft: '새 문단', conservative: '보수적 교정', rewrite: '재작성' };

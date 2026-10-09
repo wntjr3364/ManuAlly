@@ -96,3 +96,43 @@ describe('TST-043B: never pass a changed fact; ambiguity is UNKNOWN', () => {
     expect(r.status).toBe('NOT_APPLICABLE');
   });
 });
+
+describe('review fixes (d58e906)', () => {
+  const FX: GateFact = { ...F1, id: 'fx', entity: 'ABC1', metric: 'fold change', group_label: 'abc1 mutant', comparison: 'wild type', statistics: [{ kind: 'p_value', value_text: '0.003' }] };
+  const FL: GateFact = { ...FX, id: 'fl', metric: 'log2 fold change', value_text: '1.5', unit: '', statistics: [] };
+  const only = (facts: GateFact[]) => ({ facts });
+  test('MAJOR: another entity fails; reversed groups fail; a flipped sign fails; p is read from its own sentence only', () => {
+    const other = gate(para('ABC2 expression rose 2.4-fold in the abc1 mutant.'), only([FX]));
+    expect(find(other, 'quantity')[0]).toMatchObject({ verdict: 'fail', reason: 'entity_mismatch' });
+    const unnamed = gate(para('Expression rose 2.4-fold in the abc1 mutant.'), only([FX]));
+    expect(find(unnamed, 'quantity')[0]).toMatchObject({ verdict: 'unknown', reason: 'entity_not_stated' });
+    expect(find(gate(para('ABC1 expression was 2.4-fold higher in wild type than in the abc1 mutant.'), only([FX])), 'quantity')[0]).toMatchObject({ verdict: 'fail', reason: 'group_mismatch' });
+    expect(find(gate(para('ABC1 expression was 2.4-fold higher in the abc1 mutant than in wild type.'), only([FX])), 'quantity')[0]).toMatchObject({ verdict: 'pass', fact_id: 'fx' });
+    expect(find(gate(para('ABC1 expression was 2.4-fold in the abc1 mutant and in wild type.'), only([FX])), 'quantity')[0]).toMatchObject({ verdict: 'unknown', reason: 'comparison_order_unclear' });
+    expect(find(gate(para('In the abc1 mutant, the log2 fold change of ABC1 was −1.5.'), only([FL])), 'quantity')[0]).toMatchObject({ verdict: 'fail', reason: 'sign_mismatch' });
+    expect(find(gate(para('In the abc1 mutant, the log2 fold change of ABC1 was 1.5.'), only([FL])), 'quantity')[0]).toMatchObject({ verdict: 'pass' });
+    expect(find(gate(para('In the abc1 mutant, the log2 fold change of ABC1 was -1.5.'), only([{ ...FL, value_text: '-1.5' }])), 'quantity')[0]).toMatchObject({ verdict: 'pass' });
+    const p = gate(para('ABC1 rose 2.4-fold in the abc1 mutant. ABC9 also differed (p = 0.003).'), only([FX]));
+    expect(find(p, 'statistic')[0]).toMatchObject({ verdict: 'unknown', reason: 'no_matched_fact' });
+    expect(p.status).toBe('UNKNOWN');
+  });
+  test('MINOR 1: a thousands separator is one number; a decimal comma is unknown', () => {
+    const cells = { ...FX, id: 'fc', entity: 'cells', metric: 'count', value_text: '2', unit: '', group_label: '', comparison: '' };
+    expect(find(gate(para('We counted 2,400 cells.'), only([cells])), 'quantity')[0]).toMatchObject({ verdict: 'unknown', reason: 'no_matching_fact', text: '2,400' });
+    expect(find(gate(para('We counted 2,400 cells.'), only([{ ...cells, value_text: '2400' }])), 'quantity')[0]).toMatchObject({ verdict: 'pass' });
+    expect(find(gate(para('ABC1 rose 2,4-fold in the abc1 mutant.'), only([FX])), 'quantity')[0]).toMatchObject({ verdict: 'unknown', reason: 'ambiguous_number' });
+  });
+  test('MINOR 2: an approximate value is marked as such', () => {
+    for (const t of ['ABC1 rose ~2.4-fold in the abc1 mutant.', 'ABC1 rose about 2.4-fold in the abc1 mutant.', 'ABC1 rose approximately 2.4-fold in the abc1 mutant.']) {
+      expect(find(gate(para(t), only([FX])), 'quantity')[0], t).toMatchObject({ verdict: 'pass', approximate: true });
+    }
+  });
+  test('NIT: a ± pair takes the unit after it and checks the dispersion; a range takes its unit too', () => {
+    const sd = { ...FX, statistics: [{ kind: 'sd', value_text: '0.3' }] };
+    const r = gate(para('ABC1 rose 2.4 ± 0.3-fold in the abc1 mutant.'), only([sd]));
+    expect(find(r, 'quantity')[0]).toMatchObject({ verdict: 'pass', fact_id: 'fx' });
+    expect(find(r, 'statistic')[0]).toMatchObject({ verdict: 'pass', statistic: 'sd' });
+    expect(find(gate(para('ABC1 rose 2.4 ± 0.5-fold in the abc1 mutant.'), only([sd])), 'statistic')[0]).toMatchObject({ verdict: 'fail', reason: 'value_mismatch' });
+    expect(find(gate(para('ABC1 rose 2.4–3-fold in the abc1 mutant.'), only([FX])), 'quantity')[0]).toMatchObject({ verdict: 'pass', text: '2.4–3-fold' });
+  });
+});

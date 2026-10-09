@@ -60,3 +60,4 @@ User decision / reviewer:
   - 새 route 폴더 `apps/api/src/scientific-checks/**`, `apps/api/src/server.ts`
   - `apps/worker/src/writer/index.ts`(제안마다 gate 실행: fail은 CHECK_FAILED, unknown은 표시만)
   - `apps/web/src/features/writer/WriterPanel.tsx`(gate finding 표시, 저장된 문단의 "과학 검사")
+  - 리뷰 반영: `packages/search/src/retrieval/index.ts` `LOCAL` gate 모드(전송 허가를 보지 않는 로컬 검사용; PW-037 module)

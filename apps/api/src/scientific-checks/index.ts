@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { TxPool } from '@pw/domain/revisions/index.ts';
 import { DomainError } from '@pw/domain/shared/db.ts';
 import { checkManuscriptParagraph, listScientificChecks } from '@pw/domain/scientific-checks/records.ts';
-import { settledMaterial } from '@pw/search/retrieval/index.ts';
+import { LOCAL, settledMaterial } from '@pw/search/retrieval/index.ts';
 import { sendDomainError } from '../auth/plugin.ts';
 
 export function registerScientificCheckRoutes(app: FastifyInstance, pool: TxPool): void {
@@ -20,8 +20,8 @@ export function registerScientificCheckRoutes(app: FastifyInstance, pool: TxPool
   type P = { documentId: string };
   app.post('/api/papers/:paperId/documents/:documentId/scientific-checks', scoped, async (req, reply) =>
     run(reply, async () => {
-      // the gate is local (no provider): the paper's settled material as the local MOCK sees it
-      const settled = await settledMaterial(pool, req.paper!.id, 'mock');
+      // the gate is local (nothing is sent): settled means verified, current, not removed or retracted (PW-043 review NIT)
+      const settled = await settledMaterial(pool, req.paper!.id, LOCAL);
       return checkManuscriptParagraph(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, documentId: (req.params as P).documentId, body: req.body, settled });
     }, 201));
   app.get('/api/papers/:paperId/documents/:documentId/scientific-checks', scoped, async (req, reply) =>

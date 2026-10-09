@@ -112,6 +112,19 @@ describe('TST-043A/B on the paper\'s records', () => {
     expect(run.findings).toContainEqual(expect.objectContaining({ check: 'citation', verdict: 'fail', reason: 'citation_retracted' }));
   });
 
+  test('review NIT: the gate judges what is true, not what may be sent — a fact from a cited source with no confirmed PDF is used', async () => {
+    const w = await world();
+    const lit = await createEvidence(pool, { paperId: w.paperId, ownerId: w.owner, body: { kind: 'literature_excerpt', reference_id: w.ref.id, locator: { quote: 'leaf ABC1 fell 1.8-fold' }, label: 'Kim 2019 text' } });
+    await reviewEvidence(pool, { paperId: w.paperId, ownerId: w.owner, id: lit.id, to: 'VERIFIED', body: { intent: 'verify_evidence', content_hash: lit.content_hash } });
+    const [lf] = await createFactCandidates(pool, { paperId: w.paperId, ownerId: w.owner, origin: 'user', single: true, facts: [{ evidence_id: lit.id, entity: 'ABC1 leaves', metric: 'fold change', value_text: '1.8', unit: 'fold', group: 'drought', comparison: 'control', n: 4, extraction_method: 'manual_entry' }] });
+    await reviewFact(pool, { paperId: w.paperId, ownerId: w.owner, id: lf!.id, to: 'VERIFIED', body: { intent: 'verify_fact', content_hash: lf!.content_hash } });
+    const P3 = randomUUID();
+    const content = { type: 'doc', content: [{ type: 'paragraph', attrs: { id: P3 }, content: [{ type: 'text', text: 'Under drought, leaf ABC1 fell 1.8-fold in leaves.' }] }] };
+    const head = (await call('alice', 'POST', `/api/papers/${w.paperId}/documents/${w.documentId}/saves`, { expected_head_revision_id: w.head, content_json: content, schema_version: 1, reason: 'manual' })).json().id as string;
+    const run = (await check(w, P3, 'alice', head)).json();
+    expect(run.findings).toContainEqual(expect.objectContaining({ check: 'quantity', verdict: 'pass', fact_id: lf!.id, evidence_label: 'Kim 2019 text' }));
+  });
+
   test('the request names a paragraph of a revision of this paper; another owner gets 404', async () => {
     const w = await world();
     expect((await check(w, randomUUID())).statusCode).toBe(422);

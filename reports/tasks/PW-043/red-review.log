@@ -1,0 +1,112 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-043/gate.test.ts (18 tests | 4 failed) 53ms
+   ❯ review fixes (d58e906) (4)
+     × MAJOR: another entity fails; reversed groups fail; a flipped sign fails; p is read from its own sentence only 11ms
+     × MINOR 1: a thousands separator is one number; a decimal comma is unknown 2ms
+     × MINOR 2: an approximate value is marked as such 3ms
+     × NIT: a ± pair takes the unit after it and checks the dispersion; a range takes its unit too 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > review fixes (d58e906) > MAJOR: another entity fails; reversed groups fail; a flipped sign fails; p is read from its own sentence only
+AssertionError: expected { check: 'quantity', …(6) } to match object { verdict: 'fail', …(1) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "reason": "entity_mismatch",
+-   "verdict": "fail",
++   "verdict": "pass",
+  }
+
+ ❯ tests/tasks/PW-043/gate.test.ts:106:40
+    104|   test('MAJOR: another entity fails; reversed groups fail; a flipped s…
+    105|     const other = gate(para('ABC2 expression rose 2.4-fold in the abc1…
+    106|     expect(find(other, 'quantity')[0]).toMatchObject({ verdict: 'fail'…
+       |                                        ^
+    107|     const unnamed = gate(para('Expression rose 2.4-fold in the abc1 mu…
+    108|     expect(find(unnamed, 'quantity')[0]).toMatchObject({ verdict: 'unk…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > review fixes (d58e906) > MINOR 1: a thousands separator is one number; a decimal comma is unknown
+AssertionError: expected { check: 'quantity', …(6) } to match object { verdict: 'unknown', …(2) }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "reason": "no_matching_fact",
+-   "text": "2,400",
+-   "verdict": "unknown",
++   "text": "2",
++   "verdict": "pass",
+  }
+
+ ❯ tests/tasks/PW-043/gate.test.ts:121:87
+    119|   test('MINOR 1: a thousands separator is one number; a decimal comma …
+    120|     const cells = { ...FX, id: 'fc', entity: 'cells', metric: 'count',…
+    121|     expect(find(gate(para('We counted 2,400 cells.'), only([cells])), …
+       |                                                                                       ^
+    122|     expect(find(gate(para('We counted 2,400 cells.'), only([{ ...cells…
+    123|     expect(find(gate(para('ABC1 rose 2,4-fold in the abc1 mutant.'), o…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > review fixes (d58e906) > MINOR 2: an approximate value is marked as such
+AssertionError: ABC1 rose ~2.4-fold in the abc1 mutant.: expected { check: 'quantity', …(6) } to match object { verdict: 'pass', approximate: true }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "approximate": true,
+    "verdict": "pass",
+  }
+
+ ❯ tests/tasks/PW-043/gate.test.ts:127:65
+    125|   test('MINOR 2: an approximate value is marked as such', () => {
+    126|     for (const t of ['ABC1 rose ~2.4-fold in the abc1 mutant.', 'ABC1 …
+    127|       expect(find(gate(para(t), only([FX])), 'quantity')[0], t).toMatc…
+       |                                                                 ^
+    128|     }
+    129|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > review fixes (d58e906) > NIT: a ± pair takes the unit after it and checks the dispersion; a range takes its unit too
+AssertionError: expected { check: 'quantity', …(4) } to match object { verdict: 'pass', fact_id: 'fx' }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "fact_id": "fx",
+-   "verdict": "pass",
++   "verdict": "unknown",
+  }
+
+ ❯ tests/tasks/PW-043/gate.test.ts:133:36
+    131|     const sd = { ...FX, statistics: [{ kind: 'sd', value_text: '0.3' }…
+    132|     const r = gate(para('ABC1 rose 2.4 ± 0.3-fold in the abc1 mutant.'…
+    133|     expect(find(r, 'quantity')[0]).toMatchObject({ verdict: 'pass', fa…
+       |                                    ^
+    134|     expect(find(r, 'statistic')[0]).toMatchObject({ verdict: 'pass', s…
+    135|     expect(find(gate(para('ABC1 rose 2.4 ± 0.5-fold in the abc1 mutant…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 14 passed (18)
+   Start at  22:45:17
+   Duration  483ms (transform 64%, tests 23%, import 10%, worker 2%)
+
+exit 1

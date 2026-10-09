@@ -61,6 +61,8 @@ interface Candidate { kind: ContextItem['kind']; id: string; text: string; locat
 // The gate of each source a record comes from (a cited work): still in the paper, not known to be
 // retracted, and — for text copied from it — sendable under its document's permission. Facts and
 // claims read from a source inherit its gate.
+// the provider value for checks that never send anything (the scientific gate)
+export const LOCAL = 'local';
 async function sourceGates(db: Queryable, paperId: string, provider: string) {
   const ev = (await db.query<{ id: string; reference_id: string; locator: Record<string, unknown>; removed: boolean | null; content_hash: string; extraction_state: string }>(
     `SELECT e.id, e.reference_id, e.locator, e.content_hash, e.extraction_state, (r.reference_id IS NULL OR r.removed_at IS NOT NULL) AS removed
@@ -72,7 +74,9 @@ async function sourceGates(db: Queryable, paperId: string, provider: string) {
     'SELECT id, asset_revision_id, page_index, sha256 FROM pdf_anchors WHERE paper_id = $1 AND id = ANY($2::uuid[])', [paperId, anchorIds])).rows.map((a) => [a.id, a]));
   // send decisions per document (one per distinct asset)
   const decisions = new Map<string, { allowed: boolean; reasons: string[] }>();
-  for (const assetId of new Set([...anchors.values()].map((a) => a.asset_revision_id))) decisions.set(assetId, await externalSendDecision(db, { paperId, assetId, provider }));
+  // 'local' (PW-043 review NIT): a check on this machine judges what is true, not what may be sent —
+  // only removal and retraction gate a source then
+  if (provider !== LOCAL) for (const assetId of new Set([...anchors.values()].map((a) => a.asset_revision_id))) decisions.set(assetId, await externalSendDecision(db, { paperId, assetId, provider }));
   // works the owner's library knows as retracted (own flag or a notice about them)
   const refIds = [...new Set(ev.map((e) => e.reference_id))];
   const retracted = new Set<string>();
@@ -84,7 +88,7 @@ async function sourceGates(db: Queryable, paperId: string, provider: string) {
   for (const e of ev) {
     const anchorId = typeof e.locator.anchor_id === 'string' && UUID_RE.test(e.locator.anchor_id) ? e.locator.anchor_id : null;
     const anchor = anchorId ? anchors.get(anchorId) ?? null : null;
-    const send = anchor ? decisions.get(anchor.asset_revision_id)! : { allowed: false, reasons: ['no_confirmed_source_document'] };
+    const send = provider === LOCAL ? { allowed: true, reasons: [] } : anchor ? decisions.get(anchor.asset_revision_id)! : { allowed: false, reasons: ['no_confirmed_source_document'] };
     const reason = retracted.has(e.reference_id) ? 'source_retracted' : send.allowed ? null : send.reasons.join(',');
     gates.set(e.id, { removed: !!e.removed, reason, anchor: anchor ? { id: anchor.id, page_index: anchor.page_index, sha256: anchor.sha256 } : null, stateKey: [e.id, e.content_hash, e.extraction_state, e.removed, anchorId, send, retracted.has(e.reference_id)] });
   }

@@ -19,3 +19,18 @@ KILLED no matching fact passes
 KILLED writer skips the gate
 KILLED writer: gate failure does not block
 KILLED ambiguity resolved by first
+
+# review fixes (d58e906 review: MAJOR, MINOR 1–2, NITs)
+KILLED another entity passes
+KILLED unnamed entity passes
+KILLED reversed groups pass
+KILLED unclear order passes
+KILLED sign ignored
+KILLED flipped sign not a candidate
+KILLED p from another sentence
+KILLED thousands read as a small number
+KILLED decimal comma read
+KILLED approximate not marked
+KILLED spread value not checked
+KILLED unit after a pair ignored
+KILLED local gate uses send permission

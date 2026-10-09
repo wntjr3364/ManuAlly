@@ -38,6 +38,8 @@ export interface Finding {
   verdict: Verdict; text: string; reason?: string;
   fact_id?: string; evidence_id?: string; evidence_label?: string; locator?: unknown; candidates?: string[]; statistic?: string;
   reference_id?: string; label?: string; claim_id?: string;
+  // written as approximate ("~2.4", "about 2.4"): the value matches, the text claims less precision
+  approximate?: boolean;
 }
 export interface GateResult { version: string; status: 'VERIFIED' | 'FAILED' | 'UNKNOWN' | 'NOT_APPLICABLE'; findings: Finding[] }
 
@@ -58,8 +60,13 @@ function sentencesOf(prose: string): string[] {
   return out.map((s) => s.trim()).filter(Boolean);
 }
 
-const NUMBER = /(?<![\p{L}\p{N}_.,])(\d+(?:\.\d+)?)(?:\s*(?:[eE]|[×x]\s*10\^?)\s*([-−]?\d+))?/gu;
+// a number as written: thousands groups ("2,400") are one number; a sign counts only where it is one
+const NUMBER = /(?<![\p{L}\p{N}_.,])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?:\s*(?:[eE]|[×x]\s*10\^?)\s*([-−]?\d+))?/gu;
 const UNIT = /^(?:\s*-\s*|\s*)(%|fold|[×x](?![\p{L}])|[µμu]M|mM|nM|pM|mg\/kg|mg\/mL|mg\/L|mg|[µμ]g|ng|kg|g|mL|[µμ]L|L|°C|h|min|s|d|days?|weeks?|bp|kb|kDa|cm|mm|[µμ]m|nm|M)(?![\p{L}\p{N}])/u;
+// "2.4 ± 0.3-fold", "2–3-fold", "2 to 3 h": the unit after the pair belongs to the first number too
+const PAIR_AFTER = /^\s*(?:±|\+\/-|[–-]|to)\s*\d+(?:\.\d+)?/;
+const SPREAD_BEFORE = /(?:±|\+\/-)\s*$/;
+const APPROX_BEFORE = /(?:[~≈∼]|\b(?:about|approximately|approx\.?|nearly|roughly|around|circa|ca\.?|almost))\s*$/i;
 const NOT_A_QUANTITY_BEFORE = /(?:fig(?:ure)?s?\.?|tables?|panels?|eqs?\.?|equations?|ref\.?|suppl(?:ementary)?\.?|chapters?|sections?|sect\.?|days?\s+of|lines?)\s*$/i;
 const LABEL_BEFORE = /(?:^|[^\p{L}\p{N}])(p|q|fdr|padj|p\.adj|adj(?:usted)?\.?\s*p|n)(?:[- ]?values?)?\s*(<=|>=|[<>≤≥=])\s*$/iu;
 const normUnit = (u: string) => {
@@ -69,15 +76,18 @@ const normUnit = (u: string) => {
   if (/^weeks?$/.test(s)) return 'week';
   return s.replace(/^u(?=[MgLm]$)/, 'µ');
 };
-const numberOf = (s: string) => {
-  const m = /^\s*[-−]?\d+(?:\.\d+)?(?:\s*(?:[eE]|[×x]\s*10\^?)\s*[-−]?\d+)?\s*$/.exec(s) ? s.replace('−', '-') : null;
-  if (!m) return NaN;
-  const e = /(?:[eE]|[×x]\s*10\^?)\s*([-−]?\d+)/.exec(m);
-  const base = Number(m.replace(/(?:[eE]|[×x]\s*10\^?)\s*[-−]?\d+/, '').trim());
-  return e ? base * 10 ** Number(e[1]!.replace('−', '-')) : base;
+const numberOf = (raw: string) => {
+  const s = raw.trim().replace(/−/g, '-').replace(/,(?=\d{3}(?!\d))/g, '');
+  if (!/^-?\d+(?:\.\d+)?(?:\s*(?:[eE]|[×x]\s*10\^?)\s*-?\d+)?$/.test(s)) return NaN;
+  const e = /(?:[eE]|[×x]\s*10\^?)\s*(-?\d+)$/.exec(s);
+  const base = Number(s.replace(/(?:[eE]|[×x]\s*10\^?)\s*-?\d+$/, '').trim());
+  return e ? base * 10 ** Number(e[1]) : base;
 };
 
-interface Mention { kind: 'quantity' | 'statistic' | 'sample_size'; text: string; value: number; unit: string; label: 'p' | 'q' | 'n' | null; comparator: string; sentence: number }
+interface Mention {
+  kind: 'quantity' | 'statistic' | 'sample_size' | 'dispersion' | 'unreadable';
+  text: string; value: number; unit: string; label: 'p' | 'q' | 'n' | null; comparator: string; sentence: number; approximate: boolean;
+}
 function mentionsOf(sentences: string[]): Mention[] {
   const out: Mention[] = [];
   sentences.forEach((s, si) => {
@@ -85,22 +95,36 @@ function mentionsOf(sentences: string[]): Mention[] {
       const before = s.slice(0, m.index!);
       const rest = s.slice(m.index! + m[0].length);
       if (NOT_A_QUANTITY_BEFORE.test(before)) continue;
-      const unit = UNIT.exec(rest);
+      // "2,4": a decimal comma or a list — cannot be read as one number (review MINOR 1)
+      if (/^,\d/.test(rest) && !m[1]!.includes(',')) {
+        out.push({ kind: 'unreadable', text: m[0] + /^,\d+/.exec(rest)![0], value: NaN, unit: '', label: null, comparator: '=', sentence: si, approximate: false });
+        continue;
+      }
+      // a minus sign: "−1.5", "(-2)", "= -0.3" — not the hyphen of "day-3" or a range "2-3"
+      const signed = /[-−]$/.test(before) && !/[\p{L}\p{N}]/u.test(before.slice(-2, -1));
+      const value = (signed ? -1 : 1) * numberOf(m[0]);
+      const pair = PAIR_AFTER.exec(rest);
+      const unit = UNIT.exec(pair ? rest.slice(pair[0].length) : rest);
       // a label glued to a number ("2A", "3rd", "5'") is not a quantity
-      if (!unit && /^[\p{L}'′]/u.test(rest)) continue;
-      const value = numberOf(m[0]);
+      if (!unit && !pair && /^[\p{L}'′]/u.test(rest)) continue;
+      const approximate = APPROX_BEFORE.test(signed ? before.slice(0, -1) : before);
       const label = LABEL_BEFORE.exec(before);
       if (label) {
         const l = label[1]!.toLowerCase().replace(/\s+/g, '');
         const kind = l === 'n' ? 'n' : l === 'p' ? 'p' : 'q';
         // the mention starts at the label itself (not the character before it)
         const start = before.length - label[0].length + /^[^\p{L}\p{N}]*/u.exec(label[0])![0].length;
-        out.push({ kind: kind === 'n' ? 'sample_size' : 'statistic', text: s.slice(start, m.index! + m[0].length).trim(), value, unit: '', label: kind, comparator: label[2]!.replace('<=', '≤').replace('>=', '≥'), sentence: si });
+        out.push({ kind: kind === 'n' ? 'sample_size' : 'statistic', text: s.slice(start, m.index! + m[0].length).trim(), value, unit: '', label: kind, comparator: label[2]!.replace('<=', '≤').replace('>=', '≥'), sentence: si, approximate });
+        continue;
+      }
+      if (SPREAD_BEFORE.test(before)) {
+        out.push({ kind: 'dispersion', text: `± ${m[0]}`, value, unit: '', label: null, comparator: '=', sentence: si, approximate });
         continue;
       }
       // a bare year is not a quantity
-      if (!unit && /^(?:19|20)\d{2}$/.test(m[0])) continue;
-      out.push({ kind: 'quantity', text: (m[0] + (unit ? unit[0] : '')).trim(), value, unit: unit ? normUnit(unit[1]!) : '', label: null, comparator: '=', sentence: si });
+      if (!unit && !pair && /^(?:19|20)\d{2}$/.test(m[0])) continue;
+      const text = `${signed ? before.slice(-1) : ''}${m[0]}${pair ? pair[0] : ''}${unit ? unit[0] : ''}`.trim();
+      out.push({ kind: 'quantity', text, value, unit: unit ? normUnit(unit[1]!) : '', label: null, comparator: '=', sentence: si, approximate });
     }
   });
   return out;
@@ -113,13 +137,19 @@ const DIRECTION = /\b(increase[sd]?|increasing|rose|rise[sn]?|rising|higher|grea
 const directionSign = (w: string) => (/^(increas|rose|rise|rising|higher|greater|elevated|up|enhanced|induced|gain|positive)/i.test(w) ? '+' : '-');
 const stem = (w: string) => (w.length > 4 && w.endsWith('ed') ? w.slice(0, -2) : w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
 const wordsOf = (s: string) => new Set((s.toLowerCase().replace(NEGATION, ' ').replace(DIRECTION, ' ').match(/[\p{L}\p{N}]{3,}/gu) ?? []).filter((w) => !STOP.has(w)).map(stem));
-const has = (text: string, label: string) => {
+const labelRe = (label: string) => {
   const l = label.trim().toLowerCase().replace(/\s+/g, ' ');
-  if (!l) return false;
-  const re = new RegExp(`(?<![\\p{L}\\p{N}])${l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+')}s?(?![\\p{L}\\p{N}])`, 'iu');
-  return re.test(text);
+  return l ? new RegExp(`(?<![\\p{L}\\p{N}])${l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+')}s?(?![\\p{L}\\p{N}])`, 'giu') : null;
 };
+const labelAt = (text: string, label: string) => { const re = labelRe(label); const m = re ? re.exec(text) : null; return m ? m.index : -1; };
+const withoutLabels = (text: string, labels: string[]) => labels.reduce((t, l) => { const re = labelRe(l); return re ? t.replace(re, ' ') : t; }, text);
 const overlap = (a: Set<string>, b: Set<string>) => [...a].filter((w) => b.has(w)).length;
+// identifiers such as gene or line names ("ABC1", "abc2", "WRKY33"): letters and digits together
+const ID_TOKEN = /(?<![\p{L}\p{N}])(?=[\p{L}\p{N}]*\p{L})(?=[\p{L}\p{N}]*\p{N})[\p{L}\p{N}]{2,}(?![\p{L}\p{N}])/gu;
+const NOT_IDS = new Set(['log2', 'log10', 'ln2', 'h2o', 'co2', 'o2', 'n2']);
+const idTokens = (s: string) => new Set((s.toLowerCase().replace(/(?:fig(?:ure)?s?\.?|tables?|panels?|suppl\w*\.?)\s*[a-z]?\d+[a-z]?/gi, ' ').match(ID_TOKEN) ?? []).filter((t) => !NOT_IDS.has(t)));
+// Comparative words between the group and its comparison: "X than Y", "X compared with Y", "X vs Y"
+const COMPARATIVE = /\b(?:than|compared\s+(?:with|to)|relative\s+to|versus|vs\.?|over)(?![\p{L}])/giu;
 
 // ---- the gate ----------------------------------------------------------------------------------------
 export function scientificGate(input: GateInput): GateResult {
@@ -131,32 +161,56 @@ export function scientificGate(input: GateInput): GateResult {
   // the facts each sentence was matched to (statistics and n read from them)
   const matched = new Map<number, GateFact[]>();
 
+  for (const m of mentions.filter((x) => x.kind === 'unreadable')) findings.push({ check: 'quantity', verdict: 'unknown', text: m.text, reason: 'ambiguous_number' });
+
   for (const m of mentions.filter((x) => x.kind === 'quantity')) {
     const s = sentences[m.sentence]!;
     const sw = wordsOf(s);
-    const candidates = input.facts.filter((f) => numberOf(f.value_text) === m.value);
+    // the same value; a fact holding the opposite sign is a candidate only to fail (review MAJOR)
+    const exact = input.facts.filter((f) => numberOf(f.value_text) === m.value);
+    const flipped = m.value !== 0 ? input.facts.filter((f) => numberOf(f.value_text) === -m.value) : [];
+    const candidates = [...exact, ...flipped];
     if (!candidates.length) { findings.push({ check: 'quantity', verdict: 'unknown', text: m.text, reason: 'no_matching_fact' }); continue; }
     const judged = candidates.map((f) => {
       const fu = normUnit(f.unit ?? '');
-      let hard: string | null = null;
+      let hard: string | null = flipped.includes(f) ? 'sign_mismatch' : null;
       let soft: string | null = null;
-      if (m.unit && m.unit !== fu) hard = 'unit_mismatch';
-      else if (!m.unit && fu) soft = 'unit_not_stated';
+      if (!hard && m.unit && m.unit !== fu) hard = 'unit_mismatch';
+      else if (!hard && !m.unit && fu) soft = 'unit_not_stated';
+      // the entity: its identifiers must be named in this sentence (outside the group names); another
+      // identifier instead is another entity; plain names may be in the paragraph
+      if (!hard) {
+        const own = idTokens(f.entity);
+        const rest = withoutLabels(s, [f.group_label, f.comparison]);
+        const named = idTokens(withoutLabels(rest, [f.metric]));
+        if (own.size) {
+          if (![...own].every((t) => named.has(t))) {
+            if ([...named].some((t) => !own.has(t))) hard = 'entity_mismatch';
+            else soft ??= 'entity_not_stated';
+          }
+        } else if (![...wordsOf(f.entity)].every((w) => wordsOf(withoutLabels(prose, [f.group_label, f.comparison])).has(w))) soft ??= 'entity_not_stated';
+      }
+      // the group: named, and on the right side of a comparison when both are named
       if (!hard && f.group_label.trim()) {
-        const g = has(s, f.group_label);
-        const c = !!f.comparison.trim() && has(s, f.comparison);
-        if (!g && c) hard = 'group_mismatch';
-        else if (!g && !has(prose, f.group_label)) soft ??= 'group_not_stated';
+        const g = labelAt(s, f.group_label);
+        const c = f.comparison.trim() ? labelAt(s, f.comparison) : -1;
+        if (g < 0 && c >= 0) hard = 'group_mismatch';
+        else if (g >= 0 && c >= 0) {
+          const between = [...s.matchAll(COMPARATIVE)].map((x) => x.index!).find((k) => k > Math.min(g, c) && k < Math.max(g, c));
+          if (between === undefined) soft ??= 'comparison_order_unclear';
+          else if (c < g) hard = 'group_mismatch';
+        } else if (g < 0 && labelAt(prose, f.group_label) < 0) soft ??= 'group_not_stated';
       }
       return { f, hard, soft, score: overlap(wordsOf(`${f.entity} ${f.metric}`), sw) };
     });
     const best = <T extends { score: number }>(xs: T[]) => { const top = Math.max(...xs.map((x) => x.score)); return xs.filter((x) => x.score === top); };
     const ok = judged.filter((j) => !j.hard && !j.soft);
     const soft = judged.filter((j) => !j.hard && j.soft);
+    const approx = m.approximate ? { approximate: true } : {};
     if (ok.length) {
       const top = best(ok);
       if (top.length === 1) {
-        findings.push({ check: 'quantity', verdict: 'pass', text: m.text, ...located(top[0]!.f) });
+        findings.push({ check: 'quantity', verdict: 'pass', text: m.text, ...located(top[0]!.f), ...approx });
         matched.set(m.sentence, [...(matched.get(m.sentence) ?? []), top[0]!.f]);
       } else findings.push({ check: 'quantity', verdict: 'unknown', text: m.text, reason: 'ambiguous', candidates: top.map((j) => j.f.id).sort() });
     } else if (soft.length) {
@@ -169,11 +223,20 @@ export function scientificGate(input: GateInput): GateResult {
     }
   }
 
-  // p/q and n: read from the facts this sentence (or else this paragraph) was matched to
-  const allMatched = [...new Set([...matched.values()].flat())];
-  for (const m of mentions.filter((x) => x.kind !== 'quantity')) {
-    const facts = matched.get(m.sentence) ?? allMatched;
-    if (!facts.length) { findings.push({ check: m.kind, verdict: 'unknown', text: m.text, reason: 'no_matched_fact' }); continue; }
+  // p/q, n and ± spreads: read only from the facts this sentence was matched to (review MAJOR: never
+  // from a fact matched elsewhere in the paragraph)
+  for (const m of mentions.filter((x) => x.kind === 'statistic' || x.kind === 'sample_size' || x.kind === 'dispersion')) {
+    const facts = matched.get(m.sentence) ?? [];
+    const kind = m.kind === 'sample_size' ? 'sample_size' : 'statistic';
+    if (!facts.length) { findings.push({ check: kind, verdict: 'unknown', text: m.text, reason: 'no_matched_fact' }); continue; }
+    if (m.kind === 'dispersion') {
+      const spreads = facts.flatMap((f) => f.statistics.filter((x) => x.kind === 'sd' || x.kind === 'se').map((x) => ({ f, x })));
+      const hit = spreads.find(({ x }) => numberOf(x.value_text) === m.value);
+      if (hit) findings.push({ check: 'statistic', verdict: 'pass', text: m.text, statistic: hit.x.kind, ...located(hit.f) });
+      else if (spreads.length) findings.push({ check: 'statistic', verdict: 'fail', text: m.text, reason: 'value_mismatch', ...located(spreads[0]!.f) });
+      else findings.push({ check: 'statistic', verdict: 'unknown', text: m.text, reason: 'dispersion_not_recorded' });
+      continue;
+    }
     if (m.kind === 'sample_size') {
       const same = facts.find((f) => f.n === m.value);
       if (same) findings.push({ check: 'sample_size', verdict: 'pass', text: m.text, ...located(same) });

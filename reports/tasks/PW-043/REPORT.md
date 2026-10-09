@@ -73,3 +73,21 @@
 
 ## 다음
 PW-044: 문체·과학 검토와 human review
+
+## 리뷰 반영 (1차, changes requested — MAJOR 1, MINOR 2, NIT 2)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR: 다른 대상, 바뀐 그룹 순서, 바뀐 부호, 다른 문장의 p가 VERIFIED | **대상**: 사실 entity의 식별자(글자+숫자, 예: ABC1)가 그 문장에 있어야 한다. 그룹 이름 속 식별자는 세지 않고, log2 같은 것은 식별자가 아니다. 다른 식별자만 있으면 `entity_mismatch`(fail), 없으면 `entity_not_stated`(unknown)다. 식별자가 없는 이름(proline)은 그 낱말이 문단에 있어야 한다. **그룹**: 그룹과 대조군이 둘 다 나오면 비교어(than, compared with/to, relative to, vs, versus, over)가 그 사이에 있고 그룹이 앞이어야 한다. 반대면 `group_mismatch`(fail), 비교어가 없으면 `comparison_order_unclear`(unknown)다. **부호**: 앞의 −/-를 부호로 읽는다(day-3, 2-3의 하이픈은 아님). 반대 부호의 사실은 `sign_mismatch`(fail)다. **p·q·n·±**: 그 문장에서 맞춰진 사실에서만 읽는다(문단 대체 없음) | 리뷰어 probe 4개: ABC2 → entity_mismatch, 대상 없음 → unknown, wild type than mutant → group_mismatch, 올바른 순서 → pass, 비교어 없음 → unknown, −1.5 대 +1.5 → sign_mismatch, 1.5 → pass, -1.5 대 -1.5 → pass, 다른 문장의 p → unknown(no_matched_fact) |
+| MINOR 1: "2,400"을 2로 읽음 | `\d{1,3}(,\d{3})+`는 한 수다. "2,4" 같은 소수점 쉼표나 띄어쓰기 없는 목록은 `ambiguous_number`(unknown)다 | 2,400 대 사실 2 → unknown(no_matching_fact, text "2,400"), 대 2400 → pass, 2,4-fold → unknown |
+| MINOR 2: "~2.4"가 정확값처럼 통과 | ~, ≈, about, approximately, nearly, roughly, around, circa, ca., almost가 앞에 있으면 pass에 `approximate: true`를 붙이고 화면에 "근사 표기 — 값은 기록과 같음"으로 보인다 | 세 표기 모두 approximate |
+| NIT: gate가 mock의 전송 허가로 settled를 정함 | PW-037 source gate에 `LOCAL` 모드를 더했다. 아무것도 보내지 않는 검사는 제거·철회만 gate로 보고 전송 허가는 보지 않는다. 그림 이전 버전, 열린 검토, 근거 없는 주장 등 과학적 gate는 그대로다. route 입력으로는 고를 수 없다(gate API만 씀) | 확인된 PDF 없는 문헌 근거의 사실이 gate에서 pass(근거 이름 포함) |
+| NIT: ±·범위 | 범위나 ± 뒤의 단위를 첫 수에도 붙인다. ± 뒤의 수는 그 문장 사실의 SD·SE와 맞춘다(같으면 pass, 다르면 `value_mismatch`, 기록 없으면 `dispersion_not_recorded`) | 2.4 ± 0.3-fold → 수치 pass와 sd pass, ± 0.5 → fail, 2.4–3-fold → pass(단위 fold) |
+
+- RED(`red-review.log`): d58e906 구현으로 새 unit 시험 4개가 실패한다.
+- GREEN: unit 18, 통합 6, 브라우저 1.
+- mutation(`mutation.log` 하단): 13종 모두 탐지(local gate 포함).
+- 회귀: `pnpm test` exit 0 — unit 344, integration 439, contracts 17, 브라우저 92 (`pnpm-test-review.log`).
+- 남은 위험(추가)
+  - 식별자 없는 대상 이름의 동의어는 unknown이다.
+  - 비교 구문이 "in A, unlike B" 같은 다른 꼴이면 unknown(comparison_order_unclear)이다.
+  - 범위의 위쪽 수는 별도 수치로 보고 사실이 없으면 unknown이다.

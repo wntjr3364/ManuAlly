@@ -89,4 +89,7 @@ User decision / reviewer:
   - `packages/providers/src/index.ts`(mock export), `apps/api/src/server.ts`(route 등록, `eventPollMs`)
   - `apps/web/src/editor/ManuscriptEditor.tsx`(AI 요청·작업 목록), `apps/web/src/features/diff/ProposalPanel.tsx`(MOCK 배지, `onChanged`), `apps/web/src/app/styles.css`
   - `tests/e2e/manual-paper/harness.ts`(같은 프로세스 mock worker 옵션)
-
+- PW-021
+  - `packages/domain/src/proposals/index.ts`(`undoProposal`, `listAppliedEdits`), `packages/domain/src/revisions/index.ts`(`lockDocumentHead`, `appendRevisionIn`, `createDocumentIn` export)
+  - `apps/api/src/imports/**`(새 route 폴더), `apps/api/src/proposals/index.ts`(applied-edits, undo route), `apps/api/src/server.ts`
+  - `apps/web/src/editor/ManuscriptEditor.tsx`(`onState`), `apps/web/src/features/paper/{ManuscriptTab,PaperPage}.tsx`(버전 탭 연결, head 변경 후 다시 열기)

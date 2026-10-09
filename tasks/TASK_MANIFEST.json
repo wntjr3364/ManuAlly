@@ -692,7 +692,7 @@
       "id": "PW-021",
       "phase": "P02",
       "title": "Version compare·Undo·기본 import",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-020"
       ],

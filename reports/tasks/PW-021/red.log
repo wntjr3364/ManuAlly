@@ -1,0 +1,290 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-021/compare.test.ts (0 test)
+ ❯ tests/tasks/PW-021/import-parse.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-021/compare.test.ts [ tests/tasks/PW-021/compare.test.ts ]
+Error: Cannot find module '../../../apps/web/src/features/versions/compare.ts' imported from /home/user/ManuAlly/tests/tasks/PW-021/compare.test.ts
+ ❯ tests/tasks/PW-021/compare.test.ts:4:1
+      2| // word diff; added, removed and moved paragraphs are named as such.
+      3| import { describe, expect, test } from 'vitest';
+      4| import { compareDocuments } from '../../../apps/web/src/features/versi…
+       | ^
+      5|
+      6| const p = (id: string, text: string) => ({ type: 'paragraph', attrs: {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-021/import-parse.test.ts [ tests/tasks/PW-021/import-parse.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/imports/text/parse.ts' imported from /home/user/ManuAlly/tests/tasks/PW-021/import-parse.test.ts
+ ❯ tests/tasks/PW-021/import-parse.test.ts:5:1
+      3| import { describe, expect, test } from 'vitest';
+      4| import { validateDocument } from '../../../packages/editor-core/src/in…
+      5| import { PARSER_VERSION, parseImport } from '../../../packages/domain/…
+       | ^
+      6|
+      7| type Block = { type: string; attrs: { id: string; level?: number }; co…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  no tests
+   Start at  09:05:58
+   Duration  469ms (worker 96%, environment 4%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-021/versions.int.test.ts (8 tests | 8 failed) 1203ms
+   ❯ TST-021A: undo an applied AI edit; compare and restore versions (4)
+     × undo puts the paragraph back as a new revision and keeps later edits elsewhere 97ms
+     × undo is refused when the paragraph changed after the edit, or the head is not the expected one 56ms
+     × a pending (not applied) proposal cannot be undone 34ms
+     × restore makes a new head from an old revision; history and audit only grow 85ms
+   ❯ TST-021B: imports preview first and never replace the manuscript unannounced (4)
+     × an import is stored as received with a preview and loss report; nothing else changes 28ms
+     × replacing the manuscript needs explicit confirmation and the current head; history is kept 19ms
+     × a paper without a manuscript gets one from the import 6ms
+     × bad imports are refused 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-021/versions.int.test.ts > TST-021A: undo an applied AI edit; compare and restore versions > undo puts the paragraph back as a new revision and keeps later edits elsewhere
+AssertionError: expected { …(3) } to have property 'length'
+ ❯ tests/tasks/PW-021/versions.int.test.ts:84:18
+     82|     const later = await save(p, m.documentId, e.applied, doc('It was c…
+     83|     const list = (await call('GET', `/api/papers/${p}/documents/${m.do…
+     84|     expect(list).toHaveLength(1);
+       |                  ^
+     85|     expect(list[0]).toMatchObject({ proposal_id: e.proposalId, applied…
+     86|     const before = await revCount(m.documentId);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/tasks/PW-021/versions.int.test.ts > TST-021A: undo an applied AI edit; compare and restore versions > undo is refused when the paragraph changed after the edit, or the head is not the expected one
+AssertionError: expected 404 to be 409 // Object.is equality
+
+- Expected
++ Received
+
+- 409
++ 404
+
+ ❯ tests/tasks/PW-021/versions.int.test.ts:106:135
+    104|     const e = await appliedEdit(p, m);
+    105|     const n = await revCount(m.documentId);
+    106|     expect((await call('POST', `/api/papers/${p}/proposals/${e.proposa…
+       |                                                                                                                                       ^
+    107|     const changed = await save(p, m.documentId, e.applied, doc('It was…
+    108|     const r = await call('POST', `/api/papers/${p}/proposals/${e.propo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  tests/tasks/PW-021/versions.int.test.ts > TST-021A: undo an applied AI edit; compare and restore versions > a pending (not applied) proposal cannot be undone
+AssertionError: expected 404 to be 409 // Object.is equality
+
+- Expected
++ Received
+
+- 409
++ 404
+
+ ❯ tests/tasks/PW-021/versions.int.test.ts:123:26
+    121|     const prop = await createProposal(pool, { paperId: p, handleId: h.…
+    122|     const r = await call('POST', `/api/papers/${p}/proposals/${prop.id…
+    123|     expect(r.statusCode).toBe(409);
+       |                          ^
+    124|     expect(r.json().reason).toBe('NOT_APPLIED');
+    125|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  tests/tasks/PW-021/versions.int.test.ts > TST-021A: undo an applied AI edit; compare and restore versions > restore makes a new head from an old revision; history and audit only grow
+AssertionError: promise resolved "Result{ command: 'DELETE', …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ Result {
++   "RowCtor": null,
++   "_parsers": undefined,
++   "_prebuiltEmptyResultObject": null,
++   "_types": TypeOverrides {
++     "_types": {
++       "arrayParser": {
++         "create": [Function create],
++       },
++       "builtins": {
++         "ABSTIME": 702,
++         "ACLITEM": 1033,
++         "BIT": 1560,
++         "BOOL": 16,
++         "BPCHAR": 1042,
++         "BYTEA": 17,
++         "CHAR": 18,
++         "CID": 29,
++         "CIDR": 650,
++         "CIRCLE": 718,
++         "DATE": 1082,
++         "FLOAT4": 700,
++         "FLOAT8": 701,
++         "GTSVECTOR": 3642,
++         "INET": 869,
++         "INT2": 21,
++         "INT4": 23,
++         "INT8": 20,
++         "INTERVAL": 1186,
++         "JSON": 114,
++         "JSONB": 3802,
++         "MACADDR": 829,
++         "MACADDR8": 774,
++         "MONEY": 790,
++         "NUMERIC": 1700,
++         "OID": 26,
++         "PATH": 602,
++         "PG_DEPENDENCIES": 3402,
++         "PG_LSN": 3220,
++         "PG_NDISTINCT": 3361,
++         "PG_NODE_TREE": 194,
++         "POLYGON": 604,
++         "REFCURSOR": 1790,
++         "REGCLASS": 2205,
++         "REGCONFIG": 3734,
++         "REGDICTIONARY": 3769,
++         "REGNAMESPACE": 4089,
++         "REGOPER": 2203,
++         "REGOPERATOR": 2204,
++         "REGPROC": 24,
++         "REGPROCEDURE": 2202,
++         "REGROLE": 4096,
++         "REGTYPE": 2206,
++         "RELTIME": 703,
++         "SMGR": 210,
++         "TEXT": 25,
++         "TID": 27,
++         "TIME": 1083,
++         "TIMESTAMP": 1114,
++         "TIMESTAMPTZ": 1184,
++         "TIMETZ": 1266,
++         "TINTERVAL": 704,
++         "TSQUERY": 3615,
++         "TSVECTOR": 3614,
++         "TXID_SNAPSHOT": 2970,
++         "UUID": 2950,
++         "VARBIT": 1562,
++         "VARCHAR": 1043,
++         "XID": 28,
++         "XML": 142,
++       },
++       "getTypeParser": [Function getTypeParser],
++       "setTypeParser": [Function setTypeParser],
++     },
++     "binary": {},
++     "text": {},
++   },
++   "command": "DELETE",
++   "fields": [],
++   "oid": null,
++   "rowAsArray": false,
++   "rowCount": 0,
++   "rows": [],
+  }
+
+ ❯ tests/tasks/PW-021/versions.int.test.ts:143:59
+    141|     for (const id of [m.head, e.applied]) expect((await call('GET', `/…
+    142|     await expect(pool.query('DELETE FROM document_revisions WHERE id =…
+    143|     await expect(pool.query('DELETE FROM proposal_undos')).rejects.toT…
+       |                                                           ^
+    144|   });
+    145| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  tests/tasks/PW-021/versions.int.test.ts > TST-021B: imports preview first and never replace the manuscript unannounced > an import is stored as received with a preview and loss report; nothing else changes
+AssertionError: {"message":"Route POST:/api/papers/d5769b4c-7332-4cab-a7cf-2497153de92f/imports not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ tests/tasks/PW-021/versions.int.test.ts:154:34
+    152|     const m = await manuscript(p);
+    153|     const r = await call('POST', `/api/papers/${p}/imports`, { format:…
+    154|     expect(r.statusCode, r.body).toBe(201);
+       |                                  ^
+    155|     const imp = r.json();
+    156|     expect(imp).toMatchObject({ format: 'markdown', filename: 'draft.m…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  tests/tasks/PW-021/versions.int.test.ts > TST-021B: imports preview first and never replace the manuscript unannounced > replacing the manuscript needs explicit confirmation and the current head; history is kept
+AssertionError: expected 404 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 404
+
+ ❯ tests/tasks/PW-021/versions.int.test.ts:173:34
+    171|     const url = `/api/papers/${p}/imports/${imp.id}/apply`;
+    172|     const noConfirm = await call('POST', url, { mode: 'replace_manuscr…
+    173|     expect(noConfirm.statusCode).toBe(422);
+       |                                  ^
+    174|     expect(noConfirm.json().reason).toBe('CONFIRM_REQUIRED');
+    175|     expect((await call('POST', url, { mode: 'replace_manuscript', docu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  tests/tasks/PW-021/versions.int.test.ts > TST-021B: imports preview first and never replace the manuscript unannounced > a paper without a manuscript gets one from the import
+AssertionError: {"message":"Route POST:/api/papers/c7626552-e21d-4c28-8320-3230e01224a9/imports/undefined/apply not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ tests/tasks/PW-021/versions.int.test.ts:197:34
+    195|     const imp = (await call('POST', `/api/papers/${p}/imports`, { form…
+    196|     const r = await call('POST', `/api/papers/${p}/imports/${imp.id}/a…
+    197|     expect(r.statusCode, r.body).toBe(201);
+       |                                  ^
+    198|     const docs = (await call('GET', `/api/papers/${p}/documents`)).jso…
+    199|     expect(docs.filter((d: { kind: string }) => d.kind === 'manuscript…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  tests/tasks/PW-021/versions.int.test.ts > TST-021B: imports preview first and never replace the manuscript unannounced > bad imports are refused
+AssertionError: expected 404 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 404
+
+ ❯ tests/tasks/PW-021/versions.int.test.ts:207:104
+    205|   test('bad imports are refused', async () => {
+    206|     const p = await paper();
+    207|     expect((await call('POST', `/api/papers/${p}/imports`, { format: '…
+       |                                                                                                        ^
+    208|     expect((await call('POST', `/api/papers/${p}/imports`, { format: '…
+    209|     expect((await call('POST', `/api/papers/${p}/imports`, { format: '…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed (8)
+   Start at  09:05:59
+   Duration  2.41s (tests 54%, transform 35%, import 11%)
+

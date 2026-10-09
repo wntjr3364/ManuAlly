@@ -13,7 +13,7 @@ import {
   ReplacementError, SelectionError,
 } from '@pw/editor-core';
 import { DomainError, UUID_RE, inTransaction, storable, type Queryable, type TxPool } from '../shared/db.ts';
-import { contentHash } from '../revisions/index.ts';
+import { appendRevisionIn, contentHash, getRevision, lockDocumentHead } from '../revisions/index.ts';
 import { checkReplacement, type CheckResult, type ProposalIntent } from './guard.ts';
 
 export type { CheckResult, ProposalIntent };
@@ -304,4 +304,67 @@ export async function rejectProposal(pool: TxPool, a: { paperId: string; proposa
     if (!p) throw new DomainError('NOT_FOUND', 'proposal not found');
     throw new DomainError('CONFLICT', `the proposal is ${p.status} and cannot be rejected`, undefined, { details: { reason: p.status } });
   });
+}
+
+// ---- Undo of an applied edit (PW-021) -------------------------------------------------------------
+// Undo puts the paragraph an applied proposal changed back to its state before the proposal, as a new
+// head revision (reason 'undo'); nothing is deleted. Only while that paragraph is still exactly as the
+// proposal left it: otherwise later work would be lost, and the owner restores or edits by hand instead.
+// Other paragraphs keep their later edits. One undo per proposal.
+type RawBlock = { type?: string; attrs?: { id?: unknown } };
+const rawBlocks = (content: unknown) => (((content as { content?: unknown[] })?.content ?? []) as RawBlock[]);
+const rawBlock = (content: unknown, id: string) => rawBlocks(content).find((b) => b.attrs?.id === id) ?? null;
+
+async function undoState(db: Queryable, p: Proposal, headContent: unknown) {
+  const handle = (await getSelectionHandle(db, p.paper_id, p.selection_handle_id))!;
+  const base = (await getRevision(db, p.paper_id, p.document_id, p.base_revision_id))!;
+  const applied = (await getRevision(db, p.paper_id, p.document_id, p.applied_revision_id!))!;
+  const before = rawBlock(base.content_json, handle.block_id);
+  const after = rawBlock(applied.content_json, handle.block_id);
+  const now = rawBlock(headContent, handle.block_id);
+  const unchanged = !!after && !!now && canonicalJson(after) === canonicalJson(now);
+  return { blockId: handle.block_id, before, after, unchanged };
+}
+
+export async function undoProposal(pool: TxPool, a: { paperId: string; proposalId: string; ownerId: string; expectedHead: unknown }) {
+  if (!UUID_RE.test(a.proposalId)) throw new DomainError('NOT_FOUND', 'proposal not found');
+  return inTransaction(pool, async (tx) => {
+    await setActor(tx, `owner:${a.ownerId}`);
+    const p = await getProposal(tx, a.paperId, a.proposalId);
+    if (!p) throw new DomainError('NOT_FOUND', 'proposal not found');
+    // the same lock order as apply: document head first
+    const head = await lockDocumentHead(tx, a.paperId, p.document_id, a.expectedHead);
+    const fresh = (await tx.query<Proposal>(`SELECT ${PROPOSAL} FROM edit_proposals WHERE id = $1`, [p.id])).rows[0]!;
+    if (fresh.status !== 'APPLIED' || !fresh.applied_revision_id) throw new DomainError('CONFLICT', 'only an applied proposal can be undone', undefined, { details: { reason: 'NOT_APPLIED' } });
+    if ((await tx.query('SELECT 1 FROM proposal_undos WHERE proposal_id = $1', [p.id])).rows[0]) throw new DomainError('CONFLICT', 'this edit was already undone', undefined, { details: { reason: 'ALREADY_UNDONE' } });
+    const headRev = (await getRevision(tx, a.paperId, p.document_id, head))!;
+    const st = await undoState(tx, fresh, headRev.content_json);
+    if (!st.unchanged || !st.before) {
+      throw new DomainError('CONFLICT', 'the paragraph changed after this edit was applied; compare versions and restore or edit it by hand', undefined, { details: { reason: 'CHANGED_SINCE_APPLY' } });
+    }
+    const content = { ...headRev.content_json, content: rawBlocks(headRev.content_json).map((b) => (b.attrs?.id === st.blockId ? st.before : b)) };
+    const revision = await appendRevisionIn(tx, { paperId: a.paperId, documentId: p.document_id, parent: head, content, schemaVersion: headRev.schema_version, ownerId: a.ownerId, reason: 'undo' });
+    await tx.query('INSERT INTO proposal_undos (proposal_id, paper_id, document_id, revision_id, created_by) VALUES ($1, $2, $3, $4, $5)', [p.id, a.paperId, p.document_id, revision.id, a.ownerId]);
+    return { proposal: fresh, revision };
+  });
+}
+
+// Applied edits of a document, newest first, with what undo would do now.
+export async function listAppliedEdits(db: Queryable, paperId: string, documentId: string) {
+  if (!UUID_RE.test(documentId)) return null;
+  const doc = (await db.query<{ head_revision_id: string }>('SELECT head_revision_id FROM documents WHERE paper_id = $1 AND id = $2', [paperId, documentId])).rows[0];
+  if (!doc) return null;
+  const head = (await getRevision(db, paperId, documentId, doc.head_revision_id))!;
+  const { rows } = await db.query<Proposal & { undo_revision_id: string | null }>(
+    `SELECT ${PROPOSAL.split(', ').map((c) => `p.${c}`).join(', ')}, u.revision_id AS undo_revision_id FROM edit_proposals p
+     LEFT JOIN proposal_undos u ON u.proposal_id = p.id
+     WHERE p.paper_id = $1 AND p.document_id = $2 AND p.status = 'APPLIED' ORDER BY p.decided_at DESC, p.id LIMIT 100`, [paperId, documentId]);
+  return Promise.all(rows.map(async (p) => {
+    const st = await undoState(db, p, head.content_json);
+    return {
+      proposal_id: p.id, intent: p.intent, origin: p.origin, explanation: p.explanation, applied_revision_id: p.applied_revision_id, applied_at: p.decided_at,
+      undo_revision_id: p.undo_revision_id, can_undo: !p.undo_revision_id && st.unchanged && !!st.before,
+      before_block: st.before, after_block: st.after,
+    };
+  }));
 }

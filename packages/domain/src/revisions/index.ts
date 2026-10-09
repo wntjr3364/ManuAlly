@@ -91,15 +91,27 @@ async function append(tx: Queryable, r: { paperId: string; documentId: string; p
   return rows[0]!;
 }
 
+// For callers that change a head inside their own transaction (undo, import): the same document lock,
+// expected-head check and validation as a save.
+export const lockDocumentHead = lockHead;
+export async function appendRevisionIn(tx: Queryable, r: { paperId: string; documentId: string; parent: string; content: unknown; schemaVersion: unknown; ownerId: string; reason: 'undo' | 'import' }): Promise<Revision> {
+  validateContent(r.content, r.schemaVersion);
+  return append(tx, { ...r, content: r.content as object, schemaVersion: r.schemaVersion as number });
+}
+
 export async function createDocument(pool: TxPool, paperId: string, ownerId: string, kind: unknown) {
+  return inTransaction(pool, (tx) => createDocumentIn(tx, paperId, ownerId, kind));
+}
+
+export async function createDocumentIn(tx: Queryable, paperId: string, ownerId: string, kind: unknown) {
   if (!DOCUMENT_KINDS.includes(kind as (typeof DOCUMENT_KINDS)[number])) throw new DomainError('INVALID', `kind must be one of ${DOCUMENT_KINDS.join(', ')}`, 'kind');
-  return inTransaction(pool, async (tx) => {
+  {
     const documentId = randomUUID();
     const revisionId = randomUUID();
     const { rows } = await tx.query('INSERT INTO documents (id, paper_id, kind, head_revision_id) VALUES ($1, $2, $3, $4) RETURNING id, paper_id, kind, head_revision_id, created_at', [documentId, paperId, kind, revisionId]);
     const head = await append(tx, { id: revisionId, paperId, documentId, parent: null, content: { type: 'doc', content: [] }, schemaVersion: 1, ownerId, reason: 'initial' });
     return { document: { ...rows[0], head_revision_id: head.id }, head };
-  });
+  }
 }
 
 export async function getDocument(db: Queryable, paperId: string, documentId: string) {

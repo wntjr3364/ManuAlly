@@ -2,7 +2,7 @@
 // never by this API: the browser can create selection handles, read proposals, and apply or reject.
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { TxPool } from '@pw/domain/revisions/index.ts';
-import { applyProposal, createSelectionHandle, getProposal, listProposals, previewProposal, rejectProposal } from '@pw/domain/proposals/index.ts';
+import { applyProposal, createSelectionHandle, getProposal, listAppliedEdits, listProposals, previewProposal, rejectProposal, undoProposal } from '@pw/domain/proposals/index.ts';
 import { DomainError } from '@pw/domain/shared/db.ts';
 import { sendDomainError } from '../auth/plugin.ts';
 
@@ -26,6 +26,15 @@ export function registerProposalRoutes(app: FastifyInstance, pool: TxPool): void
       baseRevisionId: b.base_revision_id, selection: b.selection,
     }), 201);
   });
+
+  // applied edits and their undo (PW-021)
+  app.get('/api/papers/:paperId/documents/:documentId/applied-edits', scoped, async (req, reply) =>
+    (await listAppliedEdits(pool, req.paper!.id, (req.params as { documentId: string }).documentId)) ?? reply.code(404).send({ error: 'not_found' }));
+  app.post('/api/papers/:paperId/proposals/:proposalId/undo', scoped, async (req, reply) =>
+    run(reply, () => undoProposal(pool, {
+      paperId: req.paper!.id, proposalId: (req.params as { proposalId: string }).proposalId, ownerId: req.session!.ownerId,
+      expectedHead: ((req.body ?? {}) as Record<string, unknown>).expected_head_revision_id,
+    }), 201));
 
   app.get('/api/papers/:paperId/documents/:documentId/proposals', scoped, async (req, reply) => {
     const status = (req.query as { status?: string }).status;

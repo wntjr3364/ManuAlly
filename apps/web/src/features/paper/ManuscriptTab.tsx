@@ -5,10 +5,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { EDITOR_SCHEMA_VERSION } from '@pw/editor-core';
 import { api, errorText } from '../../app/api.ts';
 import { unsupportedTypes } from './editor-extensions.ts';
-import { ManuscriptEditor, type DocInfo } from '../../editor/ManuscriptEditor.tsx';
+import { ManuscriptEditor, type DocInfo, type EditorState } from '../../editor/ManuscriptEditor.tsx';
 import { ReadOnlyDocument } from '../../editor/ReadOnlyDocument.tsx';
 
-export function ManuscriptTab({ paperId, outlineApproved = false }: { paperId: string; outlineApproved?: boolean }) {
+// reloadKey: bumped after the versions tab made a new head (restore, undo, import); the editor then
+// opens that head
+export function ManuscriptTab({ paperId, outlineApproved = false, reloadKey = 0, onState }: { paperId: string; outlineApproved?: boolean; reloadKey?: number; onState?: (s: EditorState | null) => void }) {
   const [doc, setDoc] = useState<DocInfo | null | undefined>(undefined);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
@@ -16,7 +18,10 @@ export function ManuscriptTab({ paperId, outlineApproved = false }: { paperId: s
     const m = docs.find((d) => d.kind === 'manuscript');
     setDoc(m ? await api<DocInfo>('GET', `/api/papers/${paperId}/documents/${m.id}`) : null);
   }, [paperId]);
-  useEffect(() => { load().catch((e) => setError(errorText(e))); }, [load]);
+  useEffect(() => { load().catch((e) => setError(errorText(e))); }, [load, reloadKey]);
+  // no editable manuscript on screen: nothing unsaved here
+  const editable = !!doc && doc.head.schema_version === EDITOR_SCHEMA_VERSION && !unsupportedTypes(doc.head.content_json).length;
+  useEffect(() => { if (!editable) onState?.(null); }, [editable, onState]);
   if (error) return <p role="alert" className="error">{error}</p>;
   if (doc === undefined) return <p className="loading">불러오는 중…</p>;
   if (doc === null) {
@@ -30,5 +35,5 @@ export function ManuscriptTab({ paperId, outlineApproved = false }: { paperId: s
   if (doc.head.schema_version !== EDITOR_SCHEMA_VERSION) return <ReadOnlyDocument content={doc.head.content_json} reason={`다른 문서 형식 버전(${doc.head.schema_version}; 현재 ${EDITOR_SCHEMA_VERSION}) — 변환(migration)이 필요한 내용`} />;
   const unsupported = unsupportedTypes(doc.head.content_json);
   if (unsupported.length) return <ReadOnlyDocument content={doc.head.content_json} reason={`편집기가 아직 지원하지 않는 요소(${unsupported.join(', ')})`} />;
-  return <ManuscriptEditor key={doc.document.id} paperId={paperId} info={doc} outlineApproved={outlineApproved} />;
+  return <ManuscriptEditor key={`${doc.document.id}:${doc.head.id}`} paperId={paperId} info={doc} outlineApproved={outlineApproved} onState={onState} />;
 }

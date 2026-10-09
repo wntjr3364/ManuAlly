@@ -56,7 +56,10 @@ function findOffers(info: DocInfo, tabId: string, openTabs: Set<string> | null):
 
 const extensions = [...editorExtensions, FrozenSelection, CommentHighlights, ReferenceLabels];
 
-export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { paperId: string; info: DocInfo; outlineApproved?: boolean }) {
+// onState: the stored head and whether the screen equals it (the versions tab changes the head only then)
+export interface EditorState { documentId: string; headRevisionId: string; clean: boolean }
+
+export function ManuscriptEditor({ paperId, info, outlineApproved = false, onState }: { paperId: string; info: DocInfo; outlineApproved?: boolean; onState?: (s: EditorState) => void }) {
   const [save, dispatch] = useReducer(saveReducer, info.head.id, initialSaveState);
   const containerRef = useRef<HTMLDivElement>(null);
   const [problems, setProblems] = useState<string[]>([]);
@@ -242,6 +245,8 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
   }, [editor, info.document.id, info.head.id, info.head.content_json, paperId, storage, owner, tabId, writeDraft]);
 
   const unsaved = isUnsaved(save);
+  const clean = save.status === 'saved' && !unsaved && !applying;
+  useEffect(() => { onState?.({ documentId: info.document.id, headRevisionId: save.headRevisionId, clean }); }, [onState, info.document.id, save.headRevisionId, clean]);
   useEffect(() => { setUnsaved(`manuscript:${info.document.id}`, unsaved ? '원고' : null); }, [unsaved, info.document.id]);
   useEffect(() => () => setUnsaved(`manuscript:${info.document.id}`, null), [info.document.id]);
 

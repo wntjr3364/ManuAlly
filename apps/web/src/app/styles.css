@@ -40,3 +40,8 @@ ul.plain li { padding: 8px 0; border-bottom: 1px solid #eef1f5; display: flex; g
 .atom.labeled { font-size: 0; display: inline-block; }
 .atom.labeled::after { content: attr(data-label); font-size: 1rem; }
 .atom.unresolved::after { color: #b3261e; text-decoration: underline wavy; }
+/* AI jobs (PW-020) */
+ul.plain li[data-testid='ai-job'] { display: block; }
+.badge { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+.badge.mock { background: #fff3cd; color: #6b4e00; border: 1px solid #e0c36a; }
+.answer { white-space: pre-wrap; background: #f6f8fa; padding: 8px; border-radius: 4px; }

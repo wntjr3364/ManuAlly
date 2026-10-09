@@ -9,6 +9,9 @@ import { createTempDatabase } from '../../../packages/config/src/test-db.ts';
 import { migrate } from '../../../apps/api/src/db/migrate.ts';
 import { buildServer } from '../../../apps/api/src/server.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
+import { startLocalWorker } from '../../../apps/worker/src/local/index.ts';
+import { selectionHandlers } from '../../../apps/worker/src/selection/index.ts';
+import { createMockProvider } from '../../../packages/providers/src/mock/index.ts';
 
 export interface Harness {
   webUrl: string;
@@ -28,7 +31,8 @@ async function freePort(): Promise<number> {
   });
 }
 
-export async function startHarness(): Promise<Harness> {
+// worker: run AI jobs in this process with the mock provider (PW-020); chunkDelayMs makes streaming visible
+export async function startHarness(opts: { worker?: { chunkDelayMs?: number } } = {}): Promise<Harness> {
   const root = path.resolve('.');
   const db = await createTempDatabase();
   const pool = new pg.Pool({ connectionString: db.url, max: 6 });
@@ -39,6 +43,7 @@ export async function startHarness(): Promise<Harness> {
   const origins: string[] = [];
   const app = buildServer({ pool, allowedOrigins: origins });
   const api = await app.listen({ host: '127.0.0.1', port: 0 });
+  const worker = opts.worker ? startLocalWorker(pool, { handlers: selectionHandlers(pool, createMockProvider(opts.worker)), pollMs: 50 }) : null;
   const port = await freePort();
   let vite: ViteDevServer | undefined;
   try {
@@ -49,6 +54,7 @@ export async function startHarness(): Promise<Harness> {
     });
     await vite.listen();
   } catch (e) {
+    await worker?.stop();
     await app.close();
     await pool.end();
     await db.drop();
@@ -70,6 +76,7 @@ export async function startHarness(): Promise<Harness> {
     },
     async stop() {
       await vite?.close();
+      await worker?.stop();
       await app.close();
       await pool.end();
       await db.drop();

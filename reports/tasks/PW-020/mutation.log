@@ -1,0 +1,22 @@
+SURVIVED disconnect cancels the job ::       Tests  12 passed (12)
+KILLED  events appended without the fencing check :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 11 passed (12)
+KILLED  proposal written before the fenced completion :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  3 failed | 9 passed (12)
+KILLED  rewrite allowed before outline approval :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 11 passed (12)
+KILLED  key reuse with another request accepted :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 11 passed (12)
+KILLED  end dropped as a resend :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 9 passed (11)
+KILLED  answer done not distinguished :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 10 passed (11)
+KILLED  ready shown as applied :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 10 passed (11)
+KILLED  mock unlabelled :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 10 passed (11)
+KILLED  proposal panel without MOCK badge ::   1 failed   3 passed (32.3s) 
+KILLED  leaving the page cancels ::     Error: expect(locator).toHaveAttribute(expected) failed   4 failed 
+rerun (res close): disconnect cancels the job ::       Tests  12 passed (12)
+rerun (cancelJob on res close): disconnect cancels the job :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 11 passed (12)

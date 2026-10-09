@@ -11,5 +11,8 @@
     "@pw/providers": "workspace:*",
     "pg": "8.23.0",
     "pg-boss": "12.34.0"
+  },
+  "scripts": {
+    "dev": "node --experimental-strip-types src/main.ts"
   }
 }

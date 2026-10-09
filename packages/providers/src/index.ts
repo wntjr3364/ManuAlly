@@ -1,6 +1,7 @@
 // Provider selection for the product runtime. Until a provider is admitted (registry + user
 // approval + auth sentinel, see docs/adr/P00_DECISION_RECORD.md and RFC-004), only the mock exists.
 // Credentials in the environment never select or enable a provider.
+export { createMockProvider, MOCK_LABEL, type SelectionProvider, type SliceItem, type SelectionIntent, type MockOptions } from './mock/index.ts';
 
 export interface ProviderHandle {
   id: 'mock';

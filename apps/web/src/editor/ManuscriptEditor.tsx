@@ -26,6 +26,7 @@ import { SelectionChat } from '../features/selection-chat/SelectionChat.tsx';
 import { FrozenSelection } from '../features/selection-chat/frozen-highlight.ts';
 import type { SelectionRequest } from '../features/selection-chat/request.ts';
 import { ProposalPanel, type AppliedRevision } from '../features/diff/ProposalPanel.tsx';
+import { JobStreams, type JobRef } from '../features/chat/JobStream.tsx';
 import { CommentsPanel } from '../features/comments/CommentsPanel.tsx';
 import { CommentHighlights } from '../features/comments/comment-highlights.ts';
 import { ReferenceLabels } from '../features/references/reference-labels.ts';
@@ -117,6 +118,9 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
   // an apply request is in flight: no typing until its result is on screen
   const [applying, setApplying] = useState(false);
   const [proposalRefresh, setProposalRefresh] = useState(0);
+  // AI jobs started on this page, and a tick after each apply/reject so jobs re-read their proposal
+  const [jobs, setJobs] = useState<JobRef[]>([]);
+  const [proposalTick, setProposalTick] = useState(0);
   const [commentRefresh, setCommentRefresh] = useState(0);
   const locked = tabId === null || applying || offers.some((d) => d.tabId === tabId);
   useEffect(() => { editor?.setEditable(!locked); }, [editor, locked]);
@@ -325,13 +329,20 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
     if (storage && owner && tabId) clearDraft(storage, { ownerId: owner, documentId: info.document.id, tabId });
     return true;
   };
+  // A request becomes a server job (selection handle + job in one transaction). A resend after a lost
+  // answer uses the same key, so it never creates a second job.
   const sendSelection = async (req: SelectionRequest): Promise<string> => {
-    try {
-      await api('POST', `/api/papers/${paperId}/documents/${info.document.id}/selection-handles`, { base_revision_id: req.base_revision_id, selection: req.selection });
-      setProposalRefresh((n) => n + 1);
-      return '서버 확인됨 — AI 연결 전(PW-020)';
-    } catch (e) {
-      return `보내지 못함: ${e instanceof ApiError ? (e.body?.message ?? `서버 응답 ${e.status}`) : '네트워크 오류'}`;
+    const key = crypto.randomUUID();
+    const body = { base_revision_id: req.base_revision_id, selection: req.selection, intent: req.intent, instruction: req.instruction, idempotency_key: key };
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const r = await api<{ job: { id: string } }>('POST', `/api/papers/${paperId}/documents/${info.document.id}/ai-requests`, body);
+        setJobs((js) => (js.some((j) => j.id === r.job.id) ? js : [...js, { id: r.job.id, intent: req.intent, instruction: req.instruction, quote: req.selection.quote.replace(/\ufffc/g, '[…]') }]));
+        return '서버 확인됨 — AI 작업 등록(아래 “AI 작업”에서 진행 확인)';
+      } catch (e) {
+        if (!(e instanceof ApiError) && attempt === 0) continue; // answer lost: resend once with the same key
+        return `보내지 못함: ${e instanceof ApiError ? (e.body?.message ?? `서버 응답 ${e.status}`) : '네트워크 오류'}`;
+      }
     }
   };
 
@@ -402,8 +413,9 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
           {draftNote && <span role="alert" className="error"> {draftNote}</span>}
         </p>
       )}
+      <JobStreams paperId={paperId} documentId={info.document.id} jobs={jobs} proposalRefresh={proposalTick} onProposal={() => setProposalRefresh((n) => n + 1)} />
       <ProposalPanel paperId={paperId} documentId={info.document.id} headRevisionId={save.headRevisionId} canApply={save.status === 'saved' && !locked}
-        onApplying={setApplying} onApplied={adoptApplied} refreshKey={proposalRefresh} />
+        onApplying={setApplying} onApplied={adoptApplied} refreshKey={proposalRefresh} onChanged={() => setProposalTick((n) => n + 1)} />
       <ReferencesPanel paperId={paperId} editor={editor} canInsert={!locked} headRevisionId={save.headRevisionId} />
       <CommentsPanel paperId={paperId} documentId={info.document.id} editor={editor} headRevisionId={save.headRevisionId}
         screenIsHead={save.status === 'saved'} refreshKey={commentRefresh} currentSelection={currentSelection} />

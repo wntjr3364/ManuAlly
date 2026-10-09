@@ -6,10 +6,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JSONContent } from '@tiptap/core';
 import { ApiError, api, errorText } from '../../app/api.ts';
 import { blockTokens, diffTokens } from './diff.ts';
+import { MockBadge } from '../chat/JobStream.tsx';
 
 export interface ProposalView {
   id: string; intent: string; mode: string; status: string; status_reason: string | null; base_revision_id: string; proposal_hash: string;
-  checks: { check: string; result: string; details?: string }[]; explanation: string | null; created_at: string;
+  checks: { check: string; result: string; details?: string }[]; explanation: string | null; created_at: string; origin?: string;
 }
 export interface AppliedRevision { id: string; parent_revision_id: string; content_json: JSONContent }
 interface Detail { proposal: ProposalView; before_block?: JSONContent; after_block?: JSONContent }
@@ -28,9 +29,11 @@ export interface ProposalPanelProps {
   onApplying: (busy: boolean) => void;
   onApplied: (rev: AppliedRevision, afterBlock: JSONContent) => boolean;
   refreshKey?: number;
+  // after an apply or reject finished (e.g. to update the AI job that made the proposal)
+  onChanged?: () => void;
 }
 
-export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, onApplying, onApplied, refreshKey }: ProposalPanelProps) {
+export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, onApplying, onApplied, refreshKey, onChanged }: ProposalPanelProps) {
   const [items, setItems] = useState<Detail[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -94,6 +97,7 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
     } finally {
       setBusy(null);
       if (resolved) onApplying(false);
+      onChanged?.();
     }
   };
   // After an unknown outcome and a refused retry (e.g. 401 after the login expired): read the proposal.
@@ -129,6 +133,7 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
     try {
       await api('POST', `/api/papers/${paperId}/proposals/${d.proposal.id}/reject`);
       await load();
+      onChanged?.();
     } catch (e) {
       setError(errorText(e));
     }
@@ -150,12 +155,13 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
         return (
           <article key={p.id} className="proposal" data-testid="proposal" data-proposal-id={p.id}>
             <p className="hint">
-              {INTENT_LABEL[p.intent] ?? p.intent}{p.mode === 'preapproval' ? ' · 개요 승인 전 교정' : ''} · {STATUS_LABEL[p.status] ?? p.status}
+              {INTENT_LABEL[p.intent] ?? p.intent}{p.mode === 'preapproval' ? ' · 개요 승인 전 교정' : ''} · {STATUS_LABEL[p.status] ?? p.status}{' '}
+              <MockBadge label={/^worker:provider\.mock$/.test(p.origin ?? '') ? 'MOCK' : null} />
             </p>
             <p className="diff" data-testid="proposal-diff">
               {parts.map((x, i) => (x.kind === 'same' ? <span key={i}>{x.text}</span> : x.kind === 'del' ? <del key={i}>{x.text}</del> : <ins key={i}>{x.text}</ins>))}
             </p>
-            {p.explanation && <p className="hint">설명(AI): {p.explanation}</p>}
+            {p.explanation && <p className="hint">설명({/^worker:provider\.mock$/.test(p.origin ?? '') ? 'MOCK' : 'AI'}): {p.explanation}</p>}
             {failed.length > 0 && (
               <ul role="alert" className="error" data-testid="proposal-checks">{failed.map((c) => <li key={c.check}>{c.check}: {c.details}</li>)}</ul>
             )}

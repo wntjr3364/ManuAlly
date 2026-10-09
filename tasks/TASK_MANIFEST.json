@@ -658,7 +658,7 @@
       "id": "PW-020",
       "phase": "P02",
       "title": "Mock AI·스트리밍 UI",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-019"
       ],

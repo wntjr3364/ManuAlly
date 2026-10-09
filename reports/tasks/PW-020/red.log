@@ -1,0 +1,50 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-020/mock.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-020/mock.test.ts [ tests/tasks/PW-020/mock.test.ts ]
+Error: Cannot find module '../../../packages/providers/src/mock/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-020/mock.test.ts
+ ❯ tests/tasks/PW-020/mock.test.ts:4:1
+      2| // atoms, marks and every number, so the PW-017 checks pass for the fi…
+      3| import { describe, expect, test } from 'vitest';
+      4| import { createMockProvider, MOCK_LABEL } from '../../../packages/prov…
+       | ^
+      5| import { selectProvider } from '../../../packages/providers/src/index.…
+      6|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  08:44:39
+   Duration  284ms (worker 93%, environment 7%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-020/ai-requests.int.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-020/ai-requests.int.test.ts [ tests/tasks/PW-020/ai-requests.int.test.ts ]
+Error: Cannot find module '../../../apps/worker/src/local/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-020/ai-requests.int.test.ts
+ ❯ tests/tasks/PW-020/ai-requests.int.test.ts:15:1
+     13| import { parseDocument, snapshotSelection } from '../../../packages/ed…
+     14| import { appendJobEvent, cancelJob, claimJob } from '../../../packages…
+     15| import { runOnce } from '../../../apps/worker/src/local/index.ts';
+       | ^
+     16| import { selectionHandlers } from '../../../apps/worker/src/selection/…
+     17| import { createMockProvider } from '../../../packages/providers/src/mo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  08:44:40
+   Duration  1.18s (worker 97%, environment 3%)
+

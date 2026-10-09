@@ -11,6 +11,7 @@ import { registerDocumentSaveRoutes } from './documents/index.ts';
 import { registerProposalRoutes } from './proposals/index.ts';
 import { registerCommentRoutes } from './comments/index.ts';
 import { registerReferenceRoutes } from './references/index.ts';
+import { registerAiRoutes } from './events/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -37,6 +38,8 @@ export interface ServerOptions {
   allowRemoteSetup?: boolean;
   logger?: boolean;
   provider?: string;
+  // how often an open job event stream looks for new events (ms)
+  eventPollMs?: number;
 }
 
 export function buildServer(opts: ServerOptions): FastifyInstance {
@@ -94,5 +97,6 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerProposalRoutes(app, db);
   registerCommentRoutes(app, db);
   registerReferenceRoutes(app, db);
+  registerAiRoutes(app, db, { pollMs: opts.eventPollMs });
   return app;
 }

@@ -74,6 +74,22 @@ export async function createSelectionHandle(db: Queryable, a: { paperId: string;
   return rows[0]!;
 }
 
+// The stored text of a handle as replacement items (text runs with their marks, atoms as
+// preserve_atom): what an AI receives and edits; it can never carry positions or new atoms.
+export async function selectionSlice(db: Queryable, paperId: string, handleId: string) {
+  const h = await getSelectionHandle(db, paperId, handleId);
+  if (!h) throw new DomainError('NOT_FOUND', 'selection handle not found');
+  const doc = await storedDoc(db, paperId, h.document_id, h.base_revision_id);
+  const { node: block } = findBlock(doc!, h.block_id);
+  const items: ({ type: 'text'; text: string; marks?: string[] } | { type: 'preserve_atom'; atom_index: number })[] = [];
+  let atom = 0;
+  block.content.cut(h.from_pos, h.to_pos).forEach((n) => {
+    if (n.isText) items.push(n.marks.length ? { type: 'text', text: n.text!, marks: n.marks.map((m) => m.type.name) } : { type: 'text', text: n.text! });
+    else items.push({ type: 'preserve_atom', atom_index: atom++ });
+  });
+  return { handle: h, items };
+}
+
 export async function getSelectionHandle(db: Queryable, paperId: string, handleId: string): Promise<SelectionHandle | null> {
   if (!UUID_RE.test(handleId)) return null;
   const { rows } = await db.query<SelectionHandle>(`SELECT ${HANDLE} FROM selection_handles WHERE paper_id = $1 AND id = $2`, [paperId, handleId]);
@@ -90,11 +106,18 @@ const PROPOSAL = 'id, paper_id, document_id, selection_handle_id, base_revision_
 
 // Creates a proposal for a stored handle from an AI replacement (or another non-canonical source).
 // Never throws for check failures or staleness: those are recorded so the user sees why.
-export async function createProposal(pool: TxPool, a: { paperId: string; handleId: string; intent: unknown; replacement: unknown; explanation?: unknown; origin: string }): Promise<Proposal> {
+type ProposalInput = { paperId: string; handleId: string; intent: unknown; replacement: unknown; explanation?: unknown; origin: string; id?: string };
+
+export async function createProposal(pool: TxPool, a: ProposalInput): Promise<Proposal> {
+  return inTransaction(pool, (tx) => createProposalIn(tx, a));
+}
+
+// The same inside a caller's transaction (e.g. a job's fenced completion: a cancelled run leaves nothing).
+export async function createProposalIn(tx: Queryable, a: ProposalInput): Promise<Proposal> {
   if (!PROPOSAL_INTENTS.includes(a.intent as ProposalIntent)) throw new DomainError('INVALID', `intent must be one of ${PROPOSAL_INTENTS.join(', ')}`, 'intent');
   const intent = a.intent as ProposalIntent;
   if (a.explanation !== undefined && a.explanation !== null && (typeof a.explanation !== 'string' || a.explanation.length > 4000 || !storable(a.explanation))) throw new DomainError('INVALID', 'explanation must be text up to 4000 characters', 'explanation');
-  return inTransaction(pool, async (tx) => {
+  {
     await setActor(tx, a.origin);
     const handle = await getSelectionHandle(tx, a.paperId, a.handleId);
     if (!handle) throw new DomainError('NOT_FOUND', 'selection handle not found');
@@ -122,7 +145,7 @@ export async function createProposal(pool: TxPool, a: { paperId: string; handleI
     const failed = checks.filter((c) => c.result === 'fail');
     const status: ProposalStatus = failed.length ? 'CHECK_FAILED' : head !== handle.base_revision_id ? 'STALE' : 'PENDING';
     const reason = failed.length ? failed.map((c) => `${c.check}: ${c.details ?? ''}`).join('; ') : status === 'STALE' ? 'the manuscript changed after the selection was made (late answer)' : null;
-    const id = randomUUID();
+    const id = a.id ?? randomUUID();
     const proposal = {
       schema_version: 2,
       proposal_id: id,
@@ -153,7 +176,7 @@ export async function createProposal(pool: TxPool, a: { paperId: string; handleI
         typeof a.explanation === 'string' ? a.explanation : null, a.origin, status, reason],
     );
     return rows[0]!;
-  });
+  }
 }
 
 export async function getProposal(db: Queryable, paperId: string, proposalId: string): Promise<Proposal | null> {
@@ -179,7 +202,7 @@ function replaceInBlock(block: ReturnType<typeof atomNodesIn>[number], from: num
   return block.type.create(block.attrs, children, block.marks);
 }
 
-async function approvedOutline(tx: Queryable, paperId: string): Promise<string | null> {
+export async function approvedOutline(tx: Queryable, paperId: string): Promise<string | null> {
   const lock = await tx.query('SELECT 1 FROM paper_projects WHERE id = $1 FOR SHARE', [paperId]);
   if (!lock.rows[0]) throw new DomainError('NOT_FOUND', 'paper not found');
   const { rows } = await tx.query<{ id: string }>(

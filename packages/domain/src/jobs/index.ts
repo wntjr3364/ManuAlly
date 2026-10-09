@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { DomainError, UUID_RE, inTransaction, storable, type Queryable, type TxPool } from '../shared/db.ts';
 import { canonicalJson, contentHash } from '../revisions/index.ts';
 
-export const JOB_INTENTS = ['draft_paragraph', 'revise_selection', 'review', 'extract_facts', 'literature_search', 'export'] as const;
+export const JOB_INTENTS = ['draft_paragraph', 'revise_selection', 'ask_selection', 'review', 'extract_facts', 'literature_search', 'export'] as const;
 export type JobIntent = (typeof JOB_INTENTS)[number];
 export type JobStatus = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED' | 'STALE' | 'WAITING_QUOTA' | 'WAITING_AUTH' | 'WAITING_BUDGET' | 'WAITING_USER';
 export const TERMINAL: JobStatus[] = ['SUCCEEDED', 'FAILED', 'CANCELLED', 'STALE'];
@@ -291,4 +291,48 @@ export async function recoverJobs(pool: TxPool, opts: { redispatchAfterMs?: numb
     );
     return { requeued, failed, redispatched: re.rowCount ?? 0 };
   });
+}
+
+// Progress a run reports (PW-020): append-only, numbered per job, read by the browser over SSE. Only
+// the run holding the current lease appends (a cancelled or taken-over run gets "lease lost"); the
+// final event of a run is written by its completion transaction, so it exists only if the run succeeded.
+export const JOB_EVENT_KINDS = ['status', 'delta', 'answer_done', 'proposal', 'no_change', 'error'] as const;
+export type JobEventKind = (typeof JOB_EVENT_KINDS)[number];
+export interface JobEvent { seq: number; kind: JobEventKind; data: Record<string, unknown>; created_at: string }
+
+function checkEvent(kind: unknown, data: unknown): void {
+  if (!JOB_EVENT_KINDS.includes(kind as JobEventKind)) throw new DomainError('INVALID', `event kind must be one of ${JOB_EVENT_KINDS.join(', ')}`, 'kind');
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new DomainError('INVALID', 'event data must be an object', 'data');
+  checkPayload(data);
+  if (Buffer.byteLength(canonicalJson(data)) > MAX_PAYLOAD_BYTES) throw new DomainError('INVALID', 'event data is larger than 64 KB', 'data');
+}
+
+// Inside a transaction that already holds the job row (e.g. completeJob's apply).
+export async function appendJobEventIn(tx: Queryable, a: { jobId: string; kind: JobEventKind; data: Record<string, unknown> }): Promise<number> {
+  checkEvent(a.kind, a.data);
+  const { rows } = await tx.query<{ seq: number }>(
+    `INSERT INTO job_events (paper_id, job_id, seq, kind, data)
+     SELECT j.paper_id, j.id, COALESCE((SELECT max(seq) FROM job_events WHERE job_id = j.id), 0) + 1, $2, $3 FROM jobs j WHERE j.id = $1
+     RETURNING seq`,
+    [a.jobId, a.kind, JSON.stringify(a.data)],
+  );
+  if (!rows[0]) throw new DomainError('NOT_FOUND', 'job not found');
+  return rows[0].seq;
+}
+
+export async function appendJobEvent(pool: TxPool, a: { jobId: string; fencingToken: number; kind: JobEventKind; data: Record<string, unknown> }): Promise<number> {
+  checkEvent(a.kind, a.data);
+  return inTransaction(pool, async (tx) => {
+    await lockRunning(tx, a.jobId, a.fencingToken);
+    return appendJobEventIn(tx, a);
+  });
+}
+
+export async function listJobEvents(db: Queryable, paperId: string, jobId: string, afterSeq = 0, limit = 1000): Promise<JobEvent[]> {
+  if (!UUID_RE.test(jobId)) return [];
+  const { rows } = await db.query<JobEvent>(
+    'SELECT seq, kind, data, created_at FROM job_events WHERE paper_id = $1 AND job_id = $2 AND seq > $3 ORDER BY seq LIMIT $4',
+    [paperId, jobId, afterSeq, limit],
+  );
+  return rows;
 }

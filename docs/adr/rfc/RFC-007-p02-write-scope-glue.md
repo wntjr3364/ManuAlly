@@ -83,4 +83,10 @@ User decision / reviewer:
   - `apps/web/src/editor/ManuscriptEditor.tsx`: ReferenceLabels extension, ReferencesPanel
   - `apps/web/src/app/styles.css`: 라벨 표시(inline-block)
   - 리뷰 반영: `packages/domain/src/revisions/index.ts`(snapshot이 인용 형식·그림 순서를 고정)와 `db/migrations/pw_019_0002_review_fixes.sql`
+- PW-020
+  - `packages/domain/src/ai/**`(새 폴더; 선택 요청 → handle + job 한 트랜잭션), `packages/domain/src/jobs/index.ts`(`ask_selection`, fenced `job_events` 추가·조회), `packages/domain/src/proposals/index.ts`(`createProposalIn`, `selectionSlice`, `approvedOutline` export)
+  - `apps/worker/src/selection/**`, `apps/worker/src/local/**`, `apps/worker/src/main.ts`, `apps/worker/package.json`(`dev` 스크립트)
+  - `packages/providers/src/index.ts`(mock export), `apps/api/src/server.ts`(route 등록, `eventPollMs`)
+  - `apps/web/src/editor/ManuscriptEditor.tsx`(AI 요청·작업 목록), `apps/web/src/features/diff/ProposalPanel.tsx`(MOCK 배지, `onChanged`), `apps/web/src/app/styles.css`
+  - `tests/e2e/manual-paper/harness.ts`(같은 프로세스 mock worker 옵션)
 

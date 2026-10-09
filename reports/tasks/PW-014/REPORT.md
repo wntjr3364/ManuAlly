@@ -27,9 +27,9 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-014
       - 미저장 상태로 페이지를 떠나면 확인을 묻는다
     - `save-state.ts`: 저장 상태 기계(단위 시험)
     - `editor-extensions.ts`: Tiptap을 editor-core schema와 같게 구성
-      - paragraph·heading에 UUID block id를 붙인다. 분할·붙여넣기로 id가 중복되면 새 id를 준다.
+      - paragraph·heading에 UUID block id를 붙인다. ~~id가 중복되면 새 id를 준다~~ — **최초 커밋에서는 원본이 id를 잃었다**(리뷰 M4). 수정 후: 기존 블록이 id를 유지하고 복사본만 새 id를 받는다.
       - mark 4종, inline atom 3종
-      - 편집기가 모르는 요소(예: 표)가 있으면 읽기 전용으로 열어 손실을 막는다.
+      - ~~편집기가 모르는 요소(예: 표)가 있으면 읽기 전용으로 열어 손실을 막는다.~~ **최초 커밋에서는 거짓이었다**(리뷰 M1: 빈 편집기로 열리고, 저장하면 덮어썼다). 수정 후에는 저장된 JSON을 그대로 보여 주고 저장할 수 없다.
     - `SnapshotsTab`: 이름 붙인 스냅샷과, 스냅샷이 고정한 story/outline 표시
 - **서버**
   - `apps/api/src/routes/revisions/index.ts`: 원고 저장 시 editor-core `validateDocument`로 검사(PW-012 이월). 거부하면 422와 `errors`를 돌려준다.
@@ -41,7 +41,7 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-014
   - `tests/tasks/PW-014/save-route.int.test.ts`: 서버 문서 검증
   - `tests/e2e/manual-paper/{manual-paper.e2e.ts,harness.ts}`: 실제 Chromium, 실제 API, 임시 PostgreSQL, Vite 개발 서버
   - `tests/tasks/PW-009/revisions.int.test.ts`: fixture block id를 `b-1`에서 UUID로 바꿨다(저장 검증 도입에 따름).
-- **의존성**(모두 MIT, 2026-09-25 이전 공개)
+- **의존성**(모두 MIT; "모두 14일 이상"이라는 최초 기재는 prosemirror-transform 1.12.2가 13.4일이라 부정확했다. 리뷰 후 전체 lockfile 기준으로 정정, 아래 참고)
   - `apps/web`: react·react-dom 19.3.0, @tiptap/* 3.31.3(3.31.4는 14일 미만), vite 8.3.0(dev), @types/react·react-dom 19.3.0
   - root devDep: vite 8.3.0(E2E harness용)
   - `apps/api`: @pw/editor-core
@@ -92,7 +92,7 @@ pnpm --filter @pw/web dev             # 웹: http://127.0.0.1:5173 (처음이면
 ## 보안·과학적 실패 경로
 - 저장 표시가 거짓말하지 않는다. 서버 ack와 버전 일치가 있어야 "저장됨"이고, 실패·충돌은 화면에서 지워지지 않는다.
 - 서버가 원고 JSON을 공유 schema로 검사하므로 raw HTML·모르는 노드·중복 id를 저장할 수 없다.
-- 승인과 검증은 화면에 보이는 버전의 hash로만 한다. 숫자는 원문 텍스트 그대로다.
+- 승인과 검증은 화면에 보이는 버전의 hash로만 한다. 숫자는 원문 텍스트 그대로다. (**최초 커밋에서는 거짓이었다**: 리뷰 M3에서 화면과 저장본이 다를 때 저장본을 승인했다. 수정 후 그 경우 승인 버튼이 비활성화된다.)
 - 편집기가 모르는 요소가 있는 원고는 읽기 전용으로 열어 손실을 막는다.
 
 ## 미실행 / 남은 위험 / 이월
@@ -105,3 +105,32 @@ pnpm --filter @pw/web dev             # 웹: http://127.0.0.1:5173 (처음이면
 
 ## 다음
 P01 gate(사용자 승인). `reports/phases/P01_GATE.md`
+
+## 독립 리뷰 결과 반영 (2026-10-09)
+- 결론: changes requested(major 4, minor 9). 모두 수정했다.
+- 회귀 시험
+  - 브라우저 `tests/e2e/manual-paper/review-fixes.e2e.ts` 9건
+  - 단위 `tests/tasks/PW-014/block-ids.test.ts` 5건
+- RED: 수정 전 웹 앱(커밋본)에서 M1·M2·M3·n 시험 4건이 지적 그대로 실패했다(`review-red-e2e.log`).
+  - 첫 실행은 웹 앱이 리팩터링 중이라 페이지가 열리지 않아 무효였고, 커밋본으로 다시 돌렸다.
+  - block-id 시험의 RED는 모듈 부재로 인한 import 실패뿐이다(의미 있는 RED 아님).
+
+| 지적 | 조치 |
+|---|---|
+| **M1 표가 있는 원고가 빈 편집기로 열리고, 저장하면 덮어씀** | 편집기가 모르는 요소가 있거나 내용 검사가 실패하면 저장된 JSON을 텍스트로만 그려 읽기 전용으로 연다. 저장 버튼과 Ctrl+S 없음. E2E: 표 내용이 보이고, Ctrl+S 후에도 head가 그대로 |
+| **M2 탭 이동·홈·로그아웃 시 미저장 원고 소실** | 연 탭은 숨김으로 유지(unmount 안 함). 앱 전역에 미저장 등록부를 두고, 홈 이동·로그아웃·페이지 닫기 전에 확인한다. 스토리·개요 폼도 등록. E2E |
+| **M3 승인 버튼이 화면이 아닌 저장본을 승인하고 화면 편집을 버림** | 화면 내용이 저장본과 다르면 승인 비활성 + "저장한 뒤 승인". 서버 응답은 사용자가 손대지 않은 부분만 덮어쓴다(첫 로드 전·저장 중 입력 보존). E2E 3건. 고치는 중에 새로 생긴 경쟁 조건(첫 로드가 입력을 덮어씀)도 E2E로 잡아 고쳤다 |
+| **M4 붙여넣기·제목 변환 시 block id 이동** | `block-ids.ts` `reconcileBlockIds`: 변경 전 블록 위치를 mapping으로 따라가 그 블록이 id를 유지한다(setBlockType처럼 attr이 사라져도). 복사본·새 블록만 새 id. 단위 5건: 위·아래 붙여넣기, 여러 블록 제목 변환, 분할, id 없음·삭제 |
+| m1 붙여넣은 atom 속성 소실 | atom 속성을 data-* 속성으로 parse/render(DOM setAttribute라 markup 주입 없음). E2E: 붙여넣은 인용의 referenceId·locator 저장 |
+| m2 충돌 문구에 "저장됨" 포함 | 문구 변경. E2E는 정확히 '저장됨'을 비교 |
+| m3 같은 tick에서 입력+Ctrl+S 시 "저장 중" 고착 | 편집 버전을 ref로 동기 증가, saveStart가 보낸 버전을 지닌다 |
+| m4 Ctrl+S 전역 | 편집기 영역에 focus가 있을 때만 |
+| m5 n 비정수 무음 누락 | 클라이언트에서 거부하고 오류 표시. E2E |
+| m6 의존성 나이 | prosemirror-transform을 1.12.1로 낮춤(editor-core 포함). 전체 lockfile(270개)을 감사해 14일 미만 29개를 overrides로 이전 버전에 고정: rolldown 1.2.11, postcss 8.5.28, pg-protocol 1.16.0, pino 10.3.1 등. 재감사 결과 0개, 전체 시험 통과 |
+| m7 dev server가 저장소 파일 제공 | `server.fs.strict` + allow(웹 앱, editor-core, node_modules), .env·키 파일 거부. E2E: CLAUDE.md·PROGRESS.md·서버 소스·.env.example 403. **공유 서버의 다른 로컬 사용자가 127.0.0.1:5173에 접근하는 위험과, proxy 경유 첫 계정 생성 위험**은 gate 위험 목록에 기록 |
+| m8 범위·검증 위치 | 원고 검증을 domain `saveRevision`으로 옮겨 모든 저장 경로에 적용(route 중복 검사 제거). 범위 밖 변경은 RFC-006 부록과 gate에서 확인 요청 |
+| m9 빈 문서·옛 id의 화면/저장 차이 | 기록만 한다. 빈 문서는 빈 문단 하나로 보이고, 내용 차이는 없다. 비UUID id는 이제 서버가 저장을 거부하므로 생길 수 없다 |
+
+- 실행
+  - 브라우저 11/11(`e2e.log`). 반복 실행에서 8개 시험을 3회 돌려 24/24
+  - `pnpm test` exit 0: unit 66, integration 130, contracts 13, e2e 11, spikes 70, evals/pack PASS

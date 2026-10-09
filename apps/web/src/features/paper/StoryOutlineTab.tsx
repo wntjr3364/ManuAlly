@@ -1,43 +1,78 @@
 // Story and outline are written by hand and approved explicitly, version by version (spec 03).
 // The approve buttons send the exact content hash of the version shown; the server checks it.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, errorText } from '../../app/api.ts';
 import type { Paper } from './PapersPage.tsx';
 import type { Evidence } from './EvidenceTab.tsx';
+import { setUnsaved } from '../../app/unsaved.ts';
 
 interface StoryRev { id: string; status: string; content_hash: string; brief: Record<string, unknown>; story: Record<string, unknown> }
-interface Node { node_id: string; section: string; role: string; paragraph_goal: string; requires_evidence: boolean; evidence_ids: string[]; status?: string }
+interface Node {
+  node_id: string; section: string; role: string; paragraph_goal: string; requires_evidence: boolean; evidence_ids: string[]; status?: string;
+  parent_node_id?: string | null; claim_ids?: string[]; allowed_interpretation?: string; exclusions?: string[]; transition?: string;
+  word_budget_min?: number | null; word_budget_max?: number | null;
+}
 interface OutlineRev { id: string; status: string; content_hash: string; story_revision_id: string; nodes?: Node[] }
 const ROLES = ['background', 'gap', 'aim', 'method', 'result', 'interpretation', 'comparison', 'limitation', 'conclusion', 'other'];
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const newNode = (): Node => ({ node_id: crypto.randomUUID(), section: '', role: 'result', paragraph_goal: '', requires_evidence: false, evidence_ids: [] });
+const newNodeTemplate = newNode();
 
-export function StoryOutlineTab({ paper, onChange }: { paper: Paper; onChange: () => void }) {
+const formOf = (r: StoryRev | null) => ({
+  purpose: str(r?.brief.purpose), audience: str(r?.brief.audience), question: str(r?.story.question), main_message: str(r?.story.main_message),
+  novelty: str(r?.story.novelty), limitations: ((r?.story.limitations as string[] | undefined) ?? []).join('\n'),
+});
+// the fields a user edits and the API accepts (stored nodes also carry position, status, approval)
+const editable = (n: Node) => ({
+  node_id: n.node_id, parent_node_id: n.parent_node_id ?? null, section: n.section, role: n.role, paragraph_goal: n.paragraph_goal,
+  claim_ids: n.claim_ids ?? [], evidence_ids: n.evidence_ids, requires_evidence: n.requires_evidence,
+  allowed_interpretation: n.allowed_interpretation ?? '', exclusions: n.exclusions ?? [], transition: n.transition ?? '',
+  word_budget_min: n.word_budget_min ?? null, word_budget_max: n.word_budget_max ?? null,
+});
+const nodeKey = (ns: Node[]) => JSON.stringify(ns.map(editable));
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; onChange: () => void; visible: boolean }) {
   const [story, setStory] = useState<{ latest: StoryRev | null; active: StoryRev | null; missing: string[] } | null>(null);
   const [form, setForm] = useState({ purpose: '', audience: '', question: '', main_message: '', novelty: '', limitations: '' });
   const [outline, setOutline] = useState<{ latest: OutlineRev | null; active: OutlineRev | null } | null>(null);
-  const [nodes, setNodes] = useState<Node[]>([newNode()]);
+  const [nodes, setNodes] = useState<Node[]>([newNodeTemplate]);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [error, setError] = useState('');
+  const baseForm = useRef(formOf(null));
+  const baseNodes = useRef<Node[]>([newNodeTemplate]);
 
   async function load() {
     const s = await api<{ latest: StoryRev | null; active: StoryRev | null; missing: string[] }>('GET', `/api/papers/${paper.id}/story`);
     setStory(s);
-    if (s.latest) {
-      setForm({
-        purpose: str(s.latest.brief.purpose), audience: str(s.latest.brief.audience), question: str(s.latest.story.question),
-        main_message: str(s.latest.story.main_message), novelty: str(s.latest.story.novelty), limitations: (s.latest.story.limitations as string[] | undefined ?? []).join('\n'),
-      });
-    }
+    // server data replaces the form only where the user has not typed since the last known server
+    // state (typing before the first load or during a save is kept)
+    const storyBase = formOf(s.latest);
+    const before = baseForm.current; // read now: the updater below runs later
+    setForm((prev) => (same(prev, before) || same(prev, storyBase) ? storyBase : prev));
+    baseForm.current = storyBase;
     const o = await api<{ latest: OutlineRev | null; active: OutlineRev | null }>('GET', `/api/papers/${paper.id}/outline`);
     if (o.latest) {
       const full = await api<OutlineRev>('GET', `/api/papers/${paper.id}/outline/revisions/${o.latest.id}`);
       setOutline({ latest: full, active: o.active });
-      setNodes(full.nodes ?? [newNode()]);
+      const nodesBase = full.nodes ?? [newNodeTemplate];
+      const before = baseNodes.current;
+      setNodes((prev) => (nodeKey(prev) === nodeKey(before) || nodeKey(prev) === nodeKey(nodesBase) ? nodesBase : prev));
+      baseNodes.current = nodesBase;
     } else setOutline(o);
     setEvidence(await api<Evidence[]>('GET', `/api/papers/${paper.id}/evidence`));
   }
   useEffect(() => { load().catch((e) => setError(errorText(e))); }, [paper.id]);
+  // what is on screen differs from the stored latest revision: approval would approve something else
+  const storyDirty = story !== null && JSON.stringify(form) !== JSON.stringify(formOf(story.latest));
+  const outlineDirty = outline !== null && nodeKey(nodes) !== nodeKey(outline.latest?.nodes ?? [newNodeTemplate]);
+  useEffect(() => {
+    setUnsaved(`story:${paper.id}`, storyDirty ? '스토리' : null);
+    setUnsaved(`outline:${paper.id}`, outlineDirty ? '개요' : null);
+  }, [storyDirty, outlineDirty, paper.id]);
+  useEffect(() => () => { setUnsaved(`story:${paper.id}`, null); setUnsaved(`outline:${paper.id}`, null); }, [paper.id]);
+  // evidence added in the 자료 tab appears in the selector when coming back (form edits are kept)
+  useEffect(() => { if (visible) api<Evidence[]>('GET', `/api/papers/${paper.id}/evidence`).then(setEvidence).catch(() => {}); }, [visible, paper.id]);
 
   const act = (fn: () => Promise<unknown>) => async () => {
     setError('');
@@ -58,7 +93,7 @@ export function StoryOutlineTab({ paper, onChange }: { paper: Paper; onChange: (
   const saveOutline = act(() => api('POST', `/api/papers/${paper.id}/outline/revisions`, {
     parent_revision_id: outline?.latest?.id ?? null,
     story_revision_id: paper.active_story_revision_id,
-    nodes: nodes.map(({ status: _s, ...n }) => n),
+    nodes: nodes.map(editable),
   }));
   const approveOutline = act(() => api('POST', `/api/papers/${paper.id}/outline/revisions/${outline!.latest!.id}/approve`, { intent: 'approve_outline', content_hash: outline!.latest!.content_hash }));
   const setNode = (i: number, patch: Partial<Node>) => setNodes(nodes.map((n, j) => (j === i ? { ...n, ...patch } : n)));
@@ -78,8 +113,9 @@ export function StoryOutlineTab({ paper, onChange }: { paper: Paper; onChange: (
         <div className="toolbar">
           <button type="button" onClick={saveStory}>스토리 저장</button>
           {story?.latest && story.latest.status !== 'APPROVED' && story.latest.status !== 'SUPERSEDED' && (
-            <button type="button" className="primary" onClick={approveStory}>이 스토리 버전 승인</button>
+            <button type="button" className="primary" onClick={approveStory} disabled={storyDirty}>이 스토리 버전 승인</button>
           )}
+          {storyDirty && <span className="hint">화면 내용이 저장된 버전과 다릅니다 — 저장한 뒤 승인할 수 있습니다.</span>}
           {story?.latest && <span className="hint">버전 {story.latest.content_hash.slice(0, 8)}{story.missing.length ? ` · 비어 있는 필수 항목: ${story.missing.join(', ')}` : ''}</span>}
         </div>
       </section>
@@ -103,8 +139,9 @@ export function StoryOutlineTab({ paper, onChange }: { paper: Paper; onChange: (
           <button type="button" onClick={() => setNodes([...nodes, newNode()])}>문단 계획 추가</button>
           <button type="button" onClick={saveOutline} disabled={!paper.active_story_revision_id}>개요 저장</button>
           {outline?.latest && outline.latest.status !== 'APPROVED' && outline.latest.status !== 'SUPERSEDED' && (
-            <button type="button" className="primary" onClick={approveOutline}>이 개요 버전 승인</button>
+            <button type="button" className="primary" onClick={approveOutline} disabled={outlineDirty}>이 개요 버전 승인</button>
           )}
+          {outlineDirty && outline?.latest && <span className="hint">화면 내용이 저장된 버전과 다릅니다 — 저장한 뒤 승인할 수 있습니다.</span>}
           {outline?.latest && <span className="hint">버전 {outline.latest.content_hash.slice(0, 8)}</span>}
         </div>
       </section>

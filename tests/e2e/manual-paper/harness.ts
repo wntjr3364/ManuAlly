@@ -12,6 +12,7 @@ import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 
 export interface Harness {
   webUrl: string;
+  pool: pg.Pool;
   failRevisionInserts(on: boolean): Promise<void>;
   stop(): Promise<void>;
 }
@@ -57,6 +58,7 @@ export async function startHarness(): Promise<Harness> {
   origins.push(webUrl);
   return {
     webUrl,
+    pool,
     async failRevisionInserts(on) {
       if (on) {
         await pool.query(`CREATE OR REPLACE FUNCTION pw_test_fail() RETURNS trigger LANGUAGE plpgsql AS $$

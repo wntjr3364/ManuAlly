@@ -4,12 +4,12 @@ import { api, errorText } from '../../app/api.ts';
 
 interface Snapshot { id: string; label: string; created_at: string; story_revision_id: string | null; outline_revision_id: string | null }
 
-export function SnapshotsTab({ paperId }: { paperId: string }) {
+export function SnapshotsTab({ paperId, visible }: { paperId: string; visible: boolean }) {
   const [list, setList] = useState<Snapshot[]>([]);
   const [label, setLabel] = useState('');
   const [error, setError] = useState('');
   const load = () => api<Snapshot[]>('GET', `/api/papers/${paperId}/snapshots`).then(setList).catch((e) => setError(errorText(e)));
-  useEffect(() => { void load(); }, [paperId]);
+  useEffect(() => { if (visible) void load(); }, [paperId, visible]);
   async function create() {
     setError('');
     try {

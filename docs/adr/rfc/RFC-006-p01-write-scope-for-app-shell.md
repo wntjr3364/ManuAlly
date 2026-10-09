@@ -78,3 +78,7 @@ PW-010 및 PW-009 리뷰 반영 시 추가 기록(2026-10-08):
   - `packages/editor-core/src/schema.ts`: `doc: block*`
   - `tests/tasks/PW-009/revisions.int.test.ts`: fixture block id를 UUID로
   - root `package.json`: vite devDep, 하위 의존성 overrides(14일 규칙)
+- PW-014 리뷰 반영
+  - `packages/domain/src/revisions/index.ts`와 `packages/domain/package.json`: 원고 검증을 domain 저장 함수로 옮김
+  - `packages/editor-core/package.json`: prosemirror-transform 1.12.1(14일 규칙)
+  - root `package.json` overrides: lockfile 전체 감사 결과 14일 미만 29개를 고정

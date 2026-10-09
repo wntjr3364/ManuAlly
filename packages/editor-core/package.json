@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "prosemirror-model": "1.25.12",
-    "prosemirror-transform": "1.12.2"
+    "prosemirror-transform": "1.12.1"
   }
 }

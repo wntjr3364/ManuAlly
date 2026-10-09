@@ -2,6 +2,7 @@
 // the document head moves only by compare-and-set inside a transaction. Restore never rewrites
 // history: it appends a new revision whose content equals the restored one.
 import { createHash, randomUUID } from 'node:crypto';
+import { validateDocument } from '@pw/editor-core';
 import { DomainError, UUID_RE, inTransaction, storable, type Queryable, type TxPool } from '../shared/db.ts';
 
 export type { TxPool };
@@ -59,6 +60,9 @@ function validateContent(content: unknown, schemaVersion: unknown) {
   if (!content || typeof content !== 'object' || Array.isArray(content) || (content as { type?: unknown }).type !== 'doc') {
     throw new DomainError('INVALID', 'content_json must be a document object with type "doc"', 'content_json');
   }
+  // the shared manuscript schema (PW-012), for every save path (API, import, future AI proposals)
+  const checked = validateDocument(content, schemaVersion);
+  if (!checked.ok) throw new DomainError('INVALID', 'the document does not match the manuscript schema', 'content_json', { details: { errors: checked.errors } });
   checkTree(content, 0);
   if (Buffer.byteLength(JSON.stringify(content)) > MAX_CONTENT_BYTES) throw new DomainError('INVALID', 'content_json is larger than 2 MB', 'content_json');
   if (!Number.isInteger(schemaVersion) || (schemaVersion as number) < 1 || (schemaVersion as number) > 2_147_483_647) {

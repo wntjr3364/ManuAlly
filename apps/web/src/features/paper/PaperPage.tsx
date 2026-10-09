@@ -13,6 +13,9 @@ export function PaperPage({ paperId }: { paperId: string }) {
   const [paper, setPaper] = useState<Paper | null>(null);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('plan');
+  // tabs stay mounted once opened: switching tabs never discards unsaved work
+  const [opened, setOpened] = useState<Set<Tab>>(() => new Set(['plan']));
+  const open = (t: Tab) => { setTab(t); setOpened((o) => (o.has(t) ? o : new Set([...o, t]))); };
   const reload = useCallback(() => api<Paper>('GET', `/api/papers/${paperId}`).then(setPaper).catch((e) => setError(errorText(e))), [paperId]);
   useEffect(() => { void reload(); }, [reload]);
   if (error) return <p role="alert" className="error">{error}</p>;
@@ -22,13 +25,13 @@ export function PaperPage({ paperId }: { paperId: string }) {
       <h1>{paper.working_title}</h1>
       <div role="tablist" aria-label="논문 영역">
         {TABS.map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
+          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => open(id)}>{label}</button>
         ))}
       </div>
-      {tab === 'plan' && <StoryOutlineTab paper={paper} onChange={reload} />}
-      {tab === 'sources' && <EvidenceTab paperId={paper.id} />}
-      {tab === 'manuscript' && <ManuscriptTab paperId={paper.id} />}
-      {tab === 'versions' && <SnapshotsTab paperId={paper.id} />}
+      <div role="tabpanel" hidden={tab !== 'plan'}>{opened.has('plan') && <StoryOutlineTab paper={paper} onChange={reload} visible={tab === 'plan'} />}</div>
+      <div role="tabpanel" hidden={tab !== 'sources'}>{opened.has('sources') && <EvidenceTab paperId={paper.id} visible={tab === 'sources'} />}</div>
+      <div role="tabpanel" hidden={tab !== 'manuscript'}>{opened.has('manuscript') && <ManuscriptTab paperId={paper.id} />}</div>
+      <div role="tabpanel" hidden={tab !== 'versions'}>{opened.has('versions') && <SnapshotsTab paperId={paper.id} visible={tab === 'versions'} />}</div>
     </main>
   );
 }

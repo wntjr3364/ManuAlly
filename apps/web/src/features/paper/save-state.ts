@@ -13,7 +13,7 @@ export interface SaveState {
 
 export type SaveAction =
   | { type: 'edit' }
-  | { type: 'saveStart' }
+  | { type: 'saveStart'; version?: number }
   | { type: 'saveOk'; version: number; headRevisionId: string }
   | { type: 'saveFailed'; version: number; error: string; conflict?: boolean }
   | { type: 'loaded'; headRevisionId: string };
@@ -27,7 +27,7 @@ export function saveReducer(s: SaveState, a: SaveAction): SaveState {
     case 'edit':
       return { ...s, editVersion: s.editVersion + 1, status: s.inFlight !== null ? 'saving' : s.status === 'conflict' ? 'conflict' : 'dirty' };
     case 'saveStart':
-      return { ...s, inFlight: s.editVersion, status: 'saving', error: null };
+      return { ...s, inFlight: a.version ?? s.editVersion, status: 'saving', error: null };
     case 'saveOk': {
       if (a.version !== s.inFlight) return s; // a late answer to an older request
       const current = a.version === s.editVersion;
@@ -52,6 +52,6 @@ export function saveLabel(s: SaveState): string {
     case 'failed':
       return `저장 실패 — 저장되지 않았습니다${s.error ? ` (${s.error})` : ''}`;
     case 'conflict':
-      return '다른 곳에서 먼저 저장됨 — 이 내용은 저장되지 않았습니다. 새로고침 전 내용을 복사해 두세요.';
+      return '다른 곳에서 먼저 바뀐 원고 — 이 내용은 저장되지 않았습니다. 새로고침 전 내용을 복사해 두세요.';
   }
 }

@@ -70,9 +70,9 @@ test('TST-014A: manuscript, approvals, evidence and snapshot survive a new brows
   await page.keyboard.type('ABC1 transcript rose 2.4-fold under drought.');
   await page.keyboard.press('Enter');
   await page.keyboard.type('Survival differed between lines.');
-  await expect(page.getByTestId('save-status')).not.toHaveText(/저장됨/);
+  await expect(page.getByTestId('save-status')).not.toHaveText('저장됨');
   await page.getByRole('button', { name: '저장' }).click();
-  await expect(page.getByTestId('save-status')).toHaveText(/저장됨/);
+  await expect(page.getByTestId('save-status')).toHaveText('저장됨');
   await shot(page, '1-manuscript-saved');
 
   // named snapshot
@@ -91,7 +91,7 @@ test('TST-014A: manuscript, approvals, evidence and snapshot survive a new brows
   await p2.getByRole('tab', { name: '원고' }).click();
   await expect(p2.getByTestId('editor')).toContainText('ABC1 transcript rose 2.4-fold under drought.');
   await expect(p2.getByTestId('editor')).toContainText('Survival differed between lines.');
-  await expect(p2.getByTestId('save-status')).toHaveText(/저장됨/);
+  await expect(p2.getByTestId('save-status')).toHaveText('저장됨');
   await p2.getByRole('tab', { name: '구상·개요' }).click();
   await expect(p2.getByTestId('story-status')).toHaveText('APPROVED');
   await expect(p2.getByTestId('outline-status')).toHaveText('APPROVED');
@@ -124,7 +124,7 @@ test('TST-014B: a database failure during save is never shown as saved, and the 
   await h.failRevisionInserts(true); // the database itself refuses the write
   await page.getByRole('button', { name: '저장' }).click();
   await expect(page.getByTestId('save-status')).toHaveText(/저장되지 않/);
-  await expect(page.getByTestId('save-status')).not.toHaveText(/저장됨/);
+  await expect(page.getByTestId('save-status')).not.toHaveText('저장됨');
   await expect(page.getByTestId('editor')).toContainText('Text that must not be lost.');
   await shot(page, '4-db-failure-not-saved');
   // leaving the page with unsaved text asks first
@@ -137,7 +137,7 @@ test('TST-014B: a database failure during save is never shown as saved, and the 
   const page2 = ctx.pages()[0] ?? page;
   await h.failRevisionInserts(false);
   await page2.getByRole('button', { name: '저장' }).click();
-  await expect(page2.getByTestId('save-status')).toHaveText(/저장됨/);
+  await expect(page2.getByTestId('save-status')).toHaveText('저장됨');
   await page2.reload();
   await page2.getByRole('tab', { name: '원고' }).click();
   await expect(page2.getByTestId('editor')).toContainText('Text that must not be lost.');

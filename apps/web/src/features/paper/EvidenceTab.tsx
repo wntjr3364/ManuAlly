@@ -6,7 +6,7 @@ import { api, errorText } from '../../app/api.ts';
 export interface Evidence { id: string; kind: string; label: string; locator: Record<string, unknown>; extraction_state: string; content_hash: string }
 interface Fact { id: string; evidence_id: string; entity: string; metric: string; value_text: string; unit: string; group: string; comparison: string; n: number | null; verification_state: string; content_hash: string }
 
-export function EvidenceTab({ paperId }: { paperId: string }) {
+export function EvidenceTab({ paperId, visible }: { paperId: string; visible: boolean }) {
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [facts, setFacts] = useState<Fact[]>([]);
   const [ev, setEv] = useState({ kind: 'method_record', note: '', label: '' });
@@ -16,7 +16,7 @@ export function EvidenceTab({ paperId }: { paperId: string }) {
     setEvidence(await api<Evidence[]>('GET', `/api/papers/${paperId}/evidence`));
     setFacts(await api<Fact[]>('GET', `/api/papers/${paperId}/facts`));
   }
-  useEffect(() => { load().catch((e) => setError(errorText(e))); }, [paperId]);
+  useEffect(() => { if (visible) load().catch((e) => setError(errorText(e))); }, [paperId, visible]);
   const act = (fn: () => Promise<unknown>) => async () => {
     setError('');
     try {
@@ -31,10 +31,13 @@ export function EvidenceTab({ paperId }: { paperId: string }) {
     setEv({ ...ev, note: '', label: '' });
   });
   const addFact = act(async () => {
+    const n = fact.n.trim();
+    // never drop what the user typed: a count that is not a whole number is an error, not "no n"
+    if (n && !/^[1-9]\d*$/.test(n)) throw new Error('반복 수(n)는 1 이상의 정수로 입력하세요 (모르면 비워 두세요).');
     const evidenceId = fact.evidence_id || evidence[0]?.id;
     await api('POST', `/api/papers/${paperId}/facts`, {
       evidence_id: evidenceId, entity: fact.entity, metric: fact.metric, value_text: fact.value_text.trim(), unit: fact.unit,
-      group: fact.group, comparison: fact.comparison, n: fact.n.trim() ? Number(fact.n) : null,
+      group: fact.group, comparison: fact.comparison, n: n ? Number(n) : null,
     });
     setFact({ ...fact, entity: '', metric: '', value_text: '', unit: '', group: '', comparison: '', n: '' });
   });

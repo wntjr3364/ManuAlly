@@ -1,0 +1,128 @@
+
+Running 4 tests using 1 worker
+
+  ✘  1 tests/e2e/manual-paper/review-fixes.e2e.ts:25:1 › M1: a manuscript with content the editor cannot edit opens read-only, shows it, and cannot be overwritten (6.2s)
+  ✘  2 tests/e2e/manual-paper/review-fixes.e2e.ts:45:1 › M2: unsaved text survives tab switches; leaving the paper or logging out asks first (6.6s)
+  ✘  3 tests/e2e/manual-paper/review-fixes.e2e.ts:65:1 › M3: approval is only offered for what is saved; unsaved form edits block it and are kept (6.4s)
+  ✘  4 tests/e2e/manual-paper/review-fixes.e2e.ts:86:1 › minor 5: a replicate count that is not a whole number is refused, not silently dropped (6.4s)
+
+
+  1) tests/e2e/manual-paper/review-fixes.e2e.ts:25:1 › M1: a manuscript with content the editor cannot edit opens read-only, shows it, and cannot be overwritten 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('editor')
+    Expected substring: "Paragraph before the table."
+    Received string:    ""
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('editor') with timeout 5000ms
+      - waiting for getByTestId('editor')
+        14 × locator resolved to <div class="editor" data-testid="editor">…</div>
+           - unexpected value ""
+
+
+      35 |   await page.getByRole('tab', { name: '원고' }).click();
+      36 |   await expect(page.getByRole('alert')).toContainText('읽기 전용');
+    > 37 |   await expect(page.getByTestId('editor')).toContainText('Paragraph before the table.');
+         |                                            ^
+      38 |   await expect(page.getByTestId('editor')).toContainText('n = 3');
+      39 |   await expect(page.getByRole('button', { name: '저장' })).toHaveCount(0);
+      40 |   await page.keyboard.press('Control+s');
+        at /home/user/ManuAlly/tests/e2e/manual-paper/review-fixes.e2e.ts:37:44
+
+    Error Context: packages/config/test-results/manual-paper-review-fixes.-78254-t-and-cannot-be-overwritten/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-review-fixes.-78254-t-and-cannot-be-overwritten/error-context.md
+
+  2) tests/e2e/manual-paper/review-fixes.e2e.ts:45:1 › M2: unsaved text survives tab switches; leaving the paper or logging out asks first 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('editor')
+    Expected substring: "Unsaved words."
+    Received string:    ""
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('editor') with timeout 5000ms
+      - waiting for getByTestId('editor')
+        14 × locator resolved to <div class="editor" data-testid="editor">…</div>
+           - unexpected value ""
+
+
+      52 |   await page.getByRole('tab', { name: '버전' }).click();
+      53 |   await page.getByRole('tab', { name: '원고' }).click();
+    > 54 |   await expect(page.getByTestId('editor')).toContainText('Unsaved words.');
+         |                                            ^
+      55 |   await expect(page.getByTestId('save-status')).not.toHaveText('저장됨');
+      56 |   const dialogs: string[] = [];
+      57 |   page.on('dialog', async (d) => { dialogs.push(d.message()); await d.dismiss(); });
+        at /home/user/ManuAlly/tests/e2e/manual-paper/review-fixes.e2e.ts:54:44
+
+    Error Context: packages/config/test-results/manual-paper-review-fixes.-4b1b0-r-or-logging-out-asks-first/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-review-fixes.-4b1b0-r-or-logging-out-asks-first/error-context.md
+
+  3) tests/e2e/manual-paper/review-fixes.e2e.ts:65:1 › M3: approval is only offered for what is saved; unsaved form edits block it and are kept 
+
+    Error: expect(locator).toBeDisabled() failed
+
+    Locator:  getByRole('button', { name: '이 스토리 버전 승인' })
+    Expected: disabled
+    Received: enabled
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeDisabled" getByRole('button', { name: '이 스토리 버전 승인' }) with timeout 5000ms
+      - waiting for getByRole('button', { name: '이 스토리 버전 승인' })
+        14 × locator resolved to <button type="button" class="primary">이 스토리 버전 승인</button>
+           - unexpected value "enabled"
+
+
+      72 |   await expect(page.getByRole('button', { name: '이 스토리 버전 승인' })).toBeEnabled();
+      73 |   await page.getByLabel('핵심 메시지').fill('MESSAGE ON SCREEN (unsaved)');
+    > 74 |   await expect(page.getByRole('button', { name: '이 스토리 버전 승인' })).toBeDisabled();
+         |                                                                   ^
+      75 |   await expect(page.getByText('저장한 뒤 승인')).toBeVisible();
+      76 |   await page.getByRole('tab', { name: '자료' }).click();
+      77 |   await page.getByRole('tab', { name: '구상·개요' }).click();
+        at /home/user/ManuAlly/tests/e2e/manual-paper/review-fixes.e2e.ts:74:67
+
+    Error Context: packages/config/test-results/manual-paper-review-fixes.-296b4-edits-block-it-and-are-kept/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-review-fixes.-296b4-edits-block-it-and-are-kept/error-context.md
+
+  4) tests/e2e/manual-paper/review-fixes.e2e.ts:86:1 › minor 5: a replicate count that is not a whole number is refused, not silently dropped 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('alert')
+    Expected substring: "반복 수"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" getByRole('alert') with timeout 5000ms
+      - waiting for getByRole('alert')
+
+
+      92 |   for (const [label, v] of [['대상', 'x'], ['지표', 'm'], ['값(원문 그대로)', '1'], ['단위', 'u'], ['반복 수(n)', 'three']] as const) await page.getByLabel(label, { exact: true }).fill(v);
+      93 |   await page.getByRole('button', { name: '사실 추가' }).click();
+    > 94 |   await expect(page.getByRole('alert')).toContainText('반복 수');
+         |                                         ^
+      95 |   await expect(page.getByTestId('fact-state')).toHaveCount(0);
+      96 | });
+      97 |
+        at /home/user/ManuAlly/tests/e2e/manual-paper/review-fixes.e2e.ts:94:41
+
+    Error Context: packages/config/test-results/manual-paper-review-fixes.-ec0da-efused-not-silently-dropped/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-review-fixes.-ec0da-efused-not-silently-dropped/error-context.md
+
+  4 failed
+    tests/e2e/manual-paper/review-fixes.e2e.ts:25:1 › M1: a manuscript with content the editor cannot edit opens read-only, shows it, and cannot be overwritten 
+    tests/e2e/manual-paper/review-fixes.e2e.ts:45:1 › M2: unsaved text survives tab switches; leaving the paper or logging out asks first 
+    tests/e2e/manual-paper/review-fixes.e2e.ts:65:1 › M3: approval is only offered for what is saved; unsaved form edits block it and are kept 
+    tests/e2e/manual-paper/review-fixes.e2e.ts:86:1 › minor 5: a replicate count that is not a whole number is refused, not silently dropped 

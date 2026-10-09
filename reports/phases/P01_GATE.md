@@ -11,14 +11,19 @@
 | PW-011 | 근거·사실·주장, owner만 검증, p/q 분리, 원문 숫자 보존 | 통합 33 | 리뷰, 재리뷰 approve |
 | PW-012 | browser·server 공용 editor-core, 계약 v2 | unit 43, Chromium parity, contracts 13 | 리뷰, 재리뷰 approve |
 | PW-013 | DB job·outbox·감사 기록, lease·fencing, crash 회복 | 통합 31 | 리뷰, 재리뷰 approve |
-| PW-014 | 웹 화면과 수동 수직 경로 E2E | E2E 2, 통합 1, unit 9 | **리뷰 진행 중** |
+| PW-014 | 웹 화면과 수동 수직 경로 E2E | E2E 11, 통합 1, unit 14 | 리뷰(changes requested, major 4) 반영, **재리뷰 진행 중** |
 
 최종 회귀 `pnpm test` exit 0:
-- unit 61, integration 130, contracts 13, e2e 3, spikes 70
+- unit 66, integration 130, contracts 13, e2e 11, spikes 70
+- 의존성: lockfile 270개 전부 14일 이상(overrides 포함), 모두 라이선스 확인(MIT 계열·Apache-2.0)
 - evals PASS, pack-check PASS
 
 ## 사용자 결정이 필요한 항목
-1. **RFC-006(P01 write scope 보완) 확인.** 앱 조립 파일과 Task 사이 연결 지점을 각 Task 범위 밖에서 고쳤고, 모두 RFC-006 부록에 기록했다.
+1. **RFC-006(P01 write scope 보완) 확인.** 앱 조립 파일과 Task 사이 연결 지점을 각 Task 범위 밖에서 고쳤고, 모두 RFC-006 부록에 기록했다. 특히 다음 공유 변경을 확인해 달라.
+   - editor-core schema `doc: block*`(빈 원고 허용)
+   - `DomainError` 구조 변경
+   - 원고 검증을 domain 저장 함수로 이동
+   - root `pnpm.overrides`(14일 규칙용 하위 의존성 고정)
 2. **개요 승인 방식.** 현재는 보수적으로, 모든 문단 계획이 승인되어야 AI 초안이 열린다.
    - spec 03의 "범위별 승인 → 해당 문단 생성"과 다르다.
    - 유지(권장) 또는 문단별 허용 중 선택.
@@ -27,6 +32,9 @@
 4. **P00 사건 임시 폴더 `/tmp/pw004-live-neg-*` 삭제 여부**(이전 세션부터 보류). 사용자 PC에 있는 경우에 해당한다.
 
 ## 다음 phase로 넘기는 위험 (확인만)
+- **공유 연구실 서버에서 개발 서버(5173)와 API(8787)는 127.0.0.1에만 열리지만, 같은 서버의 다른 사용자 계정도 그 주소에 접속할 수 있다.**
+  - 첫 계정을 만들기 전에는 다른 로컬 사용자가 먼저 계정을 만들 수 있다. proxy를 거치면 모든 요청이 loopback으로 보이기 때문이다. 설치 직후 바로 계정을 만들어야 한다.
+  - 로그인 후에도 세션 쿠키와 비밀번호는 보호되지만, 공유 서버 운영은 P07의 unix socket 또는 사용자 전용 인증 프록시 설계로 다룬다.
 - **앱 DB 계정이 superuser다.** trigger를 끌 수 있으므로 runtime role 분리를 연구실 서버 운영 전에 반드시 해야 한다(P07, RFC 예정).
 - **worker 상시 루프가 아직 없다.** relay와 recoverJobs 호출, WAITING 재개 스케줄, 재발행 상한은 P02/P03 provider 연결과 함께 한다.
 - **편집기 IME·다중 탭·붙여넣기 정리·자동 저장**은 PW-015/022에서 한다.

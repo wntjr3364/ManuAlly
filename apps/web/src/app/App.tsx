@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, setCsrf } from './api.ts';
 import { Login, type Owner } from './Login.tsx';
 import { navigate, usePath } from './router.ts';
+import { confirmLeave } from './unsaved.ts';
 import { PapersPage } from '../features/paper/PapersPage.tsx';
 import { PaperPage } from '../features/paper/PaperPage.tsx';
 
@@ -16,6 +17,7 @@ export function App() {
   if (owner === undefined) return <p className="loading">불러오는 중…</p>;
   if (owner === null) return <Login onLogin={setOwner} />;
   const logout = async () => {
+    if (!confirmLeave()) return;
     await api('POST', '/api/auth/logout').catch(() => {});
     setOwner(null);
     navigate('/');
@@ -24,7 +26,7 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <a href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>Paper Workspace</a>
+        <a href="/" onClick={(e) => { e.preventDefault(); if (confirmLeave()) navigate('/'); }}>Paper Workspace</a>
         <span className="who">{owner.username} <button type="button" className="link" onClick={logout}>로그아웃</button></span>
       </header>
       {m ? <PaperPage paperId={m[1]!} /> : <PapersPage />}

@@ -21,7 +21,12 @@ export function reconcileBlockIds(oldDoc: PMNode, state: EditorState, transactio
   // (setBlockType reports its start as deleted while the block is still there) claims its position
   // only if no surviving block does — a block deleted outright never takes its neighbour's id.
   const claims = new Map<number, string>();
+  const tails: [number, string][] = [];
   const replaced: [number, string][] = [];
+  const blockAt = (pos: number) => {
+    const $p = state.doc.resolve(Math.min(Math.max(pos, 0), state.doc.content.size));
+    return $p.depth >= 1 ? $p.before(1) : -1;
+  };
   oldDoc.forEach((node, offset) => {
     const id = node.attrs.id as unknown;
     if (!BLOCK_TYPES.includes(node.type.name) || typeof id !== 'string' || !UUID.test(id)) return;
@@ -29,14 +34,24 @@ export function reconcileBlockIds(oldDoc: PMNode, state: EditorState, transactio
     // now contains it: Enter at the very start leaves the id with the text, content inserted before
     // the block pushes it along, and text typed at its start stays in the same block
     const r = mapping.mapResult(offset + 1, 1);
-    const $p = state.doc.resolve(Math.min(r.pos, state.doc.content.size));
-    const at = $p.depth >= 1 ? $p.before(1) : -1;
+    const at = blockAt(r.pos);
     if (at < 0) return;
-    if (r.deleted) replaced.push([at, id]);
-    else if (!claims.has(at)) claims.set(at, id);
+    if (!r.deleted) {
+      if (!claims.has(at)) claims.set(at, id);
+      return;
+    }
+    // its start was deleted: if the end of its text survived (e.g. undoing a paste that had been
+    // joined onto its start), the block holding that text keeps the id
+    if (node.content.size > 0) {
+      const t = mapping.mapResult(offset + node.nodeSize - 1, -1);
+      const tailAt = t.deleted ? -1 : blockAt(t.pos);
+      if (tailAt >= 0) tails.push([tailAt, id]);
+    }
+    replaced.push([at, id]);
   });
   const claimed = new Set(claims.values());
-  for (const [pos, id] of replaced) if (!claims.has(pos) && !claimed.has(id)) { claims.set(pos, id); claimed.add(id); }
+  // surviving starts first, then surviving text ends, then blocks replaced in place
+  for (const [pos, id] of [...tails, ...replaced]) if (!claims.has(pos) && !claimed.has(id)) { claims.set(pos, id); claimed.add(id); }
   const blocks: { node: PMNode; offset: number }[] = [];
   state.doc.forEach((node, offset) => { if (BLOCK_TYPES.includes(node.type.name)) blocks.push({ node, offset }); });
   const used = new Set<string>();

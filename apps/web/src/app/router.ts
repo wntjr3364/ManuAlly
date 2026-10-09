@@ -9,28 +9,41 @@ const idxOf = (state: unknown) => (state && typeof state === 'object' && typeof 
 if (!history.state || typeof (history.state as { idx?: unknown }).idx !== 'number') history.replaceState({ idx: 0 }, '');
 let currentIdx = idxOf(history.state);
 let restoring = false;
+let rendered = location.pathname; // the path the app is showing
 
 export function navigate(path: string) {
   if (location.pathname !== path) {
     currentIdx += 1;
     history.pushState({ idx: currentIdx }, '', path);
   }
+  rendered = path;
   listeners.forEach((l) => l());
 }
 
 addEventListener('popstate', (e) => {
   const idx = idxOf(e.state);
+  if (location.pathname === rendered) {
+    // same page (e.g. only the #fragment changed): nothing is left, just keep our index on the entry
+    if (!restoring) history.replaceState({ idx: currentIdx }, '');
+    restoring = false;
+    return;
+  }
   if (restoring) {
     // the history.go() below landed back where we were
     restoring = false;
     return;
   }
   if (!confirmLeave()) {
-    restoring = true;
-    history.go(currentIdx - idx);
+    const delta = currentIdx - idx;
+    if (delta !== 0) {
+      restoring = true;
+      // after the current traversal has finished: a history.go() issued inside popstate can be dropped
+      setTimeout(() => history.go(delta), 0);
+    } else history.pushState({ idx: currentIdx }, '', rendered); // unknown entry: put our page back
     return;
   }
   currentIdx = idx;
+  rendered = location.pathname;
   listeners.forEach((l) => l());
 });
 

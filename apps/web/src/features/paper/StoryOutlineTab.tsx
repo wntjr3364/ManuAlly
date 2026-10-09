@@ -72,9 +72,11 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
     setEvidence(await api<Evidence[]>('GET', `/api/papers/${paper.id}/evidence`));
   }
   useEffect(() => { load().catch((e) => setError(errorText(e))); }, [paper.id]);
-  // what is on screen differs from the stored latest revision: approval would approve something else
-  const storyDirty = story !== null && !sameStory(form, formOf(story.latest));
-  const outlineDirty = outline !== null && nodeKey(nodes) !== nodeKey(outline.latest?.nodes ?? [newNodeTemplate]);
+  // what is on screen differs from the stored latest revision: approval would approve something else.
+  // Before the first load arrives the screen is compared with an empty form, so text typed early is
+  // still protected when leaving.
+  const storyDirty = !sameStory(form, formOf(story?.latest ?? null));
+  const outlineDirty = nodeKey(nodes) !== nodeKey(outline?.latest?.nodes ?? [newNodeTemplate]);
   useEffect(() => {
     setUnsaved(`story:${paper.id}`, storyDirty ? '스토리' : null);
     setUnsaved(`outline:${paper.id}`, outlineDirty ? '개요' : null);

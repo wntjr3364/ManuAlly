@@ -1,0 +1,35 @@
+
+Running 1 test using 1 worker
+
+[1/1] tests/e2e/manual-paper/rereview-fixes.e2e.ts:287:1 › verification minor 4: a title typed while the previous paper is being created is kept
+  1) tests/e2e/manual-paper/rereview-fixes.e2e.ts:287:1 › verification minor 4: a title typed while the previous paper is being created is kept 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  getByLabel('새 논문 제목')
+    Expected: "Typed meanwhile"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveValue" getByLabel('새 논문 제목') with timeout 5000ms
+      - waiting for getByLabel('새 논문 제목')
+        14 × locator resolved to <input value=""/>
+           - unexpected value ""
+
+
+      298 |   release();
+      299 |   await expect(page.getByRole('link', { name: 'Slow one' })).toBeVisible();
+    > 300 |   await expect(page.getByLabel('새 논문 제목')).toHaveValue('Typed meanwhile');
+          |                                            ^
+      301 | });
+      302 |
+        at /home/user/ManuAlly/tests/e2e/manual-paper/rereview-fixes.e2e.ts:300:44
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-2d404-er-is-being-created-is-kept/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-2d404-er-is-being-created-is-kept/error-context.md
+
+
+  1 failed
+    tests/e2e/manual-paper/rereview-fixes.e2e.ts:287:1 › verification minor 4: a title typed while the previous paper is being created is kept 

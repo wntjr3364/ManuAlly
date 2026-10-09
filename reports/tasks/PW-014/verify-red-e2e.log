@@ -1,0 +1,55 @@
+
+Running 2 tests using 1 worker
+
+  ✘  1 tests/e2e/manual-paper/rereview-fixes.e2e.ts:218:1 › verification minor 1: undo/redo of a multi-paragraph paste at a paragraph start keeps that paragraph id (1.5s)
+  ✘  2 tests/e2e/manual-paper/rereview-fixes.e2e.ts:247:1 › verification minor 2: a #fragment change on the same page neither prompts nor breaks Back (1.4s)
+
+
+  1) tests/e2e/manual-paper/rereview-fixes.e2e.ts:218:1 › verification minor 1: undo/redo of a multi-paragraph paste at a paragraph start keeps that paragraph id 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "3508a0c0-25c3-4484-9862-e18d47c6bf61"
+    Received: "563360d9-71e5-4d1e-9706-db38d556b02d"
+
+      239 |   await page.keyboard.press('Control+z');
+      240 |   await expect(pm.locator('p', { hasText: /^second$/ })).toHaveCount(1);
+    > 241 |   expect(await idOf('second')).toBe(B);
+          |                                ^
+      242 |   await page.keyboard.press('Control+Shift+z');
+      243 |   await expect(pm.locator('p', { hasText: 'P2second' })).toHaveCount(1);
+      244 |   expect(await idOf('P2second')).toBe(B);
+        at /home/user/ManuAlly/tests/e2e/manual-paper/rereview-fixes.e2e.ts:241:32
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-dca05-art-keeps-that-paragraph-id/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-dca05-art-keeps-that-paragraph-id/error-context.md
+
+  2) tests/e2e/manual-paper/rereview-fixes.e2e.ts:247:1 › verification minor 2: a #fragment change on the same page neither prompts nor breaks Back 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "confirm",
+    + ]
+
+      254 |   await page.evaluate(() => { location.hash = 'section-2'; });
+      255 |   await page.waitForTimeout(300);
+    > 256 |   expect(dialogs).toEqual([]);
+          |                   ^
+      257 |   await expect(page.getByLabel('핵심 메시지')).toHaveValue('unsaved');
+      258 |   await page.goBack(); // back to the same page without the fragment
+      259 |   await page.waitForTimeout(300);
+        at /home/user/ManuAlly/tests/e2e/manual-paper/rereview-fixes.e2e.ts:256:19
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-b1178-her-prompts-nor-breaks-Back/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-b1178-her-prompts-nor-breaks-Back/error-context.md
+
+  2 failed
+    tests/e2e/manual-paper/rereview-fixes.e2e.ts:218:1 › verification minor 1: undo/redo of a multi-paragraph paste at a paragraph start keeps that paragraph id 
+    tests/e2e/manual-paper/rereview-fixes.e2e.ts:247:1 › verification minor 2: a #fragment change on the same page neither prompts nor breaks Back 

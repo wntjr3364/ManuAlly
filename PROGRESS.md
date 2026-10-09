@@ -33,7 +33,7 @@
 | PW-011 | in_review | (P01) | REQ-011 / TST-011A,B | 통합 33/33(리뷰 회귀 23 포함), mutation 5종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | evidence 웹 UI(PW-014), outline evidence_ids 실제 연결(RFC 필요), CSV 파서·철회 API(P04) |
 | PW-012 | in_review | (P01) | REQ-012 / TST-012A,B | unit 43(리뷰 회귀 22 포함), Chromium↔Node parity 1, contracts 13, mutation 3종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | 저장 경로 연결·붙여넣기 U+FFFC 처리(PW-014/015), Firefox/Safari, IME, apply 엔진(PW-017), https 필요(secure context) |
 | PW-013 | in_review | (P01) | REQ-013 / TST-013A,B | 통합 31/31(리뷰 회귀 16 포함, PostgreSQL+pg-boss), mutation 7종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | 기능 경로 연결(draft request→job, PW-014/P02), 승인 actor 기록(PW-014), worker 상시 루프·recoverJobs 호출·재발행 상한(P02/P03) |
-| PW-014 | in_review | (P01) | REQ-014 / TST-014A,B | E2E 21/21(Chromium·실제 API·PostgreSQL, 2회 반복 42/42), unit 18, 통합 1, 리뷰 3회 반영, 실제 dev 실행 smoke, `pnpm test` exit 0 | IME·자동저장(PW-015/022), asset/reference 입력(P04), 배포·공유 서버 격리(P07) |
+| PW-014 | in_review | (P01) | REQ-014 / TST-014A,B | E2E 25/25(Chromium·실제 API·PostgreSQL, 2회 반복 42/42, 불안정했던 시험 60회 반복 60/60), unit 19, 통합 1, 리뷰 4회 반영, 실제 dev 실행 smoke, `pnpm test` exit 0 | IME·자동저장(PW-015/022), asset/reference 입력(P04), 배포·공유 서버 격리(P07) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

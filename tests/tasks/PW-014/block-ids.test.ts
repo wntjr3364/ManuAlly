@@ -96,6 +96,22 @@ describe('block ids', () => {
     expect(s1.doc.child(out.indexOf(B)).textContent).toContain('second');
   });
 
+  test('undoing a multi-paragraph paste at the start of B (a delete from inside the copy into B) gives B its id back', () => {
+    const X = '00000000-0000-4000-8000-0000000000f1';
+    // state after the paste: first | P1 (copy id X) | P2second (B) | third
+    const pasted = schema.nodeFromJSON({ type: 'doc', content: [
+      { type: 'paragraph', attrs: { id: A }, content: [{ type: 'text', text: 'first' }] },
+      { type: 'paragraph', attrs: { id: X }, content: [{ type: 'text', text: 'P1' }] },
+      { type: 'paragraph', attrs: { id: B }, content: [{ type: 'text', text: 'P2second' }] },
+      { type: 'paragraph', attrs: { id: C }, content: [{ type: 'text', text: 'third' }] },
+    ] });
+    const s0 = createEditorState(pasted);
+    // the undo step: delete from the start of P1's content to after "P2" inside B
+    const s1 = step(s0, (s) => s.tr.delete(offsetOf(s, X) + 1, offsetOf(s, B) + 1 + 2));
+    expect(s1.doc.child(1).textContent).toBe('second');
+    expect(ids(s1)).toEqual([A, B, C]);
+  });
+
   test('blocks without ids get one; deleting a block leaves the others alone', () => {
     const bare = schema.nodeFromJSON({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }, { type: 'paragraph', attrs: { id: B } }] });
     const s0 = createEditorState(bare);

@@ -13,9 +13,11 @@ export function PapersPage() {
   async function create(e: FormEvent) {
     e.preventDefault();
     setError('');
+    const submitted = title;
     try {
-      await api('POST', '/api/papers', { working_title: title, article_type: 'research_article' });
-      setTitle('');
+      await api('POST', '/api/papers', { working_title: submitted, article_type: 'research_article' });
+      // clear only what was sent: a title typed while the request was running is kept
+      setTitle((t) => (t === submitted ? '' : t));
       await load();
     } catch (err) {
       setError(errorText(err));

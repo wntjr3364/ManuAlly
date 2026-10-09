@@ -1,0 +1,30 @@
+
+Running 1 test using 1 worker
+
+[1/1] tests/e2e/manual-paper/rereview-fixes.e2e.ts:267:1 › verification minor 3: text typed before the story has loaded still asks before leaving
+  1) tests/e2e/manual-paper/rereview-fixes.e2e.ts:267:1 › verification minor 3: text typed before the story has loaded still asks before leaving 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected substring: "스토리"
+    Received string:    ""
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      278 |   page.once('dialog', (d) => { asked = d.message(); void d.dismiss(); });
+      279 |   await page.getByRole('link', { name: 'Paper Workspace' }).click();
+    > 280 |   await expect.poll(() => asked).toContain('스토리');
+          |                                  ^
+      281 |   await expect(page.getByLabel('핵심 메시지')).toHaveValue('early text');
+      282 |   release();
+      283 |   await expect(page.getByTestId('story-status')).toHaveText('없음');
+        at /home/user/ManuAlly/tests/e2e/manual-paper/rereview-fixes.e2e.ts:280:34
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-50c50-d-still-asks-before-leaving/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-50c50-d-still-asks-before-leaving/error-context.md
+
+
+  1 failed
+    tests/e2e/manual-paper/rereview-fixes.e2e.ts:267:1 › verification minor 3: text typed before the story has loaded still asks before leaving 

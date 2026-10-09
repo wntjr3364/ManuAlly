@@ -11,10 +11,10 @@
 | PW-011 | 근거·사실·주장, owner만 검증, p/q 분리, 원문 숫자 보존 | 통합 33 | 리뷰, 재리뷰 approve |
 | PW-012 | browser·server 공용 editor-core, 계약 v2 | unit 43, Chromium parity, contracts 13 | 리뷰, 재리뷰 approve |
 | PW-013 | DB job·outbox·감사 기록, lease·fencing, crash 회복 | 통합 31 | 리뷰, 재리뷰 approve |
-| PW-014 | 웹 화면과 수동 수직 경로 E2E | E2E 21, 통합 1, unit 18 | 리뷰(major 4)·재리뷰(major 2)·최종 확인(major 1, 내 회귀) 반영 |
+| PW-014 | 웹 화면과 수동 수직 경로 E2E | E2E 25, 통합 1, unit 19 | 리뷰(major 4)·재리뷰(major 2)·최종 확인(major 1, 내 회귀)·검증(minor 2 + 반복 실행에서 찾은 입력 유실 2) 반영 |
 
 최종 회귀 `pnpm test` exit 0:
-- unit 70, integration 130, contracts 13, e2e 21, spikes 70
+- unit 71, integration 130, contracts 13, e2e 25, spikes 70
 - 의존성: lockfile 270개 전부 14일 이상(overrides 포함), 모두 라이선스 확인(MIT 계열·Apache-2.0)
 - evals PASS, pack-check PASS
 

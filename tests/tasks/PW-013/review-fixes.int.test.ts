@@ -202,3 +202,62 @@ describe('review minors 7–8: job guard and audit coverage', () => {
     ]));
   });
 });
+
+describe('re-review minors', () => {
+  test('m1: a database error inside a caller transaction surfaces as itself, and the caller transaction stays usable', async () => {
+    const p = await paper();
+    const c = await pool.connect();
+    try {
+      await c.query('BEGIN READ ONLY');
+      await expect(enqueueJob(c, { paperId: p.id, ownerId, intent: 'export', idempotencyKey: randomUUID(), payload: {} })).rejects.toMatchObject({ code: '25006' });
+      expect((await c.query('SELECT 1 AS ok')).rows[0].ok).toBe(1);
+      await c.query('ROLLBACK');
+    } finally {
+      c.release();
+    }
+  });
+
+  test('m2: enqueue on a client outside a transaction is still attributed to the owner', async () => {
+    const p = await paper();
+    const c = await pool.connect();
+    try {
+      const { job } = await enqueueJob(c, { paperId: p.id, ownerId, intent: 'export', idempotencyKey: randomUUID(), payload: {} });
+      const { rows } = await pool.query("SELECT actor FROM audit_events WHERE entity_id = $1 AND action = 'created'", [job.id]);
+      expect(rows[0].actor).toBe(`owner:${ownerId}`);
+    } finally {
+      c.release();
+    }
+  });
+
+  test('m3: a job whose runs keep dying is not taken over again after MAX_ATTEMPTS', async () => {
+    const p = await paper();
+    const { job } = await enqueue(p.id);
+    for (let i = 0; i < MAX_ATTEMPTS; i++) {
+      expect(await claimJob(pool, { jobId: job.id, workerId: `w${i}`, leaseMs: 30_000 }), `run ${i + 1}`).not.toBeNull();
+      await expireLease(job.id);
+    }
+    expect(await claimJob(pool, { jobId: job.id, workerId: 'one-more', leaseMs: 30_000 })).toBeNull();
+    await recoverJobs(pool, { redispatchAfterMs: 0 });
+    expect((await getJob(pool, p.id, job.id))!.status).toBe('FAILED');
+  });
+
+  test('m4: direct SQL cannot claim from WAITING or move attempts/tokens outside a claim', async () => {
+    const p = await paper();
+    const { job } = await enqueue(p.id);
+    await expect(pool.query("UPDATE jobs SET status = 'CANCELLED', finished_at = now(), attempts = 99 WHERE id = $1", [job.id])).rejects.toThrow(/transition/);
+    const c = await claimJob(pool, { jobId: job.id, workerId: 'w', leaseMs: 30_000 });
+    await expect(pool.query("UPDATE jobs SET fencing_token = fencing_token + 5, attempts = attempts + 1, lease_owner = 'x' WHERE id = $1", [job.id])).rejects.toThrow(/transition/);
+    await failJob(pool, { jobId: job.id, fencingToken: c!.fencingToken, error: 'q', next: 'WAITING_QUOTA' });
+    await expect(pool.query("UPDATE jobs SET status = 'RUNNING', fencing_token = fencing_token + 1, attempts = attempts + 1, lease_owner = 'x', lease_expires_at = now() + interval '1 hour' WHERE id = $1", [job.id])).rejects.toThrow(/transition/);
+  });
+
+  test('m7: sparse payload arrays and unknown next states are refused', async () => {
+    const p = await paper();
+    // eslint-disable-next-line no-sparse-arrays
+    await expect(enqueue(p.id, { a: [, 1] })).rejects.toThrow(/payload/);
+    const { job } = await enqueue(p.id);
+    const c = await claimJob(pool, { jobId: job.id, workerId: 'w', leaseMs: 30_000 });
+    await expect(failJob(pool, { jobId: job.id, fencingToken: c!.fencingToken, error: 'x', next: 'SUCCEEDED' as never })).rejects.toThrow(/next/);
+    expect(() => new JobOutcomeError('x', 'SUCCEEDED' as never)).toThrow(/next/);
+  });
+});

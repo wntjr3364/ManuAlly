@@ -112,7 +112,7 @@ PW-014 수동 수직 경로 E2E + P01 gate(리뷰 후).
 
 | 지적 | 조치 |
 |---|---|
-| **M1 worker가 메시지를 받은 뒤나 claim 뒤에 죽으면 job이 영구히 멈춤** | `recoverJobs`(relay 주기에 함께 실행). lease가 만료된 RUNNING은 QUEUED로 되돌리고, MAX_ATTEMPTS를 넘으면 FAILED. 받기만 하고 처리되지 않은 QUEUED는 마지막 발행 후 일정 시간(기본 5분)이 지나면 다시 발행. 두 crash 시나리오 모두 회복 후 정본 1회 반영을 시험 |
+| **M1 worker가 메시지를 받은 뒤나 claim 뒤에 죽으면 job이 영구히 멈춤** | `recoverJobs` 라이브러리 함수(**아직 호출하는 루프는 없다**. P02/P03 worker 루프에서 relay와 함께 주기 실행). lease가 만료된 RUNNING은 QUEUED로 되돌리고, MAX_ATTEMPTS를 넘으면 FAILED. 받기만 하고 처리되지 않은 QUEUED는 마지막 발행 후 일정 시간(기본 5분)이 지나면 다시 발행. 두 crash 시나리오 모두 회복 후 정본 1회 반영을 시험 |
 | m1 WAITING_*→QUEUED 재발행 경로 없음 | `jobs_dispatch` trigger: QUEUED가 되는 모든 전이(생성·재시도·회복·재개)에서 같은 문장으로 outbox 기록. 재시도는 지연(`pw.dispatch_delay_secs`, 최대 300초) |
 | m2 오류 종류 매핑 없음 | handler가 `JobOutcomeError(next)`로 WAITING_QUOTA/AUTH/BUDGET/USER, STALE, FAILED를 지정. 그 밖의 오류는 재시도 |
 | m3 caller 트랜잭션에서 actor가 새어 나감 | completeJob/failJob은 apply 뒤에 worker actor를 다시 설정. enqueueJob은 caller의 actor를 복원 |
@@ -140,3 +140,21 @@ PW-014 수동 수직 경로 E2E + P01 gate(리뷰 후).
   - PW-013 통합 26/26(`green.log`)
   - mutation 추가 2종 탐지: 받은 메시지 재발행 제거, 전이 시 발행 제거
   - `pnpm test` exit 0: unit 52, integration 124, contracts 13, e2e 1, spikes 70, evals/pack PASS
+
+### 재리뷰 (2026-10-09): approve. minor 반영
+- 회귀 시험 5건 추가. 수정 전 5건 실패(`rereview-red.log`).
+- m1/m2 caller 세션 처리
+  - caller 트랜잭션 안에서는 savepoint로 감싼다. 오류가 나면 이 부분(actor 설정 포함)만 되돌리고 원래 오류(예: 25006, 40001)를 그대로 던진다. caller 트랜잭션은 계속 쓸 수 있다.
+  - 트랜잭션 밖의 client에서는 BEGIN/COMMIT을 직접 열어 actor가 기록되게 한다.
+- m3: lease가 만료된 job도 MAX_ATTEMPTS에 도달했으면 다시 가져가지 않는다(recoverJobs가 FAILED 처리).
+  - WAITING에서 재개된 job은 시도 횟수를 넘겨도 한 번 더 실행될 수 있다. quota 대기는 실패가 아니라서 의도된 동작이다.
+- m4: `pw_013_0003`의 guard 규칙
+  - 실행 시작은 QUEUED 또는 만료된 RUNNING에서만 가능하다.
+  - attempts·token은 claim일 때만, 정확히 +1씩 바뀐다.
+- m7
+  - 구멍 있는 배열 payload 거부
+  - failJob·JobOutcomeError의 next 값 검증
+- 이월(P02/P03 worker 루프)
+  - m5: 재발행 횟수 상한, 또는 pg-boss 메시지가 소진된 뒤에만 재발행
+  - m6: 보고서 정정(위 표). recoverJobs·relay를 실제로 부르는 루프가 아직 없다.
+- 이월(PW-014): PW-010/011 함수의 pw.actor 설정

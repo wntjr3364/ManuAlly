@@ -6,7 +6,7 @@
 //   fencing token) decides; a duplicate, late or mismatched message changes nothing.
 import { PgBoss } from 'pg-boss';
 import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '@pw/domain/shared/db.ts';
-import { TERMINAL, claimJob, completeJob, failJob, heartbeatJob, type Job, type JobMessage } from '@pw/domain/jobs/index.ts';
+import { FAIL_NEXT, TERMINAL, claimJob, completeJob, failJob, heartbeatJob, type Job, type JobMessage } from '@pw/domain/jobs/index.ts';
 
 export type { JobMessage };
 export const QUEUE_NAME = 'pw-jobs';
@@ -82,6 +82,7 @@ export type JobHandler = (job: Job, ctx: HandlerContext) => Promise<{ apply?: (t
 export class JobOutcomeError extends Error {
   readonly next: 'FAILED' | 'STALE' | 'WAITING_QUOTA' | 'WAITING_AUTH' | 'WAITING_BUDGET' | 'WAITING_USER';
   constructor(message: string, next: JobOutcomeError['next']) {
+    if (next === ('retry' as never) || !FAIL_NEXT.includes(next)) throw new TypeError(`JobOutcomeError next must be one of ${FAIL_NEXT.filter((n) => n !== 'retry').join(', ')}`);
     super(message);
     this.next = next;
   }

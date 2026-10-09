@@ -37,10 +37,36 @@ interface JobRow extends Job { owner_id: string; fencing_token: string; lease_ow
 
 export interface JobMessage { job_id: string; paper_id: string; intent: string }
 
-// a checked-out client (has release) is the caller's transaction; a pool needs one opened
+// a pool needs a transaction opened; anything else is one session (a checked-out client)
 const isTxPool = (db: Queryable | TxPool): db is TxPool => typeof (db as TxPool).connect === 'function' && typeof (db as { release?: unknown }).release !== 'function';
-// run in the caller's transaction (a client), or open one (a pool)
-const withTx = <T>(db: Queryable | TxPool, fn: (tx: Queryable) => Promise<T>) => (isTxPool(db) ? inTransaction(db, fn) : fn(db));
+
+// On a session: inside the caller's transaction, work under a savepoint (an error rolls back only our
+// part, including our actor setting, and surfaces unchanged); outside one, open a transaction.
+async function withSession<T>(db: Queryable, fn: (tx: Queryable) => Promise<T>): Promise<T> {
+  try {
+    await db.query('SAVEPOINT pw_enqueue');
+  } catch (e) {
+    if ((e as { code?: string }).code !== '25P01') throw e; // 25P01: no transaction block
+    await db.query('BEGIN');
+    try {
+      const out = await fn(db);
+      await db.query('COMMIT');
+      return out;
+    } catch (err) {
+      await db.query('ROLLBACK').catch(() => {});
+      throw err;
+    }
+  }
+  try {
+    const out = await fn(db);
+    await db.query('RELEASE SAVEPOINT pw_enqueue');
+    return out;
+  } catch (err) {
+    await db.query('ROLLBACK TO SAVEPOINT pw_enqueue').catch(() => {});
+    throw err;
+  }
+}
+const withTx = <T>(db: Queryable | TxPool, fn: (tx: Queryable) => Promise<T>) => (isTxPool(db) ? inTransaction(db, fn) : withSession(db, fn));
 const setActor = (tx: Queryable, actor: string) => tx.query("SELECT set_config('pw.actor', $1, true)", [actor]);
 
 // plain JSON only: a Date or Map would hash as {} and silently match a different payload
@@ -56,7 +82,13 @@ function checkPayload(v: unknown, depth = 0): void {
     if (!storable(v)) throw bad('contains a NUL character or an unpaired surrogate');
     return;
   }
-  if (Array.isArray(v)) return v.forEach((x) => checkPayload(x, depth + 1));
+  if (Array.isArray(v)) {
+    for (let i = 0; i < v.length; i++) {
+      if (!(i in v)) throw bad('arrays may not have holes');
+      checkPayload(v[i], depth + 1);
+    }
+    return;
+  }
   if (typeof v === 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(v))) {
     for (const [k, x] of Object.entries(v)) { checkPayload(k, depth + 1); checkPayload(x, depth + 1); }
     return;
@@ -82,11 +114,9 @@ export async function enqueueJob(db: Queryable | TxPool, a: { paperId: string; o
     // inside a caller's transaction, restore its actor afterwards (e.g. a worker enqueueing a follow-up)
     const previous = (await tx.query<{ a: string | null }>("SELECT current_setting('pw.actor', true) AS a")).rows[0]!.a ?? '';
     await setActor(tx, `owner:${a.ownerId}`);
-    try {
-      return await enqueueIn(tx, a, hash);
-    } finally {
-      await setActor(tx, previous);
-    }
+    const out = await enqueueIn(tx, a, hash); // on error the savepoint/transaction undoes the actor too
+    await setActor(tx, previous);
+    return out;
   });
 }
 
@@ -139,6 +169,8 @@ export async function claimJob(pool: TxPool, a: { jobId: string; workerId: strin
     const j = rows[0];
     if (!j) return null;
     if (!(j.status === 'QUEUED' || (j.status === 'RUNNING' && j.expired))) return null;
+    // a run that keeps dying is not taken over again; recoverJobs fails it
+    if (j.status === 'RUNNING' && j.attempts >= MAX_ATTEMPTS) return null;
     const up = await tx.query<JobRow>(
       `UPDATE jobs SET status = 'RUNNING', attempts = attempts + 1, fencing_token = fencing_token + 1, lease_owner = $2,
          lease_expires_at = clock_timestamp() + make_interval(secs => $3::double precision / 1000)
@@ -186,7 +218,9 @@ export async function completeJob(pool: TxPool, a: { jobId: string; fencingToken
 }
 
 // Ends a run that did not succeed. 'retry' re-queues (with a new outbox message) until MAX_ATTEMPTS.
-export async function failJob(pool: TxPool, a: { jobId: string; fencingToken: number; error: string; next: 'retry' | 'FAILED' | 'STALE' | 'WAITING_QUOTA' | 'WAITING_AUTH' | 'WAITING_BUDGET' | 'WAITING_USER' }): Promise<Job> {
+export const FAIL_NEXT = ['retry', 'FAILED', 'STALE', 'WAITING_QUOTA', 'WAITING_AUTH', 'WAITING_BUDGET', 'WAITING_USER'] as const;
+export async function failJob(pool: TxPool, a: { jobId: string; fencingToken: number; error: string; next: (typeof FAIL_NEXT)[number] }): Promise<Job> {
+  if (!FAIL_NEXT.includes(a.next)) throw new DomainError('INVALID', `next must be one of ${FAIL_NEXT.join(', ')}`, 'next');
   return inTransaction(pool, async (tx) => {
     const j = await lockRunning(tx, a.jobId, a.fencingToken);
     await setActor(tx, `worker:${j.lease_owner}`);

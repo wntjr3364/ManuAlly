@@ -16,6 +16,7 @@ export const WARNING: Record<string, string> = {
   corrected: '정정(correction/erratum)이 나온 논문입니다',
   expression_of_concern: '우려 표명(expression of concern)이 나온 논문입니다',
   updated: '출처에서 갱신(철회 외: 철회 요청·삭제 등) 표시가 있는 논문입니다',
+  notice_record_used_as_scientific: '고지 기록(철회·정정 고지)을 과학 근거 용도로 넣었습니다 — 고지를 논의하는 경우인지 확인하세요',
   retracted_work_used_as_scientific: '이 논문에는 이미 과학 근거로 들어 있는 철회 논문입니다 — 참고문헌에서 용도를 확인하세요',
 };
 export const DECISION: Record<string, string> = { pending: '결정 전', accepted: '채택함', rejected: '채택 안 함' };

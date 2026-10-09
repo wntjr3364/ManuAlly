@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { Editor } from '@tiptap/core';
 import { bibliography, type CitationStyle, type FigureMeta, type RefMeta } from '@pw/editor-core';
-import { api, errorText } from '../../app/api.ts';
+import { ApiError, api, errorText } from '../../app/api.ts';
 import { labelsFor, setReferenceContext } from './reference-labels.ts';
 
 const STYLE_LABEL: Record<CitationStyle, string> = { numeric: '번호 [1]', author_year: '저자-연도 (Kim 2020)' };
@@ -18,6 +18,8 @@ export function ReferencesPanel({ paperId, editor, canInsert, headRevisionId }: 
   const [figTitle, setFigTitle] = useState('');
   const [figKind, setFigKind] = useState<'figure' | 'table'>('figure');
   const [locator, setLocator] = useState('');
+  // a DOI the library already has, with other details: the owner adds the library's work or corrects the entry
+  const [known, setKnown] = useState<{ body: Record<string, unknown>; library: { title: string; year: number | null; authors: { family: string }[] } } | null>(null);
   const [, setTick] = useState(0); // re-render the bibliography preview when the document changes
 
   const load = useCallback(async () => {
@@ -56,13 +58,24 @@ export function ReferencesPanel({ paperId, editor, canInsert, headRevisionId }: 
       const [family, given] = a.split(',').map((x) => x.trim());
       return given ? { family: family!, given } : { family: family! };
     });
+    const body = { title: form.title, authors, year: form.year ? Number(form.year) : null, container: form.container || null, doi: form.doi || null };
     void act(async () => {
-      await api('POST', `/api/papers/${paperId}/references`, {
-        title: form.title, authors, year: form.year ? Number(form.year) : null, container: form.container || null, doi: form.doi || null,
-      });
+      try {
+        await api('POST', `/api/papers/${paperId}/references`, body);
+      } catch (err) {
+        const b = err instanceof ApiError ? (err.body as { reason?: string; library?: { title: string; year: number | null; authors: { family: string }[] } } | null) : null;
+        if (b?.reason === 'doi_known_with_other_metadata' && b.library) { setKnown({ body, library: b.library }); return; }
+        throw err;
+      }
+      setKnown(null);
       setForm({ title: '', authors: '', year: '', container: '', doi: '' });
     });
   };
+  const addKnown = () => known && void act(async () => {
+    await api('POST', `/api/papers/${paperId}/references`, { ...known.body, use_library_metadata: true });
+    setKnown(null);
+    setForm({ title: '', authors: '', year: '', container: '', doi: '' });
+  });
   const insertCitation = (id: string) => editor?.chain().focus().insertContent({ type: 'citation', attrs: { referenceId: id, locator: locator.trim() || null } }).run();
   const insertFigure = (id: string) => editor?.chain().focus().insertContent({ type: 'figure_ref', attrs: { targetId: id } }).run();
   const move = (f: FigureMeta, dir: -1 | 1) => {
@@ -112,6 +125,14 @@ export function ReferencesPanel({ paperId, editor, canInsert, headRevisionId }: 
         <input aria-label="DOI" placeholder="10.xxxx/…" value={form.doi} onChange={(e) => setForm({ ...form, doi: e.target.value })} />
         <button type="submit">문헌 추가</button>
       </form>
+      {known && (
+        <div role="alert" className="warn" data-testid="known-doi">
+          이 DOI는 서재에 다른 정보로 있습니다: {known.library.authors.map((a) => a.family).join(', ') || '저자 없음'} ({known.library.year ?? 'n.d.'}). {known.library.title}
+          {' — '}입력한 정보로 서재를 바꾸지 않습니다(다른 논문도 이 정보를 씁니다).{' '}
+          <button type="button" onClick={addKnown}>서재 정보로 추가</button>{' '}
+          <button type="button" onClick={() => setKnown(null)}>취소</button>
+        </div>
+      )}
       <h3>그림·표</h3>
       <ul className="plain" data-testid="figure-list">
         {figures.slice().sort((a, b) => (a.kind === b.kind ? a.position - b.position : a.kind < b.kind ? -1 : 1)).map((f) => (

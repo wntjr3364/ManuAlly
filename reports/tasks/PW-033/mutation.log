@@ -39,3 +39,14 @@ KILLED candidate_fk
 SURVIVED doi_with_work
 # after adding the library-flag test:
 KILLED doi_with_work
+# re-review fixes (Fri Oct  9 15:51:18 UTC 2026)
+KILLED known_doi_conflict
+KILLED shown_library
+KILLED revert
+KILLED withdrawal_notice
+KILLED full_beats_partial
+KILLED retracting_kinds
+KILLED worker_withdrawal
+KILLED decision_time
+KILLED notice_warning
+KILLED eoc_now

@@ -243,7 +243,10 @@ describe('re-review nits', () => {
     const cases: [string[], Record<string, unknown>][] = [
       [['correction'], { type: 'has_correction', notice_doi: '10.5555/n.0' }],
       [['correction', 'expression_of_concern'], { type: 'has_expression_of_concern', notice_doi: '10.5555/n.1' }],
-      [['withdrawal'], { type: 'has_update', notice_doi: '10.5555/n.0', notice_type: 'withdrawal' }],
+      [['withdrawal'], { type: 'retracted_publication', notice_doi: '10.5555/n.0', notice_type: 'withdrawal' }],
+      [['removal', 'correction'], { type: 'retracted_publication', notice_doi: '10.5555/n.0', notice_type: 'removal' }],
+      [['addendum'], { type: 'has_update', notice_doi: '10.5555/n.0', notice_type: 'addendum' }],
+      [['corrigendum'], { type: 'has_correction', notice_doi: '10.5555/n.0' }],
       [['partial_retraction', 'retraction'], { type: 'retracted_publication', notice_doi: '10.5555/n.1' }],
     ];
     for (const [kinds, want] of cases) {

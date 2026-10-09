@@ -74,3 +74,16 @@ PW-031 리뷰 반영 → PW-033: AI 문헌 후보 선정
   - `ingestCandidateIn(tx)`를 PW-033 결정 트랜잭션용으로 분리했다.
 - 시험: 통합 16(+9). RED는 `review-red.log`. mutation은 `mutation.log`에 16종을 추가했다. 15종은 탐지했고, 1종은 동치 대조(no-op)다.
 - 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 291, contracts 17, 브라우저 81(`reports/tasks/PW-033/pnpm-test-review.log`).
+
+## 재리뷰 반영 (2026-10-09, 재리뷰: MAJOR 1, nit 2)
+- MAJOR: 서재에 이미 있는 DOI를 다른 정보로 직접 입력해도 그 작품의 메타데이터는 바뀌지 않는다(다른 논문이 그 정보를 보여 준다).
+  - 서버는 409 `doi_known_with_other_metadata`로 서재 정보를 돌려준다.
+  - 소유자는 "서재 정보로 추가"(`use_library_metadata: true`)로 그 작품을 그대로 넣거나, 입력을 고친다.
+  - 화면: `ReferencesPanel`(PW-019, RFC-011 부록)
+  - 브라우저 시험: `tests/tasks/PW-032/known-doi.e2e.ts`, 증거 화면 `known-doi.png`
+  - 논문별 local override는 아직 없다. 필요하면 spec 05의 override 모델로 따로 한다.
+- nit(되돌림): 같은 출처가 이전 형태로 되돌리면(A → B → A) 그 형태를 다시 버전으로 남긴다. 기준은 같은 출처가 마지막으로 준 버전과 다를 때다. 출처를 번갈아 받는 경우에는 여전히 버전이 늘지 않는다.
+- nit(migration 이름 `pw_032_0002`): 이미 push했으므로 이름을 바꾸지 않았다. 이름을 바꾸면 그 파일을 적용한 DB가 "applied migration missing"으로 거부된다. 영향은 개발 DB뿐이고 RFC-011에 기록했다.
+- PW-031 재리뷰 nit 연계: withdrawal, removal, partial_retraction 고지 기록도 `retraction_of`다. corrigendum은 `correction_of`다.
+- 시험: 통합 +3, 브라우저 1. RED는 `rereview-red.log`. mutation은 `mutation.log` 끝에 있고 모두 탐지했다.
+- 회귀(재리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 297, contracts 17, 브라우저 82(`reports/tasks/PW-032/pnpm-test-rereview.log`).

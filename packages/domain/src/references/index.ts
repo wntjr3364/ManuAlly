@@ -16,7 +16,7 @@ const text = (v: unknown, field: string, max: number, required = true): string |
   return v.trim();
 };
 const DOI_RE = /^10\.\d{4,9}\/\S{1,200}$/;
-const REFERENCE_FIELDS = ['title', 'authors', 'year', 'container', 'doi'];
+const REFERENCE_FIELDS = ['title', 'authors', 'year', 'container', 'doi', 'use_library_metadata'];
 
 export interface Reference extends RefMeta { added_at: string }
 
@@ -42,25 +42,42 @@ export async function createReference(pool: TxPool, a: { paperId: string; ownerI
   if (entered && !doi) throw new DomainError('INVALID', 'doi must look like 10.1234/xyz (without https://doi.org/)', 'doi');
   const csl = { type: 'article-journal', title, author: authors, ...(b.year ? { issued: { 'date-parts': [[b.year]] } } : {}), ...(container ? { 'container-title': container } : {}), ...(doi ? { DOI: doi } : {}) };
   return inTransaction(pool, async (tx) => {
-    // a DOI names one work in the owner's library (PW-032): a manual entry of a known DOI is that work,
-    // and its metadata becomes a new version only if the work never had it
-    let ref: { id: string };
+    // A DOI names one work in the owner's library (PW-032). Typing a known DOI never changes that work's
+    // metadata (other papers show it): if the typed fields differ from the library's, the owner is asked
+    // and may add the library's work as it is (use_library_metadata).
     const hash = createHash('sha256').update(canonicalJson(csl)).digest('hex');
+    let ref: { id: string };
+    let shown: Omit<RefMeta, 'id'> = { title, authors, year: (b.year as number | undefined) ?? null, container, doi };
     if (doi) {
       await lockLibrary(tx, a.ownerId);
-      ref = { id: (await workForDoi(tx, a.ownerId, doi)).reference_id };
+      const w = await workForDoi(tx, a.ownerId, doi);
+      ref = { id: w.reference_id };
       if ((await tx.query('SELECT 1 FROM project_references WHERE paper_id = $1 AND reference_id = $2', [a.paperId, ref.id])).rowCount) {
         throw new DomainError('CONFLICT', 'this work (same DOI) is already in the paper\'s references');
       }
+      const newest = w.created ? null : (await tx.query<{ content_hash: string; csl_json: Record<string, unknown> }>('SELECT content_hash, csl_json FROM bibliographic_revisions WHERE reference_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1', [ref.id])).rows[0];
+      if (newest) {
+        const library = metaOf(ref.id, newest.csl_json);
+        if (newest.content_hash !== hash && b.use_library_metadata !== true) {
+          throw new DomainError('CONFLICT', 'this DOI is already in your library with other details; add it as it is there, or check the DOI', 'doi',
+            { details: { reason: 'doi_known_with_other_metadata', library: { title: library.title, authors: library.authors, year: library.year, container: library.container, doi: library.doi } } });
+        }
+        shown = library;
+      } else {
+        await tx.query("INSERT INTO bibliographic_revisions (reference_id, csl_json, content_hash, source) VALUES ($1, $2, $3, 'manual')", [ref.id, JSON.stringify(csl), hash]);
+      }
     } else {
       ref = (await tx.query<{ id: string }>('INSERT INTO reference_works (owner_id, doi) VALUES ($1, NULL) RETURNING id', [a.ownerId])).rows[0]!;
-    }
-    if (!(await tx.query('SELECT 1 FROM bibliographic_revisions WHERE reference_id = $1 AND content_hash = $2', [ref.id, hash])).rowCount) {
       await tx.query("INSERT INTO bibliographic_revisions (reference_id, csl_json, content_hash, source) VALUES ($1, $2, $3, 'manual')", [ref.id, JSON.stringify(csl), hash]);
     }
     const pr = (await tx.query<{ added_at: string }>('INSERT INTO project_references (paper_id, reference_id, owner_id) VALUES ($1, $2, $3) RETURNING added_at', [a.paperId, ref.id, a.ownerId])).rows[0]!;
-    return { id: ref.id, title, authors, year: (b.year as number | undefined) ?? null, container, doi, added_at: pr.added_at };
+    return { ...shown, id: ref.id, added_at: pr.added_at };
   });
+}
+
+function metaOf(id: string, c: Record<string, unknown>): RefMeta {
+  const issued = (c.issued as { 'date-parts'?: number[][] } | undefined)?.['date-parts']?.[0]?.[0];
+  return { id, title: String(c.title ?? ''), authors: (c.author as RefMeta['authors'] | undefined) ?? [], year: typeof issued === 'number' ? issued : null, container: (c['container-title'] as string | undefined) ?? null, doi: (c.DOI as string | undefined) ?? null };
 }
 
 // references of the paper (not removed), from their newest bibliographic revision
@@ -69,11 +86,7 @@ export async function listReferences(db: Queryable, paperId: string): Promise<Re
     `SELECT DISTINCT ON (pr.reference_id) pr.reference_id AS id, b.csl_json, pr.added_at
      FROM project_references pr JOIN bibliographic_revisions b ON b.reference_id = pr.reference_id
      WHERE pr.paper_id = $1 AND pr.removed_at IS NULL ORDER BY pr.reference_id, b.created_at DESC, b.id DESC`, [paperId]);
-  return rows.map((r) => {
-    const c = r.csl_json;
-    const issued = (c.issued as { 'date-parts'?: number[][] } | undefined)?.['date-parts']?.[0]?.[0];
-    return { id: r.id, title: String(c.title ?? ''), authors: (c.author as RefMeta['authors'] | undefined) ?? [], year: typeof issued === 'number' ? issued : null, container: (c['container-title'] as string | undefined) ?? null, doi: (c.DOI as string | undefined) ?? null, added_at: r.added_at };
-  }).sort((x, y) => (x.added_at < y.added_at ? -1 : x.added_at > y.added_at ? 1 : x.id < y.id ? -1 : 1));
+  return rows.map((r) => ({ ...metaOf(r.id, r.csl_json), added_at: r.added_at })).sort((x, y) => (x.added_at < y.added_at ? -1 : x.added_at > y.added_at ? 1 : x.id < y.id ? -1 : 1));
 }
 
 export interface Figure extends FigureMeta { created_at: string }

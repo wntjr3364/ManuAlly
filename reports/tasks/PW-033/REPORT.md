@@ -89,3 +89,10 @@ PW-032 리뷰 반영(식별자 등록, 버전 중복, 철회 고지 역방향) �
 - 시험: 통합 18(+6), 브라우저 1(갱신). RED는 `review-red.log`. mutation은 `mutation.log`에 13종을 추가했고 모두 탐지했다. 1종은 시험을 더한 뒤 탐지됐다.
 - 남은 위험 갱신: 결정 경쟁 문제는 해결했다(위 항목 대체).
 - 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 291, contracts 17, 브라우저 81(`reports/tasks/PW-033/pnpm-test-review.log`).
+
+## 재리뷰 반영 (2026-10-09, 재리뷰: approve + MINOR 1, nit 1)
+- MINOR: 결정할 때 서재의 현재 상태(`noticesForDoi`)를 다시 본다. run 뒤에 알게 된 철회도 과학 근거 채택을 막는다(422, writing만 허용). 나중에 알게 된 정정·우려 표명은 결정 응답의 `warnings`로 알린다.
+- nit: 고지 기록을 과학 근거 용도로 채택하면 `notice_record_used_as_scientific` 경고를 준다(고지를 논의하는 경우는 허용).
+- PW-031 연계: run 안의 withdrawal·removal·partial_retraction 고지도 대상 작품을 철회로 본다.
+- 시험: 통합 +3. RED는 `rereview-red.log`. mutation은 모두 탐지했다.
+- 회귀(재리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 297, contracts 17, 브라우저 82(`reports/tasks/PW-032/pnpm-test-rereview.log`).

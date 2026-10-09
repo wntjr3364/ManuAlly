@@ -92,3 +92,11 @@ PW-032: 서지 정규화·출판본 관계
 - PW-030 gate의 source 검사는 주석을 뺀 코드에서 `runSandboxed(`·`startRunProcess(` 호출 형태만 찾는다.
 - 시험: 통합 22(+2), RED `rereview-nits-red.log`, mutation 3종 탐지(`mutation.log`)
 - 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 291, contracts 17, 브라우저 81(`reports/tasks/PW-033/pnpm-test-review.log`).
+
+## 재리뷰 nit 반영 (2026-10-09)
+- Crossref `updated-by`의 withdrawal, removal, partial_retraction은 철회로 본다(`retracted_publication`, 원래 이름은 `notice_type`).
+  - 같은 등급 안에서는 retraction > withdrawal > removal > partial_retraction 순이다.
+  - corrigendum은 correction이다.
+- Crossref 유형 이름은 이 컨테이너에서 공식 문서로 다시 확인하지 못했다(네트워크 미사용). 대역 fixture 기준이다.
+- 시험: 기존 표 갱신, mutation 2종 탐지
+- 회귀(재리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 297, contracts 17, 브라우저 82(`reports/tasks/PW-032/pnpm-test-rereview.log`).

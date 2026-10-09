@@ -39,7 +39,10 @@ const STYLE_NEEDS: ReadDepth[] = ['FULLTEXT_PARTIAL', 'FULLTEXT_PARSED', 'SOURCE
 const KEYS = ['candidate_id', 'role', 'topic_fit', 'article_type_fit', 'style_fit', 'reasons', 'exclusion_reason'];
 // a record's own status (PW-031/032 types) and the kinds of notice records
 const OWN_STATUS: Record<string, string> = { retracted_publication: 'retracted', has_correction: 'corrected', has_expression_of_concern: 'expression_of_concern', has_update: 'updated' };
-const NOTICE_STATUS: Record<string, string> = { retraction: 'retracted', correction: 'corrected', erratum: 'corrected', expression_of_concern: 'expression_of_concern', 'expression-of-concern': 'expression_of_concern' };
+const NOTICE_STATUS: Record<string, string> = {
+  retraction: 'retracted', withdrawal: 'retracted', removal: 'retracted', partial_retraction: 'retracted',
+  correction: 'corrected', corrigendum: 'corrected', erratum: 'corrected', expression_of_concern: 'expression_of_concern', 'expression-of-concern': 'expression_of_concern',
+};
 const LIBRARY_STATUS: Record<string, string> = { retracted: 'retracted', correction: 'corrected', expression_of_concern: 'expression_of_concern', updated: 'updated' };
 
 export interface Assessment {

@@ -50,7 +50,11 @@ const hashOf = (csl: unknown) => createHash('sha256').update(canonicalJson(csl))
 // relations a candidate states. A record that IS a notice points at the work it is about (by DOI when
 // the source gives it); a record whose OWN status is flagged (PubMed "Retracted Publication", Crossref
 // "updated-by") carries a flag, keeping the notice's DOI when known.
-const NOTICE_TO: Record<string, string> = { retraction: 'retraction_of', correction: 'correction_of', erratum: 'erratum_for', 'expression_of_concern': 'expression_of_concern_for', 'expression-of-concern': 'expression_of_concern_for' };
+// (withdrawal, removal and partial retraction take a work out of the evidence like a retraction)
+const NOTICE_TO: Record<string, string> = {
+  retraction: 'retraction_of', withdrawal: 'retraction_of', removal: 'retraction_of', partial_retraction: 'retraction_of',
+  correction: 'correction_of', corrigendum: 'correction_of', erratum: 'erratum_for', 'expression_of_concern': 'expression_of_concern_for', 'expression-of-concern': 'expression_of_concern_for',
+};
 const FLAG: Record<string, string> = { retracted_publication: 'flagged_retracted', has_correction: 'flagged_erratum', has_expression_of_concern: 'flagged_expression_of_concern', has_update: 'flagged_updated' };
 
 // one library change at a time per owner: identifiers are claimed consistently
@@ -122,12 +126,13 @@ export async function ingestCandidateIn(tx: Queryable, a: { ownerId: string; can
     // record carrying both a PMID and a DOI is how a PMID-only work learns its DOI, and vice versa
     for (const id of ids) if (!found.has(id.kind)) await tx.query('INSERT INTO reference_identifiers (owner_id, reference_id, kind, value) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING', [a.ownerId, ref, id.kind, id.value]);
 
-    // metadata: a new version only for metadata this work has never had (two sources that describe a
-    // work slightly differently do not add a version on every alternate ingest)
+    // metadata: a new version when it differs from what this same source said last (two sources that
+    // describe a work slightly differently do not add a version on every alternate ingest; a source
+    // that changes its record — also back to an earlier form — does)
     const csl = cslOf(c);
     const hash = hashOf(csl);
-    const seen = (await tx.query('SELECT 1 FROM bibliographic_revisions WHERE reference_id = $1 AND content_hash = $2 LIMIT 1', [ref, hash])).rowCount;
-    const newVersion = !seen;
+    const lastFromSource = (await tx.query<{ content_hash: string }>('SELECT content_hash FROM bibliographic_revisions WHERE reference_id = $1 AND source = $2 ORDER BY created_at DESC, id DESC LIMIT 1', [ref, c.source])).rows[0];
+    const newVersion = lastFromSource ? lastFromSource.content_hash !== hash : !(await tx.query('SELECT 1 FROM bibliographic_revisions WHERE reference_id = $1 AND content_hash = $2 LIMIT 1', [ref, hash])).rowCount;
     if (newVersion) {
       await tx.query('INSERT INTO bibliographic_revisions (reference_id, csl_json, content_hash, source, source_candidate_id) VALUES ($1, $2, $3, $4, $5)', [ref, JSON.stringify(csl), hash, c.source, c.id]);
     }

@@ -330,3 +330,47 @@ describe('review fixes', () => {
     expect((await pool.query('SELECT status, last_error FROM jobs WHERE id = $1', [job.id])).rows[0]).toMatchObject({ status: 'FAILED', last_error: expect.stringMatching(/no handler for literature_search kind "search"/) });
   });
 });
+
+// re-review (PW-033)
+describe('re-review fixes', () => {
+  const view = async (paperId: string) => (await call('alice', 'GET', `/api/papers/${paperId}/curation`)).json().assessments as { id: string; title: string; role: string; warnings: string[] }[];
+  const fresh = () => `10.5555/rr.${randomUUID()}`;
+
+  test('MINOR: a retraction the library learns of after the run still blocks adoption as scientific support', async () => {
+    const doi = fresh();
+    const s = await paperWithSearch('alice', [{ doi, title: 'ABC1 drought roots, retracted later' }]);
+    await runCuration('alice', s);
+    const [t] = await view(s.paperId);
+    expect(t).toMatchObject({ role: 'scientific', warnings: [] });
+    // later: a retraction notice for it enters the library (another paper's accepted suggestion)
+    const n = await paperWithSearch('alice', [{ doi: fresh(), title: 'Retraction: later', update_notice: { type: 'retraction', target_doi: doi } }]);
+    await runCuration('alice', n);
+    const [nr] = await view(n.paperId);
+    const acc = await call('alice', 'POST', `/api/papers/${n.paperId}/curation/assessments/${nr!.id}/decision`, { decision: 'accepted', use_role: 'scientific' });
+    expect(acc.json().warnings).toEqual(['notice_record_used_as_scientific']);
+    expect((await call('alice', 'POST', `/api/papers/${s.paperId}/curation/assessments/${t!.id}/decision`, { decision: 'accepted', use_role: 'scientific' })).statusCode).toBe(422);
+    const w = await call('alice', 'POST', `/api/papers/${s.paperId}/curation/assessments/${t!.id}/decision`, { decision: 'accepted', use_role: 'writing' });
+    expect(w.statusCode).toBe(200);
+  });
+
+  test('MINOR: a correction or concern learned after the run is reported with the decision', async () => {
+    const doi = fresh();
+    const s = await paperWithSearch('alice', [{ doi, title: 'ABC1 drought roots, corrected later' }]);
+    await runCuration('alice', s);
+    const [t] = await view(s.paperId);
+    const n = await paperWithSearch('alice', [{ doi: fresh(), title: 'Expression of concern: later', update_notice: { type: 'expression_of_concern', target_doi: doi } }]);
+    await runCuration('alice', n);
+    const [nr] = await view(n.paperId);
+    await call('alice', 'POST', `/api/papers/${n.paperId}/curation/assessments/${nr!.id}/decision`, { decision: 'accepted', use_role: 'writing' });
+    const r = await call('alice', 'POST', `/api/papers/${s.paperId}/curation/assessments/${t!.id}/decision`, { decision: 'accepted', use_role: 'scientific' });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().warnings).toEqual(['expression_of_concern']);
+  });
+
+  test('nit (PW-031): a withdrawal notice in the run excludes the withdrawn work', async () => {
+    const doi = fresh();
+    const s = await paperWithSearch('alice', [{ doi, title: 'ABC1 drought roots withdrawn' }, { doi: fresh(), title: 'Withdrawal: ABC1', update_notice: { type: 'withdrawal', target_doi: doi } }]);
+    await runCuration('alice', s);
+    expect((await view(s.paperId)).find((x) => x.title.startsWith('ABC1 drought roots withdrawn'))).toMatchObject({ role: 'exclude', warnings: expect.arrayContaining(['retracted']) });
+  });
+});

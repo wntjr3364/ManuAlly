@@ -45,3 +45,6 @@ User decision / reviewer:
 - PW-033 리뷰 반영
   - `db/migrations/pw_033_0002_assessment_candidate_paper.sql`: 공유 표 `literature_candidates`(PW-031)에 `UNIQUE (paper_id, id)`를 추가한다. 추가만 하며 기존 행은 이미 만족한다. 평가가 자기 논문의 후보만 가리키도록 복합 FK를 건다.
   - `packages/domain/src/literature/index.ts`(PW-032 범위): `ingestCandidateIn`(호출자 트랜잭션), `noticesForDoi`
+- PW-032 재리뷰 반영
+  - `apps/web/src/features/references/ReferencesPanel.tsx`(PW-019 화면): 서재에 다른 정보로 있는 DOI를 알리고 "서재 정보로 추가"를 둔다.
+  - `packages/domain/src/references/index.ts`: `use_library_metadata` 필드

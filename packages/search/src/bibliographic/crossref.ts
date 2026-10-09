@@ -62,12 +62,19 @@ export function parseCrossref(body: unknown): Parsed {
     if (!update && it['updated-by'] !== undefined) {
       if (!Array.isArray(it['updated-by'])) throw bad(`item ${i} updated-by`);
       const kinds = (it['updated-by'] as unknown[]).filter((x): x is Record<string, unknown> => obj(x) && typeof x.type === 'string');
-      // the most serious status wins; any other kind (withdrawal, removal, partial_retraction, …) still
-      // marks the work as updated rather than being dropped
-      const rank = (t: string) => (t === 'retraction' ? 0 : t === 'expression_of_concern' || t === 'expression-of-concern' ? 1 : t === 'correction' || t === 'erratum' ? 2 : 3);
+      // the most serious status wins. Withdrawal, removal and partial retraction count as retraction
+      // (the original type is kept as notice_type); any other kind still marks the work as updated
+      // (within a class the fuller statement wins: retraction > withdrawal/removal > partial retraction)
+      const RETRACTING = ['retraction', 'withdrawal', 'removal', 'partial_retraction'];
+      const rank = (t: string) => (RETRACTING.includes(t) ? RETRACTING.indexOf(t) / 10 : t === 'expression_of_concern' || t === 'expression-of-concern' ? 1 : ['correction', 'corrigendum', 'erratum'].includes(t) ? 2 : 3);
       const pick = [...kinds].sort((x, y) => rank(String(x.type)) - rank(String(y.type)))[0];
       const FLAG = ['retracted_publication', 'has_expression_of_concern', 'has_correction', 'has_update'];
-      if (pick) update = { type: FLAG[rank(String(pick.type))]!, notice_doi: typeof pick.DOI === 'string' ? pick.DOI.toLowerCase() : null, ...(rank(String(pick.type)) === 3 ? { notice_type: String(pick.type).slice(0, 50) } : {}) };
+      if (pick) {
+        const t = String(pick.type);
+        const cls = Math.floor(rank(t));
+        // the source's own word is kept where the class name does not say it
+        update = { type: FLAG[cls]!, notice_doi: typeof pick.DOI === 'string' ? pick.DOI.toLowerCase() : null, ...(cls === 3 || (cls === 0 && t !== 'retraction') ? { notice_type: t.slice(0, 50) } : {}) };
+      }
     }
     // an implausible type is dropped (unknown), not stored
     const type = typeof it.type === 'string' && it.type.length <= 100 ? it.type : null;

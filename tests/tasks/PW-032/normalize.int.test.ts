@@ -13,7 +13,7 @@ import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { createPaper } from '../../../packages/domain/src/papers/index.ts';
 import { createSnapshot, getSnapshot } from '../../../packages/domain/src/revisions/index.ts';
 import { ingestCandidate, noticesOf, normalizeDoi, possibleDuplicates, referenceIdentifiers, relationsOf, resolveDuplicate } from '../../../packages/domain/src/literature/index.ts';
-import { createReference } from '../../../packages/domain/src/references/index.ts';
+import { createReference, listReferences } from '../../../packages/domain/src/references/index.ts';
 import { cpSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import os from 'node:os';
 
@@ -164,7 +164,8 @@ describe('review fixes', () => {
     expect(c).toMatchObject({ reference_id: m.id, created: false });
     // a manual entry of a DOI already in the library is that work, in another paper too
     const paper2 = (await createPaper(pool, alice, { working_title: 'manual 2', article_type: 'research_article' })).id;
-    const m2 = await createReference(pool, { paperId: paper2, ownerId: alice, body: { title: 'Manual entry', authors: [{ family: 'Kim' }], doi: '10.5555/manual.1' } });
+    // (the candidate's details differ from the typed ones, so the owner adds the library's work as it is)
+    const m2 = await createReference(pool, { paperId: paper2, ownerId: alice, body: { title: 'Manual entry', authors: [{ family: 'Kim' }], doi: '10.5555/manual.1', use_library_metadata: true } });
     expect(m2.id).toBe(m.id);
     // the same work twice in one paper is refused, not duplicated
     await expect(createReference(pool, { paperId: paper2, ownerId: alice, body: { title: 'Manual entry', authors: [{ family: 'Kim' }], doi: '10.5555/Manual.1' } })).rejects.toThrow(/already/);
@@ -263,5 +264,42 @@ describe('review fixes', () => {
 
   test('nit: duplicate questions cannot be truncated', async () => {
     await expect(pool.query('TRUNCATE reference_duplicate_questions')).rejects.toThrow(/immutable|not allowed|forbid/i);
+  });
+});
+
+// re-review (PW-032): MAJOR and nit
+describe('re-review fixes', () => {
+  test('MAJOR: typing a known DOI with other details in one paper never changes what another paper shows', async () => {
+    const p1 = await candidate(alice, { doi: '10.5555/shared.1', title: 'Correct Source Title', year: 2021 });
+    const w = await ingestCandidate(pool, { ownerId: alice, candidateId: p1.candidateId });
+    await pool.query('INSERT INTO project_references (paper_id, reference_id, owner_id) VALUES ($1, $2, $3)', [p1.paperId, w.reference_id, alice]);
+    const before = await listReferences(pool, p1.paperId);
+    const p2 = (await createPaper(pool, alice, { working_title: 'p2', article_type: 'research_article' })).id;
+    const typed = { title: 'Typo-laden manual title', authors: [{ family: 'Nobody' }], year: 1999, doi: '10.5555/SHARED.1' };
+    const err = await createReference(pool, { paperId: p2, ownerId: alice, body: typed }).catch((e: unknown) => e as { code: string; details: Record<string, unknown> });
+    expect(err).toMatchObject({ code: 'CONFLICT', details: { reason: 'doi_known_with_other_metadata', library: { title: 'Correct Source Title', year: 2021 } } });
+    expect(await listReferences(pool, p2)).toEqual([]);
+    // the owner adds the library's work as it is: nothing typed becomes the work's metadata
+    const added = await createReference(pool, { paperId: p2, ownerId: alice, body: { ...typed, use_library_metadata: true } });
+    expect(added).toMatchObject({ id: w.reference_id, title: 'Correct Source Title', year: 2021 });
+    expect(await listReferences(pool, p1.paperId)).toEqual(before);
+    expect((await revisions(w.reference_id)).map((r) => r.csl_json.title)).toEqual(['Correct Source Title']);
+  });
+
+  test('nit: a source that changes its record back to an earlier form adds that form again (newest shows what the source says now)', async () => {
+    const ingest = async (title: string) => ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/revert.1', title })).candidateId });
+    const a = await ingest('Form A');
+    expect((await ingest('Form B')).new_version).toBe(true);
+    expect((await ingest('Form A')).new_version).toBe(true);
+    expect((await ingest('Form A')).new_version).toBe(false);
+    expect((await revisions(a.reference_id)).map((r) => r.csl_json.title)).toEqual(['Form A', 'Form B', 'Form A']);
+  });
+
+  test('re-review nit (PW-031): withdrawal, removal and partial retraction notices count as retraction notices', async () => {
+    for (const type of ['withdrawal', 'removal', 'partial_retraction']) {
+      await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: `10.5555/wn.${type}`, title: `Notice ${type}`, update_notice: { type, target_doi: `10.5555/wt.${type}` } })).candidateId });
+      const t = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: `10.5555/wt.${type}`, title: `Target ${type}` })).candidateId });
+      expect((await noticesOf(pool, alice, t.reference_id)).map((n) => n.kind), type).toEqual(['retracted']);
+    }
   });
 });

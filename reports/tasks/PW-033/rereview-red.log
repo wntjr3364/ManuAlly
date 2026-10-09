@@ -1,0 +1,10 @@
+# re-review fixes RED: committed 38f77ef implementation, new tests (Fri Oct  9 15:50:19 UTC 2026)
+     × every Crossref updated-by kind marks the work: the most serious wins; unknown kinds are "updated", not dropped 50ms
+     × MAJOR: typing a known DOI with other details in one paper never changes what another paper shows 43ms
+     × nit: a source that changes its record back to an earlier form adds that form again (newest shows what the source says now) 39ms
+     × re-review nit (PW-031): withdrawal, removal and partial retraction notices count as retraction notices 27ms
+     × MINOR: a retraction the library learns of after the run still blocks adoption as scientific support 119ms
+     × MINOR: a correction or concern learned after the run is reported with the decision 87ms
+     × nit (PW-031): a withdrawal notice in the run excludes the withdrawn work 41ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  7 failed | 1 passed | 54 skipped (62)

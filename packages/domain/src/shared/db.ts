@@ -4,13 +4,16 @@ export interface Queryable {
 }
 
 export class DomainError extends Error {
+  // machine-readable extras for the client (missing fields, gate reasons …); never internal detail
+  public readonly details: Record<string, unknown>;
   constructor(
     public readonly code: 'NOT_FOUND' | 'CONFLICT' | 'INVALID' | 'FORBIDDEN',
     message: string,
     public readonly field?: string,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; details?: Record<string, unknown> },
   ) {
     super(message, options);
+    this.details = options?.details ?? {};
   }
 }
 

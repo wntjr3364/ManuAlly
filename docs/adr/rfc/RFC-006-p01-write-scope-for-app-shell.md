@@ -57,3 +57,8 @@ PW-010 및 PW-009 리뷰 반영 시 추가 기록(2026-10-08):
   - `tests/tasks/PW-009/review-fixes.int.test.ts`
 - PW-008 재리뷰 minor: `apps/api/src/auth/sessions.ts`, `apps/api/src/server.ts`(오류 종류)
 - `packages/config/src/test-db.ts`(PW-007 범위): 임시 DB drop 전에 접속이 닫히기를 기다린다. 끊기는 중인 client를 FORCE가 종료해 57P01이 unhandled로 한 번 보고된 시험 인프라 결함이다.
+- PW-011 연결 지점:
+  - `apps/api/src/server.ts`: evidence route 등록
+  - `packages/domain/src/shared/db.ts`: DomainError `details`(missing/reasons 등 기계 판독 정보)
+  - `apps/api/src/auth/plugin.ts`: 응답에 details 포함
+  - `packages/domain/src/outlines/index.ts`: OutlineError가 공용 details 사용(동작 동일)

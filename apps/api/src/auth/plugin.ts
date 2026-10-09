@@ -130,7 +130,7 @@ export function registerAuth(app: FastifyInstance, o: AuthOptions): void {
 export function sendDomainError(err: unknown, reply: FastifyReply) {
   if (err instanceof DomainError) {
     const status = { NOT_FOUND: 404, CONFLICT: 409, INVALID: 422, FORBIDDEN: 403 }[err.code];
-    return reply.code(status).send({ error: err.code.toLowerCase(), message: err.message, field: err.field ?? null });
+    return reply.code(status).send({ ...err.details, error: err.code.toLowerCase(), message: err.message, field: err.field ?? null });
   }
   throw err;
 }

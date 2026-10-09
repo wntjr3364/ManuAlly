@@ -359,7 +359,7 @@
       "id": "PW-011",
       "phase": "P01",
       "title": "Claim·Fact·Evidence 최소 모델",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-010"
       ],

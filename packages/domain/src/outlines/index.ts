@@ -9,8 +9,8 @@ import { contentHash } from '../revisions/index.ts';
 
 // A DomainError that carries machine-readable details (missing fields, gate reasons …).
 export class OutlineError extends DomainError {
-  constructor(code: DomainError['code'], message: string, public readonly details: Record<string, unknown>, field?: string) {
-    super(code, message, field);
+  constructor(code: DomainError['code'], message: string, details: Record<string, unknown>, field?: string) {
+    super(code, message, field, { details });
   }
 }
 

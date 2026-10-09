@@ -1,0 +1,179 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts (10 tests | 10 failed) 1901ms
+   ❯ TST-011A: a fact links value, unit, groups, source and the person who verified it (5)
+     × a verified fact carries its value, unit, groups, n, statistics, source locator and verifier 21ms
+     × a fact cannot be verified before its source evidence, or with unit, group, n or control missing 7ms
+     × values keep the exact text of the source; a number without a unit or source is refused as a fact 7ms
+     × evidence locators are required and checked per kind; sources must belong to the same paper 13ms
+     × an observation claim is approved only with verified supporting evidence; links name the relation 8ms
+   ❯ TST-011B: AI or import cannot forge verification, and p and q stay different statistics (5)
+     × verifier/approver fields in a request are refused; the verifier is the session owner 6ms
+     × imported and AI-extracted facts are candidates with their origin; any verification field fails the whole import 6ms
+     × p, adjusted p and q are distinct statistic kinds: no aliases, no duplicates, no merging 6ms
+     × the database refuses verified rows that skip the verification step, a verifier who is not the owner, and p/q rewrites 7ms
+     × another owner sees none of a paper's evidence, facts or claims 6ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011A: a fact links value, unit, groups, source and the person who verified it > a verified fact carries its value, unit, groups, n, statistics, source locator and verifier
+AssertionError: {"message":"Route POST:/api/papers/aa0719ae-cacf-41e0-b446-6d4634621f00/evidence not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ evidence tests/tasks/PW-011/evidence.int.test.ts:56:32
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:79:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011A: a fact links value, unit, groups, source and the person who verified it > a fact cannot be verified before its source evidence, or with unit, group, n or control missing
+AssertionError: {"message":"Route POST:/api/papers/2c2cb678-1c7e-40c6-afb5-0a0897838451/evidence not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ evidence tests/tasks/PW-011/evidence.int.test.ts:56:32
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:98:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011A: a fact links value, unit, groups, source and the person who verified it > values keep the exact text of the source; a number without a unit or source is refused as a fact
+AssertionError: {"message":"Route POST:/api/papers/fa8ab43c-8ffc-4a62-8e6f-eac2dcf3e2f5/evidence not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ evidence tests/tasks/PW-011/evidence.int.test.ts:56:32
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:112:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011A: a fact links value, unit, groups, source and the person who verified it > evidence locators are required and checked per kind; sources must belong to the same paper
+AssertionError: {"kind":"table_cell","source_asset_revision_id":"d237dd5f-1d93-4a59-bd3b-247988342e62","locator":{"table":"T2"}}: expected 404 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 404
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:138:107
+    136|       { kind: 'gossip', locator: { note: 'x' } },
+    137|     ]) {
+    138|       expect((await call('POST', `/api/papers/${p.id}/evidence`, body)…
+       |                                                                                                           ^
+    139|     }
+    140|     const cross = await call('POST', `/api/papers/${p.id}/evidence`, {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011A: a fact links value, unit, groups, source and the person who verified it > an observation claim is approved only with verified supporting evidence; links name the relation
+AssertionError: {"message":"Route POST:/api/papers/df2bc97d-f94a-4abe-bdfe-81ef6546d663/evidence not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ evidence tests/tasks/PW-011/evidence.int.test.ts:56:32
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:148:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011B: AI or import cannot forge verification, and p and q stay different statistics > verifier/approver fields in a request are refused; the verifier is the session owner
+AssertionError: {"message":"Route POST:/api/papers/ce91fdf7-579e-4f1b-a7d7-e9d5843c472b/evidence not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ evidence tests/tasks/PW-011/evidence.int.test.ts:56:32
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:167:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011B: AI or import cannot forge verification, and p and q stay different statistics > imported and AI-extracted facts are candidates with their origin; any verification field fails the whole import
+AssertionError: {"message":"Route POST:/api/papers/d8f769bf-7f64-4cb7-84ab-a8b8dd7b2878/evidence not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ evidence tests/tasks/PW-011/evidence.int.test.ts:56:32
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:181:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011B: AI or import cannot forge verification, and p and q stay different statistics > p, adjusted p and q are distinct statistic kinds: no aliases, no duplicates, no merging
+AssertionError: {"message":"Route POST:/api/papers/d16ac3b3-8260-41fa-a70e-2c2bb1e92b6d/evidence not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ evidence tests/tasks/PW-011/evidence.int.test.ts:56:32
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:197:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011B: AI or import cannot forge verification, and p and q stay different statistics > the database refuses verified rows that skip the verification step, a verifier who is not the owner, and p/q rewrites
+AssertionError: {"message":"Route POST:/api/papers/9c1727e7-258e-452d-8fab-37876930d255/evidence not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ evidence tests/tasks/PW-011/evidence.int.test.ts:56:32
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:218:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  tests/tasks/PW-011/evidence.int.test.ts > TST-011B: AI or import cannot forge verification, and p and q stay different statistics > another owner sees none of a paper's evidence, facts or claims
+AssertionError: {"message":"Route POST:/api/papers/a572dda5-a40a-49e1-b92a-1b879bb89395/evidence not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ evidence tests/tasks/PW-011/evidence.int.test.ts:56:32
+
+ ❯ tests/tasks/PW-011/evidence.int.test.ts:236:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  10 failed (10)
+   Start at  01:30:34
+   Duration  3.32s (tests 64%, transform 29%, import 7%)
+

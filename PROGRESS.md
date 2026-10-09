@@ -30,6 +30,7 @@
 | PW-008 | in_review | (P01) | REQ-008 / TST-008A,B | 통합 21/21(리뷰 회귀 10 포함), mutation 2종 탐지, 리뷰 1회 반영, 재리뷰 approve(minor 1·2 반영) | 브라우저 로그인 UI(PW-014), public allowlist·csrf_hash 정리 |
 | PW-009 | in_review | (P01) | REQ-009 / TST-009A,B | 통합 7/7 + 리뷰 회귀 6/6, 리뷰 major 3·minor 4·7 반영 | 대용량 성능, 서지·asset API(P04), seq 열(minor 5), runtime DB role 분리 |
 | PW-010 | in_review | (P01) | REQ-010 / TST-010A,B | 통합 26/26(리뷰 회귀 12 포함), mutation 3종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | outline 웹 UI(PW-014 shell과 함께), claim 변경 impact(PW-011+), 범위별 승인 방식 사용자 결정 |
+| PW-011 | in_review | (P01) | REQ-011 / TST-011A,B | 통합 10/10, mutation 5종 탐지, `pnpm test` exit 0 | evidence 웹 UI(PW-014), outline evidence_ids 실제 연결(RFC 필요), CSV 파서·철회 API(P04), 독립 리뷰 대기 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 

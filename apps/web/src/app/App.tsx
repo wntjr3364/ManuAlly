@@ -3,6 +3,7 @@ import { api, setCsrf } from './api.ts';
 import { Login, type Owner } from './Login.tsx';
 import { navigate, usePath } from './router.ts';
 import { confirmLeave } from './unsaved.ts';
+import { browserStorage, clearAllRecoveryData, setRecoveryOwner } from '../editor/recovery.ts';
 import { PapersPage } from '../features/paper/PapersPage.tsx';
 import { PaperPage } from '../features/paper/PaperPage.tsx';
 
@@ -14,11 +15,16 @@ export function App() {
       .then((s) => { setCsrf(s.csrfToken); setOwner(s.owner); })
       .catch(() => setOwner(null));
   }, []);
+  // the editor keeps its browser recovery copies under the signed-in account
+  setRecoveryOwner(owner?.id ?? null);
   if (owner === undefined) return <p className="loading">불러오는 중…</p>;
   if (owner === null) return <Login onLogin={setOwner} />;
   const logout = async () => {
     if (!confirmLeave()) return;
     await api('POST', '/api/auth/logout').catch(() => {});
+    // leave no manuscript text behind on a shared device (spec 04)
+    const storage = browserStorage();
+    if (storage) clearAllRecoveryData(storage);
     setOwner(null);
     navigate('/');
   };

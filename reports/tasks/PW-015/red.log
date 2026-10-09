@@ -1,0 +1,180 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-015/patch-gate.test.ts (0 test)
+ ❯ tests/tasks/PW-015/recovery.test.ts (0 test)
+ ❯ tests/tasks/PW-015/autosave.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-015/autosave.test.ts [ tests/tasks/PW-015/autosave.test.ts ]
+Error: Cannot find module '../../../apps/web/src/editor/autosave.ts' imported from /home/user/ManuAlly/tests/tasks/PW-015/autosave.test.ts
+ ❯ tests/tasks/PW-015/autosave.test.ts:4:1
+      2| // middle of an IME composition, and a retry after a lost answer resen…
+      3| import { afterEach, beforeEach, describe, expect, test, vi } from 'vit…
+      4| import { Autosave, type SaveRequest, type SendResult } from '../../../…
+       | ^
+      5| import { initialSaveState, saveLabel, saveReducer, type SaveAction, ty…
+      6|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/tasks/PW-015/patch-gate.test.ts [ tests/tasks/PW-015/patch-gate.test.ts ]
+Error: Cannot find package '@tiptap/pm/state' imported from /home/user/ManuAlly/tests/tasks/PW-015/patch-gate.test.ts
+ ❯ tests/tasks/PW-015/patch-gate.test.ts:4:1
+      2| // an IME composition is in progress or while the editor is read-only.
+      3| import { describe, expect, test } from 'vitest';
+      4| import { EditorState } from '@tiptap/pm/state';
+       | ^
+      5| import { applyExternalPatch } from '../../../apps/web/src/editor/patch…
+      6| import { editorSchema } from '../../../apps/web/src/features/paper/blo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/tasks/PW-015/recovery.test.ts [ tests/tasks/PW-015/recovery.test.ts ]
+Error: Cannot find module '../../../apps/web/src/editor/recovery.ts' imported from /home/user/ManuAlly/tests/tasks/PW-015/recovery.test.ts
+ ❯ tests/tasks/PW-015/recovery.test.ts:4:1
+      2| // document, for a limited time, only when enabled, and removes everyt…
+      3| import { describe, expect, test } from 'vitest';
+      4| import {
+       | ^
+      5|   RETENTION_MS, clearAllRecoveryData, clearDraft, isRecoveryEnabled, l…
+      6| } from '../../../apps/web/src/editor/recovery.ts';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  no tests
+   Start at  04:38:50
+   Duration  278ms (worker 97%, environment 3%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-015/saves-route.int.test.ts (8 tests | 6 failed) 1063ms
+   ❯ editor saves (8)
+     × a new save is stored (201) with its reason; the identical request sent again is answered as already stored (200) 37ms
+     × a different text from the same old head is a conflict, not a replay 18ms
+     × the same text saved after something else moved on is a conflict 20ms
+     × a matching head created by a restore is not treated as the editor's save 20ms
+     × a manual save is recorded as manual; other reasons are refused 14ms
+     × invalid content is refused with the editor-core reasons, also on a resend 19ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-015/saves-route.int.test.ts > editor saves > a new save is stored (201) with its reason; the identical request sent again is answered as already stored (200)
+AssertionError: {"message":"Route POST:/api/papers/d39b70ef-6269-4f74-916a-6eb606734266/documents/b294dc2d-835c-471a-9369-a5266476693a/saves not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ tests/tasks/PW-015/saves-route.int.test.ts:62:42
+     60|     const body = { expected_head_revision_id: d.head.id, content_json:…
+     61|     const first = await save(body);
+     62|     expect(first.statusCode, first.body).toBe(201);
+       |                                          ^
+     63|     expect(first.json()).toMatchObject({ reason: 'autosave', parent_re…
+     64|     const again = await save(body);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/tasks/PW-015/saves-route.int.test.ts > editor saves > a different text from the same old head is a conflict, not a replay
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ tests/tasks/PW-015/saves-route.int.test.ts:73:103
+     71|   test('a different text from the same old head is a conflict, not a r…
+     72|     const { d, save } = await setup();
+     73|     expect((await save({ expected_head_revision_id: d.head.id, content…
+       |                                                                                                       ^
+     74|     const other = await save({ expected_head_revision_id: d.head.id, c…
+     75|     expect(other.statusCode).toBe(409);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/tasks/PW-015/saves-route.int.test.ts > editor saves > the same text saved after something else moved on is a conflict
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ tests/tasks/PW-015/saves-route.int.test.ts:81:98
+     79|     const { d, save } = await setup();
+     80|     const a = (await save({ expected_head_revision_id: d.head.id, cont…
+     81|     expect((await save({ expected_head_revision_id: a.id, content_json…
+       |                                                                                                  ^
+     82|     expect((await save({ expected_head_revision_id: d.head.id, content…
+     83|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/tasks/PW-015/saves-route.int.test.ts > editor saves > a matching head created by a restore is not treated as the editor's save
+AssertionError: expected 422 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 422
+
+ ❯ tests/tasks/PW-015/saves-route.int.test.ts:90:33
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/tasks/PW-015/saves-route.int.test.ts > editor saves > a manual save is recorded as manual; other reasons are refused
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ tests/tasks/PW-015/saves-route.int.test.ts:97:26
+     95|     const { d, save } = await setup();
+     96|     const m = await save({ expected_head_revision_id: d.head.id, conte…
+     97|     expect(m.statusCode).toBe(201);
+       |                          ^
+     98|     expect(m.json().reason).toBe('manual');
+     99|     for (const reason of ['restore', 'ai_apply', 'import', undefined])…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/tasks/PW-015/saves-route.int.test.ts > editor saves > invalid content is refused with the editor-core reasons, also on a resend
+AssertionError: expected 404 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 404
+
+ ❯ tests/tasks/PW-015/saves-route.int.test.ts:110:28
+    108|     for (let i = 0; i < 2; i++) {
+    109|       const r = await save(bad);
+    110|       expect(r.statusCode).toBe(422);
+       |                            ^
+    111|       expect(r.json().errors.map((e: { code: string }) => e.code)).toC…
+    112|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 2 passed (8)
+   Start at  04:38:52
+   Duration  1.84s (tests 63%, transform 26%, import 11%)
+

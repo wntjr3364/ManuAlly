@@ -6,7 +6,8 @@ export const UNIT_INCLUDE = ['**/*.test.{ts,tsx}'];
 export const UNIT_EXCLUDE = ['**/*.int.test.{ts,tsx}', '**/*.contract.test.{ts,tsx}'];
 export const INTEGRATION_INCLUDE = ['**/*.int.test.{ts,tsx}'];
 export const CONTRACTS_INCLUDE = ['**/*.contract.test.{ts,tsx}'];
-export const E2E_DIR = 'tests/e2e';
+// browser tests live under tests/ (shared suites in tests/e2e, task suites in tests/tasks/PW-xxx)
+export const E2E_DIR = 'tests';
 export const E2E_MATCH = /\.e2e\.ts$/;
 // node:test spike suites (P00); anything else ending in .test.mjs is an error
 export const SPIKE_MJS = /^tests\/tasks\/PW-00[1-6]\/[^/]+\.test\.mjs$/;

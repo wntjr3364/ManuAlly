@@ -496,7 +496,7 @@
       "id": "PW-015",
       "phase": "P02",
       "title": "에디터·자동저장·IME",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-014"
       ],

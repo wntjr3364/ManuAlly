@@ -1,0 +1,125 @@
+# PW-015 — 에디터·자동저장·IME — REPORT
+상태: in_review (2026-10-09)
+
+## 변경 파일
+- 새 파일 (`apps/web/src/editor/`)
+  - `autosave.ts`: 자동 저장 제어기(React와 무관, fake timer로 시험)
+  - `recovery.ts`: 브라우저 임시 복구본(계정·문서별, 7일, 설정, 로그아웃 시 삭제)
+  - `patch-gate.ts`: 키보드 밖 변경(AI patch 등)의 관문. IME 조합 중이면 거부한다.
+  - `ManuscriptEditor.tsx`: 원고 편집기(PW-014 편집기를 옮겨 확장)
+  - `ReadOnlyDocument.tsx`: 저장 JSON을 텍스트로만 표시(HTML 없음)
+- 새 파일 (`apps/api/src/documents/index.ts`)
+  - `POST /api/papers/:paperId/documents/:documentId/saves`: 편집기 저장
+  - 응답을 잃어 같은 요청을 다시 보내면, 이미 저장된 revision으로 답한다(200, `replayed: true`).
+- 범위 밖 연결 지점(RFC-007 부록)
+  - `ManuscriptTab.tsx`, `App.tsx`, `styles.css`, `server.ts`
+  - `packages/config/{test-patterns.ts,playwright.config.ts}`
+- 시험: `tests/tasks/PW-015/`
+  - `autosave.test.ts` 11, `recovery.test.ts` 9, `patch-gate.test.ts` 3
+  - `saves-route.int.test.ts` 9
+  - `editor.e2e.ts` 9
+- DB migration: 없음. 기존 `document_revisions.reason`의 `autosave`를 쓴다.
+
+## 동작
+- **자동 저장**
+  - 입력이 1.5초 멈추면 저장한다. 계속 입력해도 10초마다 저장한다.
+  - 요청은 한 번에 하나만 보낸다.
+  - 저장된 내용으로 되돌아간 경우는 새 revision을 만들지 않는다.
+  - 저장 버튼과 Ctrl/Cmd+S는 즉시 저장이다(reason `manual`).
+- **"저장됨" 표시**
+  - 서버가 화면과 같은 내용을 저장했다고 답한 뒤에만 표시한다(PW-014 save-state 규칙).
+  - 실패·오프라인·충돌은 "저장 실패/저장되지 않았습니다"로 표시한다.
+- **실패 처리**
+  - 네트워크 오류와 5xx는 같은 요청을 그대로 다시 보낸다. 간격은 2·4·8·15·30초다.
+    - 그동안 입력이 멈춰도 일찍 다시 보내지 않는다.
+    - 브라우저가 online이 되면 즉시 다시 보낸다.
+  - 409 충돌이면 자동 저장을 멈춘다. 덮어쓰지 않는다.
+  - 422(형식 오류)·401 등은 다음 입력까지 다시 보내지 않는다.
+- **응답 유실**
+  - 서버는 아래 조건이 모두 맞을 때만 "이미 저장됨"으로 답한다. 나머지는 모두 409다.
+    - 현재 head가 같은 owner의 편집기 저장(autosave/manual)이다.
+    - head가 요청의 expected head 바로 다음 revision이다.
+    - 내용 hash와 schema version이 같다.
+- **IME**
+  - 조합 중에는 저장하지 않는다(Ctrl+S 포함). 조합이 끝나면 저장한다.
+  - 조합 중에는 바깥 변경(`applyExternalPatch`)을 거부한다(`COMPOSING`). PW-017 apply는 이 관문을 써야 한다.
+- **서식 버튼**
+  - 마우스로 눌러도 초점과 선택이 본문에 남는다.
+  - 고치기 전에는 버튼을 누른 직후의 Space가 버튼을 다시 눌러 서식이 풀리고 글자가 사라졌다. TST-015A 브라우저 시험이 처음 실행에서 이 결함을 잡았다.
+- **임시 복구본**
+  - 저장되지 않은 변경은 이 브라우저 localStorage에 계정·문서별로 보관한다(0.4초 지연).
+  - 보관 기간은 7일이다. 만료되었거나 문서 형식이 잘못된 항목은 버린다.
+  - 저장이 끝나면 지운다. 저장 중 새 입력이 있으면 새 head 기준으로 다시 쓴다.
+  - 다시 열 때:
+    - 복구본의 기준 revision이 현재 서버 head와 같으면 "복구본 불러오기/버리기"를 묻는다. 결정 전에는 편집을 막는다.
+    - 서버가 그 뒤에 바뀌었으면 복구본을 읽기 전용으로 보여 주고 복사하게 한다. 자동으로 합치지 않는다.
+  - 원고 아래에 설정(켜기/끄기)이 있다. 끄면 그 계정의 복구본을 지운다.
+  - 로그아웃하면 이 브라우저의 모든 복구본과 설정을 지운다.
+  - 저장 공간 부족이나 브라우저 차단은 화면에 알린다.
+
+## 요구사항-시험 매핑
+| REQ / TST | 시험 |
+|---|---|
+| REQ-015-A / TST-015A 한글 조합·italic·sub/superscript·인용 저장/복구 | e2e "Korean IME, italic, sub/superscript and a citation…": CDP IME로 한→글 조합, 기울임·아래·위첨자, 인용 붙여넣기 → 자동 저장 → DB JSON 확인 → 새로고침 후 표시 확인. 조합 중 jamo가 저장되지 않음 |
+| | e2e 복구 3건: 복구본 불러오기 후 저장 / 오래된 복구본은 복사용 표시 / 로그아웃 삭제·설정 끔 |
+| | e2e "Korean composition inside a paragraph keeps the paragraph id" |
+| | unit `recovery.test.ts` 9: 왕복(한글·서식·인용), 계정·문서 분리, 만료, 잘못된 항목 폐기, 다른 계정 항목 거부, 공간 부족, 설정, 로그아웃, 저장소 예외 |
+| REQ-015-B / TST-015B 조합 중 AI patch 적용 금지 | e2e "an outside patch is refused while composing": 실제 조합 중 `COMPOSING` 거부, 조합 후 적용 |
+| | unit `patch-gate.test.ts` 3 |
+| REQ-015-B / TST-015B 실패한 저장을 성공으로 표시하지 않음 | e2e "failing save": DB 실패 중 상태 기록에 "저장됨" 없음, revision 없음, 복구 후 1회만 저장 |
+| | e2e "offline" |
+| | e2e "answer was lost": 응답 유실 → 같은 요청 재전송 → 중복 revision 없음, 충돌 표시 없음 |
+| | unit `autosave.test.ts` 11 |
+| | integration `saves-route.int.test.ts` 9: 신규 201, 재전송 200, 다른 내용·다른 부모·restore head는 409, reason, 422, 다른 owner 404, CSRF 403 |
+
+## RED → GREEN
+- RED
+  - unit·integration(구현 전): 모듈 없음 3 파일, route 404로 6건 실패(`red.log`)
+  - 브라우저(PW-015 이전 앱 코드, 시험만 새것): 9건 중 8건 실패(`red-e2e.log`)
+  - 통과한 1건은 "조합 중 단락 id 유지"다. PW-014의 id 처리로 이미 되던 동작이라 회귀 시험으로 둔다.
+- GREEN
+  - unit 23/23, integration 9/9, 브라우저 9/9
+- mutation 14개 모두 탐지(`mutation.log`)
+  - 조합 검사 제거(제어기·편집기 연결), 재전송 대신 현재 내용 전송, 서버 replay 제거(통합·브라우저)
+  - replay의 부모 검사 제거(처음에는 살아남음 → A→B→A 시험 추가 후 탐지)
+  - replay가 restore revision 허용, patch 관문 조합 검사 제거, 로그아웃 시 미삭제, 저장 후 복구본 유지
+  - 오래된 복구본을 병합 제안, 보관 기간 없음, 5xx를 성공 처리, 서식 버튼 초점 탈취
+- 회귀: `pnpm test` exit 0(`pnpm-test.log`)
+  - typecheck·lint
+  - unit 94, integration 139, contracts 13, e2e 34(PW-014 25 포함), spikes 70
+  - evals/pack PASS
+- 화면 증거(합성 데이터): `screens/1-ime-marks-citation-reloaded.png`, `2-save-failed.png`, `3-recovery-offer.png`
+
+## 보안·과학적 실패 경로
+- 원고 정본은 서버 revision이다. 복구본은 사용자가 고른 경우에만 화면에 올라가고, 다시 서버 저장 규칙(검증·expected head)을 거친다.
+- 오래된 복구본은 자동으로 합치지 않는다. 다른 곳의 변경을 조용히 덮어쓰지 않는다.
+- 복구본은 브라우저 localStorage에 **평문**으로 남는다.
+  - 공유 PC를 위해 로그아웃 시 삭제하고 끌 수 있게 했다.
+  - 로그아웃 없이 세션이 만료되면 7일 동안 남는다.
+- 다른 계정의 복구본은 표시하지 않는다(키와 내용 모두 계정 확인).
+- 복구본의 형식은 editor-core로 다시 검증한다.
+- 서버 replay는 내용 hash·부모·작성자·reason이 모두 맞을 때만 성공으로 답한다.
+- 시험용 handle(`window.__pwManuscript`)은 Vite 개발 모드이면서 `__PW_TEST_HOOKS__`가 켜진 경우에만 생긴다. 운영 build에는 없다.
+
+## 미실행 / 남은 위험
+- **실제 한글 IME(ibus/fcitx, macOS·Windows 입력기)와 Firefox/Safari는 시험하지 않았다.**
+  - 브라우저 시험은 Chromium에서 CDP로 조합 이벤트를 만든다.
+  - 사용자 PC에서 수동 확인이 필요하다(PW-022 브라우저 gate).
+- 인용 **입력 UI**는 아직 없다.
+  - 현재는 붙여넣기와 저장된 인용 보존만 된다.
+  - 문헌 선택 삽입은 PW-019(인용 노드)·P04(문헌)에서 한다.
+- 자동 저장마다 불변 revision이 생긴다(최대 10초에 1개, 내용이 같으면 생략).
+  - 긴 작업에서는 revision이 많이 쌓인다.
+  - 버전 비교 화면(PW-021)에서 묶어 보여 주거나, 보존 정책(P07)이 필요하다.
+- 기존 `POST .../revisions`는 replay 규칙 없이 남아 있다. 편집기는 쓰지 않는다.
+- 여러 탭에서 같은 원고를 편집하면 뒤에 저장하는 탭이 충돌(409)로 멈춘다.
+  - 내용은 그 탭의 복구본에 남는다.
+  - 자동 병합은 v1 범위 밖이다(spec 04 STALE 원칙).
+- 복구본 설정 기본값은 **켜짐**이다.
+  - spec 04의 "명시 설정"을 화면의 설정 상자로 충족한다고 판단했다.
+  - 개인 PC·연구실 계정에서 입력 유실을 막는 쪽을 택했다.
+  - P02 gate에서 사용자 확인이 필요하다.
+
+## 다음
+- 독립 리뷰를 받은 뒤 PW-016(선택 도구·짧은 채팅)으로 간다.
+- PW-016/017 전에 RFC-003(개요 승인 전 보수적 교정 허용)을 사용자에게 확인한다.

@@ -1,9 +1,9 @@
 # Progress
-- 상태: P00 사전 검증 spike 6개 구현·테스트 완료(in_review). 제품 코드(apps/packages/db)는 아직 없음.
-- 현재 단계: **P01 진행 중** (P00 gate 승인: 사용자 2026-10-08 "작업해").
+- 상태: P00·P01 완료(gate 승인). P02 진행 중: PW-015 in_review.
+- 이전 단계 기록: P00 gate 승인(사용자 2026-10-08 "작업해").
   - 승인으로 기록: P00→P01, RFC-004, RFC-005, ADR-001~015, 분리 profile 로그인 방식.
   - RFC-003은 P02에서 필요할 때 다시 확인한다.
-- 승인된 구현 Task: PW-001–PW-006 (사용자 2026-10-08 "적절하게 정해라" 위임 하에 P00 범위만 진행).
+- 승인된 구현 범위: P00(PW-001–006), P01(PW-007–014), P02(PW-015–022; P01 gate 승인 2026-10-09).
 - 사용자 결정 (2026-10-08):
   - 런타임 AI = 사용자 본인 로그인의 Claude Code CLI / Codex CLI (API 키 아님) — RFC-001.
   - 배포 = 개인 PC + 연구실 서버 둘 다. 둘 다 **Linux**, **본인 OS 계정**으로 실행, **sudo 없이 동작**해야 함.
@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 다음 행동: P02 PW-015(에디터·자동저장·IME)부터 시작한다. 시작 시 RFC-003을 확인한다.
+- 현재 단계: **P02 진행 중**. PW-015 in_review. 다음은 PW-016이고, 그 전에 RFC-003(개요 승인 전 보수적 교정)을 사용자에게 확인한다.
   - 삭제 거부 직후 실행 환경이 한동안 모든 Bash 명령을 거부했다. 지금은 다시 실행된다.
 - 사용자 머신 preflight/sentinel 결과는 아직 받지 않음(P03 전까지 필요).
 
@@ -40,6 +40,7 @@
 | PW-012 | in_review | (P01) | REQ-012 / TST-012A,B | unit 43(리뷰 회귀 22 포함), Chromium↔Node parity 1, contracts 13, mutation 3종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | 저장 경로 연결·붙여넣기 U+FFFC 처리(PW-014/015), Firefox/Safari, IME, apply 엔진(PW-017), https 필요(secure context) |
 | PW-013 | in_review | (P01) | REQ-013 / TST-013A,B | 통합 31/31(리뷰 회귀 16 포함, PostgreSQL+pg-boss), mutation 7종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | 기능 경로 연결(draft request→job, PW-014/P02), 승인 actor 기록(PW-014), worker 상시 루프·recoverJobs 호출·재발행 상한(P02/P03) |
 | PW-014 | in_review | (P01) | REQ-014 / TST-014A,B | E2E 25/25(Chromium·실제 API·PostgreSQL, 2회 반복 42/42, 불안정했던 시험 60회 반복 60/60), unit 19, 통합 1, 리뷰 4회 반영, 실제 dev 실행 smoke, `pnpm test` exit 0 | IME·자동저장(PW-015/022), asset/reference 입력(P04), 배포·공유 서버 격리(P07) |
+| PW-015 | in_review | (P02) | REQ-015 / TST-015A,B | unit 23, 통합 9, 브라우저 9(CDP 한글 IME), RED(구현 전 unit·int, 이전 앱으로 e2e 8/9 실패), mutation 14종 탐지, `pnpm test` exit 0 | 실제 IME·Firefox/Safari(PW-022), 인용 입력 UI(PW-019), revision 누적(PW-021/P07), 복구본 기본값 켜짐 사용자 확인 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

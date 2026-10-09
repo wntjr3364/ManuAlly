@@ -1,0 +1,251 @@
+
+Running 9 tests using 1 worker
+
+[1/9] tests/tasks/PW-015/editor.e2e.ts:86:1 › TST-015A: Korean IME, italic, sub/superscript and a citation are autosaved and come back after reload
+  1) tests/tasks/PW-015/editor.e2e.ts:86:1 › TST-015A: Korean IME, italic, sub/superscript and a citation are autosaved and come back after reload 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('save-status')
+    Expected: "저장됨"
+    Received: "저장 안 됨 (변경 있음)"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveText" getByTestId('save-status') with timeout 15000ms
+      - waiting for getByTestId('save-status')
+        34 × locator resolved to <span role="status" data-testid="save-status" class="save-status unsaved">저장 안 됨 (변경 있음)</span>
+           - unexpected value "저장 안 됨 (변경 있음)"
+
+
+      109 |   await page.keyboard.type(' ');
+      110 |   await pasteCitation(page);
+    > 111 |   await expect(status(page)).toHaveText('저장됨', { timeout: 15_000 });
+          |                              ^
+      112 |
+      113 |   const stored = await head(documentId);
+      114 |   expect(stored.reason).toBe('autosave');
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:111:30
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-e10dd--and-come-back-after-reload/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-e10dd--and-come-back-after-reload/error-context.md
+
+
+[2/9] tests/tasks/PW-015/editor.e2e.ts:135:1 › TST-015B: an outside patch is refused while composing and applied after
+  2) tests/tasks/PW-015/editor.e2e.ts:135:1 › TST-015B: an outside patch is refused while composing and applied after 
+
+    Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'composing')
+        at eval (eval at evaluate (:311:30), <anonymous>:4:20)
+        at UtilityScript.evaluate (<anonymous>:313:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at eval (eval at evaluate (:311:30), <anonymous>:4:20)
+        at UtilityScript.evaluate (<anonymous>:313:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:141:29
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-94367-composing-and-applied-after/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-94367-composing-and-applied-after/error-context.md
+
+
+[3/9] tests/tasks/PW-015/editor.e2e.ts:154:1 › TST-015B: a failing save is never shown as saved; it is retried and then stored once
+  3) tests/tasks/PW-015/editor.e2e.ts:154:1 › TST-015B: a failing save is never shown as saved; it is retried and then stored once 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('save-status')
+    Expected substring: "저장 실패"
+    Received string:    "저장 안 됨 (변경 있음)"
+    Timeout: 10000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('save-status') with timeout 10000ms
+      - waiting for getByTestId('save-status')
+        24 × locator resolved to <span role="status" data-testid="save-status" class="save-status unsaved">저장 안 됨 (변경 있음)</span>
+           - unexpected value "저장 안 됨 (변경 있음)"
+
+
+      160 |   await editor(page).click();
+      161 |   await page.keyboard.type('must not look saved');
+    > 162 |   await expect(status(page)).toContainText('저장 실패', { timeout: 10_000 });
+          |                              ^
+      163 |   await page.waitForTimeout(3000); // at least one retry, still failing
+      164 |   expect(await statuses()).not.toContain('저장됨');
+      165 |   expect(await revisionCount(documentId)).toBe(before);
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:162:30
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-55f4d-etried-and-then-stored-once/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-55f4d-etried-and-then-stored-once/error-context.md
+
+
+[4/9] tests/tasks/PW-015/editor.e2e.ts:173:1 › TST-015B: offline shows not saved; coming back online saves
+  4) tests/tasks/PW-015/editor.e2e.ts:173:1 › TST-015B: offline shows not saved; coming back online saves 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('save-status')
+    Expected substring: "오프라인"
+    Received string:    "저장 안 됨 (변경 있음)"
+    Timeout: 10000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('save-status') with timeout 10000ms
+      - waiting for getByTestId('save-status')
+        24 × locator resolved to <span role="status" data-testid="save-status" class="save-status unsaved">저장 안 됨 (변경 있음)</span>
+           - unexpected value "저장 안 됨 (변경 있음)"
+
+
+      178 |   await editor(page).click();
+      179 |   await page.keyboard.type('written offline');
+    > 180 |   await expect(status(page)).toContainText('오프라인', { timeout: 10_000 });
+          |                              ^
+      181 |   expect(await statuses()).not.toContain('저장됨');
+      182 |   await context.setOffline(false);
+      183 |   await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:180:30
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-150b1-ed-coming-back-online-saves/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-150b1-ed-coming-back-online-saves/error-context.md
+
+
+[5/9] tests/tasks/PW-015/editor.e2e.ts:187:1 › TST-015B: a save whose answer was lost is not stored twice and not reported as a conflict
+  5) tests/tasks/PW-015/editor.e2e.ts:187:1 › TST-015B: a save whose answer was lost is not stored twice and not reported as a conflict 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('save-status')
+    Expected: "저장됨"
+    Received: "저장 안 됨 (변경 있음)"
+    Timeout:  15000ms
+
+    Call log:
+      - Expect "toHaveText" getByTestId('save-status') with timeout 15000ms
+      - waiting for getByTestId('save-status')
+        34 × locator resolved to <span role="status" data-testid="save-status" class="save-status unsaved">저장 안 됨 (변경 있음)</span>
+           - unexpected value "저장 안 됨 (변경 있음)"
+
+
+      198 |   await editor(page).click();
+      199 |   await page.keyboard.type('stored once');
+    > 200 |   await expect(status(page)).toHaveText('저장됨', { timeout: 15_000 });
+          |                              ^
+      201 |   expect(dropped).toBe(true);
+      202 |   expect(await revisionCount(documentId)).toBe(before + 1);
+      203 |   await page.keyboard.type(' and more');
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:200:30
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-21c24--not-reported-as-a-conflict/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-21c24--not-reported-as-a-conflict/error-context.md
+
+
+[6/9] tests/tasks/PW-015/editor.e2e.ts:223:1 › TST-015A: unsaved text is offered back from this browser and then saved
+  6) tests/tasks/PW-015/editor.e2e.ts:223:1 › TST-015A: unsaved text is offered back from this browser and then saved 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('save-status')
+    Expected substring: "저장 실패"
+    Received string:    "저장 안 됨 (변경 있음)"
+    Timeout: 10000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('save-status') with timeout 10000ms
+      - waiting for getByTestId('save-status')
+        24 × locator resolved to <span role="status" data-testid="save-status" class="save-status unsaved">저장 안 됨 (변경 있음)</span>
+           - unexpected value "저장 안 됨 (변경 있음)"
+
+
+      213 |   await editor(page).click();
+      214 |   await page.keyboard.type(text);
+    > 215 |   await expect(status(page)).toContainText('저장 실패', { timeout: 10_000 });
+          |                              ^
+      216 |   await expect.poll(() => recoveryKeys(page)).toHaveLength(1);
+      217 |   const url = page.url();
+      218 |   await page.close(); // e.g. the tab or browser was closed
+        at leaveDraft (/home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:215:30)
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:224:31
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-f406a-this-browser-and-then-saved/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-f406a-this-browser-and-then-saved/error-context.md
+
+
+[7/9] tests/tasks/PW-015/editor.e2e.ts:238:1 › TST-015A: a recovery copy older than the server text is shown for copying, never merged
+  7) tests/tasks/PW-015/editor.e2e.ts:238:1 › TST-015A: a recovery copy older than the server text is shown for copying, never merged 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('save-status')
+    Expected substring: "저장 실패"
+    Received string:    "저장 안 됨 (변경 있음)"
+    Timeout: 10000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('save-status') with timeout 10000ms
+      - waiting for getByTestId('save-status')
+        24 × locator resolved to <span role="status" data-testid="save-status" class="save-status unsaved">저장 안 됨 (변경 있음)</span>
+           - unexpected value "저장 안 됨 (변경 있음)"
+
+
+      213 |   await editor(page).click();
+      214 |   await page.keyboard.type(text);
+    > 215 |   await expect(status(page)).toContainText('저장 실패', { timeout: 10_000 });
+          |                              ^
+      216 |   await expect.poll(() => recoveryKeys(page)).toHaveLength(1);
+      217 |   const url = page.url();
+      218 |   await page.close(); // e.g. the tab or browser was closed
+        at leaveDraft (/home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:215:30)
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:239:40
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-2acf7-wn-for-copying-never-merged/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-2acf7-wn-for-copying-never-merged/error-context.md
+
+
+[8/9] tests/tasks/PW-015/editor.e2e.ts:259:1 › TST-015A: logout leaves no recovery copy; turning recovery off stores none
+  8) tests/tasks/PW-015/editor.e2e.ts:259:1 › TST-015A: logout leaves no recovery copy; turning recovery off stores none 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('save-status')
+    Expected substring: "저장 실패"
+    Received string:    "저장 안 됨 (변경 있음)"
+    Timeout: 10000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('save-status') with timeout 10000ms
+      - waiting for getByTestId('save-status')
+        24 × locator resolved to <span role="status" data-testid="save-status" class="save-status unsaved">저장 안 됨 (변경 있음)</span>
+           - unexpected value "저장 안 됨 (변경 있음)"
+
+
+      213 |   await editor(page).click();
+      214 |   await page.keyboard.type(text);
+    > 215 |   await expect(status(page)).toContainText('저장 실패', { timeout: 10_000 });
+          |                              ^
+      216 |   await expect.poll(() => recoveryKeys(page)).toHaveLength(1);
+      217 |   const url = page.url();
+      218 |   await page.close(); // e.g. the tab or browser was closed
+        at leaveDraft (/home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:215:30)
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:260:3
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-9dbfe-ng-recovery-off-stores-none/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-9dbfe-ng-recovery-off-stores-none/error-context.md
+
+
+[9/9] tests/tasks/PW-015/editor.e2e.ts:280:1 › Korean composition inside a paragraph keeps the paragraph id
+  8 failed
+    tests/tasks/PW-015/editor.e2e.ts:86:1 › TST-015A: Korean IME, italic, sub/superscript and a citation are autosaved and come back after reload 
+    tests/tasks/PW-015/editor.e2e.ts:135:1 › TST-015B: an outside patch is refused while composing and applied after 
+    tests/tasks/PW-015/editor.e2e.ts:154:1 › TST-015B: a failing save is never shown as saved; it is retried and then stored once 
+    tests/tasks/PW-015/editor.e2e.ts:173:1 › TST-015B: offline shows not saved; coming back online saves 
+    tests/tasks/PW-015/editor.e2e.ts:187:1 › TST-015B: a save whose answer was lost is not stored twice and not reported as a conflict 
+    tests/tasks/PW-015/editor.e2e.ts:223:1 › TST-015A: unsaved text is offered back from this browser and then saved 
+    tests/tasks/PW-015/editor.e2e.ts:238:1 › TST-015A: a recovery copy older than the server text is shown for copying, never merged 
+    tests/tasks/PW-015/editor.e2e.ts:259:1 › TST-015A: logout leaves no recovery copy; turning recovery off stores none 
+  1 passed (2.0m)

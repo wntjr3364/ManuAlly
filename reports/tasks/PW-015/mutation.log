@@ -1,0 +1,20 @@
+killed: autosave ignores composition (1 failing)
+killed: editor wires no composition check (0 failing)
+killed: retry sends current text instead of identical request (1 failing)
+killed: server replay disabled (unit+int) (1 failing)
+killed: server replay disabled (browser) (3 failing)
+SURVIVED: replay without parent check
+killed: replay accepts restore revisions (1 failing)
+killed: patch gate ignores composition (1 failing)
+killed: logout keeps drafts (0 failing)
+killed: draft kept after save (0 failing)
+killed: older draft offered for merge (0 failing)
+killed: no retention (1 failing)
+killed: server error reported as saved (2 failing)
+--- after adding the A→B→A test; browser kills re-checked with the failure summary
+killed: replay without parent check [1 failed]
+killed: editor wires no composition check [1 failed]
+killed: logout keeps drafts [1 failed]
+killed: draft kept after save [1 failed]
+killed: older draft offered for merge [1 failed]
+killed: toolbar steals focus [1 failed]

@@ -25,3 +25,5 @@ section.card { background: #fff; border-radius: 8px; padding: 16px; margin-botto
 ul.plain { list-style: none; padding: 0; }
 ul.plain li { padding: 8px 0; border-bottom: 1px solid #eef1f5; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.notice { border: 1px solid #c9a227; background: #fff8e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; }
+.notice button { margin-right: 8px; }

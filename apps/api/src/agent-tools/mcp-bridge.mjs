@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* global process */
+/* global process, setTimeout, clearTimeout */
 // MCP stdio server for Claude Code (PW-027): the run's --mcp-config names this script with the tool
 // gateway's socket path. It speaks MCP (newline-delimited JSON-RPC 2.0 on stdin/stdout: initialize,
 // tools/list, tools/call, ping) and forwards tools/list and tools/call to the gateway socket, which
@@ -34,7 +34,13 @@ gw.on('data', (d) => {
 });
 gw.on('error', (e) => { process.stderr.write(`mcp-bridge: gateway ${e.code ?? e.message}\n`); process.exit(69); });
 gw.on('close', () => process.exit(0));
-const ask = (method, params) => new Promise((resolve) => { const id = nextId++; waiting.set(id, resolve); gw.write(JSON.stringify({ id, method, params }) + '\n'); });
+// a gateway that does not answer within a minute: the call fails visibly instead of hanging
+const ask = (method, params) => new Promise((resolve) => {
+  const id = nextId++;
+  const t = setTimeout(() => { waiting.delete(id); resolve({ id, error: { code: 'timeout', message: 'the tool gateway did not answer' } }); }, 60_000);
+  waiting.set(id, (m) => { clearTimeout(t); resolve(m); });
+  gw.write(JSON.stringify({ id, method, params }) + '\n');
+});
 
 const rl = readline.createInterface({ input: process.stdin });
 rl.on('line', async (line) => {
@@ -50,7 +56,8 @@ rl.on('line', async (line) => {
       return out({ id: m.id, result: {} });
     case 'tools/list': {
       const r = await ask('tools/list');
-      return out({ id: m.id, result: { tools: (r.result?.tools ?? []).map((t) => ({ name: t.name, description: t.description, inputSchema: t.input_schema })) } });
+      if (!r.result) return out({ id: m.id, error: { code: -32603, message: r.error?.message ?? 'the tool gateway failed' } });
+      return out({ id: m.id, result: { tools: (r.result.tools ?? []).map((t) => ({ name: t.name, description: t.description, inputSchema: t.input_schema })) } });
     }
     case 'tools/call': {
       const r = await ask('tools/call', { name: m.params?.name, arguments: m.params?.arguments ?? {} });

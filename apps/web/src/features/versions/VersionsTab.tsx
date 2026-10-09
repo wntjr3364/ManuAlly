@@ -152,7 +152,7 @@ export function VersionsTab({ paperId, visible, editor, onHeadChanged }: { paper
           {edits.length === 0 && <p className="hint">적용된 AI 수정이 없습니다.</p>}
           {edits.map((e) => (
             <article key={e.proposal_id} className="proposal" data-testid="applied-edit">
-              <p className="hint">{INTENT[e.intent] ?? e.intent} · {when(e.applied_at)} 적용 <MockBadge label={/^worker:provider\.mock$/.test(e.origin) ? 'MOCK' : null} /></p>
+              <p className="hint">{INTENT[e.intent] ?? e.intent} · {when(e.applied_at)} 적용 <MockBadge label={/^worker:(provider\.mock|tool-gateway:mock)$/.test(e.origin) ? 'MOCK' : null} /></p>
               {e.before_block && e.after_block && <p className="diff"><Diff parts={diffTokens(blockTokens(e.before_block), blockTokens(e.after_block))} /></p>}
               {e.undo_revision_id ? <p className="hint" data-testid="undo-state">되돌림 — 새 버전 {short(e.undo_revision_id)}</p>
                 : e.can_undo ? <button type="button" disabled={!canChange} onClick={() => void act(() => api('POST', `/api/papers/${paperId}/proposals/${e.proposal_id}/undo`, { expected_head_revision_id: doc.head.id }))}>되돌리기</button>

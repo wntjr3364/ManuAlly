@@ -17,7 +17,7 @@ import { migrate } from '../../../apps/api/src/db/migrate.ts';
 import { buildServer } from '../../../apps/api/src/server.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { parseDocument, snapshotSelection } from '../../../packages/editor-core/src/index.ts';
-import { FORBIDDEN_TOOLS, TOOL_NAMES, callTool, issueRunToken, revokeRunToken, toolDefinitions } from '../../../packages/domain/src/tool-policy/index.ts';
+import { FORBIDDEN_TOOLS, MAX_CALLS_PER_TOKEN, TOOL_NAMES, callTool, issueRunToken, revokeRunToken, toolDefinitions } from '../../../packages/domain/src/tool-policy/index.ts';
 import { serveToolSocket } from '../../../apps/api/src/agent-tools/index.ts';
 
 const ORIGIN = 'http://127.0.0.1:5173';
@@ -214,6 +214,29 @@ describe('TST-027B: the model cannot widen its scope, apply or approve', () => {
     await expect(pool.query('UPDATE agent_tool_calls SET outcome = $1 WHERE token_id = $2', ['ok', t.id])).rejects.toThrow(/immutable|not allowed/);
   });
 
+  // review MINOR: a write and its audit row commit together
+  test('a failing audit leaves no proposal behind (the write rolls back with it)', async () => {
+    const t = await token(A);
+    const before = (await pool.query('SELECT count(*)::int AS n FROM edit_proposals')).rows[0].n;
+    await pool.query(`CREATE FUNCTION pw_test_audit_down() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.outcome = 'ok' THEN RAISE EXCEPTION 'audit down'; END IF; RETURN NEW; END $$`);
+    await pool.query('CREATE TRIGGER pw_test_audit_down BEFORE INSERT ON agent_tool_calls FOR EACH ROW EXECUTE FUNCTION pw_test_audit_down()');
+    try {
+      const r = await callTool(pool, t.token, 'propose_manuscript_edit', { handle_id: A.handleId, intent: 'concise', replacement: [{ type: 'text', text: 'clear' }] });
+      expect(r).toMatchObject({ ok: false, error: { code: 'internal' } });
+    } finally {
+      await pool.query('DROP TRIGGER pw_test_audit_down ON agent_tool_calls');
+      await pool.query('DROP FUNCTION pw_test_audit_down()');
+    }
+    expect((await pool.query('SELECT count(*)::int AS n FROM edit_proposals')).rows[0].n).toBe(before);
+    expect((await pool.query("SELECT outcome FROM agent_tool_calls WHERE token_id = $1", [t.id])).rows).toEqual([{ outcome: 'error' }]);
+  });
+
+  test('a run token has a call budget', async () => {
+    const t = await token(A);
+    await pool.query("INSERT INTO agent_tool_calls (token_id, tool, outcome, args_sha256) SELECT $1, 'get_approved_outline', 'ok', repeat('0', 64) FROM generate_series(1, $2::int)", [t.id, MAX_CALLS_PER_TOKEN]);
+    expect((await callTool(pool, t.token, 'get_approved_outline', {})).error?.code).toBe('call_budget_exhausted');
+  });
+
   test('tools that arrive in later tasks are listed nowhere and refused', async () => {
     const t = await token(A);
     for (const name of ['search_literature_with_budget', 'propose_outline_change', 'propose_profile_change', 'add_candidate_reference', 'add_review_finding']) {
@@ -268,6 +291,9 @@ describe('transport: a Unix socket bound to one run token, and the MCP stdio bri
         for (let i = 0; i < 8; i++) c.write(chunk);
       });
       expect(flood).toContain('"too_large"');
+      // many requests at once: at most 16 wait, the rest end the connection
+      const burst = await rpc(sock, Array.from({ length: 40 }, (_, i) => ({ id: 100 + i, method: 'tools/list' }))).catch(() => []);
+      expect(JSON.stringify(burst)).toContain('too_many_requests');
     } finally {
       await srv.close();
     }

@@ -156,12 +156,12 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
           <article key={p.id} className="proposal" data-testid="proposal" data-proposal-id={p.id}>
             <p className="hint">
               {INTENT_LABEL[p.intent] ?? p.intent}{p.mode === 'preapproval' ? ' · 개요 승인 전 교정' : ''} · {STATUS_LABEL[p.status] ?? p.status}{' '}
-              <MockBadge label={/^worker:provider\.mock$/.test(p.origin ?? '') ? 'MOCK' : null} />
+              <MockBadge label={/^worker:(provider\.mock|tool-gateway:mock)$/.test(p.origin ?? '') ? 'MOCK' : null} />
             </p>
             <p className="diff" data-testid="proposal-diff">
               {parts.map((x, i) => (x.kind === 'same' ? <span key={i}>{x.text}</span> : x.kind === 'del' ? <del key={i}>{x.text}</del> : <ins key={i}>{x.text}</ins>))}
             </p>
-            {p.explanation && <p className="hint">설명({/^worker:provider\.mock$/.test(p.origin ?? '') ? 'MOCK' : 'AI'}): {p.explanation}</p>}
+            {p.explanation && <p className="hint">설명({/^worker:(provider\.mock|tool-gateway:mock)$/.test(p.origin ?? '') ? 'MOCK' : 'AI'}): {p.explanation}</p>}
             {failed.length > 0 && (
               <ul role="alert" className="error" data-testid="proposal-checks">{failed.map((c) => <li key={c.check}>{c.check}: {c.details}</li>)}</ul>
             )}

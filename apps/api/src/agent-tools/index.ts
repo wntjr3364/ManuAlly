@@ -9,6 +9,7 @@ import type { TxPool } from '@pw/domain/revisions/index.ts';
 import { callTool, toolDefinitions } from '@pw/domain/tool-policy/index.ts';
 
 export const MAX_LINE_BYTES = 256 * 1024;
+export const MAX_QUEUED = 16;
 
 export async function serveToolSocket(a: { pool: TxPool; socketPath: string; token: string; maxConnections?: number }): Promise<{ close(): Promise<void> }> {
   const sockets = new Set<net.Socket>();
@@ -18,6 +19,7 @@ export async function serveToolSocket(a: { pool: TxPool; socketPath: string; tok
     c.on('error', () => c.destroy());
     let buf = '';
     let chain = Promise.resolve(); // answers in request order
+    let queued = 0; // requests read but not answered yet (bounded: re-review nit)
     const send = (o: unknown) => { if (!c.destroyed) c.write(JSON.stringify(o) + '\n'); };
     c.setEncoding('utf8');
     c.on('data', (d: string) => {
@@ -33,7 +35,8 @@ export async function serveToolSocket(a: { pool: TxPool; socketPath: string; tok
         const line = buf.slice(0, i);
         buf = buf.slice(i + 1);
         if (Buffer.byteLength(line) > MAX_LINE_BYTES) { send({ id: null, error: { code: 'too_large', message: 'request too large' } }); c.end(); return; }
-        chain = chain.then(() => handle(line).then(send, () => send({ id: null, error: { code: 'internal', message: 'the gateway failed' } })));
+        if (++queued > MAX_QUEUED) { send({ id: null, error: { code: 'too_many_requests', message: `at most ${MAX_QUEUED} requests may wait` } }); c.end(); return; }
+        chain = chain.then(() => handle(line).then(send, () => send({ id: null, error: { code: 'internal', message: 'the gateway failed' } }))).finally(() => { queued--; });
       }
     });
   });

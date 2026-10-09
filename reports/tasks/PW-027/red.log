@@ -6,3 +6,12 @@ Error: Cannot find module '../../../packages/domain/src/tool-policy/index.ts' im
 Error: Cannot find module '../../../packages/domain/src/tool-policy/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-027/schemas.contract.test.ts
  Test Files  1 failed (1)
       Tests  no tests
+# review RED (gateway before the review fixes)
+     × a failing audit leaves no proposal behind (the write rolls back with it) 55ms
+     × a run token has a call budget 14ms
+     × the socket serves the run's tools without the token ever entering the sandbox; bad input is refused 54ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected 2 to be 1 // Object.is equality
+AssertionError: expected undefined to be 'call_budget_exhausted' // Object.is equality
+AssertionError: expected '[{"id":100,"result":{"tools":[{"name"…' to contain 'too_many_requests'
+      Tests  3 failed | 10 passed (13)

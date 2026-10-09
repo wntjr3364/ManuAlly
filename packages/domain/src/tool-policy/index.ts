@@ -11,12 +11,12 @@
 // findings) are known names that answer not_available_yet until their task implements them.
 import { createHash, randomBytes } from 'node:crypto';
 import { figureLabels } from '@pw/editor-core';
-import { DomainError, UUID_RE, type Queryable, type TxPool } from '../shared/db.ts';
+import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
 import { getPaper } from '../papers/index.ts';
 import { getOutlineRevision } from '../outlines/index.ts';
 import { listFacts } from '../evidence/index.ts';
 import { listFigures, listReferences } from '../references/index.ts';
-import { approvedOutline, createProposal, getSelectionHandle, selectionSlice, PROPOSAL_INTENTS } from '../proposals/index.ts';
+import { approvedOutline, createProposalIn, getSelectionHandle, selectionSlice, PROPOSAL_INTENTS } from '../proposals/index.ts';
 import { publish, validate, type Schema } from './schema.ts';
 export { validate as validateToolArgs } from './schema.ts';
 
@@ -30,7 +30,8 @@ export type GatewayProvider = (typeof PROVIDERS)[number];
 
 const uuid: Schema = { type: 'string', minLength: 36, maxLength: 36, pattern: UUID_RE.source };
 interface Scope { tokenId: string; ownerId: string; paperId: string; documentId: string | null; handleIds: string[]; provider: GatewayProvider }
-interface Tool { description: string; input: Schema; run: (pool: TxPool, s: Scope, args: Record<string, unknown>) => Promise<unknown> }
+// a tool runs inside the call's transaction, together with its audit row (one commits with the other)
+interface Tool { description: string; input: Schema; run: (tx: Queryable, s: Scope, args: Record<string, unknown>) => Promise<unknown> }
 class NotInScope extends Error {}
 
 // plain text of a block from stored document JSON: inline atoms appear as [citation] / [figure]
@@ -51,10 +52,10 @@ const TOOLS: Record<string, Tool> = {
   get_approved_outline: {
     description: 'The approved outline of this paper (sections, paragraph goals, allowed interpretation, exclusions, word budgets). approved=false when no outline is approved.',
     input: { type: 'object', properties: {}, additionalProperties: false },
-    async run(pool, s) {
-      const id = await approvedOutline(pool, s.paperId);
+    async run(tx, s) {
+      const id = await approvedOutline(tx, s.paperId);
       if (!id) return { approved: false };
-      const o = (await getOutlineRevision(pool, s.paperId, id))!;
+      const o = (await getOutlineRevision(tx, s.paperId, id))!;
       return {
         approved: true, outline_revision_id: id,
         nodes: o.nodes.map((n) => ({
@@ -68,18 +69,18 @@ const TOOLS: Record<string, Tool> = {
   get_document_slice: {
     description: 'Text of the selection this run works on (handle_id) or of one paragraph of the run\'s document (block_id).',
     input: { type: 'object', properties: { handle_id: uuid, block_id: uuid }, additionalProperties: false },
-    async run(pool, s, a) {
+    async run(tx, s, a) {
       if ((a.handle_id === undefined) === (a.block_id === undefined)) throw new DomainError('INVALID', 'give exactly one of handle_id and block_id');
       if (typeof a.handle_id === 'string') {
         const id = a.handle_id.toLowerCase();
         if (!s.handleIds.includes(id)) throw new NotInScope();
-        const h = await getSelectionHandle(pool, s.paperId, id);
+        const h = await getSelectionHandle(tx, s.paperId, id);
         if (!h || h.document_id !== s.documentId) throw new NotInScope();
-        const { items } = await selectionSlice(pool, s.paperId, id);
+        const { items } = await selectionSlice(tx, s.paperId, id);
         return { handle_id: id, block_id: h.block_id, base_revision_id: h.base_revision_id, text: items.map((i) => (i.type === 'text' ? i.text : `[atom ${i.atom_index}]`)).join('').slice(0, MAX_TEXT), items };
       }
       if (!s.documentId) throw new NotInScope();
-      const head = (await pool.query<{ id: string; content_json: { content?: { type: string; attrs?: { id?: string; level?: number } }[] } }>(
+      const head = (await tx.query<{ id: string; content_json: { content?: { type: string; attrs?: { id?: string; level?: number } }[] } }>(
         'SELECT r.id, r.content_json FROM documents d JOIN document_revisions r ON r.id = d.head_revision_id WHERE d.paper_id = $1 AND d.id = $2', [s.paperId, s.documentId])).rows[0];
       const block = head?.content_json.content?.find((b) => b.attrs?.id === String(a.block_id).toLowerCase());
       if (!block) throw new NotInScope();
@@ -89,9 +90,9 @@ const TOOLS: Record<string, Tool> = {
   get_fact_records: {
     description: 'Facts the user verified (value, unit, groups, comparison, n, statistics). Candidate or rejected values are never returned.',
     input: { type: 'object', properties: { fact_ids: { type: 'array', items: uuid, maxItems: 50, uniqueItems: true } }, additionalProperties: false },
-    async run(pool, s, a) {
+    async run(tx, s, a) {
       const want = Array.isArray(a.fact_ids) ? new Set((a.fact_ids as string[]).map((x) => x.toLowerCase())) : null;
-      const facts = (await listFacts(pool, s.paperId)).filter((f) => f.verification_state === 'VERIFIED' && !f.closed_at && (!want || want.has(f.id)));
+      const facts = (await listFacts(tx, s.paperId)).filter((f) => f.verification_state === 'VERIFIED' && !f.closed_at && (!want || want.has(f.id)));
       return {
         facts: facts.slice(0, 200).map((f) => ({ id: f.id, evidence_id: f.evidence_id, entity: f.entity, metric: f.metric, value_text: f.value_text, unit: f.unit, group: f.group, comparison: f.comparison, n: f.n, statistics: f.statistics })),
       };
@@ -100,16 +101,16 @@ const TOOLS: Record<string, Tool> = {
   get_reference_excerpt: {
     description: 'Stored metadata of this paper\'s references (authors, year, title, journal, DOI). Excerpts arrive with the literature tasks; excerpt is null until then.',
     input: { type: 'object', properties: { reference_ids: { type: 'array', items: uuid, minItems: 1, maxItems: 20, uniqueItems: true } }, required: ['reference_ids'], additionalProperties: false },
-    async run(pool, s, a) {
+    async run(tx, s, a) {
       const want = new Set((a.reference_ids as string[]).map((x) => x.toLowerCase()));
-      return { references: (await listReferences(pool, s.paperId)).filter((r) => want.has(r.id)).map((r) => ({ id: r.id, authors: r.authors, year: r.year, title: r.title, container: r.container, doi: r.doi, excerpt: null })) };
+      return { references: (await listReferences(tx, s.paperId)).filter((r) => want.has(r.id)).map((r) => ({ id: r.id, authors: r.authors, year: r.year, title: r.title, container: r.container, doi: r.doi, excerpt: null })) };
     },
   },
   get_figure_metadata: {
     description: 'Figures and tables of this paper with their current numbers and titles.',
     input: { type: 'object', properties: {}, additionalProperties: false },
-    async run(pool, s) {
-      const figs = await listFigures(pool, s.paperId);
+    async run(tx, s) {
+      const figs = await listFigures(tx, s.paperId);
       const { numbers } = figureLabels([], figs);
       return { figures: figs.map((f) => ({ id: f.id, kind: f.kind, number: numbers.get(f.id) ?? null, title: f.title })) };
     },
@@ -127,12 +128,12 @@ const TOOLS: Record<string, Tool> = {
       required: ['handle_id', 'intent', 'replacement'],
       additionalProperties: false,
     },
-    async run(pool, s, a) {
+    async run(tx, s, a) {
       const id = String(a.handle_id).toLowerCase();
       if (!s.handleIds.includes(id)) throw new NotInScope();
-      const h = await getSelectionHandle(pool, s.paperId, id);
+      const h = await getSelectionHandle(tx, s.paperId, id);
       if (!h || h.document_id !== s.documentId) throw new NotInScope();
-      const p = await createProposal(pool, { paperId: s.paperId, handleId: id, intent: a.intent, replacement: a.replacement, explanation: a.explanation, origin: `worker:tool-gateway:${s.provider}` });
+      const p = await createProposalIn(tx, { paperId: s.paperId, handleId: id, intent: a.intent, replacement: a.replacement, explanation: a.explanation, origin: `worker:tool-gateway:${s.provider}` });
       return { proposal_id: p.id, status: p.status, status_reason: p.status_reason, checks: p.checks };
     },
   },
@@ -143,6 +144,8 @@ const KNOWN = new Map(Object.entries(TOOLS));
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 const MAX_TTL_MS = 24 * 3600e3;
 const MAX_ARGS_BYTES = 64 * 1024;
+// calls one run token may make (a model looping on tools stops here; re-review nit)
+export const MAX_CALLS_PER_TOKEN = 500;
 
 export async function issueRunToken(pool: TxPool, a: {
   ownerId: string; paperId: string; documentId: string | null; handleIds: string[]; provider: GatewayProvider; tools: readonly string[]; ttlMs: number; jobId?: string | null;
@@ -187,7 +190,7 @@ export async function toolDefinitions(db: Queryable, token: string): Promise<Too
   return s.tools.filter((t) => KNOWN.has(t)).sort().map((name) => ({ name, description: TOOLS[name]!.description, input_schema: publish(TOOLS[name]!.input) }));
 }
 
-export type ToolErrorCode = 'invalid_token' | 'unknown_tool' | 'forbidden_tool' | 'not_available_yet' | 'tool_not_allowed' | 'invalid_arguments' | 'not_in_scope' | 'rejected' | 'internal';
+export type ToolErrorCode = 'invalid_token' | 'unknown_tool' | 'forbidden_tool' | 'not_available_yet' | 'tool_not_allowed' | 'call_budget_exhausted' | 'invalid_arguments' | 'not_in_scope' | 'rejected' | 'internal';
 export type ToolOutcome = { ok: true; result: unknown; error?: undefined } | { ok: false; error: { code: ToolErrorCode; message: string }; result?: undefined };
 
 // control, zero-width and bidi characters become '?' so the audit shows what was really asked
@@ -199,8 +202,8 @@ export async function callTool(pool: TxPool, token: string, name: unknown, args:
   let argsText: string;
   try { argsText = JSON.stringify(args ?? null) ?? 'null'; } catch { argsText = 'unserializable'; }
   const s = await scopeOf(pool, token);
-  const audit = async (outcome: 'ok' | 'refused' | 'error', reason: string | null) => {
-    await pool.query('INSERT INTO agent_tool_calls (token_id, tool, outcome, reason, args_sha256) VALUES ($1, $2, $3, $4, $5)', [s?.tokenId ?? null, printable(tool), outcome, reason, sha256(argsText)]);
+  const audit = async (outcome: 'ok' | 'refused' | 'error', reason: string | null, db: Queryable = pool) => {
+    await db.query('INSERT INTO agent_tool_calls (token_id, tool, outcome, reason, args_sha256) VALUES ($1, $2, $3, $4, $5)', [s?.tokenId ?? null, printable(tool), outcome, reason, sha256(argsText)]);
   };
   const refuse = async (code: ToolErrorCode, message: string): Promise<ToolOutcome> => { await audit('refused', code); return { ok: false, error: { code, message } }; };
   if (!s) return refuse('invalid_token', 'the run token is unknown, expired or revoked');
@@ -209,12 +212,19 @@ export async function callTool(pool: TxPool, token: string, name: unknown, args:
   const def = KNOWN.get(tool);
   if (!def) return refuse('unknown_tool', `${printable(tool)} is not a tool`);
   if (!s.tools.includes(tool)) return refuse('tool_not_allowed', `this run may not use ${tool}`);
+  const used = (await pool.query<{ n: number }>('SELECT count(*)::int AS n FROM agent_tool_calls WHERE token_id = $1', [s.tokenId])).rows[0]!.n;
+  if (used >= MAX_CALLS_PER_TOKEN) return refuse('call_budget_exhausted', `this run has used its ${MAX_CALLS_PER_TOKEN} tool calls`);
   if (Buffer.byteLength(argsText) > MAX_ARGS_BYTES) return refuse('invalid_arguments', 'the arguments are too large');
   const bad = validate(def.input, args);
   if (bad) return refuse('invalid_arguments', bad);
   try {
-    const result = await def.run(pool, s, args as Record<string, unknown>);
-    await audit('ok', null);
+    // the tool's write (a proposal) and its audit row commit together, or neither does: a failed
+    // audit never hides a completed write, and a retried call never finds a half-done one
+    const result = await inTransaction(pool, async (tx) => {
+      const r = await def.run(tx, s, args as Record<string, unknown>);
+      await audit('ok', null, tx);
+      return r;
+    });
     return { ok: true, result };
   } catch (e) {
     if (e instanceof NotInScope) return refuse('not_in_scope', 'that object is not part of this run');

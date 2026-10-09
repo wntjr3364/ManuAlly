@@ -35,7 +35,7 @@
     - Claude Code용 MCP stdio 서버다: `initialize`, `ping`, `tools/list`, `tools/call`. 나머지(resources, prompts, sampling)는 -32601.
     - 도구 호출을 gateway socket으로 넘기기만 하고, 판단은 하지 않는다.
 - 시험
-  - `tests/tasks/PW-027/gateway.int.test.ts`(통합 11)
+  - `tests/tasks/PW-027/gateway.int.test.ts`(통합 13, 리뷰 반영 후)
   - `tests/tasks/PW-027/schemas.contract.test.ts`(contract 2): 공개 schema가 ajv strict에서 compile되고 닫혀 있다. gateway 검증기와 ajv가 표본 30개에서 같은 판정을 낸다.
 
 ## 요구사항-시험 매핑
@@ -74,6 +74,20 @@
 - **worker 연결(run마다 token 발급 → socket 시작 → `--mcp-config`/onToolCall → 끝나면 폐기)은 아직 없다.** 이 Task는 gateway와 전송만 만든다. 실제 run 경로는 PW-028(취소·재연결)과 PW-030(통합 gate)에서 붙인다.
 - 같은 token을 가진 run 안의 모든 프로세스는 같은 범위를 쓴다(run 단위 격리). 여러 run 사이의 격리는 run마다 token과 socket을 따로 두는 것으로 지킨다.
 - 도구 결과 크기: 문단 20,000자, 사실 200개, 참고문헌 20개로 자른다. 개요 노드 수는 개요 자체의 제한을 따른다.
+
+## 독립 리뷰 반영 (2026-10-09)
+리뷰 결론: 승인, MINOR 1·nit 4. 인자·도구 이름으로 범위를 넓히거나 적용·승인·검증할 길은 없다고 확인했다(`__proto__` own key, 대문자 uuid, opaque 항목 포함).
+- MINOR: 감사 기록을 도구 실행 뒤에 따로 써서, 감사가 실패하면 proposal은 생기고 기록은 없었다. 모델은 "실패"를 받아 다시 시도할 수 있었다.
+  - 고침: 도구 실행과 `ok` 감사 기록을 한 트랜잭션에서 쓴다(`createProposalIn`). 감사가 실패하면 proposal도 남지 않는다.
+- nit
+  - MOCK 표시: gateway로 만든 mock proposal(`worker:tool-gateway:mock`)에도 MOCK 배지가 붙도록 화면 규칙을 넓혔다. 범위 밖 web 파일 2개는 RFC-009 부록에 기록했다.
+  - 호출 상한: token당 500회(`call_budget_exhausted`). socket 연결마다 대기 요청은 16개까지.
+  - MCP bridge: gateway가 60초 안에 답하지 않으면 오류로 끝낸다. tools/list 실패도 오류로 알린다.
+  - socket 파일이 쓰기 가능한 run 폴더에 있어, sandbox 안에서 바꿔치기할 수 있다: 남은 위험으로 둔다. Claude CLI는 shell이 없고, Codex의 도구 호출은 host 쪽 callback으로 간다. host 소유의 읽기 전용 폴더로 옮기는 일은 PW-030 연결 때 한다.
+- 증거
+  - `red.log` 아래쪽: 옛 구현에서 3개가 실패했다.
+  - `mutation.log` 아래쪽: 3종 중 2종을 탐지했다. 남은 1종은 감사 실패 상황에서 같은 동작이다.
+  - 통합 13.
 
 ## 다음
 PW-028: Interrupt·취소·재연결

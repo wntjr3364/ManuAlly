@@ -94,3 +94,13 @@ P02 gate(`reports/phases/P02_GATE.md`) → P03(PW-023)
   - PW-022 브라우저 9(로드 직후 선택 시험 추가), 3회 반복 27/27
   - 로드 직후 선택·두 탭은 8회 반복 16/16
   - `pnpm test` exit 0(`pnpm-test-review.log`): unit 193, integration 196, contracts 15, e2e 77, spikes 70
+
+## 재리뷰 결과 (2026-10-09)
+- 결론: approve. 리뷰어가 무간격 probe를 다시 실행해 확인했다.
+  - 앱이 만드는 view 갱신(`setEditable`·`setProps`)은 선택 중에 더 이상 없다.
+  - 남은 것은 ProseMirror 내부의 1 ms 연속 키 경우뿐이다.
+  - 30 ms 간격은 로드 직후에도 6/6 통과했다.
+- nit 반영: gate 시험의 스크린샷은 `PW_SAVE_EVIDENCE=1`일 때만 저장한다(PW-015와 같은 방식). 보통 실행은 추적 파일을 바꾸지 않는다.
+- 같은 시기 전체 실행에서 PW-016 시험 1건이 간헐 실패했다(시험 쪽 문제).
+  - 원인: popup이 지시 칸으로 focus를 옮기기 전에 글자를 쳤다.
+  - 조치: focus를 기다린 뒤 입력하도록 고쳤고, 2회 반복 16/16 통과했다.

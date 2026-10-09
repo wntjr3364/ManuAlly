@@ -205,6 +205,7 @@ test('review 1 / nit: Esc or Enter that belongs to an IME composition keeps the 
   await selectText(page, 'beta');
   await toolbar(page).getByRole('button', { name: '질문' }).click();
   const box = popup(page).getByRole('textbox');
+  await expect(box).toBeFocused(); // the popup moves focus into the box; keys before that go elsewhere
   await page.keyboard.type('Why ');
   for (const key of ['Escape', 'Enter']) {
     await box.evaluate((el, k) => {

@@ -44,7 +44,7 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) 
     const item = page.getByTestId('proposals').getByTestId('proposal');
     await expect(item.locator('del')).toHaveText('very very ');
     await onScreen(page, 'proposals');
-    await page.screenshot({ path: `reports/tasks/PW-022/proposal-${vp.width}x${vp.height}.png` });
+    if (process.env.PW_SAVE_EVIDENCE === '1') await page.screenshot({ path: `reports/tasks/PW-022/proposal-${vp.width}x${vp.height}.png` });
     // apply with the keyboard
     await item.getByRole('button', { name: '적용' }).focus();
     await page.keyboard.press('Enter');
@@ -57,7 +57,7 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) 
     await undo.focus();
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('applied-edit').getByTestId('undo-state')).toContainText('되돌림');
-    await page.screenshot({ path: `reports/tasks/PW-022/versions-${vp.width}x${vp.height}.png` });
+    if (process.env.PW_SAVE_EVIDENCE === '1') await page.screenshot({ path: `reports/tasks/PW-022/versions-${vp.width}x${vp.height}.png` });
     await tab(page, '원고');
     await expect(editor(page)).toHaveText('It was very very clear at 2.4-fold.');
     expect(await noHorizontalScroll(page)).toBe(true);

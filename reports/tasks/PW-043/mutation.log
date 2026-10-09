@@ -1,0 +1,21 @@
+# PW-043 mutations (each applied alone, then restored)
+KILLED unit change passes
+KILLED missing unit passes
+KILLED group swap passes
+KILLED unstated group passes
+KILLED p/q swap not detected
+KILLED threshold always holds
+KILLED n mismatch passes
+KILLED unknown citation passes
+KILLED retracted citation passes
+KILLED protected span not compared
+KILLED negated claim passes
+KILLED reversed claim passes
+KILLED unknown counted as verified
+KILLED years are quantities
+KILLED figure numbers are quantities
+KILLED every statistic read as p
+KILLED no matching fact passes
+KILLED writer skips the gate
+KILLED writer: gate failure does not block
+KILLED ambiguity resolved by first

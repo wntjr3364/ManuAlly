@@ -56,3 +56,7 @@ User decision / reviewer:
   - `packages/contracts/package.json`(`./writing` export), `apps/worker/package.json`(`@pw/contracts` workspace 의존성; 새 외부 의존성 없음), `pnpm-lock.yaml`
   - 새 화면 `apps/web/src/features/writer/**`, `apps/web/src/features/paper/ManuscriptTab.tsx`(편집기 아래 "문단 작성")
   - `tests/e2e/manual-paper/harness.ts`(시험용 worker에 handler 등록)
+- PW-043
+  - 새 route 폴더 `apps/api/src/scientific-checks/**`, `apps/api/src/server.ts`
+  - `apps/worker/src/writer/index.ts`(제안마다 gate 실행: fail은 CHECK_FAILED, unknown은 표시만)
+  - `apps/web/src/features/writer/WriterPanel.tsx`(gate finding 표시, 저장된 문단의 "과학 검사")

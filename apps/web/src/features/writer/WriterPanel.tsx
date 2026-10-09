@@ -10,9 +10,25 @@ interface Node { node_id: string; section: string; paragraph_goal: string; statu
 interface Proposal {
   id: string; job_id: string; mode: 'draft' | 'conservative' | 'rewrite'; node_id: string; base_revision_id: string; proposal_hash: string;
   status: string; status_reason: string | null; paragraph: { content?: { type: string; text?: string; attrs?: { referenceId?: string } }[] } | null;
-  missing: string[]; checks: { check: string; result: string; details?: string }[]; warnings: string[]; generator_label: string | null; created_at: string;
+  missing: string[]; checks: { check: string; result: string; details?: string; finding?: Finding }[]; warnings: string[]; generator_label: string | null; created_at: string;
 }
 interface Block { id: string; text: string; type: string }
+// a finding of the deterministic scientific gate (PW-043)
+interface Finding { check: string; verdict: 'pass' | 'fail' | 'unknown'; text: string; reason?: string; evidence_label?: string; label?: string; candidates?: string[] }
+interface CheckRun { id: string; status: string; findings: Finding[]; block_id: string; created_at: string }
+const GATE_STATUS: Record<string, string> = { VERIFIED: '근거와 일치', FAILED: '불일치', UNKNOWN: '확인 안 됨 있음', NOT_APPLICABLE: '검사할 수치·인용 없음' };
+const GATE_REASON: Record<string, string> = {
+  no_matching_fact: '이 값의 검증된 사실이 없음', ambiguous: '같은 값의 사실이 여럿이라 고를 수 없음', unit_not_stated: '단위가 없음', group_not_stated: '어느 그룹인지 없음',
+  unit_mismatch: '단위가 다름', group_mismatch: '대조군에 붙임', p_q_mismatch: 'p와 q(보정 p)를 바꿔 씀', value_mismatch: '통계값이 다름', threshold_not_met: '기준을 넘지 않음',
+  n_mismatch: 'n이 다름', no_matched_fact: '맞춰진 사실이 없어 확인 못 함', no_statistic: '그 통계값이 기록되지 않음', no_n_recorded: 'n이 기록되지 않음',
+  citation_not_found: '이 논문의 참고문헌이 아님', citation_retracted: '철회된 문헌', protected_span_changed: '수식·그림 참조가 바뀜',
+  negation_changed: '주장의 부정이 바뀜', direction_changed: '주장의 증감 방향이 바뀜', claim_not_found: '주장이 문단에 보이지 않음',
+};
+function FindingLine({ f }: { f: Finding }) {
+  const mark = f.verdict === 'pass' ? '✓' : f.verdict === 'fail' ? '✗' : '?';
+  const where = f.evidence_label ?? f.label;
+  return <li data-testid="sci-finding" data-verdict={f.verdict} className={f.verdict === 'fail' ? 'error' : f.verdict === 'unknown' ? 'hint' : undefined}>{mark} {f.text}{where ? ` — ${where}` : ''}{f.reason && f.reason !== 'threshold' ? ` (${GATE_REASON[f.reason] ?? f.reason})` : ''}</li>;
+}
 
 const MODE: Record<Proposal['mode'], string> = { draft: '새 문단', conservative: '보수적 교정', rewrite: '재작성' };
 const STATUS: Record<string, string> = {
@@ -92,6 +108,16 @@ export function WriterPanel({ paperId, documentId, headId, clean, onApplied }: {
     }
   };
   const goal = (id: string) => nodes.find((n) => n.node_id === id)?.paragraph_goal ?? '';
+  const [checkBlock, setCheckBlock] = useState('');
+  const [checkRun, setCheckRun] = useState<CheckRun | null>(null);
+  const runCheck = async () => {
+    setError('');
+    try {
+      setCheckRun(await api<CheckRun>('POST', `/api/papers/${paperId}/documents/${documentId}/scientific-checks`, { revision_id: headId, block_id: checkBlock }));
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
 
   return (
     <section className="card" aria-label="문단 작성" data-testid="writer">
@@ -119,6 +145,22 @@ export function WriterPanel({ paperId, documentId, headId, clean, onApplied }: {
       <label>요청 <input value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="예: 뿌리 결과를 간결하게" /></label>
       <button type="button" onClick={() => void request()} disabled={!outlineId || !nodeId || !clean || (mode !== 'draft' && !blockId)}>제안 요청</button>
 
+      <fieldset data-testid="sci-check">
+        <legend>과학 검사 (저장된 원고의 문단)</legend>
+        <p className="hint">수치·단위·그룹·p/q·n·인용·주장 방향을 검증된 기록과 맞춰 봅니다. 정확히 맞출 수 없는 것은 "확인 안 됨"이며 통과가 아닙니다.</p>
+        <label>검사할 문단 <select value={checkBlock} onChange={(e) => { setCheckBlock(e.target.value); setCheckRun(null); }}>
+          <option value="">선택</option>
+          {paragraphs.map((b) => <option key={b.id} value={b.id}>{b.text.slice(0, 50) || '(빈 문단)'}</option>)}
+        </select></label>
+        <button type="button" disabled={!checkBlock || !clean} onClick={() => void runCheck()}>검사</button>
+        {checkRun && (
+          <div data-testid="sci-run" data-status={checkRun.status}>
+            <strong data-testid="sci-status">{GATE_STATUS[checkRun.status] ?? checkRun.status}</strong>
+            <ul>{checkRun.findings.map((f, i) => <FindingLine key={i} f={f} />)}</ul>
+          </div>
+        )}
+      </fieldset>
+
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {proposals.slice(0, 10).map((p) => (
           <li key={p.id} className="card" data-testid="writer-proposal" data-status={p.status}>
@@ -129,7 +171,8 @@ export function WriterPanel({ paperId, documentId, headId, clean, onApplied }: {
             </div>
             {p.paragraph && <p data-testid="writer-text">{textOf(p)}</p>}
             {p.missing.length > 0 && <ul>{p.missing.map((m, i) => <li key={i} data-testid="writer-missing">부족한 근거: {m}</li>)}</ul>}
-            {p.checks.filter((c) => c.result === 'fail').map((c, i) => <p key={i} className="error" data-testid="writer-check">{CHECK[c.check] ?? c.check}{c.details ? `: ${c.details}` : ''}</p>)}
+            {p.checks.filter((c) => c.result === 'fail' && c.check !== 'scientific').map((c, i) => <p key={i} className="error" data-testid="writer-check">{CHECK[c.check] ?? c.check}{c.details ? `: ${c.details}` : ''}</p>)}
+            {p.checks.some((c) => c.finding) && <ul data-testid="writer-gate">{p.checks.filter((c) => c.finding).map((c, i) => <FindingLine key={i} f={c.finding!} />)}</ul>}
             {p.warnings.map((w) => <p key={w} className="hint">{WARN[w] ?? w}</p>)}
             {p.status === 'PENDING' && (
               <div className="toolbar">

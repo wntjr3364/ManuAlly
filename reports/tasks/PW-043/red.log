@@ -1,0 +1,463 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-043/gate.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts [ tests/tasks/PW-043/gate.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/scientific-checks/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-043/gate.test.ts
+ ❯ tests/tasks/PW-043/gate.test.ts:6:1
+      4| //   never passes, and an ambiguous or missing mapping is UNKNOWN — ne…
+      5| import { describe, expect, test } from 'vitest';
+      6| import { scientificGate, type GateFact, type GateInput } from '../../.…
+       | ^
+      7|
+      8| const F1: GateFact = {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  22:25:07
+   Duration  294ms (worker 96%, environment 4%)
+
+exit 1
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-043/gate.test.ts (13 tests | 13 failed) 27ms
+   ❯ TST-043A: exact matches carry their evidence locators (3)
+     × value, unit, group, n, p-value and citation all match: VERIFIED, each finding names its fact or reference and locator 11ms
+     × a threshold the fact meets passes; the entity in the sentence picks one of two facts with the same value 3ms
+     × an approved claim stated with the same polarity passes with its id 1ms
+   ❯ TST-043B: never pass a changed fact; ambiguity is UNKNOWN (10)
+     × p ↔ q: a q-value written as p, or a p-value written as q, fails 1ms
+     × the same value with another unit fails 2ms
+     × the value attributed to the comparison group fails 1ms
+     × a negated or reversed claim fails 1ms
+     × a citation of a reference that is not the paper's, or of a retracted work, fails 1ms
+     × a different n fails 1ms
+     × two facts with the same value and nothing to choose between them: UNKNOWN with both candidates, not VERIFIED 3ms
+     × a number no fact holds, a rounded value, a missing unit or an unstated group is UNKNOWN 1ms
+     × a protected atom (math, figure reference) of the original that is dropped or changed fails 1ms
+     × names with digits, figure numbers and years are not quantities 1ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043A: exact matches carry their evidence locators > value, unit, group, n, p-value and citation all match: VERIFIED, each finding names its fact or reference and locator
+AssertionError: expected [] to deeply equal [ ObjectContaining{…} ]
+
+- Expected
++ Received
+
+- [
+-   ObjectContaining {
+-     "evidence_id": "e1",
+-     "evidence_label": "Fig 1A",
+-     "fact_id": "f1",
+-     "locator": {
+-       "panel": "A",
+-     },
+-     "text": "2.4-fold",
+-     "verdict": "pass",
+-   },
+- ]
++ []
+
+ ❯ tests/tasks/PW-043/gate.test.ts:26:33
+     24|     const r = gate(para('Under drought, ABC1 was induced 2.4-fold in r…
+     25|     expect(r.status).toBe('VERIFIED');
+     26|     expect(find(r, 'quantity')).toEqual([expect.objectContaining({ ver…
+       |                                 ^
+     27|     expect(find(r, 'sample_size')).toEqual([expect.objectContaining({ …
+     28|     expect(find(r, 'statistic')).toEqual([expect.objectContaining({ ve…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043A: exact matches carry their evidence locators > a threshold the fact meets passes; the entity in the sentence picks one of two facts with the same value
+AssertionError: expected undefined to match object { verdict: 'pass', fact_id: 'f1' }
+
+- Expected:
+{
+  "fact_id": "f1",
+  "verdict": "pass",
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.test.ts:32:94
+     30|   });
+     31|   test('a threshold the fact meets passes; the entity in the sentence …
+     32|     expect(find(gate(para('ABC1 rose 2.4-fold under drought (p < 0.01)…
+       |                                                                                              ^
+     33|     expect(find(gate(para('Under salt, ABC2 rose 2.4-fold in roots.'))…
+     34|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043A: exact matches carry their evidence locators > an approved claim stated with the same polarity passes with its id
+AssertionError: expected [] to deeply equal [ ObjectContaining{…} ]
+
+- Expected
++ Received
+
+- [
+-   ObjectContaining {
+-     "claim_id": "c1",
+-     "verdict": "pass",
+-   },
+- ]
++ []
+
+ ❯ tests/tasks/PW-043/gate.test.ts:37:30
+     35|   test('an approved claim stated with the same polarity passes with it…
+     36|     const r = gate(para('ABC1 rises in roots under drought (2.4-fold).…
+     37|     expect(find(r, 'claim')).toEqual([expect.objectContaining({ verdic…
+       |                              ^
+     38|   });
+     39| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > p ↔ q: a q-value written as p, or a p-value written as q, fails
+AssertionError: expected undefined to match object { verdict: 'fail', …(1) }
+
+- Expected:
+{
+  "reason": "p_q_mismatch",
+  "verdict": "fail",
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.test.ts:43:94
+     41| describe('TST-043B: never pass a changed fact; ambiguity is UNKNOWN', …
+     42|   test('p ↔ q: a q-value written as p, or a p-value written as q, fail…
+     43|     expect(find(gate(para('ABC1 rose 2.4-fold under drought (p = 0.04)…
+       |                                                                                              ^
+     44|     expect(find(gate(para('ABC1 rose 2.4-fold under drought (q = 0.003…
+     45|     expect(find(gate(para('ABC1 rose 2.4-fold under drought (FDR = 0.0…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > the same value with another unit fails
+AssertionError: expected 'VERIFIED' to be 'FAILED' // Object.is equality
+
+Expected: "FAILED"
+Received: "VERIFIED"
+
+ ❯ tests/tasks/PW-043/gate.test.ts:50:22
+     48|   test('the same value with another unit fails', () => {
+     49|     const r = gate(para('Under drought, proline reached 2.5 µM.'));
+     50|     expect(r.status).toBe('FAILED');
+       |                      ^
+     51|     expect(find(r, 'quantity')[0]).toMatchObject({ verdict: 'fail', re…
+     52|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > the value attributed to the comparison group fails
+AssertionError: expected undefined to match object { verdict: 'fail', …(1) }
+
+- Expected:
+{
+  "reason": "group_mismatch",
+  "verdict": "fail",
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.test.ts:55:36
+     53|   test('the value attributed to the comparison group fails', () => {
+     54|     const r = gate(para('In control plants, ABC1 was 2.4-fold higher i…
+     55|     expect(find(r, 'quantity')[0]).toMatchObject({ verdict: 'fail', re…
+       |                                    ^
+     56|   });
+     57|   test('a negated or reversed claim fails', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > a negated or reversed claim fails
+AssertionError: expected undefined to match object { verdict: 'fail', …(2) }
+
+- Expected:
+{
+  "claim_id": "c1",
+  "reason": "negation_changed",
+  "verdict": "fail",
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.test.ts:59:100
+     57|   test('a negated or reversed claim fails', () => {
+     58|     const claims = [{ id: 'c1', text: 'ABC1 rises in roots under droug…
+     59|     expect(find(gate(para('ABC1 does not rise in roots under drought.'…
+       |                                                                                                    ^
+     60|     expect(find(gate(para('ABC1 falls in roots under drought.'), { cla…
+     61|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > a citation of a reference that is not the paper's, or of a retracted work, fails
+AssertionError: expected undefined to match object { verdict: 'fail', …(1) }
+
+- Expected:
+{
+  "reason": "citation_not_found",
+  "verdict": "fail",
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.test.ts:63:77
+     61|   });
+     62|   test('a citation of a reference that is not the paper\'s, or of a re…
+     63|     expect(find(gate(para('As shown ', cite('nope'), '.')), 'citation'…
+       |                                                                             ^
+     64|     expect(find(gate(para('As shown ', cite('r2'), '.')), 'citation')[…
+     65|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > a different n fails
+AssertionError: expected undefined to match object { verdict: 'fail', …(1) }
+
+- Expected:
+{
+  "reason": "n_mismatch",
+  "verdict": "fail",
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.test.ts:67:102
+     65|   });
+     66|   test('a different n fails', () => {
+     67|     expect(find(gate(para('ABC1 rose 2.4-fold under drought in roots (…
+       |                                                                                                      ^
+     68|   });
+     69|   test('two facts with the same value and nothing to choose between th…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > two facts with the same value and nothing to choose between them: UNKNOWN with both candidates, not VERIFIED
+AssertionError: expected 'VERIFIED' to be 'UNKNOWN' // Object.is equality
+
+Expected: "UNKNOWN"
+Received: "VERIFIED"
+
+ ❯ tests/tasks/PW-043/gate.test.ts:71:22
+     69|   test('two facts with the same value and nothing to choose between th…
+     70|     const r = gate(para('Expression changed 2.4-fold.'));
+     71|     expect(r.status).toBe('UNKNOWN');
+       |                      ^
+     72|     expect(find(r, 'quantity')[0]).toMatchObject({ verdict: 'unknown',…
+     73|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > a number no fact holds, a rounded value, a missing unit or an unstated group is UNKNOWN
+AssertionError: expected undefined to match object { verdict: 'unknown', …(1) }
+
+- Expected:
+{
+  "reason": "no_matching_fact",
+  "verdict": "unknown",
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.test.ts:75:79
+     73|   });
+     74|   test('a number no fact holds, a rounded value, a missing unit or an …
+     75|     expect(find(gate(para('Samples were taken after 24 h.')), 'quantit…
+       |                                                                               ^
+     76|     expect(find(gate(para('ABC1 rose 2.43-fold in roots under drought.…
+     77|     expect(find(gate(para('Under drought ABC1 in roots reached 2.4.'))…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > a protected atom (math, figure reference) of the original that is dropped or changed fails
+AssertionError: expected undefined to match object { verdict: 'pass' }
+
+- Expected:
+{
+  "verdict": "pass",
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.test.ts:84:191
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/13]⎯
+
+ FAIL  tests/tasks/PW-043/gate.test.ts > TST-043B: never pass a changed fact; ambiguity is UNKNOWN > names with digits, figure numbers and years are not quantities
+AssertionError: expected 'VERIFIED' to be 'NOT_APPLICABLE' // Object.is equality
+
+Expected: "NOT_APPLICABLE"
+Received: "VERIFIED"
+
+ ❯ tests/tasks/PW-043/gate.test.ts:90:22
+     88|     const r = gate(para('ABC1 and H2O2 levels (Fig. 2, Table 1) in 201…
+     89|     expect(find(r, 'quantity')).toEqual([]);
+     90|     expect(r.status).toBe('NOT_APPLICABLE');
+       |                      ^
+     91|   });
+     92| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/13]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  13 failed (13)
+   Start at  22:25:13
+   Duration  376ms (transform 62%, tests 22%, import 13%, worker 4%)
+
+exit 1
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-043/gate.int.test.ts (5 tests | 5 failed) 1428ms
+   ❯ TST-043A/B on the paper's records (5)
+     × a manuscript paragraph that matches: VERIFIED, with the fact's evidence and the citation's reference; the run is kept 127ms
+     × the paragraph linked to the plan is checked against the plan's approved claim: a negated claim and a q written as p fail 81ms
+     × a fact that is no longer settled is not used: a retracted fact leaves its number unknown; a retracted reference fails 83ms
+     × the request names a paragraph of a revision of this paper; another owner gets 404 76ms
+     × the Writer runs the gate on its proposals: a unit or group change fails the proposal; an unmapped number is shown as unknown 154ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-043/gate.int.test.ts > TST-043A/B on the paper's records > a manuscript paragraph that matches: VERIFIED, with the fact's evidence and the citation's reference; the run is kept
+AssertionError: {"message":"Route POST:/api/papers/ced5910c-1127-4a6d-8986-6ceb5c120344/documents/06588204-7d08-4640-b653-25e184d79c2f/scientific-checks not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ tests/tasks/PW-043/gate.int.test.ts:85:34
+     83|     const w = await world();
+     84|     const r = await check(w, P1);
+     85|     expect(r.statusCode, r.body).toBe(201);
+       |                                  ^
+     86|     const run = r.json();
+     87|     expect(run).toMatchObject({ status: 'VERIFIED', gate_version: 'pw-…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/tasks/PW-043/gate.int.test.ts > TST-043A/B on the paper's records > the paragraph linked to the plan is checked against the plan's approved claim: a negated claim and a q written as p fail
+AssertionError: expected undefined to be 'FAILED' // Object.is equality
+
+- Expected:
+"FAILED"
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.int.test.ts:99:24
+     97|     const w = await world();
+     98|     const run = (await check(w, P2)).json();
+     99|     expect(run.status).toBe('FAILED');
+       |                        ^
+    100|     expect(run.findings).toContainEqual(expect.objectContaining({ chec…
+    101|     // q = 0.003 is the p-value; with no quantity in the sentence, the…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/tasks/PW-043/gate.int.test.ts > TST-043A/B on the paper's records > a fact that is no longer settled is not used: a retracted fact leaves its number unknown; a retracted reference fails
+AssertionError: expected undefined to be 'FAILED' // Object.is equality
+
+- Expected:
+"FAILED"
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-043/gate.int.test.ts:110:24
+    108|     await pool.query("INSERT INTO reference_relations (owner_id, from_…
+    109|     const run = (await check(w, P1)).json();
+    110|     expect(run.status).toBe('FAILED');
+       |                        ^
+    111|     expect(run.findings).toContainEqual(expect.objectContaining({ chec…
+    112|     expect(run.findings).toContainEqual(expect.objectContaining({ chec…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/tasks/PW-043/gate.int.test.ts > TST-043A/B on the paper's records > the request names a paragraph of a revision of this paper; another owner gets 404
+AssertionError: expected 404 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 404
+
+ ❯ tests/tasks/PW-043/gate.int.test.ts:117:55
+    115|   test('the request names a paragraph of a revision of this paper; ano…
+    116|     const w = await world();
+    117|     expect((await check(w, randomUUID())).statusCode).toBe(422);
+       |                                                       ^
+    118|     expect((await check(w, P1, 'alice', randomUUID())).statusCode).toB…
+    119|     expect((await check(w, P1, 'bob')).statusCode).toBe(404);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/tasks/PW-043/gate.int.test.ts > TST-043A/B on the paper's records > the Writer runs the gate on its proposals: a unit or group change fails the proposal; an unmapped number is shown as unknown
+AssertionError: expected [ { …(2) }, …(3) ] to deep equally contain ObjectContaining{…}
+
+- Expected:
+ObjectContaining {
+  "check": "scientific",
+  "finding": ObjectContaining {
+    "check": "quantity",
+    "evidence_label": "roots qPCR",
+    "fact_id": "51d15c6d-6b79-4404-bddf-a639c6865448",
+  },
+  "result": "pass",
+}
+
++ Received:
+[
+  {
+    "check": "number_not_in_contract",
+    "result": "pass",
+  },
+  {
+    "check": "mandatory_claim",
+    "result": "pass",
+  },
+  {
+    "check": "citation_retracted",
+    "result": "pass",
+  },
+  {
+    "check": "avoided_term",
+    "result": "pass",
+  },
+]
+
+ ❯ tests/tasks/PW-043/gate.int.test.ts:134:23
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed (5)
+   Start at  22:28:35
+   Duration  3.26s (tests 46%, transform 42%, import 12%)
+
+exit 1

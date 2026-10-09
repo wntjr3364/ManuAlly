@@ -21,13 +21,15 @@ import { listReferences } from '@pw/domain/references/index.ts';
 import { checkReplacement } from '@pw/domain/proposals/guard.ts';
 import { blockText, buildParagraph, documentAt, insertParagraphProposalIn, paragraphItems, placeHolds, type WriterMode } from '@pw/domain/writer/index.ts';
 import { noticesOf } from '@pw/domain/literature/index.ts';
+import { scientificGate, type Finding } from '@pw/domain/scientific-checks/index.ts';
+import { gateFacts } from '@pw/domain/scientific-checks/records.ts';
 import { nodeScopeFor } from '@pw/search/retrieval/index.ts';
 import { AnswerRefused, CONTRACT_VERSION, parseWriterAnswer, wordsIn, type ParagraphContract, type ParagraphItem } from '@pw/contracts/writing';
 import { numbersIn } from '../story/index.ts';
 import { JobOutcomeError, type JobHandler } from '../queue/index.ts';
 
 export interface Writer { id: 'mock' | 'claude_agent' | 'codex'; label: string | null; write(contract: ParagraphContract): Promise<unknown> }
-type Check = { check: string; result: 'pass' | 'fail' | 'unknown' | 'not_applicable'; details?: string };
+type Check = { check: string; result: 'pass' | 'fail' | 'unknown' | 'not_applicable'; details?: string; finding?: Finding };
 interface Payload { mode: WriterMode; outline_revision_id: string; node_id: string; document_id: string; base_revision_id: string; after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null; instruction: string }
 
 const CONTEXT_CHARS = 1500;
@@ -202,6 +204,14 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
         row = { ...base, paragraph: null, missing: answer.missing, checks: [], warnings: [], claim_ids: [], fact_ids: [], status: 'NEEDS_EVIDENCE', status_reason: null };
       } else {
         const checks = checksOf(contract, paragraph!, original, answer.claim_ids);
+        // the deterministic scientific gate (PW-043) on the contract's facts and claims: a failure blocks
+        // applying; an unknown is shown and never counted as verified (citations are checked above)
+        const gate = scientificGate({
+          paragraph: paragraph!.toJSON(), facts: await gateFacts(pool, job.paper_id, contract.exact_facts.map((f) => f.id)),
+          references: contract.citable_references.map((r) => ({ id: r.reference_id, label: r.label, retracted: r.retracted })),
+          claims: contract.mandatory_claims, original: original ? original.toJSON() : null, skip: ['citation'],
+        });
+        for (const f of gate.findings) checks.push({ check: 'scientific', result: f.verdict, details: `${f.check}${f.reason ? `:${f.reason}` : ''}: ${f.text}`.slice(0, 300), finding: f });
         const warnings: string[] = [];
         const words = wordsIn(answer.paragraph);
         if (contract.target_length.max_words && words > contract.target_length.max_words) warnings.push('longer_than_target');

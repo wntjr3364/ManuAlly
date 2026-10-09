@@ -1404,7 +1404,7 @@
       "id": "PW-043",
       "phase": "P05",
       "title": "Deterministic scientific gate",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-042"
       ],

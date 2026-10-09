@@ -50,3 +50,5 @@ KILLED worker_withdrawal
 KILLED decision_time
 KILLED notice_warning
 KILLED eoc_now
+# final-check nit (PMID-only notices at decision) (Fri Oct  9 16:04:13 UTC 2026)
+KILLED notices_after_ingest

@@ -2,7 +2,7 @@
 // (apps/worker/src/curation); the only write here is the owner's decision. Accepting puts the work in
 // the owner's library (PW-032) and the paper's references with the chosen use; rejecting records it.
 import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
-import { ingestCandidateIn, noticesForDoi } from '../literature/index.ts';
+import { ingestCandidateIn, noticesForDoi, noticesOf } from '../literature/index.ts';
 import { enqueueJob } from '../jobs/index.ts';
 
 export const USE_ROLES = ['scientific', 'writing', 'both'] as const;
@@ -41,7 +41,7 @@ export async function decideAssessment(pool: TxPool, a: { paperId: string; owner
     if (row.decision !== 'pending') throw new DomainError('CONFLICT', `already ${row.decision}`);
     // the work's status now, not only when the run was made: the library may have learned of a notice since
     const now = new Set((await noticesForDoi(tx, a.ownerId, row.doi)).map((n) => n.kind));
-    const retracted = row.warnings.includes('retracted') || now.has('retracted');
+    let retracted = row.warnings.includes('retracted') || now.has('retracted');
     // a retracted work is never adopted as scientific support (it may still be kept as a writing reference)
     if (a.decision === 'accepted' && retracted && a.useRole !== 'writing') {
       throw new DomainError('INVALID', 'a retracted work cannot be adopted as scientific support', 'use_role');
@@ -51,11 +51,15 @@ export async function decideAssessment(pool: TxPool, a: { paperId: string; owner
       [a.assessmentId, a.paperId, a.decision, a.decision === 'accepted' ? a.useRole : null, a.ownerId]);
     if (a.decision !== 'accepted') return { decision: a.decision, reference_id: null, project_use_role: null, warnings: [] as string[] };
     const referenceId = (await ingestCandidateIn(tx, { ownerId: a.ownerId, candidateId: row.candidate_id })).reference_id;
+    // the work is now resolved (also by PMID): what the library knows about it, whatever identifier it came by
+    for (const n of await noticesOf(tx, a.ownerId, referenceId)) now.add(n.kind);
+    if (now.has('retracted') && a.useRole !== 'writing') throw new DomainError('INVALID', 'a retracted work cannot be adopted as scientific support', 'use_role');
     await tx.query(
       `INSERT INTO project_references (paper_id, reference_id, owner_id, use_role) VALUES ($1, $2, $3, $4)
        ON CONFLICT (paper_id, reference_id) DO NOTHING`, [a.paperId, referenceId, a.ownerId, a.useRole]);
     // a work already in the paper keeps its use; the answer says which use the paper holds
     const projectUseRole = (await tx.query<{ use_role: string }>('SELECT use_role FROM project_references WHERE paper_id = $1 AND reference_id = $2', [a.paperId, referenceId])).rows[0]!.use_role;
+    retracted ||= now.has('retracted');
     const warnings: string[] = [];
     if (retracted && projectUseRole !== 'writing') warnings.push('retracted_work_used_as_scientific');
     if (row.warnings.includes('notice_record') && projectUseRole !== 'writing') warnings.push('notice_record_used_as_scientific');

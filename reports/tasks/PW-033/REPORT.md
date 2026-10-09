@@ -96,3 +96,7 @@ PW-032 리뷰 반영(식별자 등록, 버전 중복, 철회 고지 역방향) �
 - PW-031 연계: run 안의 withdrawal·removal·partial_retraction 고지도 대상 작품을 철회로 본다.
 - 시험: 통합 +3. RED는 `rereview-red.log`. mutation은 모두 탐지했다.
 - 회귀(재리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 297, contracts 17, 브라우저 82(`reports/tasks/PW-032/pnpm-test-rereview.log`).
+
+## 최종 확인 nit 반영 (2026-10-09, 최종 확인: PW-031·032·033 approve)
+- 결정 트랜잭션 안에서 서재 등록(`ingestCandidateIn`)으로 작품이 정해지면(PMID로도), `noticesOf`로 그 작품의 상태를 다시 본다. DOI 없는 PubMed 작품이 서재에서 철회로 알려져 있으면 과학 근거 채택을 거부하고 결정 전체를 되돌린다(422, 평가는 pending 유지).
+- 시험: 통합 +1(22). mutation `notices_after_ingest` 탐지.

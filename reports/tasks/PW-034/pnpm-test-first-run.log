@@ -1,0 +1,75 @@
+
+> paper-workspace@ test /home/user/ManuAlly
+> pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:integration && pnpm run test:contracts && pnpm run test:e2e && pnpm run test:spikes && pnpm run test:evals && pnpm run pack-check
+
+
+> paper-workspace@ typecheck /home/user/ManuAlly
+> tsc --noEmit -p packages/config/tsconfig.check.json
+
+
+> paper-workspace@ lint /home/user/ManuAlly
+> eslint .
+
+
+> paper-workspace@ test:unit /home/user/ManuAlly
+> vitest run --config packages/config/vitest.unit.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-014/runtime-load.test.ts (3 tests | 1 failed) 843ms
+   ❯ dev runtime (3)
+     × apps/api/src/server.ts loads with node --experimental-strip-types 416ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-014/runtime-load.test.ts > dev runtime > apps/api/src/server.ts loads with node --experimental-strip-types
+AssertionError: expected 'node:internal/process/promises:394\n …' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ node:internal/process/promises:394
++     triggerUncaughtException(err, true /* fromPromise */);
++     ^
++
++ file:///home/user/ManuAlly/packages/domain/src/asset-policy/index.ts:189
++ export class FetchRefused extends Error {
++   constructor(readonly reason: 'bad_url' | 'host_not_allowed' | 'internal_address' | 'daily_cap' | 'redirect' | 'not_pdf' | 'http_error' | 'too_large' | 'timeout' | 'network', message: string) { super(message); }
++                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++ }
++
++ SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode
++     at parseTypeScript (node:internal/modules/typescript:63:40)
++     at processTypeScriptCode (node:internal/modules/typescript:133:42)
++     at stripTypeScriptModuleTypes (node:internal/modules/typescript:163:10)
++     at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:605:16)
++     at #translate (node:internal/modules/esm/loader:546:20)
++     at afterLoad (node:internal/modules/esm/loader:596:29)
++     at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:601:12)
++     at #createModuleJob (node:internal/modules/esm/loader:624:36)
++     at #getJobFromResolveResult (node:internal/modules/esm/loader:343:34)
++     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:311:41) {
++   code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'
++ }
++
++ Node.js v22.22.0
++
+
+ ❯ tests/tasks/PW-014/runtime-load.test.ts:11:22
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 25 passed (26)
+      Tests  1 failed | 277 passed (278)
+   Start at  16:04:42
+   Duration  10.15s (tests 89%, transform 6%, import 5%)
+
+    Isolate  26 workers spawned · ~141ms startup each (spawn + environment, per file)
+             at least ~1.08s faster with isolate: false — reuses workers across files instead of one per file
+
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Test failed. See above for more details.
+exit 1

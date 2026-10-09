@@ -32,7 +32,7 @@ PW-030,P03,실제 provider 통합 gate,in_review,PW-029,REQ-030,"TST-030A,TST-03
 PW-031,P04,서지 검색 adapter,in_review,PW-030,REQ-031,"TST-031A,TST-031B",packages/search/src/bibliographic/**;tests/tasks/PW-031/**;reports/tasks/PW-031/**;db/migrations/pw_031_*
 PW-032,P04,서지 정규화·출판본 관계,in_review,PW-031,REQ-032,"TST-032A,TST-032B",packages/domain/src/literature/**;tests/tasks/PW-032/**;reports/tasks/PW-032/**;db/migrations/pw_032_*
 PW-033,P04,AI 문헌 후보 선정,in_review,PW-032,REQ-033,"TST-033A,TST-033B",apps/worker/src/curation/**;apps/web/src/features/curation/**;tests/tasks/PW-033/**;reports/tasks/PW-033/**;db/migrations/pw_033_*
-PW-034,P04,원문 권리·안전한 업로드,planned,PW-033,REQ-034,"TST-034A,TST-034B",apps/api/src/assets/**;packages/domain/src/asset-policy/**;tests/tasks/PW-034/**;reports/tasks/PW-034/**;db/migrations/pw_034_*
+PW-034,P04,원문 권리·안전한 업로드,in_review,PW-033,REQ-034,"TST-034A,TST-034B",apps/api/src/assets/**;packages/domain/src/asset-policy/**;tests/tasks/PW-034/**;reports/tasks/PW-034/**;db/migrations/pw_034_*
 PW-035,P04,PDF parsing·highlight locator,planned,PW-034,REQ-035,"TST-035A,TST-035B",apps/worker/src/pdf/**;apps/web/src/features/pdf/**;tests/tasks/PW-035/**;reports/tasks/PW-035/**;db/migrations/pw_035_*
 PW-036,P04,Figure/Table/Fact 출처 연결,planned,PW-035,REQ-036,"TST-036A,TST-036B",packages/domain/src/figures/**;apps/web/src/features/evidence/**;tests/tasks/PW-036/**;reports/tasks/PW-036/**;db/migrations/pw_036_*
 PW-037,P04,필요한 근거만 retrieval,planned,PW-036,REQ-037,"TST-037A,TST-037B",packages/search/src/retrieval/**;tests/tasks/PW-037/**;reports/tasks/PW-037/**;db/migrations/pw_037_*

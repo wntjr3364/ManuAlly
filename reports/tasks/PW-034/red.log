@@ -1,0 +1,11 @@
+# PW-034 RED: migration + domain asset-policy present, API routes not yet written (Fri Oct  9 15:45:55 UTC 2026)
+     × an upload stores the immutable original (content-addressed, read-only) with its hash, source, licence and rights 19ms
+     × the owner's rights decisions are new policy revisions; earlier ones stay 16ms
+     × an original may be linked to a reference of the same paper only 22ms
+     × download is safe: attachment with a clean name, no sniffing, sandboxed, not cached; the bytes are verified 6ms
+     × active content, encryption, hidden names, compressed hiding places, bombs, non-PDFs and truncation are refused; nothing is stored 8ms
+     × nothing goes to an external AI without every permission: paper policy, provider, classification and the asset's own send right 7ms
+     × fetching: an allowed host that resolves to an internal address is refused (DNS rebinding / SSRF); redirects, HTML login pages and bad files are refused; every attempt is logged 7ms
+     × crawling is capped: after the daily number of attempts per owner, fetches are refused before any request 7ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  8 failed | 2 passed (10)

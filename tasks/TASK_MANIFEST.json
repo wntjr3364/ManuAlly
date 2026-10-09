@@ -1112,7 +1112,7 @@
       "id": "PW-034",
       "phase": "P04",
       "title": "원문 권리·안전한 업로드",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-033"
       ],

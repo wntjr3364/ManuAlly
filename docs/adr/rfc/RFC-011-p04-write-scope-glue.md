@@ -48,3 +48,7 @@ User decision / reviewer:
 - PW-032 재리뷰 반영
   - `apps/web/src/features/references/ReferencesPanel.tsx`(PW-019 화면): 서재에 다른 정보로 있는 DOI를 알리고 "서재 정보로 추가"를 둔다.
   - `packages/domain/src/references/index.ts`: `use_library_metadata` 필드
+- PW-033 최종 확인 nit: 범위 밖 파일 없음
+- PW-034
+  - `apps/api/src/server.ts`(`assets` 옵션, `registerAssetRoutes` 등록)
+  - `apps/api/src/index.ts`(원본 저장 폴더: `PW_ASSET_DIR`, 기본 `$XDG_DATA_HOME` 또는 `~/.local/share` 아래 `paper-workspace/assets`. 실행 사용자 자신의 폴더)

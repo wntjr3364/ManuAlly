@@ -16,6 +16,7 @@ import { registerImportRoutes } from './imports/index.ts';
 import { registerProviderRoutes } from './providers/index.ts';
 import { registerUsageRoutes } from './usage/index.ts';
 import { registerCurationRoutes } from './curation/index.ts';
+import { registerAssetRoutes, type AssetConfig } from './assets/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -46,6 +47,8 @@ export interface ServerOptions {
   eventPollMs?: number;
   // how long one event stream stays open before the browser is asked to reconnect (ms)
   eventStreamMaxMs?: number;
+  // where immutable source documents are stored (PW-034); without it the asset routes refuse
+  assets?: AssetConfig;
 }
 
 export function buildServer(opts: ServerOptions): FastifyInstance {
@@ -107,6 +110,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerProviderRoutes(app, provider);
   registerUsageRoutes(app, db);
   registerCurationRoutes(app, db);
+  registerAssetRoutes(app, db, opts.assets);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;
 }

@@ -46,7 +46,7 @@ const call = (who: string, method: 'GET' | 'POST', url: string, payload?: unknow
 const brief = { purpose: 'Test whether ABC1 responds to drought in roots', audience: 'plant stress biologists', known_facts: ['ABC1 induced 2.4-fold'], missing_material: [], avoid_claims: [] };
 const story = { question: 'Does ABC1 respond to drought?', main_message: 'ABC1 is drought-induced', novelty: 'none yet', evidence_links: [], competing_explanations: [], presentation_order: ['induction'], limitations: ['single genotype'] };
 
-type Cand = { doi: string | null; title: string; work_type?: string; is_preprint?: boolean; update_notice?: unknown; source_record_id?: string };
+type Cand = { doi: string | null; title: string; work_type?: string; is_preprint?: boolean; update_notice?: unknown; source_record_id?: string; source?: 'crossref' | 'pubmed' };
 async function paperWithSearch(who: string, cands: Cand[]) {
   const p = (await call(who, 'POST', '/api/papers', { working_title: 'curation paper', article_type: 'research_article' })).json();
   await call(who, 'POST', `/api/papers/${p.id}/story/revisions`, { parent_revision_id: null, brief, story });
@@ -55,8 +55,8 @@ async function paperWithSearch(who: string, cands: Cand[]) {
   for (const [i, c] of cands.entries()) {
     candIds.push((await pool.query(
       `INSERT INTO literature_candidates (search_id, paper_id, source, rank, source_record_id, doi, title, authors, year, container, work_type, is_preprint, relations, update_notice)
-       VALUES ($1, $2, 'crossref', $3, $4, $5, $6, '[{"family":"Kim"}]', 2021, 'Synthetic Journal', $7, $8, '{}', $9) RETURNING id`,
-      [s, p.id, i + 1, c.source_record_id ?? c.doi ?? randomUUID(), c.doi, c.title, c.work_type ?? 'journal-article', c.is_preprint ?? false, c.update_notice ? JSON.stringify(c.update_notice) : null])).rows[0].id);
+       VALUES ($1, $2, $10, $3, $4, $5, $6, '[{"family":"Kim"}]', 2021, 'Synthetic Journal', $7, $8, '{}', $9) RETURNING id`,
+      [s, p.id, i + 1, c.source_record_id ?? c.doi ?? randomUUID(), c.doi, c.title, c.work_type ?? 'journal-article', c.is_preprint ?? false, c.update_notice ? JSON.stringify(c.update_notice) : null, c.source ?? 'crossref'])).rows[0].id);
   }
   return { paperId: p.id as string, searchId: s as string, candIds };
 }
@@ -372,5 +372,20 @@ describe('re-review fixes', () => {
     const s = await paperWithSearch('alice', [{ doi, title: 'ABC1 drought roots withdrawn' }, { doi: fresh(), title: 'Withdrawal: ABC1', update_notice: { type: 'withdrawal', target_doi: doi } }]);
     await runCuration('alice', s);
     expect((await view(s.paperId)).find((x) => x.title.startsWith('ABC1 drought roots withdrawn'))).toMatchObject({ role: 'exclude', warnings: expect.arrayContaining(['retracted']) });
+  });
+});
+
+describe('final-check nit (PW-033)', () => {
+  test('a PubMed-only work (PMID, no DOI) the library knows as retracted is not adopted as scientific support', async () => {
+    const pmid = String(95000000 + Math.floor(Math.random() * 999999));
+    const lib = await paperWithSearch('alice', [{ doi: null, source: 'pubmed', source_record_id: pmid, title: 'Retracted PMID-only work', update_notice: { type: 'retracted_publication' } }]);
+    await runCuration('alice', lib);
+    const [x] = (await call('alice', 'GET', `/api/papers/${lib.paperId}/curation`)).json().assessments as { id: string }[];
+    expect((await call('alice', 'POST', `/api/papers/${lib.paperId}/curation/assessments/${x!.id}/decision`, { decision: 'accepted', use_role: 'writing' })).statusCode).toBe(200);
+    const s = await paperWithSearch('alice', [{ doi: null, source: 'pubmed', source_record_id: pmid, title: 'ABC1 drought roots PMID-only' }]);
+    await runCuration('alice', s);
+    const [t] = (await call('alice', 'GET', `/api/papers/${s.paperId}/curation`)).json().assessments as { id: string }[];
+    expect((await call('alice', 'POST', `/api/papers/${s.paperId}/curation/assessments/${t!.id}/decision`, { decision: 'accepted', use_role: 'scientific' })).statusCode).toBe(422);
+    expect((await pool.query('SELECT decision FROM curation_assessments WHERE id = $1', [t!.id])).rows[0].decision).toBe('pending');
   });
 });

@@ -112,18 +112,20 @@ function checkParent(parent: unknown): string | null {
 }
 
 export async function createStoryRevision(pool: TxPool, a: { paperId: string; ownerId: string; parent: unknown; brief: unknown; story: unknown }): Promise<StoryRevision> {
+  return inTransaction(pool, (tx) => createStoryRevisionIn(tx, a));
+}
+// in the caller's transaction (PW-039: adopting a story alternative records the adoption with it)
+export async function createStoryRevisionIn(tx: Queryable, a: { paperId: string; ownerId: string; parent: unknown; brief: unknown; story: unknown }): Promise<StoryRevision> {
   const parent = checkParent(a.parent);
   const brief = fields(a.brief, 'brief', BRIEF_FIELDS);
   const story = fields(a.story, 'story', STORY_FIELDS);
-  return inTransaction(pool, async (tx) => {
-    await lockPaper(tx, a.paperId);
-    if ((await latestId(tx, 'story_revisions', a.paperId)) !== parent) throw new DomainError('CONFLICT', 'the story changed since you loaded it (stale parent revision); reload before saving');
-    const { rows } = await tx.query<StoryRevision>(
-      `INSERT INTO story_revisions (id, paper_id, parent_revision_id, brief, story, content_hash, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${STORY_COLS}`,
-      [randomUUID(), a.paperId, parent, JSON.stringify(brief), JSON.stringify(story), contentHash({ brief, story }), a.ownerId],
-    );
-    return rows[0]!;
-  });
+  await lockPaper(tx, a.paperId);
+  if ((await latestId(tx, 'story_revisions', a.paperId)) !== parent) throw new DomainError('CONFLICT', 'the story changed since you loaded it (stale parent revision); reload before saving');
+  const { rows } = await tx.query<StoryRevision>(
+    `INSERT INTO story_revisions (id, paper_id, parent_revision_id, brief, story, content_hash, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${STORY_COLS}`,
+    [randomUUID(), a.paperId, parent, JSON.stringify(brief), JSON.stringify(story), contentHash({ brief, story }), a.ownerId],
+  );
+  return rows[0]!;
 }
 
 export async function approveStoryRevision(pool: TxPool, a: { paperId: string; ownerId: string; revisionId: string; body: unknown }): Promise<StoryRevision> {

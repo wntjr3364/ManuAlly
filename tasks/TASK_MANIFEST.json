@@ -1274,7 +1274,7 @@
       "id": "PW-039",
       "phase": "P05",
       "title": "Story 대안·주장 범위 AI",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-038"
       ],

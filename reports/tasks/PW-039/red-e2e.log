@@ -1,0 +1,4 @@
+  ✘  1 tests/tasks/PW-039/story-ai.e2e.ts:13:1 › TST-039A/B: alternatives with message, evidence and limits; adopt one into a draft; a blocked one cannot be adopted (1.0m)
+    Error: locator.click: Test timeout of 60000ms exceeded.
+      - waiting for getByTestId('story-alternatives').getByRole('button', { name: '대안 요청' })
+  1 failed

@@ -1,0 +1,20 @@
+# PW-039 mutations (Fri Oct  9 20:06:46 UTC 2026) — integration (11) + browser (1)
+KILLED unknown_evidence
+KILLED numbers_block
+KILLED numbers_from_linked_only
+KILLED own_numbers_allowed
+KILLED verified_facts_only
+KILLED approved_claims_only
+KILLED alt_extra_keys
+KILLED top_level_keys
+KILLED count_limit
+KILLED policy_for_providers
+KILLED no_support_warning
+KILLED blocked_not_adoptable
+KILLED brief_kept
+KILLED novelty_kept
+KILLED context_not_recorded
+KILLED adopt_intent
+KILLED adopted_once
+KILLED ui_blocked_disabled
+KILLED ui_evidence_role

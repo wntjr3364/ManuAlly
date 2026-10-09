@@ -4,6 +4,7 @@ import pg from 'pg';
 import { createMockProvider, selectProvider } from '@pw/providers';
 import { startLocalWorker } from './local/index.ts';
 import { selectionHandlers } from './selection/index.ts';
+import { storyHandlers, createMockStoryGenerator } from './story/index.ts';
 import { curationHandlers, createMockAssessor } from './curation/index.ts';
 import { pdfHandlers } from './pdf/index.ts';
 import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
@@ -15,7 +16,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   selectProvider(process.env); // refuses anything but an admitted provider
   const pool = new pg.Pool({ connectionString: url, max: 6 });
   const worker = startLocalWorker(pool, {
-    handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()), ...pdfHandlers(pool, { assetDir: defaultAssetDir() }) },
+    handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()), ...storyHandlers(pool, createMockStoryGenerator()), ...pdfHandlers(pool, { assetDir: defaultAssetDir() }) },
     onError: (e) => console.error('worker error:', e instanceof Error ? e.message : e),
   });
   // RFC-010: provider run processes left by a crashed worker (or of cancelled jobs) are ended on start

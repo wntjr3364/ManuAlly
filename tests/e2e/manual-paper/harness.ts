@@ -12,6 +12,7 @@ import type { ZoteroConfig } from '../../../packages/search/src/zotero/index.ts'
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { startLocalWorker } from '../../../apps/worker/src/local/index.ts';
 import { selectionHandlers } from '../../../apps/worker/src/selection/index.ts';
+import { storyHandlers, createMockStoryGenerator } from '../../../apps/worker/src/story/index.ts';
 import { curationHandlers, createMockAssessor } from '../../../apps/worker/src/curation/index.ts';
 import { pdfHandlers } from '../../../apps/worker/src/pdf/index.ts';
 import fs from 'node:fs';
@@ -50,7 +51,7 @@ export async function startHarness(opts: { worker?: { chunkDelayMs?: number }; z
   const assetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-e2e-assets-'));
   const app = buildServer({ pool, allowedOrigins: origins, assets: { dir: assetDir }, ...(opts.zotero ? { zotero: opts.zotero } : {}) });
   const api = await app.listen({ host: '127.0.0.1', port: 0 });
-  const worker = opts.worker ? startLocalWorker(pool, { handlers: { ...selectionHandlers(pool, createMockProvider(opts.worker)), ...curationHandlers(pool, createMockAssessor()), ...pdfHandlers(pool, { assetDir }) }, pollMs: 50 }) : null;
+  const worker = opts.worker ? startLocalWorker(pool, { handlers: { ...selectionHandlers(pool, createMockProvider(opts.worker)), ...curationHandlers(pool, createMockAssessor()), ...storyHandlers(pool, createMockStoryGenerator()), ...pdfHandlers(pool, { assetDir }) }, pollMs: 50 }) : null;
   const port = await freePort();
   let vite: ViteDevServer | undefined;
   try {

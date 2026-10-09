@@ -5,6 +5,7 @@ import { ApiError, api, errorText } from '../../app/api.ts';
 import type { Paper } from './PapersPage.tsx';
 import type { Evidence } from './EvidenceTab.tsx';
 import { setUnsaved } from '../../app/unsaved.ts';
+import { StoryAlternatives } from '../story-ai/StoryAlternatives.tsx';
 
 interface StoryRev { id: string; status: string; content_hash: string; brief: Record<string, unknown>; story: Record<string, unknown> }
 interface Node {
@@ -147,6 +148,7 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
           {story?.latest && <span className="hint">버전 {story.latest.content_hash.slice(0, 8)}{story.missing.length ? ` · 비어 있는 필수 항목: ${story.missing.join(', ')}` : ''}</span>}
         </div>
       </section>
+      <StoryAlternatives paperId={paper.id} latestId={story?.latest?.id ?? null} dirty={storyDirty} onAdopted={() => { void load('story').then(onChange).catch((e) => setError(errorText(e))); }} />
       <section className="card">
         <h2>개요 <span className="status" data-testid="outline-status">{outline?.latest?.status ?? '없음'}</span></h2>
         {!paper.active_story_revision_id && <p className="hint">개요는 승인된 스토리 위에서 작성합니다.</p>}

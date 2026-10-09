@@ -1,0 +1,2 @@
+Error: Cannot find module '../../../apps/worker/src/story/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-039/story-ai.int.test.ts
+      Tests  no tests

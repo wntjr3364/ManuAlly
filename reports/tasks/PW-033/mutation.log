@@ -24,3 +24,18 @@ KILLED project_use_role
 # after tightening (error text; a DOI not already in the library):
 KILLED worker_search_scope
 KILLED decided_once_precheck
+# review fixes (Fri Oct  9 15:35:16 UTC 2026)
+KILLED writing_rule
+KILLED notice_rule
+KILLED in_run_notices
+KILLED library_notices
+KILLED corrected_warning
+KILLED eoc_warning
+KILLED own_status
+KILLED dispatch
+KILLED for_update
+KILLED retracted_kept_warning
+KILLED candidate_fk
+SURVIVED doi_with_work
+# after adding the library-flag test:
+KILLED doi_with_work

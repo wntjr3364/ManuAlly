@@ -1,0 +1,9 @@
+# PW-033 review fixes — RED (new tests against 8113fbd + PW-032 refactor), Fri Oct  9 15:32:45 UTC 2026
+     × a style judgement from metadata (e.g. "highly cited, so well written") is stored as unknown, with the reason 35ms
+     × MINOR 2: a work retracted by a notice in the same run, or by a notice already in the library, is excluded; other notices warn 22ms
+     × MINOR 3: racing decisions leave one decision, and the library changes only if that decision is "accepted" 75ms
+     × nit: accepting a retracted work that the paper already holds as scientific support says so 39ms
+     × nit: an assessment cannot name another paper's candidate (database constraint) 34ms
+     × nit: literature_search jobs are dispatched on their kind; an unknown kind fails clearly 20ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  6 failed | 11 passed (17)

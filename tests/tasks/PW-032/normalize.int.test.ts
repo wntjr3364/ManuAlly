@@ -12,7 +12,10 @@ import { migrate } from '../../../apps/api/src/db/migrate.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { createPaper } from '../../../packages/domain/src/papers/index.ts';
 import { createSnapshot, getSnapshot } from '../../../packages/domain/src/revisions/index.ts';
-import { ingestCandidate, normalizeDoi, possibleDuplicates, referenceIdentifiers, relationsOf, resolveDuplicate } from '../../../packages/domain/src/literature/index.ts';
+import { ingestCandidate, noticesOf, normalizeDoi, possibleDuplicates, referenceIdentifiers, relationsOf, resolveDuplicate } from '../../../packages/domain/src/literature/index.ts';
+import { createReference } from '../../../packages/domain/src/references/index.ts';
+import { cpSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import os from 'node:os';
 
 let db: { url: string; drop: () => Promise<void> };
 let pool: pg.Pool;
@@ -137,5 +140,128 @@ describe('TST-032B: no merging by title; versions never rewrite snapshots', () =
     expect(a.reference_id).not.toBe(b.reference_id);
     expect(await referenceIdentifiers(pool, alice, a.reference_id)).toEqual([]);
     expect((await revisions(a.reference_id))[0].csl_json).toMatchObject({ title: 'A grey-literature report' });
+  });
+});
+
+// review (PW-032): minors 1–3 and nits
+describe('review fixes', () => {
+  test('nit: DOI forms people paste are understood; nonsense and over-long values are not', () => {
+    expect(normalizeDoi('doi.org/10.5555/X.1')).toBe('10.5555/x.1');
+    expect(normalizeDoi('https://www.doi.org/10.5555/x.1')).toBe('10.5555/x.1');
+    expect(normalizeDoi('http://dx.doi.org/10.5555/x.1')).toBe('10.5555/x.1');
+    expect(normalizeDoi('https://doi.org/10.5555/a%2Fb%3C1%3E')).toBe('10.5555/a/b<1>');
+    expect(normalizeDoi('10.5555/%E0%A4%A')).toBe('10.5555/%e0%a4%a'); // not decodable: kept as written
+    expect(normalizeDoi(`10.5555/${'x'.repeat(301)}`)).toBeNull();
+    expect(normalizeDoi(`10.5555/${'x'.repeat(290)}`)).not.toBeNull();
+  });
+
+  test('minor 1: a manually entered reference registers its DOI (lowercased): a later candidate finds the same work', async () => {
+    const paper = (await createPaper(pool, alice, { working_title: 'manual', article_type: 'research_article' })).id;
+    const m = await createReference(pool, { paperId: paper, ownerId: alice, body: { title: 'Manual entry', authors: [{ family: 'Kim' }], doi: '10.5555/MANUAL.1' } });
+    expect(m.doi).toBe('10.5555/manual.1');
+    expect(await referenceIdentifiers(pool, alice, m.id)).toEqual([{ kind: 'doi', value: '10.5555/manual.1' }]);
+    const c = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/manual.1', title: 'Manual entry' })).candidateId });
+    expect(c).toMatchObject({ reference_id: m.id, created: false });
+    // a manual entry of a DOI already in the library is that work, in another paper too
+    const paper2 = (await createPaper(pool, alice, { working_title: 'manual 2', article_type: 'research_article' })).id;
+    const m2 = await createReference(pool, { paperId: paper2, ownerId: alice, body: { title: 'Manual entry', authors: [{ family: 'Kim' }], doi: '10.5555/manual.1' } });
+    expect(m2.id).toBe(m.id);
+    // the same work twice in one paper is refused, not duplicated
+    await expect(createReference(pool, { paperId: paper2, ownerId: alice, body: { title: 'Manual entry', authors: [{ family: 'Kim' }], doi: '10.5555/Manual.1' } })).rejects.toThrow(/already/);
+  });
+
+  test('minor 1: existing manual DOIs are backfilled as identifiers by the migration', async () => {
+    const tmp = await createTempDatabase();
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'pw032-mig-'));
+    try {
+      const all = readdirSync(path.resolve('db/migrations')).filter((f) => f.endsWith('.sql')).sort();
+      const upto = all.indexOf('pw_032_0001_literature_identity.sql');
+      for (const f of all.slice(0, upto + 1)) cpSync(path.resolve('db/migrations', f), path.join(dir, f));
+      const p = new pg.Pool({ connectionString: tmp.url, max: 2 });
+      try {
+        const c = await p.connect();
+        await migrate(c, dir);
+        const o = (await createOwner(p, { username: 'carol', password: 'correct horse battery' })).id;
+        const w1 = (await c.query("INSERT INTO reference_works (owner_id, doi) VALUES ($1, '10.5555/OLD.1') RETURNING id", [o])).rows[0].id;
+        const w2 = (await c.query("INSERT INTO reference_works (owner_id, doi) VALUES ($1, '10.5555/old.1') RETURNING id", [o])).rows[0].id;
+        for (const f of all.slice(upto + 1)) cpSync(path.resolve('db/migrations', f), path.join(dir, f));
+        await migrate(c, dir);
+        const ids = (await c.query('SELECT reference_id, value FROM reference_identifiers WHERE owner_id = $1', [o])).rows;
+        // one work gets the identifier; two works with the same DOI become a question, not a merge
+        expect(ids).toHaveLength(1);
+        expect(ids[0].value).toBe('10.5555/old.1');
+        const q = (await c.query('SELECT reference_a, reference_b, reason FROM reference_duplicate_questions WHERE owner_id = $1', [o])).rows;
+        expect(q).toEqual([{ reference_a: [w1, w2].sort()[0], reference_b: [w1, w2].sort()[1], reason: 'identifier_conflict' }]);
+        c.release();
+      } finally {
+        await p.end();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      await tmp.drop();
+    }
+  });
+
+  test('minor 2: metadata seen before (alternating sources) adds no new version', async () => {
+    const a = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/alt.1', title: 'Alternating sources' })).candidateId });
+    await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { source: 'pubmed', source_record_id: '93000001', doi: '10.5555/alt.1', title: 'Alternating sources.' })).candidateId });
+    for (let i = 0; i < 3; i++) {
+      await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/alt.1', title: 'Alternating sources' })).candidateId });
+      const r = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { source: 'pubmed', source_record_id: '93000001', doi: '10.5555/alt.1', title: 'Alternating sources.' })).candidateId });
+      expect(r.new_version).toBe(false);
+    }
+    expect(await revisions(a.reference_id)).toHaveLength(2);
+  });
+
+  test('minor 3: a retraction known only from the notice is visible on the retracted work (either order)', async () => {
+    // the notice first, then the work
+    await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/rnote.1', title: 'Retraction: X', update_notice: { type: 'retraction', target_doi: '10.5555/rtarget.1' } })).candidateId });
+    const t1 = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/rtarget.1', title: 'X' })).candidateId });
+    expect(await noticesOf(pool, alice, t1.reference_id)).toEqual([expect.objectContaining({ kind: 'retracted', notice_doi: '10.5555/rnote.1' })]);
+    // the work first, then the notice
+    const t2 = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/rtarget.2', title: 'Y' })).candidateId });
+    expect(await noticesOf(pool, alice, t2.reference_id)).toEqual([]);
+    await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/enote.2', title: 'Expression of concern: Y', update_notice: { type: 'expression_of_concern', target_doi: '10.5555/rtarget.2' } })).candidateId });
+    expect(await noticesOf(pool, alice, t2.reference_id)).toEqual([expect.objectContaining({ kind: 'expression_of_concern', notice_doi: '10.5555/enote.2' })]);
+    // a manually entered target sees a notice that arrived before it
+    await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/rnote.3', title: 'Retraction: Z', update_notice: { type: 'retraction', target_doi: '10.5555/rtarget.3' } })).candidateId });
+    const paper = (await createPaper(pool, alice, { working_title: 'manual notice', article_type: 'research_article' })).id;
+    const m = await createReference(pool, { paperId: paper, ownerId: alice, body: { title: 'Z', authors: [{ family: 'Lee' }], doi: '10.5555/RTARGET.3' } });
+    expect(await noticesOf(pool, alice, m.id)).toEqual([expect.objectContaining({ kind: 'retracted' })]);
+    // the work's own flag (PubMed / Crossref updated-by) keeps the notice DOI
+    const own = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/rtarget.4', title: 'W', update_notice: { type: 'retracted_publication', notice_doi: '10.5555/rnote.4' } })).candidateId });
+    expect(await noticesOf(pool, alice, own.reference_id)).toEqual([expect.objectContaining({ kind: 'retracted', notice_doi: '10.5555/rnote.4' })]);
+    // other owners see nothing of it
+    expect(await noticesOf(pool, bob, own.reference_id)).toEqual([]);
+  });
+
+  test('a notice record is not flagged as the thing it announces (PubMed erratum / concern notices)', async () => {
+    const n = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { source: 'pubmed', source_record_id: '93000010', doi: null, title: 'Erratum.', update_notice: { type: 'erratum' } })).candidateId });
+    expect(await noticesOf(pool, alice, n.reference_id)).toEqual([]);
+    expect((await relationsOf(pool, alice, n.reference_id)).map((r) => r.relation)).toEqual(['erratum_for']);
+    // Crossref "updated-by" kinds are flags on the work itself
+    for (const [type, kind] of [['has_correction', 'correction'], ['has_expression_of_concern', 'expression_of_concern'], ['has_update', 'updated']] as const) {
+      const w = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: `10.5555/flag.${type}`, title: `Flag ${type}`, update_notice: { type, notice_doi: `10.5555/n.${type}` } })).candidateId });
+      expect(await noticesOf(pool, alice, w.reference_id)).toEqual([expect.objectContaining({ kind, notice_doi: `10.5555/n.${type}` })]);
+    }
+  });
+
+  test('nit: the same identifier-less candidate ingested twice is one work', async () => {
+    const c = await candidate(alice, { doi: null, source_record_id: 'local-again', title: 'Grey literature, once' });
+    const a = await ingestCandidate(pool, { ownerId: alice, candidateId: c.candidateId });
+    const b = await ingestCandidate(pool, { ownerId: alice, candidateId: c.candidateId });
+    expect(b).toMatchObject({ reference_id: a.reference_id, created: false, new_version: false });
+  });
+
+  test('nit: a title that changes in a new version is checked again for a same-title work', async () => {
+    const a = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/rt.1', title: 'Roots under drought stress' })).candidateId });
+    const b = await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/rt.2', title: 'Something else' })).candidateId });
+    await ingestCandidate(pool, { ownerId: alice, candidateId: (await candidate(alice, { doi: '10.5555/rt.2', title: 'Roots Under Drought Stress.' })).candidateId });
+    const [x, y] = [a.reference_id, b.reference_id].sort();
+    expect((await possibleDuplicates(pool, alice)).some((d) => d.reference_a === x && d.reference_b === y && d.reason === 'similar_title')).toBe(true);
+  });
+
+  test('nit: duplicate questions cannot be truncated', async () => {
+    await expect(pool.query('TRUNCATE reference_duplicate_questions')).rejects.toThrow(/immutable|not allowed|forbid/i);
   });
 });

@@ -80,3 +80,15 @@
 
 ## 다음
 PW-032: 서지 정규화·출판본 관계
+
+## 재리뷰 nit 반영 (2026-10-09)
+- 400 응답 본문은 앞 2000 bytes만 읽고 stream을 닫는다(`readPrefix`). 끝없이 오는 400 본문도 바로 끝난다.
+- Crossref `updated-by`
+  - 가장 심각한 상태를 고른다: retraction > expression of concern > correction > 그 밖.
+  - 유형 이름: `retracted_publication`, `has_expression_of_concern`, `has_correction`, `has_update`
+  - 그 밖의 유형(withdrawal, removal, partial_retraction 등)은 버리지 않고 `has_update`와 원래 유형 이름(`notice_type`)으로 남긴다.
+  - 이름을 바꾼 이유: PubMed 고지 레코드의 `erratum`·`expression_of_concern`(고지 자체)과 구분하기 위해서다(PW-032 리뷰).
+  - PARSER_VERSION `pw-bib-3`(이전 cache 무효화)
+- PW-030 gate의 source 검사는 주석을 뺀 코드에서 `runSandboxed(`·`startRunProcess(` 호출 형태만 찾는다.
+- 시험: 통합 22(+2), RED `rereview-nits-red.log`, mutation 3종 탐지(`mutation.log`)
+- 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 291, contracts 17, 브라우저 81(`reports/tasks/PW-033/pnpm-test-review.log`).

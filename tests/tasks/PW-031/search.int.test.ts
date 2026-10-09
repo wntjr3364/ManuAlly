@@ -224,3 +224,32 @@ describe('TST-031B: changed key, limit, endpoint or shape → source unavailable
     expect(seen.length).toBe(n);
   });
 });
+
+// review nits (PW-031 re-review)
+describe('re-review nits', () => {
+  test('an endless 400 body is read only as far as needed (no hang, no unbounded memory)', async () => {
+    behave = { '/works': (_q, res) => {
+      res.writeHead(400, { 'content-type': 'text/plain' });
+      const t = setInterval(() => { if (!res.write('x'.repeat(64 * 1024))) return; }, 1);
+      res.on('close', () => clearInterval(t));
+    } };
+    const t0 = Date.now();
+    expect(await search({ query: `endless 400 ${Math.random()}` }, { timeoutMs: 5000 })).toMatchObject({ status: 'source_unavailable', reason: 'endpoint_changed' });
+    expect(Date.now() - t0).toBeLessThan(2000);
+  });
+
+  test('every Crossref updated-by kind marks the work: the most serious wins; unknown kinds are "updated", not dropped', async () => {
+    const one = (kinds: string[]) => JSON.stringify({ status: 'ok', message: { items: [{ DOI: '10.5555/upd.1', title: ['Updated work'], 'updated-by': kinds.map((type, i) => ({ type, DOI: `10.5555/n.${i}` })) }] } });
+    const cases: [string[], Record<string, unknown>][] = [
+      [['correction'], { type: 'has_correction', notice_doi: '10.5555/n.0' }],
+      [['correction', 'expression_of_concern'], { type: 'has_expression_of_concern', notice_doi: '10.5555/n.1' }],
+      [['withdrawal'], { type: 'has_update', notice_doi: '10.5555/n.0', notice_type: 'withdrawal' }],
+      [['partial_retraction', 'retraction'], { type: 'retracted_publication', notice_doi: '10.5555/n.1' }],
+    ];
+    for (const [kinds, want] of cases) {
+      behave = { '/works': json(one(kinds)) };
+      const r = await search({ query: `updated ${kinds.join()} ${Math.random()}` });
+      expect(r, kinds.join()).toMatchObject({ status: 'ok', candidates: [{ update_notice: want }] });
+    }
+  });
+});

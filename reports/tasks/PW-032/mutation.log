@@ -8,3 +8,20 @@ KILLED  retraction notice dropped :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯
 KILLED  late targets not resolved :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯       Tests  6 failed | 1 passed (7) 
 KILLED  no similar-title question :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 6 passed (7) 
 KILLED  other owner's candidate accepted :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 6 passed (7) 
+# review fixes (Fri Oct  9 15:29:13 UTC 2026)
+KILLED decode
+KILLED www
+KILLED len
+KILLED seen_hash
+KILLED notice_doi
+KILLED has_correction
+KILLED title_recheck
+KILLED idless_idempotent
+KILLED incoming_notices
+KILLED link_on_manual
+KILLED manual_identifier
+KILLED same_paper_conflict
+KILLED manual_lowercase
+SURVIVED noop_check (equivalent control: adds a no-op statement; expected to survive)
+KILLED backfill_conflicts
+KILLED truncate_guard

@@ -39,3 +39,8 @@ Tests and acceptance criteria:
 - live 증거에는 `ran_inside_sandbox: true`가 있어야 등록부가 승인한다(PW-030 리뷰 반영으로 검사 코드에 넣음).
 Write scope: `packages/providers/src/{claude,codex}/**`, `apps/worker/src/{runner,lifecycle}/**`, 새 `apps/worker/src/provider-runs/**`, 관련 tests/reports
 User decision / reviewer: 사용자 위임("니가 적절하게 선택해서 프로젝트 완성해라", 2026-10-09)으로 채택한다. 독립 리뷰가 확인한다.
+
+## 추가 요구(PW-033 리뷰, 2026-10-09)
+- 실제 provider를 문헌 평가(assessor)에 쓸 때는 후보의 제목·저자·학술지 같은 외부 텍스트를 지시가 아닌 데이터로 넘긴다(spec 08).
+  - 별도 데이터 블록이나 tool 결과로 넘기고, 지시문에 이어 붙이지 않는다.
+- 답은 지금처럼 `checkAssessments`의 엄격한 검사와 시스템 규칙을 거친다.

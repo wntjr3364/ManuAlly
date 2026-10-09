@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto';
 import { CITATION_STYLES, bibliography, canonicalJson, citationLabels, figureLabels, referenceOccurrences, type CitationStyle, type FigureMeta, type RefMeta } from '@pw/editor-core';
 import { DomainError, UUID_RE, inTransaction, storable, type Queryable, type TxPool } from '../shared/db.ts';
+import { lockLibrary, normalizeDoi, workForDoi } from '../literature/index.ts';
 
 const text = (v: unknown, field: string, max: number, required = true): string | null => {
   if (v === undefined || v === null || v === '') {
@@ -34,13 +35,29 @@ export async function createReference(pool: TxPool, a: { paperId: string; ownerI
   });
   if (b.year !== undefined && b.year !== null && !(Number.isInteger(b.year) && (b.year as number) >= 1500 && (b.year as number) <= 2100)) throw new DomainError('INVALID', 'year must be a whole year or null', 'year');
   const container = text(b.container, 'container', 500, false);
-  const doi = text(b.doi, 'doi', 220, false);
-  if (doi && !DOI_RE.test(doi)) throw new DomainError('INVALID', 'doi must look like 10.1234/xyz (without https://doi.org/)', 'doi');
+  const entered = text(b.doi, 'doi', 220, false);
+  if (entered && !DOI_RE.test(entered)) throw new DomainError('INVALID', 'doi must look like 10.1234/xyz (without https://doi.org/)', 'doi');
+  // DOIs are case-insensitive: one form, the library's (PW-032)
+  const doi = entered ? normalizeDoi(entered) : null;
+  if (entered && !doi) throw new DomainError('INVALID', 'doi must look like 10.1234/xyz (without https://doi.org/)', 'doi');
   const csl = { type: 'article-journal', title, author: authors, ...(b.year ? { issued: { 'date-parts': [[b.year]] } } : {}), ...(container ? { 'container-title': container } : {}), ...(doi ? { DOI: doi } : {}) };
   return inTransaction(pool, async (tx) => {
-    const ref = (await tx.query<{ id: string }>('INSERT INTO reference_works (owner_id, doi) VALUES ($1, $2) RETURNING id', [a.ownerId, doi])).rows[0]!;
-    await tx.query("INSERT INTO bibliographic_revisions (reference_id, csl_json, content_hash, source) VALUES ($1, $2, $3, 'manual')",
-      [ref.id, JSON.stringify(csl), createHash('sha256').update(canonicalJson(csl)).digest('hex')]);
+    // a DOI names one work in the owner's library (PW-032): a manual entry of a known DOI is that work,
+    // and its metadata becomes a new version only if the work never had it
+    let ref: { id: string };
+    const hash = createHash('sha256').update(canonicalJson(csl)).digest('hex');
+    if (doi) {
+      await lockLibrary(tx, a.ownerId);
+      ref = { id: (await workForDoi(tx, a.ownerId, doi)).reference_id };
+      if ((await tx.query('SELECT 1 FROM project_references WHERE paper_id = $1 AND reference_id = $2', [a.paperId, ref.id])).rowCount) {
+        throw new DomainError('CONFLICT', 'this work (same DOI) is already in the paper\'s references');
+      }
+    } else {
+      ref = (await tx.query<{ id: string }>('INSERT INTO reference_works (owner_id, doi) VALUES ($1, NULL) RETURNING id', [a.ownerId])).rows[0]!;
+    }
+    if (!(await tx.query('SELECT 1 FROM bibliographic_revisions WHERE reference_id = $1 AND content_hash = $2', [ref.id, hash])).rowCount) {
+      await tx.query("INSERT INTO bibliographic_revisions (reference_id, csl_json, content_hash, source) VALUES ($1, $2, $3, 'manual')", [ref.id, JSON.stringify(csl), hash]);
+    }
     const pr = (await tx.query<{ added_at: string }>('INSERT INTO project_references (paper_id, reference_id, owner_id) VALUES ($1, $2, $3) RETURNING added_at', [a.paperId, ref.id, a.ownerId])).rows[0]!;
     return { id: ref.id, title, authors, year: (b.year as number | undefined) ?? null, container, doi, added_at: pr.added_at };
   });

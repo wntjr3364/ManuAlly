@@ -50,11 +50,14 @@ test('TST-033A/B: suggestions are shown with use, fit, depth and warnings; nothi
   await expect(item('ABC1 induction').getByTestId('assessment-depth')).toHaveText('서지 정보만 확인');
   // "highly cited" is not evidence of good writing
   await expect(item('highly cited').getByTestId('assessment-style')).toHaveText('알 수 없음');
-  await expect(item('highly cited').getByTestId('assessment-warning')).toContainText('문체는 본문을 읽어야');
+  await expect(item('highly cited').getByTestId('assessment-warning').first()).toContainText('문체는 본문을 읽어야');
+  await expect(item('highly cited').getByTestId('assessment-role')).not.toHaveText('문체 참고 후보');
   // retracted: excluded, said why, cannot be adopted
   await expect(item('ABC2').getByTestId('assessment-role')).toHaveText('제외 제안');
   await expect(item('ABC2').getByTestId('assessment-exclusion')).toContainText('철회');
-  await expect(item('ABC2').getByLabel('용도')).toHaveValue('writing');
+  // nothing is pre-selected for a retracted work: adopting it needs an explicit choice
+  await expect(item('ABC2').getByLabel('용도')).toHaveValue('');
+  await expect(item('ABC2').getByRole('button', { name: '채택', exact: true })).toBeDisabled();
   await expect(item('ABC2').locator('option[value="scientific"]')).toHaveAttribute('disabled', '');
   await expect(item('ABC2').locator('option[value="both"]')).toHaveAttribute('disabled', '');
   await expect(item('tulips').getByTestId('assessment-exclusion')).toContainText('관련이 낮음');

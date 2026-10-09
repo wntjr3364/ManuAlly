@@ -70,7 +70,7 @@ describe('TST-030B: no pass without approval and live evidence', () => {
     // sandbox" is done only when the adapters really launch through the sandbox (source check)
     const items = new Map(status.open_items.map((o) => [o.item, o]));
     for (const required of ['providers_inside_sandbox', 'worker_provider_run_path', 'paragraph_draft_from_outline']) expect(items.has(required), required).toBe(true);
-    const launchesSandboxed = ['packages/providers/src/claude/turn.ts', 'packages/providers/src/codex/server.ts'].every((f) => /runSandboxed|startRunProcess/.test(fs.readFileSync(path.resolve(f), 'utf8')));
+    const launchesSandboxed = ['packages/providers/src/claude/turn.ts', 'packages/providers/src/codex/server.ts'].every((f) => /\b(?:runSandboxed|startRunProcess)\s*\(/.test(fs.readFileSync(path.resolve(f), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')));
     if (items.get('providers_inside_sandbox')!.status === 'done') expect(launchesSandboxed, 'providers_inside_sandbox marked done but the adapters do not launch through the sandbox').toBe(true);
   });
   test('the shipped registry approves no real provider yet (live smoke not run here)', () => {

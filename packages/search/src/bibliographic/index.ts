@@ -23,7 +23,7 @@ export const DEFAULT_ENDPOINTS: Record<Source, string> = {
 };
 export const MAX_LIMIT = 20;
 // part of the cache key: a change in what is requested or how it is read starts a fresh cache
-export const PARSER_VERSION = 'pw-bib-2';
+export const PARSER_VERSION = 'pw-bib-3';
 
 export interface SearchConfig {
   endpoints?: Partial<Record<Source, string>>;

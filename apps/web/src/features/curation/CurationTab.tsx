@@ -30,10 +30,12 @@ export function CurationTab({ paperId, visible }: { paperId: string; visible: bo
     } catch (e) { setError(errorText(e)); }
   };
   const retracted = (a: Assessment) => a.warnings.includes('retracted');
-  const roleOf = (a: Assessment) => useRole[a.id] ?? (retracted(a) ? 'writing' : a.role === 'exclude' ? 'scientific' : a.role);
+  // nothing is pre-selected for a retracted work: adopting it is an explicit choice
+  const roleOf = (a: Assessment) => useRole[a.id] ?? (retracted(a) ? '' : a.role === 'exclude' ? 'scientific' : a.role);
   const decide = async (a: Assessment, decision: 'accepted' | 'rejected') => {
     try {
-      await api('POST', `/api/papers/${paperId}/curation/assessments/${a.id}/decision`, decision === 'accepted' ? { decision, use_role: roleOf(a) } : { decision });
+      const r = await api<{ warnings?: string[] }>('POST', `/api/papers/${paperId}/curation/assessments/${a.id}/decision`, decision === 'accepted' ? { decision, use_role: roleOf(a) } : { decision });
+      setNote((r.warnings ?? []).map((w) => WARNING[w] ?? w).join(' '));
       await load();
     } catch (e) { setError(errorText(e)); }
   };
@@ -65,9 +67,10 @@ export function CurationTab({ paperId, visible }: { paperId: string; visible: bo
             {a.decision === 'pending' ? (
               <p>
                 <label>용도 <select value={roleOf(a)} onChange={(e) => setUseRole({ ...useRole, [a.id]: e.target.value })}>
+                  {roleOf(a) === '' && <option value="" disabled>용도 선택</option>}
                   <option value="scientific" disabled={retracted(a)}>과학 근거</option><option value="writing">문체 참고</option><option value="both" disabled={retracted(a)}>둘 다</option>
                 </select></label>{' '}
-                <button type="button" onClick={() => void decide(a, 'accepted')}>채택</button>{' '}
+                <button type="button" onClick={() => void decide(a, 'accepted')} disabled={!roleOf(a)}>채택</button>{' '}
                 <button type="button" onClick={() => void decide(a, 'rejected')}>채택 안 함</button>
               </p>
             ) : <p data-testid="assessment-decision">{DECISION[a.decision]}{a.decided_use_role ? ` · ${ROLE[a.decided_use_role] ?? a.decided_use_role}` : ''}</p>}

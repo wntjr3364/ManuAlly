@@ -62,9 +62,12 @@ export function parseCrossref(body: unknown): Parsed {
     if (!update && it['updated-by'] !== undefined) {
       if (!Array.isArray(it['updated-by'])) throw bad(`item ${i} updated-by`);
       const kinds = (it['updated-by'] as unknown[]).filter((x): x is Record<string, unknown> => obj(x) && typeof x.type === 'string');
-      const pick = kinds.find((x) => x.type === 'retraction') ?? kinds.find((x) => x.type === 'expression_of_concern' || x.type === 'expression-of-concern') ?? kinds.find((x) => x.type === 'correction' || x.type === 'erratum');
-      const FLAG: Record<string, string> = { retraction: 'retracted_publication', expression_of_concern: 'expression_of_concern', 'expression-of-concern': 'expression_of_concern', correction: 'erratum', erratum: 'erratum' };
-      if (pick) update = { type: FLAG[String(pick.type)]!, notice_doi: typeof pick.DOI === 'string' ? pick.DOI.toLowerCase() : null };
+      // the most serious status wins; any other kind (withdrawal, removal, partial_retraction, …) still
+      // marks the work as updated rather than being dropped
+      const rank = (t: string) => (t === 'retraction' ? 0 : t === 'expression_of_concern' || t === 'expression-of-concern' ? 1 : t === 'correction' || t === 'erratum' ? 2 : 3);
+      const pick = [...kinds].sort((x, y) => rank(String(x.type)) - rank(String(y.type)))[0];
+      const FLAG = ['retracted_publication', 'has_expression_of_concern', 'has_correction', 'has_update'];
+      if (pick) update = { type: FLAG[rank(String(pick.type))]!, notice_doi: typeof pick.DOI === 'string' ? pick.DOI.toLowerCase() : null, ...(rank(String(pick.type)) === 3 ? { notice_type: String(pick.type).slice(0, 50) } : {}) };
     }
     // an implausible type is dropped (unknown), not stored
     const type = typeof it.type === 'string' && it.type.length <= 100 ? it.type : null;

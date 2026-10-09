@@ -6,7 +6,12 @@
 // - read depth is what the system knows (search candidates: METADATA_ONLY), never the assessor's claim;
 // - writing style needs the text: without a full text the style fit is "unknown" (a citation count or a
 //   journal name is not evidence of good writing);
-// - a retracted work is never suggested as scientific support;
+// - a writing-reference suggestion also needs the text: without it "writing" becomes "exclude" and
+//   "both" becomes "scientific";
+// - a retracted work is never suggested as scientific support. What is known about a work's status
+//   comes from the system, not the assessor: its own flags, notices in the same run, and notices the
+//   owner's library already holds (PW-032). A notice record itself is never support. Corrections,
+//   expressions of concern and other updates are shown as warnings;
 // - an answer that names unknown candidates, misses one, uses unknown values or carries extra fields
 //   fails the run; nothing partial is stored.
 // Suggestions are stored under the job's fencing token; adopting one is the owner's decision (API).
@@ -14,11 +19,14 @@ import { createHash } from 'node:crypto';
 import { UUID_RE, type Queryable, type TxPool } from '@pw/domain/shared/db.ts';
 import type { Job } from '@pw/domain/jobs/index.ts';
 import { getStory } from '@pw/domain/outlines/index.ts';
+import { noticesForDoi, normalizeDoi } from '@pw/domain/literature/index.ts';
 import { JobOutcomeError, type JobHandler } from '../queue/index.ts';
 
 export interface CandidateInput {
   id: string; title: string; authors: { family: string; given?: string }[]; year: number | null; container: string | null; work_type: string | null;
   is_preprint: boolean; update_notice: { type: string } | null; read_depth: ReadDepth;
+  // known to the system: 'retracted' | 'corrected' | 'expression_of_concern' | 'updated'; is_notice: the record announces a change to another work
+  status: string[]; is_notice: boolean;
 }
 export interface AssessorInput { brief: { purpose: string; audience: string | null }; question: string | null; main_message: string | null; candidates: CandidateInput[] }
 export interface CurationAssessor { id: 'mock' | 'claude_agent' | 'codex'; label: string | null; assess(input: AssessorInput): Promise<unknown> }
@@ -29,7 +37,10 @@ const STYLES = ['good', 'fair', 'poor', 'unknown'] as const;
 type ReadDepth = 'METADATA_ONLY' | 'ABSTRACT_ONLY' | 'FULLTEXT_PARTIAL' | 'FULLTEXT_PARSED' | 'SOURCE_CHECKED';
 const STYLE_NEEDS: ReadDepth[] = ['FULLTEXT_PARTIAL', 'FULLTEXT_PARSED', 'SOURCE_CHECKED'];
 const KEYS = ['candidate_id', 'role', 'topic_fit', 'article_type_fit', 'style_fit', 'reasons', 'exclusion_reason'];
-const RETRACTED = ['retracted_publication', 'retraction'];
+// a record's own status (PW-031/032 types) and the kinds of notice records
+const OWN_STATUS: Record<string, string> = { retracted_publication: 'retracted', has_correction: 'corrected', has_expression_of_concern: 'expression_of_concern', has_update: 'updated' };
+const NOTICE_STATUS: Record<string, string> = { retraction: 'retracted', correction: 'corrected', erratum: 'corrected', expression_of_concern: 'expression_of_concern', 'expression-of-concern': 'expression_of_concern' };
+const LIBRARY_STATUS: Record<string, string> = { retracted: 'retracted', correction: 'corrected', expression_of_concern: 'expression_of_concern', updated: 'updated' };
 
 export interface Assessment {
   candidate_id: string; role: (typeof ROLES)[number]; topic_fit: (typeof FITS)[number]; article_type_fit: (typeof FITS)[number]; style_fit: (typeof STYLES)[number];
@@ -65,10 +76,21 @@ export function checkAssessments(raw: unknown, input: AssessorInput): Assessment
     const warnings: string[] = [];
     // system rules
     if (!STYLE_NEEDS.includes(cand.read_depth) && style !== 'unknown') { style = 'unknown'; warnings.push('style_needs_full_text'); }
-    if (cand.update_notice && RETRACTED.includes(cand.update_notice.type)) {
+    if (cand.status.includes('retracted')) {
       warnings.push('retracted');
       if (role !== 'exclude') { role = 'exclude'; exclusion = '철회된 논문 — 과학적 근거로 쓰지 않음'; warnings.push('role_overridden'); }
     }
+    if (cand.is_notice) {
+      warnings.push('notice_record');
+      if (role !== 'exclude') { role = 'exclude'; exclusion = '철회·정정 등을 알리는 고지 기록 — 근거 논문이 아님'; warnings.push('role_overridden'); }
+    }
+    if ((role === 'writing' || role === 'both') && !STYLE_NEEDS.includes(cand.read_depth)) {
+      warnings.push('writing_role_needs_full_text');
+      if (role === 'writing') { role = 'exclude'; exclusion = '본문을 읽지 않아 문체 참고로 판단할 수 없음'; } else role = 'scientific';
+    }
+    if (cand.status.includes('corrected')) warnings.push('corrected');
+    if (cand.status.includes('expression_of_concern')) warnings.push('expression_of_concern');
+    if (cand.status.includes('updated')) warnings.push('updated');
     if (cand.is_preprint) warnings.push('preprint');
     return { candidate_id: id, role, topic_fit: topic, article_type_fit: type, style_fit: style, read_depth: cand.read_depth, reasons: x.reasons.trim(), exclusion_reason: role === 'exclude' ? exclusion : null, warnings };
   });
@@ -115,17 +137,50 @@ async function loadInput(db: Queryable, job: Job): Promise<{ input: AssessorInpu
   const story = await getStory(db, job.paper_id);
   const s = story.active ?? story.latest;
   if (!s || typeof s.brief.purpose !== 'string') throw new JobOutcomeError('curation needs the paper brief (purpose) first', 'WAITING_USER');
-  const cands = (await db.query<Omit<CandidateInput, 'read_depth'>>(
-    `SELECT DISTINCT ON (coalesce(c.doi, c.source || ':' || c.source_record_id)) c.id, c.title, c.authors, c.year, c.container, c.work_type, c.is_preprint, c.update_notice
+  const cands = (await db.query<Omit<CandidateInput, 'read_depth' | 'status' | 'is_notice'> & { doi: string | null; update_notice: { type: string; target_doi?: string | null } | null }>(
+    `SELECT DISTINCT ON (coalesce(c.doi, c.source || ':' || c.source_record_id)) c.id, c.doi, c.title, c.authors, c.year, c.container, c.work_type, c.is_preprint, c.update_notice
      FROM literature_candidates c WHERE c.paper_id = $1 AND c.search_id = ANY($2::uuid[]) ORDER BY coalesce(c.doi, c.source || ':' || c.source_record_id), c.rank LIMIT 100`, [job.paper_id, searchIds])).rows;
+  // what the system knows about each work's status: its own flags, notices in this run, the library
+  const owner = (await db.query<{ owner_id: string }>('SELECT owner_id FROM paper_projects WHERE id = $1', [job.paper_id])).rows[0]!.owner_id;
+  const inRun = new Map<string, Set<string>>();
+  for (const c of cands) {
+    const t = c.update_notice ? NOTICE_STATUS[String(c.update_notice.type).toLowerCase()] : undefined;
+    const target = normalizeDoi(c.update_notice?.target_doi ?? null);
+    if (t && target) inRun.set(target, (inRun.get(target) ?? new Set()).add(t));
+  }
+  const statusOf = async (c: (typeof cands)[number]) => {
+    const out = new Set<string>();
+    const own = c.update_notice ? OWN_STATUS[String(c.update_notice.type).toLowerCase()] : undefined;
+    if (own) out.add(own);
+    const doi = normalizeDoi(c.doi);
+    if (doi) {
+      for (const k of inRun.get(doi) ?? []) out.add(k);
+      for (const n of await noticesForDoi(db, owner, doi)) if (LIBRARY_STATUS[n.kind]) out.add(LIBRARY_STATUS[n.kind]!);
+    }
+    return [...out].sort();
+  };
+  const enriched: CandidateInput[] = [];
+  for (const { doi: _doi, ...c } of cands) {
+    enriched.push({ ...c, read_depth: 'METADATA_ONLY' as const, status: await statusOf({ doi: _doi, ...c }), is_notice: !!(c.update_notice && NOTICE_STATUS[String(c.update_notice.type).toLowerCase()]) });
+  }
   const input: AssessorInput = {
     brief: { purpose: s.brief.purpose as string, audience: typeof s.brief.audience === 'string' ? s.brief.audience : null },
     question: typeof s.story.question === 'string' ? s.story.question : null,
     main_message: typeof s.story.main_message === 'string' ? s.story.main_message : null,
     // search candidates are metadata only: nothing has been read yet (PDF/full text arrives in PW-034/035)
-    candidates: cands.map((c) => ({ ...c, read_depth: 'METADATA_ONLY' as const })),
+    candidates: enriched,
   };
   return { input, searchIds, briefHash: createHash('sha256').update(JSON.stringify(input.brief) + (input.question ?? '') + (input.main_message ?? '')).digest('hex') };
+}
+
+// literature_search jobs carry a kind; each kind has its own handler (search runs come later)
+export function literatureSearchHandler(kinds: Record<string, JobHandler>): JobHandler {
+  return async (job, ctx) => {
+    const kind = (job.payload as { kind?: unknown }).kind;
+    const h = typeof kind === 'string' && Object.hasOwn(kinds, kind) ? kinds[kind]! : null;
+    if (!h) throw new JobOutcomeError(`no handler for literature_search kind ${JSON.stringify(kind)?.slice(0, 40) ?? 'undefined'}`, 'FAILED');
+    return h(job, ctx);
+  };
 }
 
 export function curationHandlers(pool: TxPool, assessor: CurationAssessor): Record<'literature_search', JobHandler> {
@@ -156,7 +211,7 @@ export function curationHandlers(pool: TxPool, assessor: CurationAssessor): Reco
       },
     };
   };
-  return { literature_search: curate };
+  return { literature_search: literatureSearchHandler({ curate }) };
 }
 
 

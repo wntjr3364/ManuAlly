@@ -124,6 +124,10 @@ describe('TST-033B: no writing quality from citations; discovery changes nothing
     expect(cited.style_fit).toBe('unknown');
     expect(cited.warnings).toContain('style_needs_full_text');
     for (const x of a) expect(x.style_fit, x.title).toBe('unknown'); // no candidate here has been read beyond metadata
+    // review MINOR 1: nor is it suggested as a writing reference on that basis (no text read)
+    expect(cited.role).not.toMatch(/^(writing|both)$/);
+    expect(cited.warnings).toContain('writing_role_needs_full_text');
+    for (const x of a) expect(['writing', 'both'], x.title).not.toContain(x.role);
   });
 
   test('a retracted work is never proposed as scientific support', async () => {
@@ -237,5 +241,92 @@ describe('closing gaps found by mutation', () => {
     expect(second.statusCode).toBe(200);
     expect(second.json().project_use_role).toBe('scientific');
     expect((await pool.query('SELECT use_role FROM project_references WHERE paper_id = $1', [s.paperId])).rows).toEqual([{ use_role: 'scientific' }]);
+  });
+});
+
+// review (PW-033): MINOR 2, MINOR 3 and nits
+describe('review fixes', () => {
+  const view = async (paperId: string) => (await call('alice', 'GET', `/api/papers/${paperId}/curation`)).json().assessments as { id: string; title: string; role: string; warnings: string[]; exclusion_reason: string | null }[];
+  const fresh = () => `10.5555/rv.${randomUUID()}`;
+
+  test('MINOR 2: a work retracted by a notice in the same run, or by a notice already in the library, is excluded; other notices warn', async () => {
+    const t = fresh(); const lib = fresh();
+    // the owner's library already knows a retraction notice about `lib`
+    const other = await paperWithSearch('alice', [{ doi: fresh(), title: 'Retraction: library target', update_notice: { type: 'retraction', target_doi: lib } }]);
+    await runCuration('alice', other);
+    const [n] = await view(other.paperId);
+    expect(n!.warnings).toContain('notice_record');
+    expect((await call('alice', 'POST', `/api/papers/${other.paperId}/curation/assessments/${n!.id}/decision`, { decision: 'accepted', use_role: 'writing' })).statusCode).toBe(200);
+    const s = await paperWithSearch('alice', [
+      { doi: t, title: 'ABC1 drought roots original' },
+      { doi: fresh(), title: 'Retraction: ABC1 drought roots original', update_notice: { type: 'retraction', target_doi: t } },
+      { doi: lib, title: 'ABC1 drought roots library target' },
+      { doi: fresh(), title: 'ABC1 drought roots with concern', update_notice: { type: 'has_expression_of_concern', notice_doi: fresh() } },
+      { doi: fresh(), title: 'ABC1 drought roots corrected', update_notice: { type: 'has_correction', notice_doi: fresh() } },
+    ]);
+    await runCuration('alice', s);
+    const a = await view(s.paperId);
+    const by = (p: string) => a.find((x) => x.title.startsWith(p))!;
+    expect(by('ABC1 drought roots original')).toMatchObject({ role: 'exclude', warnings: expect.arrayContaining(['retracted']) });
+    expect(by('Retraction: ABC1')).toMatchObject({ role: 'exclude', warnings: expect.arrayContaining(['notice_record']) });
+    expect(by('ABC1 drought roots library target')).toMatchObject({ role: 'exclude', warnings: expect.arrayContaining(['retracted']) });
+    expect(by('ABC1 drought roots with concern')).toMatchObject({ role: 'scientific', warnings: expect.arrayContaining(['expression_of_concern']) });
+    expect(by('ABC1 drought roots corrected')).toMatchObject({ role: 'scientific', warnings: expect.arrayContaining(['corrected']) });
+    // and the owner cannot adopt the in-run retracted original as scientific support
+    expect((await call('alice', 'POST', `/api/papers/${s.paperId}/curation/assessments/${by('ABC1 drought roots original').id}/decision`, { decision: 'accepted', use_role: 'scientific' })).statusCode).toBe(422);
+  });
+
+  test('MINOR 2: a work the library already knows as retracted (its own flag from another source) is excluded here too', async () => {
+    const doi = fresh();
+    const lib = await paperWithSearch('alice', [{ doi, title: 'Flagged in the library', update_notice: { type: 'retracted_publication' } }]);
+    await runCuration('alice', lib);
+    const [x] = await view(lib.paperId);
+    expect((await call('alice', 'POST', `/api/papers/${lib.paperId}/curation/assessments/${x!.id}/decision`, { decision: 'accepted', use_role: 'writing' })).statusCode).toBe(200);
+    // this run's record of the same work carries no notice of its own
+    const s = await paperWithSearch('alice', [{ doi, title: 'ABC1 drought roots, unflagged here' }]);
+    await runCuration('alice', s);
+    expect((await view(s.paperId))[0]).toMatchObject({ role: 'exclude', warnings: expect.arrayContaining(['retracted']) });
+  });
+
+  test('MINOR 3: racing decisions leave one decision, and the library changes only if that decision is "accepted"', async () => {
+    for (let i = 0; i < 6; i++) {
+      const doi = fresh();
+      const s = await paperWithSearch('alice', [{ doi, title: 'ABC1 drought roots race' }]);
+      await runCuration('alice', s);
+      const [a] = await view(s.paperId);
+      const url = `/api/papers/${s.paperId}/curation/assessments/${a!.id}/decision`;
+      const [x, y] = await Promise.all([call('alice', 'POST', url, { decision: 'accepted', use_role: 'scientific' }), call('alice', 'POST', url, { decision: 'rejected' })]);
+      expect([x.statusCode, y.statusCode].sort()).toEqual([200, 409]);
+      const decided = (await pool.query('SELECT decision FROM curation_assessments WHERE id = $1', [a!.id])).rows[0].decision;
+      const inLibrary = (await pool.query("SELECT count(*)::int AS n FROM reference_identifiers WHERE owner_id = $1 AND kind = 'doi' AND value = $2", [ids.alice, doi])).rows[0].n;
+      expect(inLibrary, decided).toBe(decided === 'accepted' ? 1 : 0);
+    }
+  });
+
+  test('nit: accepting a retracted work that the paper already holds as scientific support says so', async () => {
+    const doi = fresh();
+    const s = await paperWithSearch('alice', [{ doi, title: 'Held retracted work', update_notice: { type: 'retracted_publication' } }]);
+    expect((await call('alice', 'POST', `/api/papers/${s.paperId}/references`, { title: 'Held retracted work', authors: [{ family: 'Kim' }], doi })).statusCode).toBe(201);
+    await runCuration('alice', s);
+    const [a] = await view(s.paperId);
+    const r = await call('alice', 'POST', `/api/papers/${s.paperId}/curation/assessments/${a!.id}/decision`, { decision: 'accepted', use_role: 'writing' });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ project_use_role: 'scientific', warnings: ['retracted_work_used_as_scientific'] });
+  });
+
+  test('nit: an assessment cannot name another paper\'s candidate (database constraint)', async () => {
+    const s = await paperWithSearch('alice', CANDS.slice(0, 1));
+    const o = await paperWithSearch('alice', CANDS.slice(0, 1));
+    await runCuration('alice', s);
+    const run = (await pool.query('SELECT id FROM curation_runs WHERE paper_id = $1', [s.paperId])).rows[0].id;
+    await expect(pool.query("INSERT INTO curation_assessments (run_id, paper_id, candidate_id, role, topic_fit, article_type_fit, style_fit, read_depth, reasons) VALUES ($1, $2, $3, 'scientific', 'high', 'high', 'unknown', 'METADATA_ONLY', 'reasons here')",
+      [run, s.paperId, o.candIds[0]])).rejects.toThrow(/foreign key/);
+  });
+
+  test('nit: literature_search jobs are dispatched on their kind; an unknown kind fails clearly', async () => {
+    const s = await paperWithSearch('alice', CANDS.slice(0, 1));
+    const { job } = await enqueueJob(pool, { paperId: s.paperId, ownerId: ids.alice!, intent: 'literature_search', idempotencyKey: randomUUID(), payload: { kind: 'search', query: 'x' } });
+    await processDelivery(pool, { job_id: job.id, paper_id: s.paperId, intent: 'literature_search' }, { workerId: 'w', leaseMs: 30_000, handlers: curationHandlers(pool, createMockAssessor()) });
+    expect((await pool.query('SELECT status, last_error FROM jobs WHERE id = $1', [job.id])).rows[0]).toMatchObject({ status: 'FAILED', last_error: expect.stringMatching(/no handler for literature_search kind "search"/) });
   });
 });

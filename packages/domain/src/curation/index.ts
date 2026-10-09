@@ -2,7 +2,7 @@
 // (apps/worker/src/curation); the only write here is the owner's decision. Accepting puts the work in
 // the owner's library (PW-032) and the paper's references with the chosen use; rejecting records it.
 import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
-import { ingestCandidate } from '../literature/index.ts';
+import { ingestCandidateIn } from '../literature/index.ts';
 import { enqueueJob } from '../jobs/index.ts';
 
 export const USE_ROLES = ['scientific', 'writing', 'both'] as const;
@@ -31,29 +31,30 @@ export async function decideAssessment(pool: TxPool, a: { paperId: string; owner
   if (!UUID_RE.test(a.assessmentId)) throw new DomainError('NOT_FOUND', 'assessment not found');
   if (a.decision !== 'accepted' && a.decision !== 'rejected') throw new DomainError('INVALID', 'decision must be accepted or rejected', 'decision');
   if (a.decision === 'accepted' && !USE_ROLES.includes(a.useRole as UseRole)) throw new DomainError('INVALID', `use_role must be one of ${USE_ROLES.join(', ')}`, 'use_role');
-  const row = (await pool.query<{ candidate_id: string; decision: string; warnings: string[] }>('SELECT candidate_id, decision, warnings FROM curation_assessments WHERE id = $1 AND paper_id = $2', [a.assessmentId, a.paperId])).rows[0];
-  if (!row) throw new DomainError('NOT_FOUND', 'assessment not found');
-  if (row.decision !== 'pending') throw new DomainError('CONFLICT', `already ${row.decision}`);
-  // a retracted work is never adopted as scientific support (it may still be kept as a writing reference)
-  if (a.decision === 'accepted' && row.warnings.includes('retracted') && a.useRole !== 'writing') {
-    throw new DomainError('INVALID', 'a retracted work cannot be adopted as scientific support', 'use_role');
-  }
-  let referenceId: string | null = null;
-  if (a.decision === 'accepted') referenceId = (await ingestCandidate(pool, { ownerId: a.ownerId, candidateId: row.candidate_id })).reference_id;
+  // one transaction: the decision is taken (row locked, still pending) before anything reaches the
+  // library, so a decision that loses a race leaves no trace
   return inTransaction(pool, async (tx) => {
-    const r = await tx.query(
+    const row = (await tx.query<{ candidate_id: string; decision: string; warnings: string[] }>(
+      'SELECT candidate_id, decision, warnings FROM curation_assessments WHERE id = $1 AND paper_id = $2 FOR UPDATE', [a.assessmentId, a.paperId])).rows[0];
+    if (!row) throw new DomainError('NOT_FOUND', 'assessment not found');
+    if (row.decision !== 'pending') throw new DomainError('CONFLICT', `already ${row.decision}`);
+    const retracted = row.warnings.includes('retracted');
+    // a retracted work is never adopted as scientific support (it may still be kept as a writing reference)
+    if (a.decision === 'accepted' && retracted && a.useRole !== 'writing') {
+      throw new DomainError('INVALID', 'a retracted work cannot be adopted as scientific support', 'use_role');
+    }
+    await tx.query(
       "UPDATE curation_assessments SET decision = $3, decided_use_role = $4, decided_by = $5, decided_at = clock_timestamp() WHERE id = $1 AND paper_id = $2 AND decision = 'pending'",
       [a.assessmentId, a.paperId, a.decision, a.decision === 'accepted' ? a.useRole : null, a.ownerId]);
-    if (!r.rowCount) throw new DomainError('CONFLICT', 'already decided');
-    let projectUseRole: string | null = null;
-    if (referenceId) {
-      await tx.query(
-        `INSERT INTO project_references (paper_id, reference_id, owner_id, use_role) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (paper_id, reference_id) DO NOTHING`, [a.paperId, referenceId, a.ownerId, a.useRole]);
-      // a work already in the paper keeps its use; the answer says which use the paper holds
-      projectUseRole = (await tx.query<{ use_role: string }>('SELECT use_role FROM project_references WHERE paper_id = $1 AND reference_id = $2', [a.paperId, referenceId])).rows[0]!.use_role;
-    }
-    return { decision: a.decision, reference_id: referenceId, project_use_role: projectUseRole };
+    if (a.decision !== 'accepted') return { decision: a.decision, reference_id: null, project_use_role: null, warnings: [] as string[] };
+    const referenceId = (await ingestCandidateIn(tx, { ownerId: a.ownerId, candidateId: row.candidate_id })).reference_id;
+    await tx.query(
+      `INSERT INTO project_references (paper_id, reference_id, owner_id, use_role) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (paper_id, reference_id) DO NOTHING`, [a.paperId, referenceId, a.ownerId, a.useRole]);
+    // a work already in the paper keeps its use; the answer says which use the paper holds
+    const projectUseRole = (await tx.query<{ use_role: string }>('SELECT use_role FROM project_references WHERE paper_id = $1 AND reference_id = $2', [a.paperId, referenceId])).rows[0]!.use_role;
+    const warnings = retracted && projectUseRole !== 'writing' ? ['retracted_work_used_as_scientific'] : [];
+    return { decision: a.decision, reference_id: referenceId, project_use_role: projectUseRole, warnings };
   });
 }
 

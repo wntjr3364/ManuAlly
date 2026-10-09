@@ -34,3 +34,14 @@ User decision / reviewer:
   - `apps/worker/src/main.ts`(`literature_search` handler 등록, MOCK assessor)
   - `apps/web/src/features/paper/PaperPage.tsx`("문헌" tab)
   - `tests/e2e/manual-paper/harness.ts`(시험용 local worker에 같은 handler 등록)
+- PW-032 리뷰 반영
+  - `packages/domain/src/references/index.ts`(PW-019 모듈): 직접 입력한 참고문헌도 DOI(소문자)를 서재 식별자로 등록한다. 같은 DOI는 같은 작품이고, 같은 논문에 두 번 넣으면 409다.
+  - `db/migrations/pw_032_0002_review_fixes.sql`
+    - 이전 DOI를 식별자로 backfill하고, 겹치면 질문으로 남긴다.
+    - `flagged_updated` 관계를 추가한다.
+    - 중복 질문 TRUNCATE를 금지한다.
+    - 이 파일은 `pw_033_0001`보다 앞에 정렬된다. `pw_033_0001`을 이미 적용한 개발 DB는 migration 실행기가 거부한다(무음 재정렬 없음). 그런 DB는 다시 만든다. 배포된 DB는 아직 없다.
+- PW-031 재리뷰 nit: 범위 밖 파일 없음. `tests/tasks/PW-030/gate.test.ts`(PW-030 범위)의 source 검사만 호출 형태로 좁혔다.
+- PW-033 리뷰 반영
+  - `db/migrations/pw_033_0002_assessment_candidate_paper.sql`: 공유 표 `literature_candidates`(PW-031)에 `UNIQUE (paper_id, id)`를 추가한다. 추가만 하며 기존 행은 이미 만족한다. 평가가 자기 논문의 후보만 가리키도록 복합 FK를 건다.
+  - `packages/domain/src/literature/index.ts`(PW-032 범위): `ingestCandidateIn`(호출자 트랜잭션), `noticesForDoi`

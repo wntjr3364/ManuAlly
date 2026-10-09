@@ -67,3 +67,25 @@
 
 ## 다음
 PW-032 리뷰 반영(식별자 등록, 버전 중복, 철회 고지 역방향) → PW-031 nit → PW-034: 원문 권리·안전한 업로드
+
+## 리뷰 반영 (2026-10-09, 리뷰: changes requested — MINOR 3, NIT 5)
+- MINOR 1: 본문을 읽지 않았으면 문체 참고 제안도 바꾼다(`writing` → `exclude`, `both` → `scientific`, 경고 `writing_role_needs_full_text`). 인용이 많다는 이유로 "문체 참고 후보"가 되지 않는다.
+- MINOR 2: 작품 상태는 시스템이 모은다. 다음 세 곳을 본다.
+  - 후보 자신의 flag
+  - 같은 run 안에 있는 고지가 가리키는 DOI
+  - 서재가 이미 아는 고지·flag(`noticesForDoi`, 아직 서재에 없는 DOI도 포함)
+  - 처리
+    - 철회된 작품은 제외한다.
+    - 고지 기록 자체(철회·정정 고지)는 근거가 아니므로 제외하고 `notice_record` 경고를 단다.
+    - 정정·우려 표명·갱신은 경고(`corrected`, `expression_of_concern`, `updated`)로 보이고, 용도는 바꾸지 않는다.
+  - assessor 입력에도 `status`·`is_notice`를 넘긴다.
+- MINOR 3: 결정은 한 트랜잭션이다. 평가 행을 `FOR UPDATE`로 잡고 → 결정 → (채택이면) `ingestCandidateIn` → 논문 참고문헌. 경쟁에서 진 요청은 409이고 서재에 흔적이 남지 않는다(시험: 동시 채택·거절 6회).
+- nit
+  - 철회 논문은 용도가 미리 선택되지 않는다. 고르기 전에는 "채택"이 비활성이다.
+  - 논문에 이미 과학 근거로 든 철회 논문을 채택하면 응답 `warnings: ['retracted_work_used_as_scientific']`로 알리고 화면에 보인다.
+  - `literature_search` job은 `kind`로 나눠 처리한다(`literatureSearchHandler`). 모르는 kind는 분명한 메시지로 실패한다.
+  - 평가 → 후보는 복합 FK `(paper_id, candidate_id)`라서 다른 논문 후보를 가리킬 수 없다(`pw_033_0002`).
+  - 외부 텍스트를 데이터로 넘기는 요구는 RFC-010에 추가했다(실제 provider 연결 시).
+- 시험: 통합 18(+6), 브라우저 1(갱신). RED는 `review-red.log`. mutation은 `mutation.log`에 13종을 추가했고 모두 탐지했다. 1종은 시험을 더한 뒤 탐지됐다.
+- 남은 위험 갱신: 결정 경쟁 문제는 해결했다(위 항목 대체).
+- 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 291, contracts 17, 브라우저 81(`reports/tasks/PW-033/pnpm-test-review.log`).

@@ -1,0 +1,14 @@
+# PW-031 re-review nits — RED (committed adapter code, new tests), Fri Oct  9 15:27:42 UTC 2026
+     × an endless 400 body is read only as far as needed (no hang, no unbounded memory) 30008ms
+     × every Crossref updated-by kind marks the work: the most serious wins; unknown kinds are "updated", not dropped 30005ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+Error: Test timed out in 30000ms.
+Error: Test timed out in 30000ms.
+      Tests  2 failed | 20 skipped (22)
+# second test alone (the first test's hang held the shared source pacing):
+     × every Crossref updated-by kind marks the work: the most serious wins; unknown kinds are "updated", not dropped 45ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: correction: expected { status: 'ok', …(8) } to match object { status: 'ok', …(1) }
+- Expected
++ Received
+      Tests  1 failed | 21 skipped (22)

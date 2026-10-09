@@ -36,7 +36,7 @@ export async function boundedGet(url: string, opts: { timeoutMs: number; maxByte
   if (status >= 500) throw new SourceUnavailable('server_error', `the source failed (${status})`, status);
   if (status === 400) {
     // NCBI answers a bad api_key with 400 and a message naming the key
-    const body = (await res.text().catch(() => '')).slice(0, 2000);
+    const body = await readPrefix(res, 2000);
     throw new SourceUnavailable(/api[_ -]?key/i.test(body) ? 'auth' : 'endpoint_changed', `the source refused the request (400)`, status);
   }
   if (status !== 200) throw new SourceUnavailable('endpoint_changed', `unexpected status ${status}`, status);
@@ -59,6 +59,25 @@ export async function boundedGet(url: string, opts: { timeoutMs: number; maxByte
     throw new SourceUnavailable(name === 'TimeoutError' || name === 'AbortError' ? 'timeout' : 'network', 'the answer was cut off', status);
   }
   return { status, text: Buffer.concat(chunks).toString('utf8') };
+}
+
+// the first bytes of an error answer (never the whole of an unbounded body)
+async function readPrefix(res: Response, max: number): Promise<string> {
+  const reader = res.body?.getReader();
+  if (!reader) return '';
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (size < max) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      size += value.byteLength;
+    }
+  } catch { /* a cut-off error body is only a hint */ } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  return Buffer.concat(chunks).toString('utf8').slice(0, max);
 }
 
 export function parseJson(text: string): unknown {

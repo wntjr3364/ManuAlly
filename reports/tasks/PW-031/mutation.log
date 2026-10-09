@@ -20,3 +20,7 @@ KILLED  unreadable authors dropped :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯�
 KILLED  Retry-After ignored :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 
 KILLED  more items than asked kept :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 
 KILLED  redirect reason lost :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 
+# re-review nits (Fri Oct  9 15:30:35 UTC 2026)
+KILLED capped_body
+KILLED unknown_kind
+KILLED most_serious

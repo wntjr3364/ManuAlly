@@ -1,0 +1,21 @@
+# PW-032 review fixes — RED (new tests against the reviewed code, Fri Oct  9 15:24:11 UTC 2026)
+     × nit: DOI forms people paste are understood; nonsense and over-long values are not 7ms
+     × minor 1: a manually entered reference registers its DOI (lowercased): a later candidate finds the same work 7ms
+     × minor 1: existing manual DOIs are backfilled as identifiers by the migration 30003ms
+     × minor 2: metadata seen before (alternating sources) adds no new version 43ms
+     × minor 3: a retraction known only from the notice is visible on the retracted work (either order) 16ms
+     × a notice record is not flagged as the thing it announces (PubMed erratum / concern notices) 9ms
+     × nit: the same identifier-less candidate ingested twice is one work 14ms
+     × nit: a title that changes in a new version is checked again for a same-title work 19ms
+     × nit: duplicate questions cannot be truncated 8ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts > review fixes > nit: DOI forms people paste are understood; nonsense and over-long values are not
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts > review fixes > minor 1: a manually entered reference registers its DOI (lowercased): a later candidate finds the same work
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts > review fixes > minor 1: existing manual DOIs are backfilled as identifiers by the migration
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts > review fixes > minor 2: metadata seen before (alternating sources) adds no new version
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts > review fixes > minor 3: a retraction known only from the notice is visible on the retracted work (either order)
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts > review fixes > a notice record is not flagged as the thing it announces (PubMed erratum / concern notices)
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts > review fixes > nit: the same identifier-less candidate ingested twice is one work
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts > review fixes > nit: a title that changes in a new version is checked again for a same-title work
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts > review fixes > nit: duplicate questions cannot be truncated
+      Tests  9 failed | 7 passed (16)

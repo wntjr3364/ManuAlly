@@ -51,3 +51,26 @@
 
 ## 다음
 PW-031 리뷰 반영 → PW-033: AI 문헌 후보 선정
+
+## 리뷰 반영 (2026-10-09, 리뷰: changes requested — MINOR 3, NIT 6)
+- MINOR 1: 직접 입력한 참고문헌(`createReference`, PW-019)
+  - DOI를 소문자로 서재 식별자에 등록한다. 소유자 lock 안에서 처리한다.
+  - 같은 DOI면 같은 작품을 쓰고, 처음 보는 메타데이터일 때만 manual 버전을 더한다. 같은 논문에 두 번 넣으면 409다.
+  - migration `pw_032_0002`: 이전 작품의 DOI를 backfill한다. 같은 DOI 작품이 둘이면 합치지 않고 `identifier_conflict` 질문으로 남긴다.
+- MINOR 2: 버전은 그 작품이 한 번도 갖지 않은 메타데이터일 때만 더한다. 출처를 번갈아 받아도 버전이 늘지 않는다.
+- MINOR 3: `noticesOf(owner, work)`가 작품 자신의 flag와, 그 작품을 가리키는 고지(철회·정정·우려·갱신)를 함께 보여 준다.
+  - 순서는 상관없다. 늦게 들어온 대상은 `linkPendingRelations`가 다시 잇는다. 직접 입력한 대상도 같다.
+  - `noticesForDoi`는 아직 서재에 없는 DOI에 대한 고지를 찾는다(PW-033).
+- 고지 기록과 작품 자신의 flag를 구분한다.
+  - PubMed "Published Erratum"·"Expression of Concern" 레코드는 고지 자체이므로 `erratum_for`·`expression_of_concern_for`로 저장한다. 그 레코드 자신에 flag를 달지 않는다.
+  - 작품 자신의 상태는 PW-031 Crossref `updated-by`의 새 유형(`has_correction`, `has_expression_of_concern`, `has_update`)과 `retracted_publication`으로만 들어온다.
+- nit
+  - `normalizeDoi`: `doi.org/`, `www.doi.org`, `dx.doi.org`, percent-encoding을 받는다. 길이는 300까지다. 정규화할 수 없는 DOI는 CSL에서 뺀다(null 대신).
+  - 식별자 없는 후보를 다시 받으면 `source_candidate_id`로 같은 작품을 쓴다.
+  - flag는 고지 DOI(`notice_doi`)를 `to_doi`로 보존한다.
+  - 새 버전이 생기면 제목 비교를 다시 한다. 질문 사유 이름은 호환성 때문에 `similar_title`로 두고, 비교가 정확한 키라는 것을 주석에 적었다.
+  - 중복 질문 TRUNCATE를 금지한다.
+  - PMID↔DOI를 잇는 곳에 주석을 달았다.
+  - `ingestCandidateIn(tx)`를 PW-033 결정 트랜잭션용으로 분리했다.
+- 시험: 통합 16(+9). RED는 `review-red.log`. mutation은 `mutation.log`에 16종을 추가했다. 15종은 탐지했고, 1종은 동치 대조(no-op)다.
+- 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 291, contracts 17, 브라우저 81(`reports/tasks/PW-033/pnpm-test-review.log`).

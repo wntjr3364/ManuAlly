@@ -81,11 +81,19 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false, onSta
   const autoRef = useRef<Autosave | null>(null);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initial = info.head.content_json.content?.length ? info.head.content_json : undefined;
+  // an apply request is in flight: no typing until its result is on screen
+  const [applying, setApplying] = useState(false);
+  // locked until the tab id is known, and while this tab's own copy waits for a decision (typing
+  // would overwrite it); other tabs' copies do not lock the editor
+  const locked = tabId === null || applying || offers.some((d) => d.tabId === tabId);
 
   const editor = useEditor({
     extensions,
     content: initial,
-    editable: false,
+    // the same value the editor has (set by the effect below): @tiptap/react compares these options on
+    // every render and re-applies them (view props + state) when they differ — mid-selection that loses
+    // the user's Shift+Arrow keystrokes (PW-022)
+    editable: !locked,
     enableContentCheck: true,
     onContentError: ({ error }) => setContentError(error.message),
     onCreate: ({ editor: ed }) => {
@@ -116,17 +124,15 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false, onSta
     return () => { live = false; };
   }, [info]);
 
-  // locked until the tab id is known, and while this tab's own copy waits for a decision (typing
-  // would overwrite it); other tabs' copies do not lock the editor
-  // an apply request is in flight: no typing until its result is on screen
-  const [applying, setApplying] = useState(false);
   const [proposalRefresh, setProposalRefresh] = useState(0);
   // AI jobs started on this page, and a tick after each apply/reject so jobs re-read their proposal
   const [jobs, setJobs] = useState<JobRef[]>([]);
   const [proposalTick, setProposalTick] = useState(0);
   const [commentRefresh, setCommentRefresh] = useState(0);
-  const locked = tabId === null || applying || offers.some((d) => d.tabId === tabId);
-  useEffect(() => { editor?.setEditable(!locked); }, [editor, locked]);
+  // only on a real change, and without an update event: every setEditable re-applies the view's props
+  // and state, and one arriving while the user extends a selection with Shift+Arrow (e.g. when the tab
+  // id claim resolves right after load) writes the older selection back and loses keystrokes (PW-022)
+  useEffect(() => { if (editor && editor.isEditable !== !locked) editor.setEditable(!locked, false); }, [editor, locked]);
 
   const cancelDraftTimer = () => {
     if (draftTimer.current) clearTimeout(draftTimer.current);
@@ -404,7 +410,7 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false, onSta
         {mark('superscript', '위첨자')}
         <button type="button" disabled={locked} onMouseDown={keepFocus} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>제목</button>
         <button type="button" className="primary" onClick={saveNow} disabled={save.status === 'saving' || locked}>저장</button>
-        <span role="status" data-testid="save-status" className={`save-status ${unsaved || applying ? 'unsaved' : 'saved'}`}>{applying ? '수정 제안 적용 확인 중 — 편집 잠김' : saveLabel(save)}</span>
+        <span role="status" data-testid="save-status" className={`save-status ${unsaved || applying ? 'unsaved' : 'saved'}`}>{applying ? '수정 제안 적용 확인 중 — 편집 잠김' : tabId === null ? '준비 중… 곧 편집할 수 있습니다' : saveLabel(save)}</span>
       </div>
       {problems.length > 0 && <ul role="alert" className="error">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
       <SelectionChat editor={editor} documentId={info.document.id} baseRevisionId={save.headRevisionId} canRequest={save.status === 'saved' && !locked} outlineApproved={outlineApproved} onRequest={sendSelection} onComment={sendComment} />

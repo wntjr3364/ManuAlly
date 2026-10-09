@@ -28,9 +28,7 @@ for (const vp of [{ width: 1366, height: 768 }, { width: 1920, height: 1080 }]) 
     await page.keyboard.type('It was very very clear at 2.4-fold.');
     await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
     // select "very very clear" with the keyboard
-    await page.keyboard.press('End');
-    for (let i = 0; i < ' at 2.4-fold.'.length; i++) await page.keyboard.press('ArrowLeft');
-    for (let i = 0; i < 'very very clear'.length; i++) await page.keyboard.press('Shift+ArrowLeft');
+    await selectFromEnd(page, ' at 2.4-fold.'.length, 'very very clear'.length, 'very very clear');
     await expect(page.getByTestId('selection-toolbar')).toBeVisible();
     await onScreen(page, 'selection-toolbar');
     // Ctrl+Shift+K moves to the toolbar; Tab to "간결화"; Enter opens the popup with focus in the box
@@ -204,8 +202,11 @@ test('TST-022B: background reloads (window focus) do not touch the editor while 
     ed.on('transaction', () => { w.__tr++; });
   });
   // the references and comments panels reload on focus; with nothing changed they must not dispatch
+  // the reload really happens (the references panel asks the server again)…
+  const reloaded = page.waitForRequest((r) => /\/api\/papers\/[^/]+\/references$/.test(r.url()));
   await page.evaluate(() => { window.dispatchEvent(new Event('focus')); });
-  await page.waitForTimeout(1500);
+  await reloaded;
+  await page.waitForTimeout(1000);
   expect(await page.evaluate(() => (window as unknown as { __tr: number }).__tr)).toBe(0);
 });
 
@@ -226,4 +227,18 @@ test('TST-022B: an autosave (new stored head) does not make the comments layer d
   await page.waitForTimeout(1000); // the panels reload for the new head
   const metas = await page.evaluate(() => (window as unknown as { __metas: string[] }).__metas);
   expect(metas.filter((m) => /CommentHighlights|ReferenceLabels/i.test(m))).toEqual([]);
+});
+
+test('TST-022B: selecting with the keyboard right after the page loads keeps every keystroke', async ({ page }) => {
+  await newManuscript(page, h, 'Reload select paper');
+  await editor(page).click();
+  await page.keyboard.type('It was very very clear. Indeed.');
+  await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
+  for (let i = 0; i < 3; i++) {
+    await page.reload();
+    await tab(page, '원고');
+    await expect(editor(page)).toHaveText('It was very very clear. Indeed.');
+    // no wait, no pacing: the selection starts as soon as the text is on screen
+    await selectFromEnd(page, ' Indeed.'.length + 1, 'very very clear'.length, 'very very clear');
+  }
 });

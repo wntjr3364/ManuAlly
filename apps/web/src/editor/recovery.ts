@@ -210,8 +210,20 @@ export const recoveryEndedForPage = () => pageLoggedOut;
 
 // The signed-in account, set by the app shell; the editor stores drafts under it.
 let currentOwner: string | null = null;
-export const setRecoveryOwner = (ownerId: string | null) => { currentOwner = pageLoggedOut ? null : ownerId; };
-export const recoveryOwner = () => currentOwner;
+let ownerSince = 0; // when this page got its owner (page load or sign-in)
+export const setRecoveryOwner = (ownerId: string | null) => {
+  if (ownerId !== currentOwner) ownerSince = Date.now();
+  currentOwner = pageLoggedOut ? null : ownerId;
+};
+// Checked on every use, not only through the storage event: a background tab may handle a click or
+// keystrokes before the queued event arrives, and must not write a copy after a logout elsewhere (PW-022).
+export const recoveryOwner = () => {
+  if (currentOwner) {
+    const loggedOutAt = Number(attempt(() => browserStorage()?.getItem(LOGOUT_KEY) ?? 0, 0));
+    if (loggedOutAt > ownerSince) endRecoveryForPage();
+  }
+  return currentOwner;
+};
 
 // browser storage, or null where none is available
 export const browserStorage = (): Storage | null => attempt(() => window.localStorage, null);

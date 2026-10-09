@@ -96,3 +96,7 @@ User decision / reviewer:
   - 리뷰 반영: `apps/api/src/imports/index.ts`(route body 한도), `db/migrations/pw_021_0002_review_fixes.sql`(원본 bytes)
 - PW-022
   - `apps/web/src/features/references/reference-labels.ts`, `apps/web/src/features/comments/comment-highlights.ts`: 바뀐 것이 없으면 편집기 transaction을 보내지 않는다(gate가 찾은 결함: 배경 재로딩이 선택 중 키 입력을 잃게 함)
+  - 리뷰 반영
+    - `apps/web/src/editor/ManuscriptEditor.tsx`: `useEditor`에 실제 편집 가능 값을 주고, 값이 바뀔 때만 `setEditable`, 탭 id 확보 전 "준비 중" 표시
+    - `apps/web/src/editor/recovery.ts`: 쓸 때마다 다른 탭의 로그아웃 시각 확인
+    - `tests/tasks/PW-015/editor.e2e.ts`: helper가 편집 가능해질 때를 기다림

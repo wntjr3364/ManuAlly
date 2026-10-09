@@ -34,10 +34,13 @@ export async function newManuscript(page: Page, h: Harness, title: string) {
 // selects `length` characters ending `fromEnd` characters before the end of the first paragraph,
 // with the keyboard only (an emoji or an atom is one step, as for a user)
 export async function selectFromEnd(page: Page, fromEnd: number, length: number, expected?: string) {
+  // the editor takes keys once it is editable (shortly after load, when this tab's id is claimed)
+  await expect(editor(page)).toHaveAttribute('contenteditable', 'true');
   await editor(page).locator('p').first().click();
-  // keys at a fast typist's pace (25 ms apart); back-to-back synthetic keys can outrun the browser's
-  // selection updates in a busy page (see REPORT: two-tab case)
-  const key = async (k: string) => { await page.keyboard.press(k); await page.waitForTimeout(25); };
+  // keys at OS key-repeat speed (30 ms, i.e. holding Shift+Arrow down). Bursts well below that (~1 ms
+  // apart, automation only) can lose steps right after load: ProseMirror applies a selection change it
+  // read earlier and writes that older caret back (see PW-022 REPORT)
+  const key = async (k: string) => { await page.keyboard.press(k); await page.waitForTimeout(30); };
   await key('End');
   for (let i = 0; i < fromEnd; i++) await key('ArrowLeft');
   for (let i = 0; i < length; i++) await key('Shift+ArrowLeft');

@@ -27,6 +27,8 @@ async function newManuscript(page: Page, title: string) {
   await page.getByRole('tab', { name: '원고' }).click();
   await page.getByRole('button', { name: '원고 만들기' }).click();
   await expect(editor(page)).toBeVisible();
+  // typing is possible once the editor is editable ("준비 중…" until this tab's id is claimed)
+  await expect(editor(page)).toHaveAttribute('contenteditable', 'true');
   const paperId = new URL(page.url()).pathname.split('/')[2]!;
   const { rows } = await h.pool.query("SELECT id FROM documents WHERE paper_id = $1 AND kind = 'manuscript'", [paperId]);
   return { paperId, documentId: rows[0].id as string };

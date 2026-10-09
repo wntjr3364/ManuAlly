@@ -2,7 +2,7 @@
 // The same file is executed in Node (server) and, transpiled, in Chromium (browser); TST-012A
 // compares the two outputs for exact equality.
 import type * as EditorCore from '../../../packages/editor-core/src/index.ts';
-import { BOUNDARIES, REPLACEMENTS, SELECTIONS, manuscript } from './fixtures.ts';
+import { BOUNDARIES, ID, REPLACEMENTS, SELECTIONS, manuscript } from './fixtures.ts';
 
 type Core = typeof EditorCore;
 
@@ -11,7 +11,7 @@ export async function fixtureReport(core: Core) {
   if (!v.ok) return { valid: false, errors: v.errors };
   const doc = v.doc;
   const blocks: Record<string, { hash: string; boundaries: number[] | null }> = {};
-  for (const id of Object.keys(BOUNDARIES)) {
+  for (const id of [...Object.keys(BOUNDARIES), ID.table]) {
     const { node } = core.findBlock(doc, id);
     blocks[id] = { hash: await core.blockHash(node), boundaries: node.isTextblock ? core.graphemeBoundaries(node) : null };
   }

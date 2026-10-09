@@ -3,6 +3,7 @@
 // so both see the same result. preserve_atom re-uses an atom of the original selection by index,
 // which is the only way a proposal can keep inline math or figure references (RFC-005).
 import { Fragment, type Node as PMNode } from 'prosemirror-model';
+import { goodText } from './document.ts';
 import { MARK_TYPES, schema } from './schema.ts';
 
 export type ReplacementItem =
@@ -11,14 +12,15 @@ export type ReplacementItem =
   | { type: 'preserve_atom'; atom_index: number };
 
 export class ReplacementError extends Error {
-  constructor(public readonly code: 'INVALID_REPLACEMENT', message: string) {
-    super(`${code}: ${message}`);
+  readonly code = 'INVALID_REPLACEMENT' as const;
+  constructor(message: string) {
+    super(`INVALID_REPLACEMENT: ${message}`);
   }
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
-const fail = (m: string) => new ReplacementError('INVALID_REPLACEMENT', m);
+const MAX_TEXT = 100_000;
+const fail = (m: string) => new ReplacementError(m);
 
 // selectionAtoms: the atom nodes inside the selected range, in document order
 export function buildReplacement(replacement: unknown, selectionAtoms: PMNode[]): PMNode[] {
@@ -31,9 +33,10 @@ export function buildReplacement(replacement: unknown, selectionAtoms: PMNode[])
     const allow = (ks: string[]) => { for (const k of keys) if (!ks.includes(k)) throw fail(`item ${i}: unknown field ${k}`); };
     if (item.type === 'text') {
       allow(['type', 'text', 'marks']);
-      if (typeof item.text !== 'string' || !item.text || item.text.includes('\u0000') || LONE_SURROGATE.test(item.text)) throw fail(`item ${i}: text must be non-empty valid text`);
+      if (!goodText(item.text, MAX_TEXT)) throw fail(`item ${i}: text must be 1–${MAX_TEXT} characters of valid text`);
       const marks = item.marks ?? [];
       if (!Array.isArray(marks) || new Set(marks).size !== marks.length) throw fail(`item ${i}: marks must be a list without repeats`);
+      if (marks.includes('subscript') && marks.includes('superscript')) throw fail(`item ${i}: text cannot be both subscript and superscript`);
       return schema.text(item.text, marks.map((m) => {
         if (!(MARK_TYPES as readonly unknown[]).includes(m)) throw fail(`item ${i}: unknown mark ${JSON.stringify(m)}`);
         return schema.marks[m as string]!.create();
@@ -42,7 +45,7 @@ export function buildReplacement(replacement: unknown, selectionAtoms: PMNode[])
     if (item.type === 'citation') {
       allow(['type', 'reference_id', 'locator']);
       if (typeof item.reference_id !== 'string' || !UUID.test(item.reference_id)) throw fail(`item ${i}: citation needs a reference_id UUID`);
-      if (item.locator !== undefined && item.locator !== null && (typeof item.locator !== 'string' || !item.locator || item.locator.length > 200)) throw fail(`item ${i}: locator must be short text or null`);
+      if (item.locator !== undefined && item.locator !== null && (!goodText(item.locator, 200) || !(item.locator as string).trim())) throw fail(`item ${i}: locator must be short valid text or null`);
       return schema.nodes.citation!.create({ referenceId: item.reference_id, locator: item.locator ?? null });
     }
     if (item.type === 'preserve_atom') {
@@ -56,9 +59,16 @@ export function buildReplacement(replacement: unknown, selectionAtoms: PMNode[])
     }
     throw fail(`item ${i}: unsupported type ${JSON.stringify(item.type)}`);
   });
-  // normalise the way ProseMirror does (adjacent text runs with equal marks are joined)
+  // normalise the way ProseMirror does (adjacent text runs with equal marks are joined) and check
+  // the result as paragraph content, so nothing is built that validateDocument would refuse
+  const fragment = Fragment.fromArray(nodes);
+  try {
+    schema.nodes.paragraph!.create({ id: null }, fragment).check();
+  } catch (e) {
+    throw fail(`not valid paragraph content: ${e instanceof Error ? e.message : String(e)}`);
+  }
   const out: PMNode[] = [];
-  Fragment.fromArray(nodes).forEach((n) => out.push(n));
+  fragment.forEach((n) => out.push(n));
   return out;
 }
 

@@ -72,3 +72,31 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-012
 
 ## 다음 Task
 PW-013 DB job/outbox/audit(리뷰 후).
+
+## 독립 리뷰 결과 반영 (2026-10-09)
+- 결론: changes requested(major 2, minor 11). 모두 수정했다.
+- 회귀 시험: `tests/tasks/PW-012/review-fixes.test.ts` 20건
+  - 수정 전 17건 실패(`review-red.log`)
+  - 3건은 이미 맞게 동작하던 경로의 보강이다.
+  - 처음 작성한 대문자 UUID 시험은 숫자만 있는 UUID를 써서 의미가 없었다. 문자가 섞인 UUID로 고쳤다.
+
+| 지적 | 조치 |
+|---|---|
+| **M1** attrs가 없는 citation/math/figure_ref가 null 속성으로 통과 | atom은 attrs가 없으면 빈 객체로 검사한다 → INVALID_ATTR |
+| **M2** buildReplacement가 validateDocument가 거부할 노드를 만듦 | 결과를 paragraph 내용으로 `.check()`하고 문서와 같은 텍스트 규칙을 적용한다. 막는 항목: 아래첨자와 위첨자 동시 적용, NUL·짝 없는 surrogate·공백뿐인 locator, U+FFFC, 100,000자 초과. 계약 schema도 아래첨자+위첨자 동시 적용을 거부. 성공한 replacement가 모두 문서 검증을 통과하는지 시험 |
+| 1 `--experimental-strip-types`에서 로드 실패 | parameter property를 명시 필드로 바꿨다. node로 직접 로드하는 시험 추가 |
+| 2 atom 옆 결합문자가 경계를 흡수 | atom을 경계로 고정하고, atom 사이 텍스트 묶음(서식이 달라도 이어서)을 따로 분할 |
+| 3 텍스트 속 U+FFFC가 quote에서 사라짐 | 텍스트에서 U+FFFC 거부(문서·replacement) |
+| 4/5 doc·block·atom에 mark, text에 content | mark는 텍스트에만 허용, text·atom의 content 거부 |
+| 6 계약의 UUID가 editor-core보다 느슨 | 모든 uuid 필드에 소문자 정규 pattern |
+| 7 `missing` 규칙 | 1개 이상, 빈 문자열 금지, needs_evidence일 때만 허용. 빈 replacement는 양쪽 모두 "선택 삭제"로 허용하고 README에 명시 |
+| 8 `findBlock(null)`이 id 없는 block을 찾음 | UUID가 아니면 BLOCK_ID_INVALID |
+| 9 migrateDocument가 결과를 검증하지 않음 | 현재 버전으로 변환한 결과는 검증 후 반환 |
+| 10 배열 속 undefined로 잘못된 JSON 생성 | null로 직렬화 |
+| 11 table block hash가 browser 비교에서 빠짐, 보고서의 "10개" 부정확 | table을 비교 대상에 넣었다. 이제 block hash 10개와 문서 hash를 비교한다 |
+
+- 실행
+  - PW-012: unit 41/41, Chromium parity 1/1, contracts 13/13(`green.log`)
+  - `pnpm test` exit 0: unit 50, integration 112, contracts 13, e2e 1, spikes 70, evals/pack PASS
+  - 이 수치에는 작업 중인 PW-013(미커밋)이 포함되어 있다.
+- 남은 위험: `crypto.subtle`은 브라우저에서 secure context(https 또는 localhost)가 필요하다. 연구실 서버를 http로 원격 접속하면 hash가 동작하지 않는다. 배포 때 https 또는 SSH 터널을 써야 한다(PW-061/P07에 기록).

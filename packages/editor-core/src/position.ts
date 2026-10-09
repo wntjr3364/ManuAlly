@@ -10,12 +10,14 @@ import type { Node as PMNode } from 'prosemirror-model';
 import { canonicalJson, sha256Hex } from './hash.ts';
 
 export type SelectionErrorCode =
-  | 'BLOCK_NOT_FOUND' | 'BLOCK_ID_DUPLICATE' | 'NOT_TEXTBLOCK' | 'RANGE_OUT_OF_BOUNDS' | 'RANGE_INVERTED' | 'EMPTY_SELECTION'
+  | 'BLOCK_ID_INVALID' | 'BLOCK_NOT_FOUND' | 'BLOCK_ID_DUPLICATE' | 'NOT_TEXTBLOCK' | 'RANGE_OUT_OF_BOUNDS' | 'RANGE_INVERTED' | 'EMPTY_SELECTION'
   | 'SPLITS_SURROGATE_PAIR' | 'SPLITS_GRAPHEME';
 
 export class SelectionError extends Error {
-  constructor(public readonly code: SelectionErrorCode, message: string) {
+  readonly code: SelectionErrorCode;
+  constructor(code: SelectionErrorCode, message: string) {
     super(`${code}: ${message}`);
+    this.code = code;
   }
 }
 
@@ -24,7 +26,10 @@ const ATOM_CHAR = '￼';
 // Grapheme segmentation is locale-independent; a fixed locale keeps browser and server identical.
 const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
 export function findBlock(doc: PMNode, blockId: string): { node: PMNode; pos: number } {
+  if (typeof blockId !== 'string' || !UUID.test(blockId)) throw new SelectionError('BLOCK_ID_INVALID', 'blocks are addressed by their lowercase UUID');
   const hits: { node: PMNode; pos: number }[] = [];
   doc.forEach((node, offset) => { if (node.attrs.id === blockId) hits.push({ node, pos: offset }); });
   if (hits.length === 0) throw new SelectionError('BLOCK_NOT_FOUND', `no block with id ${blockId}`);
@@ -38,11 +43,30 @@ function flatten(node: PMNode): string {
   return flat;
 }
 
-// All positions in a textblock where a selection may start or end.
+// All positions in a textblock where a selection may start or end. Inline atoms are hard
+// boundaries; each run of text between atoms (across mark changes) is segmented on its own.
 export function graphemeBoundaries(node: PMNode): number[] {
-  const flat = flatten(node);
-  const set = new Set([flat.length]);
-  for (const { index } of segmenter.segment(flat)) set.add(index);
+  const set = new Set<number>([0, node.content.size]);
+  let pos = 0;
+  let run = '';
+  let runStart = 0;
+  const flush = () => {
+    for (const { index } of segmenter.segment(run)) set.add(runStart + index);
+    run = '';
+  };
+  node.forEach((child) => {
+    if (child.isText) {
+      if (!run) runStart = pos;
+      run += child.text!;
+      pos += child.text!.length;
+    } else {
+      flush();
+      set.add(pos);
+      pos += 1;
+      set.add(pos);
+    }
+  });
+  flush();
   return [...set].sort((a, b) => a - b);
 }
 

@@ -15,7 +15,9 @@ describe('TST-012A: positions follow the contract on hand-checked fixtures', () 
     expect(r.valid, JSON.stringify(r)).toBe(true);
     if (!r.valid || !r.blocks) throw new Error('invalid fixture');
     for (const [id, expected] of Object.entries(BOUNDARIES)) expect(r.blocks[id]!.boundaries, id).toEqual(expected);
-    expect(r.blocks[ID.table]?.boundaries ?? null).toBeNull();
+    expect(r.blocks[ID.table], 'table block is hashed too').toBeDefined();
+    expect(r.blocks[ID.table]!.boundaries).toBeNull();
+    expect(r.blocks[ID.table]!.hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
   test('selections give the expected quote and atoms, or the expected refusal', async () => {

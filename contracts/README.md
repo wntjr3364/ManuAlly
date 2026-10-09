@@ -25,3 +25,6 @@ P01 이후 추가할 주요 계약: PaperSnapshot, OutlineApprovalRequest, FactR
 - **Document JSON** is validated by `validateDocument(json, schema_version)`.
   - Refused: unknown nodes or marks, raw HTML, unknown fields/attributes, missing or duplicate block ids.
   - A different `schema_version` is not read. It needs an explicit `migrateDocument` (none exist yet for version 1).
+- UUIDs in these contracts are lowercase canonical (`pattern` alongside `format: uuid`), exactly as editor-core requires.
+- An empty `replacement` deletes the selected range, in both `ai_replacement` and `edit_proposal`.
+- `missing` appears only with `needs_evidence`, and must name at least one thing.

@@ -1,0 +1,226 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-012/review-fixes.test.ts (20 tests | 17 failed) 205ms
+   ❯ review M1: inline atoms need their attributes (3)
+     × citation without attrs is refused 8ms
+     × math_inline without attrs is refused 1ms
+     × figure_ref without attrs is refused 1ms
+   ❯ review M2: every replacement editor-core builds is a valid document fragment (9)
+     × subscript + superscript is refused 4ms
+     × NUL in locator is refused 1ms
+     × lone surrogate in locator is refused 1ms
+     × blank locator is refused 1ms
+     × object replacement character in text is refused 1ms
+     × very long text is refused 1ms
+     × the model-output contract refuses subscript + superscript and non-canonical UUIDs 57ms
+   ❯ review minors (8)
+     × 1: editor-core loads under node --experimental-strip-types (the API dev runtime) 117ms
+     × 2: inline atoms are hard boundaries, whatever text is next to them 2ms
+     × 3: U+FFFC (the atom placeholder) cannot appear in text 1ms
+     × 4/5: marks only on text; text and atoms have no content 1ms
+     × 8: blocks are found only by a UUID 4ms
+     × 9: migrateDocument validates what it returns 1ms
+     × 10: canonical JSON stays valid JSON for sparse arrays 1ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 17 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M1: inline atoms need their attributes > citation without attrs is refused
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M1: inline atoms need their attributes > math_inline without attrs is refused
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M1: inline atoms need their attributes > figure_ref without attrs is refused
+AssertionError: expected [] to include 'INVALID_ATTR'
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:18:74
+     16| describe('review M1: inline atoms need their attributes', () => {
+     17|   test.each(['citation', 'math_inline', 'figure_ref'])('%s without att…
+     18|     expect(codes(core.validateDocument(doc(para(t('a'), { type })), V)…
+       |                                                                          ^
+     19|   });
+     20| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M2: every replacement editor-core builds is a valid document fragment > subscript + superscript is refused
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M2: every replacement editor-core builds is a valid document fragment > NUL in locator is refused
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M2: every replacement editor-core builds is a valid document fragment > lone surrogate in locator is refused
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M2: every replacement editor-core builds is a valid document fragment > blank locator is refused
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M2: every replacement editor-core builds is a valid document fragment > object replacement character in text is refused
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M2: every replacement editor-core builds is a valid document fragment > very long text is refused
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:33:87
+     31|     ['uppercase reference id', [{ type: 'citation', reference_id: LETT…
+     32|   ])('%s is refused', (_n, replacement) => {
+     33|     expect(() => core.buildReplacement(replacement, core.atomNodesIn(b…
+       |                                                                                       ^
+     34|   });
+     35|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review M2: every replacement editor-core builds is a valid document fragment > the model-output contract refuses subscript + superscript and non-canonical UUIDs
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:48:132
+     46|   test('the model-output contract refuses subscript + superscript and …
+     47|     const base = { schema_version: 1, selection_handle_id: '00000000-0…
+     48|     expect(validateAiReplacement({ ...base, replacement: [{ type: 'tex…
+       |                                                                                                                                    ^
+     49|     for (const id of [LETTERS.toUpperCase(), `urn:uuid:${LETTERS}`, '0…
+     50|       expect(validateAiReplacement({ ...base, replacement: [{ type: 'c…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/17]⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review minors > 1: editor-core loads under node --experimental-strip-types (the API dev runtime)
+AssertionError: expected 'node:internal/process/promises:394\n …' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ node:internal/process/promises:394
++     triggerUncaughtException(err, true /* fromPromise */);
++     ^
++
++ file:///home/user/ManuAlly/packages/editor-core/src/document.ts:18
++ export class DocumentValidationError extends Error {
++   constructor(public readonly errors: DocumentError[]) {
++                               ^^^^^^^^^^^^^^^^^^^^^^^
++     super(errors.map((e) => `${e.code} at ${e.path}: ${e.message}`).join('; '));
++
++ SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode
++     at parseTypeScript (node:internal/modules/typescript:63:40)
++     at processTypeScriptCode (node:internal/modules/typescript:133:42)
++     at stripTypeScriptModuleTypes (node:internal/modules/typescript:163:10)
++     at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:605:16)
++     at #translate (node:internal/modules/esm/loader:546:20)
++     at afterLoad (node:internal/modules/esm/loader:596:29)
++     at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:601:12)
++     at #createModuleJob (node:internal/modules/esm/loader:624:36)
++     at #getJobFromResolveResult (node:internal/modules/esm/loader:343:34)
++     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:311:41) {
++   code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'
++ }
++
++ Node.js v22.22.0
++
+
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:59:22
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/17]⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review minors > 2: inline atoms are hard boundaries, whatever text is next to them
+AssertionError: expected [ +0, 1, 3, 4 ] to deeply equal [ +0, 1, 2, 3, 4 ]
+
+- Expected
++ Received
+
+  [
+    0,
+    1,
+-   2,
+    3,
+    4,
+  ]
+
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:65:71
+     63|   test('2: inline atoms are hard boundaries, whatever text is next to …
+     64|     const d = core.parseDocument(doc(para(t('a'), { type: 'citation', …
+     65|     expect(core.graphemeBoundaries(core.findBlock(d, ID.plain).node)).…
+       |                                                                       ^
+     66|     const d2 = core.parseDocument(doc(para(t('a؀'), { type: 'citation'…
+     67|     expect(core.graphemeBoundaries(core.findBlock(d2, ID.plain).node))…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/17]⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review minors > 3: U+FFFC (the atom placeholder) cannot appear in text
+AssertionError: expected [] to include 'INVALID_TEXT'
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:76:66
+     74|
+     75|   test('3: U+FFFC (the atom placeholder) cannot appear in text', () =>…
+     76|     expect(codes(core.validateDocument(doc(para(t('a￼b'))), V))).toCon…
+       |                                                                  ^
+     77|   });
+     78|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/17]⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review minors > 4/5: marks only on text; text and atoms have no content
+AssertionError: expected [] to include 'UNKNOWN_MARK'
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:80:98
+     78|
+     79|   test('4/5: marks only on text; text and atoms have no content', () =…
+     80|     expect(codes(core.validateDocument({ ...doc(para(t('a'))), marks: …
+       |                                                                                                  ^
+     81|     expect(codes(core.validateDocument(doc({ ...para(t('a')), marks: […
+     82|     expect(codes(core.validateDocument(doc(para({ type: 'citation', at…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/17]⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review minors > 8: blocks are found only by a UUID
+AssertionError: null: expected [Function] to throw error matching /BLOCK_ID_INVALID/ but got 'BLOCK_NOT_FOUND: no block with id null'
+
+- Expected:
+/BLOCK_ID_INVALID/
+
++ Received:
+"BLOCK_NOT_FOUND: no block with id null"
+
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:89:76
+     87|     const d = core.parseDocument(manuscript, V);
+     88|     for (const id of [null, undefined, '', 'not-a-uuid']) {
+     89|       expect(() => core.findBlock(d, id as unknown as string), String(…
+       |                                                                            ^
+     90|     }
+     91|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/17]⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review minors > 9: migrateDocument validates what it returns
+AssertionError: expected [Function] to throw an error
+
+- Expected:
+null
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:94:61
+     92|
+     93|   test('9: migrateDocument validates what it returns', () => {
+     94|     expect(() => core.migrateDocument({ type: 'evil' }, V)).toThrow(/N…
+       |                                                             ^
+     95|   });
+     96|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/17]⎯
+
+ FAIL  tests/tasks/PW-012/review-fixes.test.ts > review minors > 10: canonical JSON stays valid JSON for sparse arrays
+SyntaxError: Unexpected token ',', "[1,,null,]" is not valid JSON
+ ❯ tests/tasks/PW-012/review-fixes.test.ts:99:17
+     97|   test('10: canonical JSON stays valid JSON for sparse arrays', () => {
+     98|     // eslint-disable-next-line no-sparse-arrays
+     99|     expect(JSON.parse(core.canonicalJson([1, , null, undefined]))).toE…
+       |                 ^
+    100|   });
+    101| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/17]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  17 failed | 3 passed (20)
+   Start at  01:57:18
+   Duration  767ms (tests 42%, transform 41%, import 17%, worker 1%)
+

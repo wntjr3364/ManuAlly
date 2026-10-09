@@ -1,7 +1,8 @@
 // Canonical JSON (sorted keys, undefined dropped) and SHA-256 through WebCrypto, which Node and
 // browsers both provide, so a hash taken in the browser equals the one the server checks.
 export function canonicalJson(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(',')}]`;
+  // JSON has no undefined inside arrays (or holes): they become null, as JSON.stringify does
+  if (Array.isArray(v)) return `[${Array.from(v, (x) => (x === undefined ? 'null' : canonicalJson(x))).join(',')}]`;
   if (v && typeof v === 'object') {
     const o = v as Record<string, unknown>;
     return `{${Object.keys(o).sort().filter((k) => o[k] !== undefined).map((k) => `${JSON.stringify(k)}:${canonicalJson(o[k])}`).join(',')}}`;

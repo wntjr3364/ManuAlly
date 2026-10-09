@@ -14,9 +14,12 @@ export type DocumentErrorCode =
 export interface DocumentError { code: DocumentErrorCode; path: string; message: string }
 export type ValidationResult = { ok: true; doc: PMNode } | { ok: false; errors: DocumentError[] };
 
+// explicit fields (no parameter properties): this file must load under node --experimental-strip-types
 export class DocumentValidationError extends Error {
-  constructor(public readonly errors: DocumentError[]) {
+  readonly errors: DocumentError[];
+  constructor(errors: DocumentError[]) {
     super(errors.map((e) => `${e.code} at ${e.path}: ${e.message}`).join('; '));
+    this.errors = errors;
   }
 }
 
@@ -28,9 +31,13 @@ const NODE_FIELDS = ['type', 'attrs', 'content', 'text', 'marks'];
 
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
-const goodText = (s: unknown, max: number) => typeof s === 'string' && s.length > 0 && s.length <= max && !s.includes('\u0000') && !LONE_SURROGATE.test(s);
+// U+FFFC is the position engine's atom placeholder, so it cannot appear in text
+export const goodText = (s: unknown, max: number): s is string => typeof s === 'string' && s.length > 0 && s.length <= max && !s.includes('\u0000') && !s.includes('\uFFFC') && !LONE_SURROGATE.test(s);
 
-function checkAttrs(type: string, attrs: unknown, path: string, errors: DocumentError[]) {
+function checkAttrs(type: string, rawAttrs: unknown, path: string, errors: DocumentError[]) {
+  // atoms have required attributes: a missing attrs object is checked as an empty one (ProseMirror
+  // would otherwise fill the required attributes with null)
+  const attrs = rawAttrs === undefined && (ATOM_TYPES as readonly string[]).includes(type) ? {} : rawAttrs;
   if (attrs === undefined) return;
   if (!isObj(attrs)) {
     errors.push({ code: 'INVALID_ATTR', path: `${path}.attrs`, message: 'attrs must be an object' });
@@ -71,7 +78,9 @@ function walk(v: unknown, path: string, depth: number, errors: DocumentError[], 
   } else if (v.text !== undefined) {
     errors.push({ code: 'UNKNOWN_FIELD', path: `${path}.text`, message: `${type} has no text field` });
   }
-  if (v.marks !== undefined) {
+  if (v.marks !== undefined && type !== 'text') {
+    errors.push({ code: 'UNKNOWN_MARK', path: `${path}.marks`, message: 'marks are allowed on text only' });
+  } else if (v.marks !== undefined) {
     if (!Array.isArray(v.marks)) errors.push({ code: 'UNKNOWN_MARK', path: `${path}.marks`, message: 'marks must be a list' });
     else v.marks.forEach((m, i) => {
       if (!isObj(m) || typeof m.type !== 'string' || !schema.marks[m.type]) errors.push({ code: 'UNKNOWN_MARK', path: `${path}.marks[${i}]`, message: `unknown mark ${JSON.stringify(isObj(m) ? m.type : m)}` });
@@ -87,9 +96,9 @@ function walk(v: unknown, path: string, depth: number, errors: DocumentError[], 
   }
   if (v.content !== undefined) {
     if (!Array.isArray(v.content)) errors.push({ code: 'NOT_A_DOCUMENT', path: `${path}.content`, message: 'content must be a list' });
-    else v.content.forEach((c, i) => walk(c, `${path}.content[${i}]`, depth + 1, errors, ids, type === 'doc'));
+    else if (type !== 'text' && !(ATOM_TYPES as readonly string[]).includes(type)) v.content.forEach((c, i) => walk(c, `${path}.content[${i}]`, depth + 1, errors, ids, type === 'doc'));
   }
-  if ((ATOM_TYPES as readonly string[]).includes(type) && v.content !== undefined) errors.push({ code: 'INVALID_STRUCTURE', path: `${path}.content`, message: `${type} is an atom and has no content` });
+  if ((type === 'text' || (ATOM_TYPES as readonly string[]).includes(type)) && v.content !== undefined) errors.push({ code: 'INVALID_STRUCTURE', path: `${path}.content`, message: `${type} has no content` });
 }
 
 export function validateDocument(json: unknown, schemaVersion: unknown): ValidationResult {
@@ -130,12 +139,13 @@ function hasMigration(from: number, to: number): boolean {
   return true;
 }
 
+// The result is validated at the target version; an invalid input or migration output throws.
 export function migrateDocument(json: unknown, from: number, to: number = EDITOR_SCHEMA_VERSION): { json: Json; schema_version: number } {
-  if (from === to && isObj(json)) return { json, schema_version: to };
-  if (!hasMigration(from, to)) {
+  if (from !== to && !hasMigration(from, to)) {
     throw new DocumentValidationError([{ code: 'MIGRATION_NOT_AVAILABLE', path: 'schema_version', message: `no migration from document schema ${from} to ${to}` }]);
   }
   let out = json as Json;
   for (let v = from; v < to; v++) out = MIGRATIONS[v]!(out);
+  if (to === EDITOR_SCHEMA_VERSION) parseDocument(out, to);
   return { json: out, schema_version: to };
 }

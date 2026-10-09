@@ -15,7 +15,8 @@
     },
     "selection_handle_id": {
       "type": "string",
-      "format": "uuid"
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
     "outcome": {
       "enum": [
@@ -26,7 +27,7 @@
     },
     "replacement": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
       "maxItems": 500,
       "items": {
         "oneOf": [
@@ -42,7 +43,8 @@
               },
               "text": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 100000
               },
               "marks": {
                 "type": "array",
@@ -55,7 +57,21 @@
                     "superscript"
                   ]
                 },
-                "uniqueItems": true
+                "uniqueItems": true,
+                "not": {
+                  "allOf": [
+                    {
+                      "contains": {
+                        "const": "subscript"
+                      }
+                    },
+                    {
+                      "contains": {
+                        "const": "superscript"
+                      }
+                    }
+                  ]
+                }
               }
             },
             "additionalProperties": false
@@ -72,7 +88,8 @@
               },
               "reference_id": {
                 "type": "string",
-                "format": "uuid"
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
               },
               "locator": {
                 "type": [
@@ -107,11 +124,14 @@
     },
     "missing": {
       "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
       "items": {
         "type": "string",
-        "maxLength": 500
-      },
-      "maxItems": 50
+        "minLength": 1,
+        "maxLength": 500,
+        "pattern": "\\S"
+      }
     },
     "explanation": {
       "type": "string",
@@ -161,6 +181,16 @@
         "required": [
           "missing"
         ]
+      },
+      "else": {
+        "not": {
+          "properties": {
+            "missing": true
+          },
+          "required": [
+            "missing"
+          ]
+        }
       }
     }
   ],

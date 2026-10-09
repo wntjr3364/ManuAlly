@@ -1,0 +1,226 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-013/jobs.int.test.ts (14 tests | 14 failed) 702ms
+   ❯ TST-013A: a committed job reaches the queue after a restart, and one intent is one job (4)
+     × enqueue commits job + outbox; a fresh relay and worker after a "restart" deliver and run it 14ms
+     × the same intent (idempotency key) is registered once, also under concurrency; a different payload under the same key is refused 4ms
+     × an enqueue inside a caller's transaction disappears with it when the transaction rolls back 10ms
+     × unknown intents and malformed keys are refused 4ms
+   ❯ TST-013B: publish failures and duplicate messages lose nothing and change canonical state once (7)
+     × a failed publish keeps the message for a later attempt 3ms
+     × a crash after publishing but before marking re-publishes; the duplicate delivery does not apply twice 3ms
+     × concurrent deliveries of the same job: exactly one worker runs it 3ms
+     × a worker whose lease expired cannot commit (fencing token); the new owner commits once 2ms
+     × a failing canonical write rolls back with the completion; the job can be retried 3ms
+     × a cancelled job is not run when its message arrives 2ms
+     × a message whose paper or intent does not match the job is refused 4ms
+   ❯ audit: every job state change is recorded in the same transaction and cannot be edited (2)
+     × state transitions leave an append-only trail with the actor 2ms
+     × story approvals and evidence verification are audited too 6ms
+   ❯ jobs API (1)
+     × the owner lists, reads and cancels jobs; other owners see nothing 215ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 14 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013A: a committed job reaches the queue after a restart, and one intent is one job > enqueue commits job + outbox; a fresh relay and worker after a "restart" deliver and run it
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:54:36
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013A: a committed job reaches the queue after a restart, and one intent is one job > the same intent (idempotency key) is registered once, also under concurrency; a different payload under the same key is refused
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:73:71
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:73:45
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013A: a committed job reaches the queue after a restart, and one intent is one job > an enqueue inside a caller's transaction disappears with it when the transaction rolls back
+AssertionError: expected [Function] to throw error matching /canonical write failed/ but got 'not implemented'
+
+- Expected:
+/canonical write failed/
+
++ Received:
+"not implemented"
+
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:87:8
+     85|       await enqueueJob(tx, { paperId: p.id, ownerId, intent: 'draft_pa…
+     86|       throw new Error('canonical write failed');
+     87|     })).rejects.toThrow(/canonical write failed/);
+       |        ^
+     88|     const { rows } = await pool.query('SELECT count(*)::int AS n FROM …
+     89|     expect(rows[0].n).toBe(0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013A: a committed job reaches the queue after a restart, and one intent is one job > unknown intents and malformed keys are refused
+AssertionError: expected [Function] to throw error matching /intent/ but got 'not implemented'
+
+- Expected:
+/intent/
+
++ Received:
+"not implemented"
+
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:95:127
+     93|   test('unknown intents and malformed keys are refused', async () => {
+     94|     const p = await paper();
+     95|     await expect(enqueueJob(pool, { paperId: p.id, ownerId, intent: 'r…
+       |                                                                                                                               ^
+     96|     await expect(enqueueJob(pool, { paperId: p.id, ownerId, intent: 'd…
+     97|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013B: publish failures and duplicate messages lose nothing and change canonical state once > a failed publish keeps the message for a later attempt
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:103:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013B: publish failures and duplicate messages lose nothing and change canonical state once > a crash after publishing but before marking re-publishes; the duplicate delivery does not apply twice
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:124:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013B: publish failures and duplicate messages lose nothing and change canonical state once > concurrent deliveries of the same job: exactly one worker runs it
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:140:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013B: publish failures and duplicate messages lose nothing and change canonical state once > a worker whose lease expired cannot commit (fencing token); the new owner commits once
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:149:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013B: publish failures and duplicate messages lose nothing and change canonical state once > a failing canonical write rolls back with the completion; the job can be retried
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:163:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013B: publish failures and duplicate messages lose nothing and change canonical state once > a cancelled job is not run when its message arrives
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:172:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > TST-013B: publish failures and duplicate messages lose nothing and change canonical state once > a message whose paper or intent does not match the job is refused
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:182:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > audit: every job state change is recorded in the same transaction and cannot be edited > state transitions leave an append-only trail with the actor
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:193:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > audit: every job state change is recorded in the same transaction and cannot be edited > story approvals and evidence verification are audited too
+error: relation "audit_events" does not exist
+ ❯ node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.0/node_modules/pg-pool/index.js:45:11
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:211:20
+    209|     );
+    210|     await pool.query("UPDATE story_revisions SET status = 'IN_REVIEW' …
+    211|     const audit = (await pool.query("SELECT entity_type, from_state, t…
+       |                    ^
+    212|     expect(audit).toEqual([{ entity_type: 'story_revision', from_state…
+    213|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/14]⎯
+
+ FAIL  tests/tasks/PW-013/jobs.int.test.ts > jobs API > the owner lists, reads and cancels jobs; other owners see nothing
+Error: not implemented
+ ❯ todo packages/domain/src/jobs/index.ts:2:65
+      1| // PW-013 placeholder (RED run); implementation follows.
+      2| const todo = async (..._: unknown[]): Promise<never> => { throw new Er…
+       |                                                                 ^
+      3| export const enqueueJob = todo as (...a: unknown[]) => Promise<{ job: …
+      4| export const claimJob = todo as (...a: unknown[]) => Promise<{ fencing…
+ ❯ enqueue tests/tasks/PW-013/jobs.int.test.ts:46:3
+ ❯ tests/tasks/PW-013/jobs.int.test.ts:233:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/14]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  14 failed (14)
+   Start at  01:52:46
+   Duration  1.37s (tests 58%, transform 31%, import 11%)
+

@@ -66,3 +66,7 @@ PW-010 및 PW-009 리뷰 반영 시 추가 기록(2026-10-08):
   - RFC-005에 따라 `contracts/**`와 `examples/**`(edit_proposal v2, ai_replacement v1, manifest)를 갱신했다.
   - `tests/tasks/PW-007/...`가 아닌 PW-012 시험 폴더 안에 Chromium parity 시험을 `*.int.test.ts`로 두었다(integration 명령이 실행).
   - 저장 경로(`packages/domain/src/revisions`)에 문서 검증을 연결하는 일은 PW-014로 제안한다.
+- PW-013
+  - `apps/api/src/server.ts`: jobs route 등록
+  - `apps/worker/package.json`: pg-boss 12.34.0, pg 8.23.0, @pw/domain
+  - root `package.json`: `pnpm.overrides`로 pg-boss의 하위 의존성 두 개(rrule-temporal 2.2.6, serialize-error 13.0.1)를 14일 이상 지난 버전으로 고정(CLAUDE.md 버전 규칙). 새 직접 의존성은 ADR-008이 승인한 pg-boss뿐이다.

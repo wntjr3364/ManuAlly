@@ -426,7 +426,7 @@
       "id": "PW-013",
       "phase": "P01",
       "title": "DB job·outbox·audit 기반",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-012"
       ],

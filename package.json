@@ -32,5 +32,11 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",
     "vitest": "5.0.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "rrule-temporal": "2.2.6",
+      "serialize-error": "13.0.1"
+    }
   }
 }

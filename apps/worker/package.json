@@ -7,6 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@pw/providers": "workspace:*"
+    "@pw/domain": "workspace:*",
+    "@pw/providers": "workspace:*",
+    "pg": "8.23.0",
+    "pg-boss": "12.34.0"
   }
 }

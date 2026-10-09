@@ -9,7 +9,7 @@
   3. 원문 PDF는 보관 권리가 확인된 것만 열고 보낸다. 모르면 막는다(`keep_right_unknown`).
   4. Zotero는 읽기 전용 가져오기 원천이다. 정본은 서재(DB)다. 양방향 동기화는 없다.
   5. 민감 논문(`data_classification = 'sensitive'`)은 redaction 정책이 생기기 전까지 아무것도 외부로 보내지 않는다.
-- **P04 구현 완료.** PW-031~037 독립 리뷰 approve. PW-038은 리뷰 중이다(결과는 아래에 덧붙인다).
+- **P04 구현 완료.** PW-031~038 모두 독립 리뷰 approve. 위임에 따라 RFC-010 구현에 착수한다.
 
 ## 사용자가 직접 해야 하는 일 (위임할 수 없음)
 - 실제 Crossref·PubMed 계약 스크립트 실행(사용자 네트워크, 연락 email 설정). 이 컨테이너에서는 not_run.
@@ -26,7 +26,7 @@
 | PW-035 | PDF 추출·위치(anchor): 격리된 child, 메모리 상한, 낡은 위치 감지 | 통합 13, 브라우저 1, mutation 18 | 3차에 approve |
 | PW-036 | 그림 버전·근거 추적·검토 표시 | 통합 7, 브라우저 1, mutation 19 | 리뷰(MINOR 3)·재리뷰 approve |
 | PW-037 | 문단에 필요한 근거만 retrieval(원천 gate 상속, 민감 논문 차단) | 통합 12, mutation 22 | 리뷰(MAJOR: 전송 불가 원천의 사실 유출)·재리뷰 approve |
-| PW-038 | 참고문헌 가져오기(CSL-JSON, BibTeX, RIS, DOI 목록)·Zotero 읽기 전용 | 통합 15, 브라우저 1, mutation 26 | 리뷰(MAJOR: DOI 없는 항목이 키만으로 다른 문헌에 붙음)·재리뷰 중 |
+| PW-038 | 참고문헌 가져오기(CSL-JSON, BibTeX, RIS, DOI 목록)·Zotero 읽기 전용 | 통합 15, 브라우저 1, mutation 26 | 리뷰(MAJOR: DOI 없는 항목이 키만으로 다른 문헌에 붙음)·재리뷰 approve |
 
 최종 회귀 `pnpm test` exit 0: unit 278, integration 369, contracts 17, 브라우저 85 (`reports/tasks/PW-038/pnpm-test.log`).
 
@@ -35,7 +35,7 @@
 - **provider run이 아직 retrieval context를 쓰지 않는다.** RFC-010 구현과 P05 Writer(PW-042)에서 연결한다.
 - retrieval은 어휘 일치만 쓴다(의미 검색 없음). 근거 하나에라도 gate 사유가 있으면 주장도 보내지 않는다(보수적, PW-037 NIT).
 - PDF 위치는 글꼴 근사로 계산한다. 실제 논문 PDF는 시험하지 않았다. 파서의 network 격리는 RFC-010 sandbox와 함께 한다.
-- 바뀐 Zotero 항목은 알리기만 하고 채택하는 화면이 없다. DOI 없는 항목은 같은 원천·키·내용일 때만 같은 문헌이라, 고쳐서 다시 가져오면 새 문헌이 된다(잘못 합치지 않는 쪽).
+- 바뀐 Zotero 항목은 알리기만 하고 채택하는 화면이 없다. DOI 없는 항목은 같은 원천·키·내용일 때만 같은 문헌이라, 고쳐서 다시 가져오면 새 문헌이 된다(잘못 합치지 않는 쪽). Zotero에서 고친 항목도 다시 가져올 때마다 새 문헌이 되어 중복이 쌓일 수 있다.
 - 그림 파일은 아직 정책 route(전송·내려받기)를 거치지 않는다. 지금은 어디로도 보내지 않는다.
 - 브라우저 일회성 실패 2건(PW-015, PW-016)은 PROGRESS Open items에 열려 있다.
 - **P01~P03에서 넘어온 항목은 아직 열려 있다.** 실제 IME, Firefox/Safari, 배포, 실제 provider.

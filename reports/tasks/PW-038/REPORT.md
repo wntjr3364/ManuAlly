@@ -89,3 +89,7 @@ P04 gate 보고(`reports/phases/P04_GATE.md`), 그다음 RFC-010 구현(P05 전)
 - mutation(`mutation.log` 하단): 7종 모두 탐지(키만으로 찾기, 위치를 키로 쓰기, Zotero 범위 빼기, 경고 빼기, `library_title` 빼기, 화면의 서재 제목, 화면의 경고 문구).
 - 회귀: `pnpm test` exit 0 — unit 278, integration 373, contracts 17, 브라우저 85 (`pnpm-test-review.log`).
 - 남은 위험: DOI 없는 항목을 고쳐서(오타 수정) 다시 가져오면 새 문헌이 된다. 잘못 합치는 것보다 안전한 쪽이다. 같은 문헌 둘은 PW-032의 서재 화면에서 사용자가 정리한다.
+
+## 재리뷰
+- approve (4118c2e).
+- 남은 NIT(기록만): Zotero에서 고친 항목은 키가 같아도 내용이 달라 다시 가져올 때마다 새 문헌이 된다(경고와 함께). 잘못 붙이거나 덮어쓰지 않는 안전한 방향이다. 자주 다시 가져오면 중복이 쌓인다. 이후 "바뀐 Zotero 판 채택" 화면에서 한 문헌의 버전으로 잇는다.

@@ -97,5 +97,22 @@
   - `mutation.log` 아래쪽: 13종 모두 탐지했다. net namespace 제거, 허용 목록 무시, 사설 주소 허용, 평문 HTTP 통과, bwrap 전체 /dev, bwrap nested userns 허용, 홈 거부 목록 비움, 검증의 쓰기·탈출 무시, passwd 없음, symlink run 허용, loopback 미기동, host 모드 허용.
   - unit 18.
 
+## 재리뷰 반영 (2026-10-09)
+재리뷰 결론: 승인, minor 2·nit 3. MAJOR는 닫혔다고 확인했다(DNS rebinding·CONNECT smuggling 불가, forwarder는 도달 범위를 늘리지 않음).
+- MINOR-1: sandbox 안 프로그램이 socket 파일을 폴더로 바꾸면 proxy `close()`가 host 프로세스에서 예외를 던졌다. → socket일 때만 지우고, 예외를 삼킨다(폴더는 run 폴더와 함께 지워진다).
+- MINOR-2: 사설 주소 판정을 `net.BlockList`로 바꿨다.
+  - IANA 특수 용도 대역 전체(fe80::/10, 198.18/15, multicast, 240/4, broadcast, Teredo 등)를 막는다.
+  - IPv4를 품은 IPv6(mapped·compatible·NAT64·6to4)는 안의 IPv4로 판정한다.
+  - 주소가 아니면 연결하지 않는다.
+- nit
+  - CONNECT와 함께 온 바이트를 대상에 넘긴다.
+  - 로그는 마지막 1000개만 남기고, 동시 연결은 64개로 제한한다.
+  - 쓰기 폴더는 실행 사용자 소유의 사적 폴더여야 한다(공용 /tmp·남이 쓸 수 있는 폴더 거부).
+- 증거
+  - `review-red.log` 아래쪽: 옛 구현에서 3개가 실패했다.
+  - `mutation.log` 아래쪽: 5종 중 4종을 탐지했다. 남은 1종(명시적 /tmp 거부 제거)은 같은 동작이다(권한 검사가 /tmp도 거부).
+  - unit 19.
+- 전체 실행에서 찾은 시험 결함: 대상이 바로 답하면 그 바이트가 CONNECT의 200 응답과 함께 도착한다. probe가 그 부분(`head`)을 버렸다. probe를 고쳤다(제품 proxy는 문제없음).
+
 ## 다음
 PW-027: typed tool gateway·scope

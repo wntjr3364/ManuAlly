@@ -36,3 +36,8 @@ KILLED  mcp_servers not cleared :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯�
       Tests  1 failed | 48 passed (49)
 KILLED  no SIGKILL on close (rerun: the test now checks the process is gone) :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
       Tests  1 failed | 48 passed (49)
+# re-review fixes
+KILLED  abandoned turn releases the lock at once :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 25 passed (27)
+KILLED  stuck server keeps taking turns :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 26 passed (27)

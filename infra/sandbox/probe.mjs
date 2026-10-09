@@ -26,9 +26,9 @@ const viaProxy = (target) => new Promise((resolve) => {
   const u = new URL(p);
   const req = http.request({ host: u.hostname, port: Number(u.port), method: 'CONNECT', path: target });
   const t = setTimeout(() => { req.destroy(); resolve('TIMEOUT'); }, 5000);
-  req.on('connect', (res, socket) => {
+  req.on('connect', (res, socket, head) => {
     if (res.statusCode !== 200) { clearTimeout(t); socket.destroy(); return resolve(res.statusCode); }
-    let got = '';
+    let got = head.toString(); // bytes that arrived together with the 200
     socket.on('data', (d) => { got += d; });
     socket.on('end', () => { clearTimeout(t); resolve(got); });
     socket.on('error', (e) => { clearTimeout(t); resolve(e.code); });

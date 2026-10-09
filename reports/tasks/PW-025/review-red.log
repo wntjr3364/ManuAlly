@@ -221,3 +221,10 @@ AssertionError: expected [Function] to throw error matching /refused|not issued|
    Start at  12:06:33
    Duration  22.73s (tests 96%, transform 3%, import 1%)
 
+     × re-review MINOR: a turn the consumer walks away from is interrupted and settled before the next turn; its late answer never reaches the next turn 84ms
+     × re-review MINOR: a turn that will not stop leaves the server refusing further turns 104ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 25 passed (27)
+# re-review RED (old runTurn, corrected test that reads seen.json after close)
+     × re-review MINOR: a turn the consumer walks away from … — expected [...] to include 'turn/interrupt'
+     × re-review MINOR: a turn that will not stop … — promise resolved instead of rejecting

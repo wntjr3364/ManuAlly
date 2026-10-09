@@ -305,6 +305,33 @@ describe('host egress proxy', () => {
     expect(fs.existsSync(path.join(dir, 'e.sock'))).toBe(false);
     for (const a of ['127.0.0.1', '10.1.2.3', '192.168.0.1', '172.20.0.1', '169.254.1.1', '100.64.0.1', '::1', 'fd00::1', 'fe80::1', '::ffff:127.0.0.1']) expect(isPrivateAddress(a), a).toBe(true);
     for (const a of ['93.184.216.34', '160.79.104.10', '2606:4700::1']) expect(isPrivateAddress(a), a).toBe(false);
+    // re-review MINOR-2: the rest of link-local, embedded IPv4 forms, benchmark, multicast, reserved
+    for (const a of ['fe90::1', 'febf::1', '::ffff:7f00:1', '64:ff9b::7f00:1', '2002:7f00:1::1', '::127.0.0.1', '198.18.0.1', '224.0.0.1', '240.0.0.1', '255.255.255.255', 'ff02::1', '2001::1', 'not-an-ip']) expect(isPrivateAddress(a), a).toBe(true);
+    for (const a of ['64:ff9b::5db8:d822', '::ffff:93.184.216.34']) expect(isPrivateAddress(a), a).toBe(false);
+  });
+
+  test('re-review: bytes sent with the CONNECT reach the target; a socket replaced by the sandbox does not crash close()', async () => {
+    const dir = fs.mkdtempSync(path.join(base, 'egress-'));
+    let got = '';
+    const target = net.createServer((c) => c.on('data', (d) => { got += d; c.end('ok'); }));
+    await new Promise<void>((r) => target.listen(0, '127.0.0.1', () => r()));
+    const port = (target.address() as net.AddressInfo).port;
+    const p = await startEgressProxy({ socketPath: path.join(dir, 'e.sock'), allow: [{ host: '127.0.0.1', port }], allowPrivate: true });
+    const reply = await new Promise<string>((resolve) => {
+      const c = net.connect(p.socketPath);
+      let r = '';
+      c.on('data', (d) => { r += d; });
+      c.on('end', () => resolve(r));
+      c.write(`CONNECT 127.0.0.1:${port} HTTP/1.1\r\nHost: x\r\n\r\nfirst bytes`);
+    });
+    expect(reply).toMatch(/200 Connection Established[\s\S]*ok$/);
+    expect(got).toBe('first bytes');
+    // the program inside could swap the socket file for a folder
+    fs.rmSync(p.socketPath);
+    fs.mkdirSync(p.socketPath);
+    await expect(p.close()).resolves.toBeUndefined();
+    expect(fs.statSync(p.socketPath).isDirectory()).toBe(true); // left for the run folder removal
+    target.close();
   });
 });
 
@@ -341,5 +368,10 @@ describe('bubblewrap backend (argv only; bwrap is not installed here)', () => {
       for (const key of ['readOnly', 'writable'] as const) expect(() => bwrapArgs({ run, network: 'none', env: {}, program: ['x'], [key]: [bad] }), `${key} ${bad}`).toThrow(/refused/);
     }
     expect(() => bwrapArgs({ run, network: 'none', env: {}, program: ['x'], writable: [`${h}/.local/share/paper-workspace/profiles/claude`] })).not.toThrow();
+    // re-review nit: never the shared /tmp, never a folder others can write
+    const shared = fs.mkdtempSync(path.join(base, 'shared-'));
+    fs.chmodSync(shared, 0o777);
+    for (const bad of ['/tmp', '/var/tmp', os.tmpdir(), shared]) expect(() => bwrapArgs({ run, network: 'none', env: {}, program: ['x'], writable: [bad] }), bad).toThrow(/refused/);
+    expect(() => bwrapArgs({ run, network: 'none', env: {}, program: ['x'], readOnly: [shared] })).not.toThrow();
   });
 });

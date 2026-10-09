@@ -64,6 +64,16 @@ function absPaths(list: string[] | undefined, what: string, homes = [os.homedir(
     return r;
   });
 }
+// a writable folder must be the runtime user's own and private: never the host /tmp (it would hide the
+// private one and show other runs' folders) or a folder others can write (re-review nit)
+function writablePaths(list: string[] | undefined): string[] {
+  return absPaths(list, 'writable path').map((w) => {
+    if (['/tmp', '/var/tmp', os.tmpdir()].map(realOr).includes(realOr(w))) refuse(`writable path ${w} is a shared temporary folder`);
+    const st = fs.lstatSync(w, { throwIfNoEntry: false });
+    if (st && (st.isSymbolicLink() || !st.isDirectory() || st.mode & 0o022 || (process.getuid && st.uid !== process.getuid()))) refuse(`writable path ${w} must be a private directory of the runtime user`);
+    return w;
+  });
+}
 const exists = (p: string) => fs.existsSync(p) || !!fs.lstatSync(p, { throwIfNoEntry: false });
 
 const BRING_LO_UP = [
@@ -156,7 +166,7 @@ export function bwrapArgs(s: Omit<SandboxSpec, 'limits'>, setup?: Pick<Setup, 'p
   a.push('--tmpfs', '/tmp', '--bind', s.run.dir, s.run.dir);
   if (s.run.inputsDir) a.push('--ro-bind', s.run.inputsDir, s.run.inputsDir);
   if (setup) a.push('--ro-bind', setup.dir, setup.dir, '--ro-bind', setup.passwd, '/etc/passwd', '--ro-bind', setup.group, '/etc/group');
-  for (const w of absPaths(s.writable, 'writable path')) a.push('--bind', w, w);
+  for (const w of writablePaths(s.writable)) a.push('--bind', w, w);
   // the four devices only, not bwrap's --dev (tty, ptmx, pts, shm …; review MINOR-2)
   a.push('--proc', '/proc', '--dir', '/dev');
   for (const d of DEVICES) a.push('--dev-bind', `/dev/${d}`, `/dev/${d}`);
@@ -181,7 +191,7 @@ function unshareScript(s: SandboxSpec, setup: Setup, newRoot: string): string {
   lines.push(`mkdir -p "$NR"${sq(s.run.dir)}`, `mount --bind ${sq(s.run.dir)} "$NR"${sq(s.run.dir)}`);
   if (s.run.inputsDir) lines.push(`mount --bind ${sq(s.run.inputsDir)} "$NR"${sq(s.run.inputsDir)}`, `mount -o remount,bind,ro "$NR"${sq(s.run.inputsDir)}`);
   lines.push(`mount --bind ${sq(setup.dir)} "$NR"${sq(setup.dir)}`, `mount -o remount,bind,ro "$NR"${sq(setup.dir)}`);
-  for (const w of absPaths(s.writable, 'writable path')) lines.push(`mkdir -p "$NR"${sq(w)}`, `mount --bind ${sq(w)} "$NR"${sq(w)}`);
+  for (const w of writablePaths(s.writable)) lines.push(`mkdir -p "$NR"${sq(w)}`, `mount --bind ${sq(w)} "$NR"${sq(w)}`);
   lines.push('mkdir -p "$NR/proc" "$NR/dev"', 'mount -t proc proc "$NR/proc"');
   for (const d of DEVICES) lines.push(`touch "$NR/dev/${d}"`, `mount --bind /dev/${d} "$NR/dev/${d}"`);
   if (s.network === 'proxy') lines.push(`/usr/bin/python3 -I -c ${sq(BRING_LO_UP)}`);

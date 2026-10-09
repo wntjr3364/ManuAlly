@@ -12,12 +12,43 @@ import dns from 'node:dns/promises';
 export interface EgressTarget { host: string; port: number }
 export interface EgressProxy { socketPath: string; log: { target: string; allowed: boolean; reason?: string }[]; close(): Promise<void> }
 
-const PRIVATE_V4 = [/^0\./, /^10\./, /^127\./, /^169\.254\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./];
+// Not a public unicast address: private, loopback, link-local, shared, documentation, benchmark,
+// multicast, reserved and broadcast ranges (IANA special-purpose registries). IPv6 forms that embed an
+// IPv4 address (mapped, compatible, NAT64, 6to4) are judged by that IPv4 address; Teredo is refused.
+const BLOCKED = new net.BlockList();
+for (const [a, p] of [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.0.2.0', 24], ['192.88.99.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24], ['224.0.0.0', 4], ['240.0.0.0', 4]] as const) BLOCKED.addSubnet(a, p, 'ipv4');
+for (const [a, p] of [['::', 128], ['::1', 128], ['100::', 64], ['2001::', 32], ['2001:db8::', 32], ['fc00::', 7], ['fe80::', 10], ['fec0::', 10], ['ff00::', 8], ['64:ff9b:1::', 48]] as const) BLOCKED.addSubnet(a, p, 'ipv6');
+
+// the 16 bytes of an IPv6 address (with an optional dotted IPv4 tail)
+function v6bytes(a: string): number[] | null {
+  let s = a.toLowerCase();
+  const tail = /(\d+\.\d+\.\d+\.\d+)$/.exec(s);
+  if (tail) {
+    if (!net.isIPv4(tail[1]!)) return null;
+    const q = tail[1]!.split('.').map(Number);
+    s = s.slice(0, -tail[1]!.length) + `${((q[0]! << 8) | q[1]!).toString(16)}:${((q[2]! << 8) | q[3]!).toString(16)}`;
+  }
+  const [head, rest] = s.split('::');
+  const h = head ? head.split(':') : [];
+  const r = rest !== undefined ? (rest ? rest.split(':') : []) : [];
+  const groups = rest !== undefined ? [...h, ...Array(8 - h.length - r.length).fill('0'), ...r] : h;
+  if (groups.length !== 8) return null;
+  return groups.flatMap((g) => { const n = parseInt(g, 16); return [n >> 8, n & 255]; });
+}
+
 export function isPrivateAddress(a: string): boolean {
-  if (net.isIPv4(a)) return PRIVATE_V4.some((r) => r.test(a));
-  const v = a.toLowerCase();
-  if (v.startsWith('::ffff:')) return isPrivateAddress(v.slice(7));
-  return v === '::' || v === '::1' || v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80');
+  const addr = a.replace(/^\[|\]$/g, '').replace(/%.*$/, '');
+  if (net.isIPv4(addr)) return BLOCKED.check(addr, 'ipv4');
+  if (!net.isIPv6(addr)) return true; // not an address: never connect
+  if (BLOCKED.check(addr, 'ipv6')) return true;
+  const b = v6bytes(addr);
+  if (!b) return true;
+  const v4 = (o: number) => b.slice(o, o + 4).join('.');
+  const zeros = (from: number, to: number) => b.slice(from, to).every((x) => x === 0);
+  if (zeros(0, 10) && ((b[10] === 0xff && b[11] === 0xff) || (b[10] === 0 && b[11] === 0))) return BLOCKED.check(v4(12), 'ipv4') || zeros(0, 16); // mapped / compatible
+  if (b[0] === 0 && b[1] === 0x64 && b[2] === 0xff && b[3] === 0x9b && zeros(4, 12)) return BLOCKED.check(v4(12), 'ipv4'); // NAT64
+  if (b[0] === 0x20 && b[1] === 0x02) return BLOCKED.check(v4(2), 'ipv4'); // 6to4
+  return false;
 }
 
 function parseTarget(s: string | undefined): EgressTarget | null {
@@ -27,18 +58,20 @@ function parseTarget(s: string | undefined): EgressTarget | null {
   return port > 0 && port < 65536 ? { host: m[1]!.replace(/^\[|\]$/g, '').toLowerCase(), port } : null;
 }
 
-export async function startEgressProxy(a: { socketPath: string; allow: EgressTarget[]; allowPrivate?: boolean; connectTimeoutMs?: number }): Promise<EgressProxy> {
+export async function startEgressProxy(a: { socketPath: string; allow: EgressTarget[]; allowPrivate?: boolean; connectTimeoutMs?: number; maxConnections?: number }): Promise<EgressProxy> {
   const allow = new Set(a.allow.map((t) => `${t.host.toLowerCase()}:${t.port}`));
   const log: EgressProxy['log'] = [];
+  const record = (e: EgressProxy['log'][number]) => { log.push(e); if (log.length > 1000) log.splice(0, log.length - 1000); };
   const sockets = new Set<net.Socket>();
   const server = http.createServer((req, res) => {
-    log.push({ target: String(req.url).slice(0, 200), allowed: false, reason: 'only CONNECT is proxied' });
+    record({ target: String(req.url).slice(0, 200), allowed: false, reason: 'only CONNECT is proxied' });
     res.writeHead(403).end();
   });
   server.on('connection', (s) => { sockets.add(s); s.on('close', () => sockets.delete(s)); });
-  server.on('connect', (req, client: net.Socket) => {
+  server.maxConnections = a.maxConnections ?? 64;
+  server.on('connect', (req, client: net.Socket, head: Buffer) => {
     const deny = (reason: string, status = '403 Forbidden') => {
-      log.push({ target: String(req.url).slice(0, 200), allowed: false, reason });
+      record({ target: String(req.url).slice(0, 200), allowed: false, reason });
       client.end(`HTTP/1.1 ${status}\r\nContent-Length: 0\r\n\r\n`);
     };
     const t = parseTarget(req.url);
@@ -57,8 +90,9 @@ export async function startEgressProxy(a: { socketPath: string; allow: EgressTar
       up.on('close', () => sockets.delete(up));
       up.once('connect', () => {
         up.setTimeout(0);
-        log.push({ target: `${t.host}:${t.port}`, allowed: true });
+        record({ target: `${t.host}:${t.port}`, allowed: true });
         client.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+        if (head?.length) up.write(head); // bytes the client sent along with the CONNECT
         up.pipe(client);
         client.pipe(up);
       });
@@ -75,7 +109,12 @@ export async function startEgressProxy(a: { socketPath: string; allow: EgressTar
     log,
     close: () => new Promise<void>((res) => {
       for (const s of sockets) s.destroy();
-      server.close(() => { fs.rmSync(a.socketPath, { force: true }); res(); });
+      // the socket file lives in the run folder, which the sandboxed program can change: remove it
+      // only if it is still a socket, and never let a surprise there throw into the host process
+      server.close(() => {
+        try { if (fs.lstatSync(a.socketPath, { throwIfNoEntry: false })?.isSocket()) fs.unlinkSync(a.socketPath); } catch { /* the run folder is removed with the run */ }
+        res();
+      });
     }),
   };
 }

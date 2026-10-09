@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-/* global process, setTimeout */
+/* global process, setTimeout, clearTimeout */
 // Test stand-in for `codex app-server --listen stdio://` (JSON-RPC lines on stdin/stdout). No network.
 // Implements initialize, thread/start|resume, turn/start|interrupt with documented-shaped results and
 // notifications; during a turn it asks the client for a command approval (a server request) and, when
 // the profile holds `ask-tool`, for a tool call. It records every client message and our answers to
 // its server requests in $HOME/seen.json. Profile files are test controls (`slow` keeps a turn open,
-// `die` exits in the middle of a turn, `stubborn` ignores SIGTERM and a closed stdin).
+// `die` exits in the middle of a turn, `stubborn` ignores SIGTERM and a closed stdin, `late` answers
+// after 300 ms, `ignore-interrupt` never completes an interrupted turn).
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
@@ -18,6 +19,8 @@ const save = () => fs.writeFileSync(path.join(home, 'seen.json'), JSON.stringify
 const send = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 const has = (f) => fs.existsSync(path.join(profile, f));
 const threads = new Set();
+const pendingFinish = new Map(); // turn id -> timer (an interrupt cancels the normal finish)
+let turnNo = 0;
 let serverReq = 1000;
 const pending = new Map();
 
@@ -49,8 +52,9 @@ rl.on('line', (line) => {
     case 'turn/start': {
       const threadId = m.params?.threadId;
       const text = m.params?.input?.[0]?.text ?? '';
-      reply({ turn: { id: 'tu-1' } });
-      send({ method: 'turn/started', params: { turn: { id: 'tu-1' } } });
+      const turnId = `tu-${++turnNo}`;
+      reply({ turn: { id: turnId } });
+      send({ method: 'turn/started', params: { turn: { id: turnId } } });
       const id = serverReq++;
       pending.set(id, 'item/commandExecution/requestApproval');
       send({ id, method: 'item/commandExecution/requestApproval', params: { threadId, command: 'cat /etc/passwd' } });
@@ -68,14 +72,19 @@ rl.on('line', (line) => {
         send({ method: 'item/completed', params: { item: { type: 'agentMessage', text: `Echo: ${text}` } } });
         send({ method: 'thread/tokenUsage/updated', params: { tokenUsage: { total: { inputTokens: 9, outputTokens: 4 }, modelContextWindow: 200000 } } });
         send({ method: 'fs/changed', params: {} });
-        send({ method: 'turn/completed', params: { turn: { id: 'tu-1', status: 'completed' } } });
+        pendingFinish.delete(turnId);
+        send({ method: 'turn/completed', params: { turn: { id: turnId, status: 'completed' } } });
       };
       if (has('die')) return setTimeout(() => process.exit(3), 20);
       if (has('slow') || has('stubborn')) return; // stays open until turn/interrupt
-      return setTimeout(finish, 50);
+      // `late`: the answer takes 300 ms (time for a consumer to walk away from the turn)
+      return pendingFinish.set(turnId, setTimeout(finish, has('late') ? 300 : 50));
     }
     case 'turn/interrupt':
+      clearTimeout(pendingFinish.get(m.params?.turnId));
+      pendingFinish.delete(m.params?.turnId);
       reply({});
+      if (has('ignore-interrupt')) return; // a turn that will not stop
       return send({ method: 'turn/completed', params: { turn: { id: m.params?.turnId, status: 'interrupted' } } });
     default:
       return send({ id: m.id, error: { code: -32601, message: `fake: ${m.method} not handled` } });

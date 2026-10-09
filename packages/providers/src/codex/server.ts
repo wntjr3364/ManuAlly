@@ -43,7 +43,7 @@ export function buildCodexEnv(a: { profileDir: string; run: CodexRun; parentEnv?
 export async function startCodexServer(a: {
   decision: CodexDecision; cmd: string; run: CodexRun; profileDir: string;
   parentEnv?: Record<string, string | undefined>; homes?: string[]; ownerUid?: number | null;
-  onToolCall?: (name: string, args: unknown) => Promise<unknown>; timeoutMs?: number; turnTimeoutMs?: number;
+  onToolCall?: (name: string, args: unknown) => Promise<unknown>; timeoutMs?: number; turnTimeoutMs?: number; settleMs?: number;
 }) {
   const d = a.decision;
   // the decision must be issued, allowed, unexpired and for Codex (checked again for every turn)
@@ -128,7 +128,11 @@ export async function startCodexServer(a: {
 
   const turns = new Map<string, string>(); // thread id -> open turn id
   let turnActive = false;
+  let stuck = false; // a turn that would not stop: its late notifications could reach the next turn
+  let alive = true;
+  void exit.then(() => { alive = false; });
   const turnTimeoutMs = a.turnTimeoutMs ?? 10 * 60_000;
+  const settleMs = a.settleMs ?? 5_000;
   // only typed calls: no raw RPC (an allowlisted method with free parameters could override the
   // sandbox, approval policy or working folder)
   return {
@@ -148,14 +152,16 @@ export async function startCodexServer(a: {
     // could receive the first one's answer.
     async *runTurn(threadId: string, text: string): AsyncGenerator<ProviderEvent> {
       if (turnActive) throw new Refused('a turn is already running on this Codex server');
+      if (stuck) throw new Refused('an earlier turn on this Codex server did not stop; close it and start a new one');
       spendTurn(d, 'codex'); // one approved turn; refused when expired or used up (no cost is reported by Codex)
       turnActive = true;
       const queue: ProviderEvent[] = [];
       let wake: (() => void) | null = null;
       let ended = false;
       let timedOut = false;
+      let completed = false;
       // the thread's own start notice belongs to startThread, not to this turn
-      listener = (e) => { if (e.kind === 'session_started') return; queue.push(e); if (e.kind === 'turn_completed') ended = true; wake?.(); };
+      listener = (e) => { if (e.kind === 'session_started') return; queue.push(e); if (e.kind === 'turn_completed') { ended = true; completed = true; } wake?.(); };
       void exit.then(() => { ended = true; wake?.(); });
       const timer = setTimeout(() => { timedOut = true; ended = true; wake?.(); }, turnTimeoutMs);
       const err = (message: string) => ({ schema_version: 1, provider: 'codex', kind: 'error', data: { kind: 'provider', message } }) as ProviderEvent;
@@ -180,6 +186,18 @@ export async function startCodexServer(a: {
         }
       } finally {
         clearTimeout(timer);
+        // Left early (the consumer stopped, a timeout, a failed turn/start): the server may still be
+        // running the turn. Interrupt it and wait, bounded, for its completion before the next turn
+        // may start; if it never comes, this server takes no more turns.
+        if (!completed && alive) {
+          let done: () => void = () => {};
+          const finished = new Promise<void>((r) => { done = r; });
+          listener = (e) => { if (e.kind === 'turn_completed') { completed = true; done(); } };
+          const turnId = turns.get(threadId);
+          if (turnId) void request('turn/interrupt', { threadId, turnId }).catch(() => {});
+          await Promise.race([finished, exit, new Promise((r) => setTimeout(r, settleMs))]);
+          if (!completed && alive) stuck = true;
+        }
         listener = null;
         turns.delete(threadId);
         turnActive = false;

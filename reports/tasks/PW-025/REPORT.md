@@ -85,5 +85,12 @@
 - mutation(`mutation.log` 아래쪽): 10종 모두 탐지했다. close의 SIGKILL 제거는 처음에 살아남았다. 시험이 시간만 봤기 때문이다. 프로세스 존재 확인을 더한 뒤 탐지했다.
 - unit: PW-025 27, PW-024 24.
 
+## 재리뷰 반영 (2026-10-09)
+재리뷰 결론: 승인, minor 1·nit 1.
+- MINOR: turn을 중간에 버리면(소비자가 멈춤, 시간 초과, turn/start 실패) 서버가 아직 그 turn을 돌리는데 잠금이 바로 풀렸다. 그러면 늦게 온 알림이 다음 turn에 섞였다.
+  - 고침: 끝나지 않은 turn은 `turn/interrupt`를 보내고, 그 turn의 완료나 서버 종료를 기다린다(기본 5초). 그 안에 오지 않으면 그 서버는 더 이상 turn을 받지 않는다(닫고 새로 시작).
+  - 시험: 소비자가 첫 이벤트 뒤에 떠난 turn의 늦은 답("Echo: one")이 다음 turn에 나오지 않는다. 멈추지 않는 turn 뒤에는 다음 turn을 거부한다. 옛 구현에서는 둘 다 실패했다(`review-red.log`). mutation 2종을 탐지했다.
+- nit(미확인으로 기록): Codex가 `CODEX_HOME`의 다른 내용(`rules/`, `skills/` 등)이나 host의 `/etc/codex` 관리 설정을 읽는지는 0.161.0에서 확인하지 않았다. app-server는 PW-030에서 sandbox 안에서 돌리고, 실측으로 확인한다.
+
 ## 다음
 PW-026: 격리 runner·입출력 mount

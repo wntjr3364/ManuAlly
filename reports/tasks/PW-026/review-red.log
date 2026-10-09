@@ -27,3 +27,12 @@ Error: Cannot find module '../../../infra/sandbox/egress-proxy.ts' imported from
 # note: the RED above fails at import (egress-proxy.ts did not exist). The behavioural RED for the
 # review MAJOR is the mutation 'host network namespace kept (no --net)' in mutation.log (4 tests fail:
 # the host abstract socket and loopback port become reachable), matching the reviewer's reproduction.
+# re-review RED (infra/sandbox before the re-review fixes)
+     × refuses targets outside the allowlist, plain requests, and allowed names that resolve to private addresses 33ms
+     × re-review: bytes sent with the CONNECT reach the target; a socket replaced by the sandbox does not crash close() 5005ms
+     × read-only or writable paths exposing a home, developer CLI state or credentials are refused 9ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: fe90::1: expected false to be true // Object.is equality
+Error: Test timed out in 5000ms.
+AssertionError: /tmp: expected [Function] to throw an error
+      Tests  3 failed | 16 passed (19)

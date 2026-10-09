@@ -173,6 +173,36 @@ describe('TST-025B: private stdio, allowlisted methods, declined server requests
     await s.close();
   });
 
+  test('re-review MINOR: a turn the consumer walks away from is interrupted and settled before the next turn; its late answer never reaches the next turn', async () => {
+    const late = path.join(root, 'profile-late');
+    fs.mkdirSync(late, { mode: 0o700 });
+    fs.writeFileSync(path.join(late, 'late'), '');
+    const run = newRun();
+    const s = await startCodexServer({ decision: decision(), cmd: FAKE, run, profileDir: late, parentEnv: { PATH: process.env.PATH! } });
+    const t = await s.startThread();
+    for await (const e of s.runTurn(t, 'one')) { void e; break; } // walks away after the first event
+    const events = [];
+    for await (const e of s.runTurn(t, 'two')) events.push(e);
+    await s.close();
+    expect(seen(run).client).toContain('turn/interrupt');
+    const text = JSON.stringify(events);
+    expect(text).toContain('Echo: two');
+    expect(text).not.toContain('Echo: one');
+    expect(events.at(-1)).toMatchObject({ kind: 'turn_completed' });
+  });
+
+  test('re-review MINOR: a turn that will not stop leaves the server refusing further turns', async () => {
+    const p = path.join(root, 'profile-ignore');
+    fs.mkdirSync(p, { mode: 0o700 });
+    fs.writeFileSync(path.join(p, 'slow'), '');
+    fs.writeFileSync(path.join(p, 'ignore-interrupt'), '');
+    const s = await startCodexServer({ decision: decision(), cmd: FAKE, run: newRun(), profileDir: p, parentEnv: { PATH: process.env.PATH! }, settleMs: 200 });
+    const t = await s.startThread();
+    for await (const e of s.runTurn(t, 'one')) { void e; break; }
+    await expect(s.runTurn(t, 'two').next()).rejects.toThrow(/did not stop/);
+    await s.close();
+  });
+
   test('review minor: a turn that never finishes is interrupted after the turn timeout and ends with an error', async () => {
     const slow = path.join(root, 'profile-slow3');
     fs.mkdirSync(slow, { mode: 0o700 });

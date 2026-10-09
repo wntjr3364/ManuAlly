@@ -51,3 +51,14 @@ KILLED  loopback not brought up (proxy) :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 
       Tests  2 failed | 16 passed (18)
 KILLED  host network accepted :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
       Tests  1 failed | 17 passed (18)
+# re-review fixes
+KILLED  6to4 not unwrapped :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 18 passed (19)
+KILLED  mapped IPv4 not unwrapped :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 18 passed (19)
+KILLED  CONNECT head dropped :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 18 passed (19)
+KILLED  close throws on a replaced socket :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 18 passed (19)
+SURVIVED shared /tmp writable ::       Tests  19 passed (19)
+  (equivalent: /tmp and /var/tmp are also refused by the group/world-writable check; the explicit rule covers a private TMPDIR only)

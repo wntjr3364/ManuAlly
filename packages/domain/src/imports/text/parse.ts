@@ -54,8 +54,9 @@ class Report {
 
 // marks: longest delimiters first; a marker without its closing pair stays literal
 const INLINE: { re: RegExp; mark: Mark }[] = [
-  { re: /\*\*(?=\S)(.+?)(?<=\S)\*\*/u, mark: 'bold' }, // may contain *italic*
-  { re: /__(?=\S)(.+?)(?<=\S)__/u, mark: 'bold' },
+  // may contain *italic*; not between letters/digits (2**3 and 4**5 is arithmetic, not bold)
+  { re: /(?<![\p{L}\p{N}])\*\*(?=\S)(.+?)(?<=\S)\*\*(?![\p{L}\p{N}])/u, mark: 'bold' },
+  { re: /(?<![\p{L}\p{N}])__(?=\S)(.+?)(?<=\S)__(?![\p{L}\p{N}])/u, mark: 'bold' },
   { re: /(?<![\p{L}\p{N}*])\*(?=\S)([^*]+?)(?<=\S)\*(?![\p{L}\p{N}*])/u, mark: 'italic' },
   { re: /(?<![\p{L}\p{N}_])_(?=\S)([^_]+?)(?<=\S)_(?![\p{L}\p{N}_])/u, mark: 'italic' },
   // not after a digit: 10~20% or n=3~5 are ranges, not subscripts
@@ -65,10 +66,13 @@ const INLINE: { re: RegExp; mark: Mark }[] = [
 
 // backslash escapes: the escaped character is kept literally (hidden from the rules while parsing)
 const ESCAPABLE = '\\`*_{}[]()#+-.!~^|>$<';
-const hide = (t: string) => (/[\uE000-\uE0FF]/.test(t) ? t : t.replace(/\\(.)/g, (m, c: string) => (ESCAPABLE.includes(c) ? String.fromCharCode(0xe000 + ESCAPABLE.indexOf(c)) : m)));
+const PUA = /[\uE000-\uE0FF]/;
+const hide = (t: string) => (PUA.test(t) ? t : t.replace(/\\(.)/g, (m, c: string) => (ESCAPABLE.includes(c) ? String.fromCharCode(0xe000 + ESCAPABLE.indexOf(c)) : m)));
 const unhide = (t: string) => t.replace(/[\uE000-\uE0FF]/g, (c) => ESCAPABLE[c.charCodeAt(0) - 0xe000] ?? c);
 
 function inlineMarkdown(text: string, line: number, rep: Report): Inline[] {
+  // a text that already uses those private-use characters is parsed without escapes and left as is
+  if (PUA.test(text)) return marksOf(text, line, rep);
   return marksOf(hide(text), line, rep).map((x) => ({ ...x, text: unhide(x.text) }));
 }
 

@@ -12,3 +12,7 @@ KILLED  moved+changed hidden :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯�
       Tests  1 failed | 15 passed (16)
 KILLED  year read as list number :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
       Tests  1 failed | 15 passed (16)
+PUA unhidden :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 17 passed (18)
+** between digits bold :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 17 passed (18)

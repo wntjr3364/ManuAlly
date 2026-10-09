@@ -139,3 +139,17 @@ PW-022: P02 브라우저 호환·접근성·성능 점검과 P02 gate
   - PW-021: unit 16, 통합 9, 브라우저 3
   - `pnpm test` exit 0(`pnpm-test-review.log`)
     - unit 177, integration 195, contracts 15, e2e 68, spikes 70
+
+## 재리뷰 결과 (2026-10-09)
+- 결론: approve. MAJOR와 minor 3건이 고쳐졌고 회귀는 없다. 리뷰어가 parser probe를 다시 실행해 확인했다.
+- nit 2건 반영
+  - **사용자 영역 문자(U+E000–E0FF)가 있는 글이 문장부호로 바뀜**
+    - 문제: escape 처리용 임시 문자와 겹쳤다.
+    - 조치: 그런 글은 escape 처리 없이 그대로 둔다. unit 시험을 추가했다.
+  - **`2**3 and 4**5`가 굵게 처리되어 숫자가 붙어 보임**
+    - 조치: `**`·`__`는 글자·숫자 사이에서는 강조로 보지 않는다. unit 시험을 추가했다.
+  - mutation 2종을 탐지했다(`mutation-review.log`).
+- 실행
+  - PW-021 unit 18
+  - typecheck·lint 통과
+  - parser만 바뀌어 전체 `pnpm test`는 다음 Task 커밋에서 함께 실행한다.

@@ -116,3 +116,15 @@ describe('review fixes', () => {
     expect(loss(r, 'list')).toBeUndefined();
   });
 });
+
+describe('re-review nits', () => {
+  test('private-use characters in the text are left unchanged', () => {
+    const r = parseImport('icon \uE004 here.', 'markdown');
+    expect(texts(r)[0]).toBe('icon \uE004 here.');
+  });
+  test('** between numbers is not bold', () => {
+    const r = parseImport('2**3 and 4**5, but **bold** works', 'markdown');
+    expect(texts(r)[0]).toBe('2**3 and 4**5, but bold works');
+    expect(blocks(r)[0]!.content!.filter((c) => c.marks).map((c) => c.text)).toEqual(['bold']);
+  });
+});

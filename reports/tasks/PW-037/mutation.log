@@ -1,0 +1,16 @@
+# PW-037 mutations (Fri Oct  9 17:43:07 UTC 2026) — behaviour-level RED: each line breaks one rule
+KILLED removed_refs
+SURVIVED verified_excerpts
+KILLED verified_facts
+KILLED approved_claims
+KILLED send_gate
+KILLED older_version
+KILLED cited_only
+KILLED mentioned_only
+KILLED lexical_threshold
+KILLED provider_gate
+KILLED fingerprint_state
+KILLED limits
+KILLED paper_scope
+# after the unverified-excerpt test:
+KILLED verified_excerpts

@@ -35,7 +35,7 @@ PW-033,P04,AI 문헌 후보 선정,in_review,PW-032,REQ-033,"TST-033A,TST-033B",
 PW-034,P04,원문 권리·안전한 업로드,in_review,PW-033,REQ-034,"TST-034A,TST-034B",apps/api/src/assets/**;packages/domain/src/asset-policy/**;tests/tasks/PW-034/**;reports/tasks/PW-034/**;db/migrations/pw_034_*
 PW-035,P04,PDF parsing·highlight locator,in_review,PW-034,REQ-035,"TST-035A,TST-035B",apps/worker/src/pdf/**;apps/web/src/features/pdf/**;tests/tasks/PW-035/**;reports/tasks/PW-035/**;db/migrations/pw_035_*
 PW-036,P04,Figure/Table/Fact 출처 연결,in_review,PW-035,REQ-036,"TST-036A,TST-036B",packages/domain/src/figures/**;apps/web/src/features/evidence/**;tests/tasks/PW-036/**;reports/tasks/PW-036/**;db/migrations/pw_036_*
-PW-037,P04,필요한 근거만 retrieval,planned,PW-036,REQ-037,"TST-037A,TST-037B",packages/search/src/retrieval/**;tests/tasks/PW-037/**;reports/tasks/PW-037/**;db/migrations/pw_037_*
+PW-037,P04,필요한 근거만 retrieval,in_review,PW-036,REQ-037,"TST-037A,TST-037B",packages/search/src/retrieval/**;tests/tasks/PW-037/**;reports/tasks/PW-037/**;db/migrations/pw_037_*
 PW-038,P04,문헌 이식성·읽기 연동 gate,planned,PW-037,REQ-038,"TST-038A,TST-038B",packages/domain/src/imports/references/**;packages/search/src/zotero/**;tests/tasks/PW-038/**;reports/tasks/PW-038/**;db/migrations/pw_038_*
 PW-039,P05,Story 대안·주장 범위 AI,planned,PW-038,REQ-039,"TST-039A,TST-039B",apps/worker/src/story/**;apps/web/src/features/story-ai/**;tests/tasks/PW-039/**;reports/tasks/PW-039/**;db/migrations/pw_039_*
 PW-040,P05,Detailed outline·영향 추적,planned,PW-039,REQ-040,"TST-040A,TST-040B",packages/domain/src/outline-impact/**;apps/web/src/features/outline-impact/**;tests/tasks/PW-040/**;reports/tasks/PW-040/**;db/migrations/pw_040_*

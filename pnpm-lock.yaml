@@ -219,7 +219,11 @@ importers:
 
   packages/providers: {}
 
-  packages/search: {}
+  packages/search:
+    dependencies:
+      '@pw/domain':
+        specifier: workspace:*
+        version: link:../domain
 
 packages:
 

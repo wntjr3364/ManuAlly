@@ -1210,7 +1210,7 @@
       "id": "PW-037",
       "phase": "P04",
       "title": "필요한 근거만 retrieval",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-036"
       ],

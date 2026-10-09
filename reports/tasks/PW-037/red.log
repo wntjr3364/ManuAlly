@@ -1,0 +1,4 @@
+# PW-037 RED: implementation removed (retrieval module, cache migration), tests as written (Fri Oct  9 17:43:05 UTC 2026)
+ FAIL  tests/tasks/PW-037/retrieval.int.test.ts [ tests/tasks/PW-037/retrieval.int.test.ts ]
+Error: Cannot find module '../../../packages/search/src/retrieval/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-037/retrieval.int.test.ts
+      Tests  no tests

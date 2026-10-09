@@ -89,3 +89,6 @@ PW-037: 필요한 근거만 retrieval
 - PW-035 nit: 추출 child가 PDF를 받기 전에 작은 내장 문서로 파서를 예열한다(worker와 표준 글꼴은 늦게 불러진다). 설치가 깨졌으면 `load` 단계에서 실패하므로 재시도 가능하다.
 - 시험: 통합 12(+5). RED는 `review-red.log`. mutation은 `mutation.log` 끝에 있고 모두 탐지했다. 대소문자 처리 두 겹은 서로 중복이라 함께 되돌려 확인했다.
 - 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 346, contracts 17, 브라우저 84(`pnpm-test-review.log`).
+
+## 재리뷰 (2026-10-09): approve
+- 남은 nit(기록만): 그림 파일은 PW-034 route(정책, 전송 확인, 내려받기)로 다루지 않는다(`source_pdf` 전용). 지금은 그림 파일을 어디로도 보내지 않으므로 안전하다. 보내거나 내려받게 될 때 종류별 getter를 따로 만든다.

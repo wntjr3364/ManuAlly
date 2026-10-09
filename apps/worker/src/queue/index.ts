@@ -76,6 +76,17 @@ export interface HandlerContext { fencingToken: number; heartbeat: () => Promise
 // It must not write canonical state itself: apply runs inside completeJob under the fencing check.
 export type JobHandler = (job: Job, ctx: HandlerContext) => Promise<{ apply?: (tx: Queryable, job: Job, fencingToken: number) => Promise<void>; result?: Record<string, unknown> }>;
 
+// A handler throws this to say what the job should wait for (spec 08 "오류 종류별 동작"):
+// 429 -> WAITING_QUOTA, 401/403 -> WAITING_AUTH, budget -> WAITING_BUDGET, missing evidence ->
+// WAITING_USER, document conflict -> STALE, otherwise FAILED. Any other error is retried.
+export class JobOutcomeError extends Error {
+  readonly next: 'FAILED' | 'STALE' | 'WAITING_QUOTA' | 'WAITING_AUTH' | 'WAITING_BUDGET' | 'WAITING_USER';
+  constructor(message: string, next: JobOutcomeError['next']) {
+    super(message);
+    this.next = next;
+  }
+}
+
 export type DeliveryOutcome = 'completed' | 'duplicate' | 'skipped' | 'rejected' | 'failed' | 'lost_lease';
 
 export async function processDelivery(pool: TxPool, msg: JobMessage, opts: { workerId: string; leaseMs: number; handlers: Partial<Record<string, JobHandler>> }): Promise<{ outcome: DeliveryOutcome; detail?: string }> {
@@ -101,7 +112,7 @@ export async function processDelivery(pool: TxPool, msg: JobMessage, opts: { wor
   } catch (e) {
     if (e instanceof DomainError && e.code === 'CONFLICT' && /lease lost/.test(e.message)) return { outcome: 'lost_lease' };
     try {
-      await failJob(pool, { jobId: job.id, fencingToken, error: e instanceof Error ? e.message : String(e), next: 'retry' });
+      await failJob(pool, { jobId: job.id, fencingToken, error: e instanceof Error ? e.message : String(e), next: e instanceof JobOutcomeError ? e.next : 'retry' });
     } catch (f) {
       if (f instanceof DomainError && f.code === 'CONFLICT') return { outcome: 'lost_lease' };
       throw f;

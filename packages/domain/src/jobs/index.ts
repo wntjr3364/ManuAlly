@@ -43,11 +43,32 @@ const isTxPool = (db: Queryable | TxPool): db is TxPool => typeof (db as TxPool)
 const withTx = <T>(db: Queryable | TxPool, fn: (tx: Queryable) => Promise<T>) => (isTxPool(db) ? inTransaction(db, fn) : fn(db));
 const setActor = (tx: Queryable, actor: string) => tx.query("SELECT set_config('pw.actor', $1, true)", [actor]);
 
+// plain JSON only: a Date or Map would hash as {} and silently match a different payload
 function checkPayload(v: unknown, depth = 0): void {
-  if (depth > 20) throw new DomainError('INVALID', 'payload is nested too deeply', 'payload');
-  if (typeof v === 'string' && !storable(v)) throw new DomainError('INVALID', 'payload contains a NUL character or an unpaired surrogate', 'payload');
-  if (Array.isArray(v)) v.forEach((x) => checkPayload(x, depth + 1));
-  else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) { checkPayload(k, depth + 1); checkPayload(x, depth + 1); }
+  const bad = (m: string) => new DomainError('INVALID', `payload ${m}`, 'payload');
+  if (depth > 20) throw bad('is nested too deeply');
+  if (v === null || typeof v === 'boolean') return;
+  if (typeof v === 'number') {
+    if (!Number.isFinite(v)) throw bad('numbers must be finite');
+    return;
+  }
+  if (typeof v === 'string') {
+    if (!storable(v)) throw bad('contains a NUL character or an unpaired surrogate');
+    return;
+  }
+  if (Array.isArray(v)) return v.forEach((x) => checkPayload(x, depth + 1));
+  if (typeof v === 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(v))) {
+    for (const [k, x] of Object.entries(v)) { checkPayload(k, depth + 1); checkPayload(x, depth + 1); }
+    return;
+  }
+  throw bad(`may contain only JSON values (found ${typeof v === 'object' ? (v as object).constructor?.name ?? 'object' : typeof v})`);
+}
+
+export const MIN_LEASE_MS = 1_000;
+export const MAX_LEASE_MS = 3_600_000;
+function checkLease(ms: unknown): number {
+  if (!Number.isInteger(ms) || (ms as number) < MIN_LEASE_MS || (ms as number) > MAX_LEASE_MS) throw new DomainError('INVALID', `lease must be a whole number of ms between ${MIN_LEASE_MS} and ${MAX_LEASE_MS}`, 'leaseMs');
+  return ms as number;
 }
 
 export async function enqueueJob(db: Queryable | TxPool, a: { paperId: string; ownerId: string; intent: unknown; idempotencyKey: unknown; payload: unknown }): Promise<{ job: Job; created: boolean }> {
@@ -58,18 +79,28 @@ export async function enqueueJob(db: Queryable | TxPool, a: { paperId: string; o
   if (Buffer.byteLength(canonicalJson(a.payload)) > MAX_PAYLOAD_BYTES) throw new DomainError('INVALID', 'payload is larger than 64 KB', 'payload');
   const hash = contentHash(a.payload);
   return withTx(db, async (tx) => {
+    // inside a caller's transaction, restore its actor afterwards (e.g. a worker enqueueing a follow-up)
+    const previous = (await tx.query<{ a: string | null }>("SELECT current_setting('pw.actor', true) AS a")).rows[0]!.a ?? '';
     await setActor(tx, `owner:${a.ownerId}`);
+    try {
+      return await enqueueIn(tx, a, hash);
+    } finally {
+      await setActor(tx, previous);
+    }
+  });
+}
+
+async function enqueueIn(tx: Queryable, a: { paperId: string; ownerId: string; intent: unknown; idempotencyKey: unknown; payload: unknown }, hash: string): Promise<{ job: Job; created: boolean }> {
+  {
+    if (!(await tx.query('SELECT 1 FROM paper_projects WHERE id = $1 AND owner_id = $2', [a.paperId, a.ownerId])).rows[0]) throw new DomainError('NOT_FOUND', 'paper not found');
     const id = randomUUID();
     const ins = await tx.query<Job>(
       `INSERT INTO jobs (id, paper_id, owner_id, intent, idempotency_key, payload, payload_hash) VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (paper_id, idempotency_key) DO NOTHING RETURNING ${PUBLIC}`,
       [id, a.paperId, a.ownerId, a.intent, a.idempotencyKey, JSON.stringify(a.payload), hash],
     );
-    if (ins.rows[0]) {
-      const msg: JobMessage = { job_id: id, paper_id: a.paperId, intent: a.intent as string };
-      await tx.query('INSERT INTO job_outbox (job_id, payload) VALUES ($1, $2)', [id, JSON.stringify(msg)]);
-      return { job: ins.rows[0], created: true };
-    }
+    // the dispatch message is written by the jobs_dispatch trigger in the same statement
+    if (ins.rows[0]) return { job: ins.rows[0], created: true };
     // the same intent was registered before (possibly concurrently): return it, unless the key is reused for something else
     const { rows } = await tx.query<JobRow>(`SELECT ${INTERNAL} FROM jobs WHERE paper_id = $1 AND idempotency_key = $2`, [a.paperId, a.idempotencyKey]);
     const existing = rows[0]!;
@@ -77,7 +108,7 @@ export async function enqueueJob(db: Queryable | TxPool, a: { paperId: string; o
       throw new DomainError('CONFLICT', 'this idempotency key was already used for a different job', 'idempotency_key');
     }
     return { job: toPublic(existing), created: false };
-  });
+  }
 }
 
 const PUBLIC_KEYS = PUBLIC.split(', ') as (keyof Job)[];
@@ -98,6 +129,7 @@ export async function listJobs(db: Queryable, paperId: string): Promise<Job[]> {
 
 // Takes the job if it is waiting, or if its previous lease has expired. Returns null otherwise.
 export async function claimJob(pool: TxPool, a: { jobId: string; workerId: string; leaseMs: number }): Promise<{ job: Job; fencingToken: number } | null> {
+  checkLease(a.leaseMs);
   if (!UUID_RE.test(a.jobId)) return null;
   return inTransaction(pool, async (tx) => {
     await setActor(tx, `worker:${a.workerId}`);
@@ -118,6 +150,7 @@ export async function claimJob(pool: TxPool, a: { jobId: string; workerId: strin
 }
 
 export async function heartbeatJob(pool: TxPool, a: { jobId: string; fencingToken: number; leaseMs: number }): Promise<boolean> {
+  checkLease(a.leaseMs);
   const { rowCount } = await pool.query(
     `UPDATE jobs SET lease_expires_at = clock_timestamp() + make_interval(secs => $3::double precision / 1000)
      WHERE id = $1 AND status = 'RUNNING' AND fencing_token = $2`,
@@ -141,8 +174,8 @@ async function lockRunning(tx: Queryable, jobId: string, fencingToken: number): 
 export async function completeJob(pool: TxPool, a: { jobId: string; fencingToken: number; apply?: (tx: Queryable) => Promise<void>; result?: Record<string, unknown> }): Promise<Job> {
   return inTransaction(pool, async (tx) => {
     const j = await lockRunning(tx, a.jobId, a.fencingToken);
-    await setActor(tx, `worker:${j.lease_owner}`);
     if (a.apply) await a.apply(tx);
+    await setActor(tx, `worker:${j.lease_owner}`); // after apply, which may have set its own actor
     const { rows } = await tx.query<Job>(
       `UPDATE jobs SET status = 'SUCCEEDED', result = $2, finished_at = clock_timestamp(), lease_owner = NULL, lease_expires_at = NULL
        WHERE id = $1 RETURNING ${PUBLIC}`,
@@ -158,16 +191,14 @@ export async function failJob(pool: TxPool, a: { jobId: string; fencingToken: nu
     const j = await lockRunning(tx, a.jobId, a.fencingToken);
     await setActor(tx, `worker:${j.lease_owner}`);
     const next = a.next === 'retry' ? (j.attempts >= MAX_ATTEMPTS ? 'FAILED' : 'QUEUED') : a.next;
+    // a retry is dispatched again (jobs_dispatch trigger) after an exponential delay
+    await tx.query("SELECT set_config('pw.dispatch_delay_secs', $1, true)", [String(2 ** j.attempts)]);
     const { rows } = await tx.query<Job>(
       `UPDATE jobs SET status = $2, last_error = $3, lease_owner = NULL, lease_expires_at = NULL,
          finished_at = CASE WHEN $2 IN ('FAILED', 'STALE') THEN clock_timestamp() END
        WHERE id = $1 RETURNING ${PUBLIC}`,
       [a.jobId, next, a.error.slice(0, 1000)],
     );
-    if (next === 'QUEUED') {
-      const msg: JobMessage = { job_id: j.id, paper_id: j.paper_id, intent: j.intent };
-      await tx.query("INSERT INTO job_outbox (job_id, payload, available_at) VALUES ($1, $2, clock_timestamp() + make_interval(secs => $3))", [j.id, JSON.stringify(msg), 2 ** j.attempts]);
-    }
     return rows[0]!;
   });
 }
@@ -187,5 +218,43 @@ export async function cancelJob(pool: TxPool, a: { paperId: string; jobId: strin
       [a.jobId],
     );
     return up.rows[0]!;
+  });
+}
+
+// Recovers jobs a crashed worker left behind (spec 08: queue redelivery is not trusted alone).
+// - RUNNING with an expired lease: back to QUEUED (dispatched again by trigger), or FAILED after
+//   MAX_ATTEMPTS runs. The old worker's fencing token no longer matches anything.
+// - QUEUED whose message was taken but never processed (e.g. the worker died after receiving it):
+//   re-dispatched once its last publication is older than redispatchAfterMs.
+// Run it periodically from the relay loop. Re-dispatching a job that is in fact still progressing
+// is harmless: the second delivery cannot claim a live lease and a finished job is a duplicate.
+export async function recoverJobs(pool: TxPool, opts: { redispatchAfterMs?: number } = {}): Promise<{ requeued: number; failed: number; redispatched: number }> {
+  const after = opts.redispatchAfterMs ?? 5 * 60_000;
+  return inTransaction(pool, async (tx) => {
+    await setActor(tx, 'system:recovery');
+    const expired = await tx.query<{ id: string; attempts: number }>(
+      "SELECT id, attempts FROM jobs WHERE status = 'RUNNING' AND lease_expires_at < clock_timestamp() ORDER BY id FOR UPDATE SKIP LOCKED",
+    );
+    let requeued = 0;
+    let failed = 0;
+    for (const j of expired.rows) {
+      const give = j.attempts >= MAX_ATTEMPTS;
+      await tx.query(
+        `UPDATE jobs SET status = $2, lease_owner = NULL, lease_expires_at = NULL, last_error = $3,
+           finished_at = CASE WHEN $2 = 'FAILED' THEN clock_timestamp() END WHERE id = $1`,
+        [j.id, give ? 'FAILED' : 'QUEUED', give ? `lease expired ${j.attempts} times; giving up` : 'lease expired; re-queued'],
+      );
+      if (give) failed++;
+      else requeued++;
+    }
+    const re = await tx.query(
+      `INSERT INTO job_outbox (job_id, payload)
+       SELECT j.id, jsonb_build_object('job_id', j.id, 'paper_id', j.paper_id, 'intent', j.intent) FROM jobs j
+       WHERE j.status = 'QUEUED'
+         AND NOT EXISTS (SELECT 1 FROM job_outbox o WHERE o.job_id = j.id AND o.published_at IS NULL)
+         AND (SELECT max(o.published_at) FROM job_outbox o WHERE o.job_id = j.id) <= clock_timestamp() - make_interval(secs => $1::double precision / 1000)`,
+      [after],
+    );
+    return { requeued, failed, redispatched: re.rowCount ?? 0 };
   });
 }

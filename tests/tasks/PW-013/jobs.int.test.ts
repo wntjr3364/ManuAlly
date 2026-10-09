@@ -44,6 +44,8 @@ async function newQueue() {
 const paper = async () => createPaper(pool, ownerId, { working_title: 'p', article_type: 'research_article' });
 const enqueue = (paperId: string, key = randomUUID(), payload: Record<string, unknown> = { node_id: randomUUID() }) =>
   enqueueJob(pool, { paperId, ownerId, intent: 'draft_paragraph', idempotencyKey: key, payload });
+// lease expiry without sleeping (no timing flakiness under load)
+const expireLease = (jobId: string) => pool.query("UPDATE jobs SET lease_expires_at = clock_timestamp() - interval '1 second' WHERE id = $1", [jobId]);
 const effects = async (jobId: string) => (await pool.query('SELECT fencing_token FROM test_job_effects WHERE job_id = $1', [jobId])).rows;
 // the synthetic handler: its only canonical write is one effect row, applied under the fencing check
 const handler = async () => ({ apply: async (tx: Queryable, job: { id: string }, token: number) => { await tx.query('INSERT INTO test_job_effects (job_id, fencing_token) VALUES ($1, $2)', [job.id, token]); } });
@@ -149,10 +151,10 @@ describe('TST-013B: publish failures and duplicate messages lose nothing and cha
   test('a worker whose lease expired cannot commit (fencing token); the new owner commits once', async () => {
     const p = await paper();
     const { job } = await enqueue(p.id);
-    const a = await claimJob(pool, { jobId: job.id, workerId: 'slow', leaseMs: 100 });
+    const a = await claimJob(pool, { jobId: job.id, workerId: 'slow', leaseMs: 30_000 });
     expect(a).not.toBeNull();
     expect(await claimJob(pool, { jobId: job.id, workerId: 'eager', leaseMs: 30_000 })).toBeNull(); // lease still live
-    await new Promise((r) => setTimeout(r, 250));
+    await expireLease(job.id);
     const b = await claimJob(pool, { jobId: job.id, workerId: 'rescuer', leaseMs: 30_000 });
     expect(b!.fencingToken).toBeGreaterThan(a!.fencingToken);
     await completeJob(pool, { jobId: job.id, fencingToken: b!.fencingToken, apply: (tx) => handler().then((h) => h.apply(tx, job, b!.fencingToken)) });
@@ -163,8 +165,8 @@ describe('TST-013B: publish failures and duplicate messages lose nothing and cha
   test('a stale worker cannot finish while the new lease holder is still running', async () => {
     const p = await paper();
     const { job } = await enqueue(p.id);
-    const a = await claimJob(pool, { jobId: job.id, workerId: 'slow', leaseMs: 100 });
-    await new Promise((r) => setTimeout(r, 250));
+    const a = await claimJob(pool, { jobId: job.id, workerId: 'slow', leaseMs: 30_000 });
+    await expireLease(job.id);
     const b = await claimJob(pool, { jobId: job.id, workerId: 'rescuer', leaseMs: 30_000 });
     // b is RUNNING and has not finished: a's old token must still be refused
     await expect(completeJob(pool, { jobId: job.id, fencingToken: a!.fencingToken, apply: (tx) => handler().then((h) => h.apply(tx, job, a!.fencingToken)) })).rejects.toThrow(/lease lost/);

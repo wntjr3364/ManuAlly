@@ -40,6 +40,7 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-013
     - `FOR UPDATE SKIP LOCKED`로 발행
     - 실패하면 시도 횟수·오류·backoff를 기록하고 나중에 재시도
     - 발행 후 기록 전에 중단되면 다시 발행한다(at-least-once)
+    - ~~worker crash 후 재전달은 outbox·lease가 담당~~ — **최초 커밋에서는 거짓이었다**(리뷰 M1, 아래). 지금은 `recoverJobs`가 담당한다.
   - `PgBossQueue`: pg-boss 12.34.0, 같은 PostgreSQL의 `pgboss` schema
   - `processDelivery`
     - 메시지는 job을 가리키는 포인터일 뿐이다
@@ -59,7 +60,7 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-013
   - 최신 12.37.x는 14일 미만이고, ADR-008이 "직전 안정 버전"을 지정했다
   - Node 엔진 요구는 22.12 이상이며, 설치된 Node는 22.22.0이다
 - 하위 의존성 중 14일 미만인 두 개는 `pnpm.overrides`로 더 오래된 버전에 고정했다
-  - rrule-temporal 2.8 → **2.2.6**(09-17)
+  - rrule-temporal 2.2.8 → **2.2.6**(09-17)
   - serialize-error 13.0.2 → **13.0.1**(01-18)
   - 두 버전 모두 pg-boss의 semver 범위를 만족한다
 - pg는 기존 8.23.0으로 통일했다
@@ -101,3 +102,41 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-013
 
 ## 다음 Task
 PW-014 수동 수직 경로 E2E + P01 gate(리뷰 후).
+
+## 독립 리뷰 결과 반영 (2026-10-09)
+- 결론: changes requested(major 1, minor 11).
+- 수정 위치: `pw_013_0002_review_fixes.sql`, `jobs/index.ts`, `queue/index.ts`
+- 회귀 시험: `tests/tasks/PW-013/review-fixes.int.test.ts` 11건
+  - 수정 전 10건 실패(`review-red.log`). 1건은 이미 맞게 동작하던 경로의 보강이다.
+- 시간 의존 제거: 기존 시험의 100ms lease와 sleep을 SQL로 lease를 만료시키는 방식으로 바꿨다.
+
+| 지적 | 조치 |
+|---|---|
+| **M1 worker가 메시지를 받은 뒤나 claim 뒤에 죽으면 job이 영구히 멈춤** | `recoverJobs`(relay 주기에 함께 실행). lease가 만료된 RUNNING은 QUEUED로 되돌리고, MAX_ATTEMPTS를 넘으면 FAILED. 받기만 하고 처리되지 않은 QUEUED는 마지막 발행 후 일정 시간(기본 5분)이 지나면 다시 발행. 두 crash 시나리오 모두 회복 후 정본 1회 반영을 시험 |
+| m1 WAITING_*→QUEUED 재발행 경로 없음 | `jobs_dispatch` trigger: QUEUED가 되는 모든 전이(생성·재시도·회복·재개)에서 같은 문장으로 outbox 기록. 재시도는 지연(`pw.dispatch_delay_secs`, 최대 300초) |
+| m2 오류 종류 매핑 없음 | handler가 `JobOutcomeError(next)`로 WAITING_QUOTA/AUTH/BUDGET/USER, STALE, FAILED를 지정. 그 밖의 오류는 재시도 |
+| m3 caller 트랜잭션에서 actor가 새어 나감 | completeJob/failJob은 apply 뒤에 worker actor를 다시 설정. enqueueJob은 caller의 actor를 복원 |
+| m4 명시 트랜잭션 없이 enqueue | outbox를 trigger가 같은 INSERT 문장에서 쓰므로 autocommit에서도 원자적(시험 추가) |
+| m5 JSON이 아닌 payload | null·boolean·유한 숫자·문자열·배열·plain object만 허용 |
+| m6 leaseMs 검증 없음 | 1초~1시간 정수 |
+| m7 guard 구멍 | 종료된 job은 어떤 UPDATE도 불가. attempts 감소 금지. 실행 중 같은 소유자는 lease 기한만 변경 가능. claim은 token+1·attempts+1. CHECK: 종료 상태일 때만 finished_at, 성공일 때만 result |
+| m8 감사 범위 | node 단위 outline 승인, 논문의 active story/outline 변경을 기록 |
+| m9 시험 공백 | 재시도 outbox·backoff, heartbeat, WAITING, owner 불일치, apply 안 enqueue의 actor, guard |
+| m10 보고서 | 버전 오타 수정, 아래 라이선스 추가 |
+| m11 소소한 항목 | owner·paper 불일치는 FK 오류 대신 not found. 나머지는 아래 기록 |
+
+- 하위 의존성 라이선스
+  - temporal-spec: Apache-2.0
+  - type-fest: MIT OR CC0-1.0
+  - 그 밖(pg-boss, cron-parser, rrule-temporal, serialize-error, luxon, tagged-tag, non-error): MIT
+- 기록만 한 사항
+  - `listJobs`는 최근 200개만 보여 준다(페이지는 P02 UI에서).
+  - `last_error`는 사용자에게 그대로 보인다. provider 오류를 정리하는 일은 P03이다.
+  - REPEATABLE READ caller에서 같은 키를 동시에 enqueue하면 serialization 오류가 난다(caller가 재시도해야 한다).
+  - pg-boss schema를 만들려면 앱 계정에 DB CREATE 권한이 필요하다. runtime role RFC에 포함한다.
+  - `afterPublish` 시험 hook이 운영 코드에 있다(동작에 영향 없음).
+- 기존 데이터: pw_013_0002의 CHECK는 기존 job 행이 규칙을 어기면 적용되지 않는다. 배포된 데이터는 없다.
+- 실행
+  - PW-013 통합 26/26(`green.log`)
+  - mutation 추가 2종 탐지: 받은 메시지 재발행 제거, 전이 시 발행 제거
+  - `pnpm test` exit 0: unit 52, integration 124, contracts 13, e2e 1, spikes 70, evals/pack PASS

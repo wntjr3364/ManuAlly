@@ -1,0 +1,328 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts (11 tests | 10 failed) 543ms
+   ❯ review M1: a worker crash never loses a committed job (3)
+     × crash after receiving the message: recovery re-dispatches and the job completes once 101ms
+     × crash after claiming: once the lease expires, recovery re-queues and a new worker completes once 9ms
+     × a job whose lease keeps expiring stops after MAX_ATTEMPTS instead of looping 8ms
+   ❯ review minors 1–2: every QUEUED transition is dispatched; errors map to waiting states (2)
+     × retry and WAITING_* -> QUEUED both create a dispatch message (with backoff for retry) 23ms
+     × a handler error that names a waiting state parks the job instead of burning retries 12ms
+   ❯ review minors 3–6: actor, payload and lease input (4)
+     × completion is attributed to the worker even when apply enqueues a follow-up job 12ms
+     × payloads must be plain JSON; dates, BigInt, functions and class instances are refused 10ms
+     × lease lengths are bounded integers; an owner/paper mismatch is not-found, not a raw FK error 11ms
+   ❯ review minors 7–8: job guard and audit coverage (2)
+     × direct SQL cannot rewrite a running or finished job 14ms
+     × per-node outline approvals and active pointer changes are audited 21ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review M1: a worker crash never loses a committed job > crash after receiving the message: recovery re-dispatches and the job completes once
+TypeError: recoverJobs is not a function
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:60:11
+     58|     expect((await deliverAll(q)).some((m) => m.job_id === job.id)).toB…
+     59|     expect(await pendingOutbox(job.id)).toBe(0);
+     60|     await recoverJobs(pool, { redispatchAfterMs: 0 });
+       |           ^
+     61|     const again = (await deliverAll(q)).filter((m) => m.job_id === job…
+     62|     expect(again).toHaveLength(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review M1: a worker crash never loses a committed job > crash after claiming: once the lease expires, recovery re-queues and a new worker completes once
+TypeError: recoverJobs is not a function
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:72:11
+     70|     const dead = await claimJob(pool, { jobId: job.id, workerId: 'dies…
+     71|     expect(dead).not.toBeNull();
+     72|     await recoverJobs(pool, { redispatchAfterMs: 0 });
+       |           ^
+     73|     expect((await getJob(pool, p.id, job.id))!.status).toBe('RUNNING')…
+     74|     await expireLease(job.id);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review M1: a worker crash never loses a committed job > a job whose lease keeps expiring stops after MAX_ATTEMPTS instead of looping
+TypeError: recoverJobs is not a function
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:90:13
+     88|       await claimJob(pool, { jobId: job.id, workerId: `w${i}`, leaseMs…
+     89|       await expireLease(job.id);
+     90|       await recoverJobs(pool, { redispatchAfterMs: 0 });
+       |             ^
+     91|     }
+     92|     const j = (await getJob(pool, p.id, job.id))!;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review minors 1–2: every QUEUED transition is dispatched; errors map to waiting states > retry and WAITING_* -> QUEUED both create a dispatch message (with backoff for retry)
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:114:41
+    112|     await relayOutbox(pool, async () => {});
+    113|     await pool.query("UPDATE jobs SET status = 'QUEUED' WHERE id = $1"…
+    114|     expect(await pendingOutbox(job.id)).toBe(1);
+       |                                         ^
+    115|   });
+    116|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review minors 1–2: every QUEUED transition is dispatched; errors map to waiting states > a handler error that names a waiting state parks the job instead of burning retries
+AssertionError: expected 'QUEUED' to be 'WAITING_QUOTA' // Object.is equality
+
+Expected: "WAITING_QUOTA"
+Received: "QUEUED"
+
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:123:56
+    121|     const r = await processDelivery(pool, { job_id: job.id, paper_id: …
+    122|     expect(r.outcome).toBe('failed');
+    123|     expect((await getJob(pool, p.id, job.id))!.status).toBe('WAITING_Q…
+       |                                                        ^
+    124|   });
+    125| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review minors 3–6: actor, payload and lease input > completion is attributed to the worker even when apply enqueues a follow-up job
+AssertionError: expected 'owner:4ebb0397-cb8a-4d66-a0ac-4f317ea…' to be 'worker:wk' // Object.is equality
+
+Expected: "worker:wk"
+Received: "owner:4ebb0397-cb8a-4d66-a0ac-4f317ea9f31b"
+
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:134:27
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review minors 3–6: actor, payload and lease input > payloads must be plain JSON; dates, BigInt, functions and class instances are refused
+AssertionError: promise resolved "{ job: { …(12) }, created: true }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "created": true,
++   "job": {
++     "attempts": 0,
++     "created_at": 2026-10-09T02:08:59.087Z,
++     "finished_at": null,
++     "id": "2da1c2b6-7e5e-492b-8188-15bfc8aba5f5",
++     "idempotency_key": "6662a607-f75c-4b50-9cbc-2cfad624e65c",
++     "intent": "draft_paragraph",
++     "last_error": null,
++     "paper_id": "08cc7373-7d41-46ac-8d2c-007314b17619",
++     "payload": {
++       "at": "1970-01-01T00:00:00.001Z",
++     },
++     "result": null,
++     "status": "QUEUED",
++     "updated_at": 2026-10-09T02:08:59.087Z,
++   },
+  }
+
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:151:100
+    149|     const p = await paper();
+    150|     for (const payload of [{ at: new Date(1) }, { n: 10n }, { f: () =>…
+    151|       await expect(enqueue(p.id, payload as Record<string, unknown>), …
+       |                                                                                                    ^
+    152|     }
+    153|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review minors 3–6: actor, payload and lease input > lease lengths are bounded integers; an owner/paper mismatch is not-found, not a raw FK error
+AssertionError: promise resolved "{ job: { …(12) }, fencingToken: 1 }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "fencingToken": 1,
++   "job": {
++     "attempts": 1,
++     "created_at": 2026-10-09T02:08:59.098Z,
++     "finished_at": null,
++     "id": "55f85136-f434-4bbf-a4a3-819027240be8",
++     "idempotency_key": "dacfc40d-87d0-4b3f-bfe4-39c877c2fa4d",
++     "intent": "draft_paragraph",
++     "last_error": null,
++     "paper_id": "2ebc7150-0ef7-4b23-802b-0acd7c1a3a76",
++     "payload": {
++       "n": "1a77dd7f-d265-4cad-bcff-9d22b97247d3",
++     },
++     "result": null,
++     "status": "RUNNING",
++     "updated_at": 2026-10-09T02:08:59.101Z,
++   },
+  }
+
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:159:95
+    157|     const { job } = await enqueue(p.id);
+    158|     for (const leaseMs of [0, -1000, Number.NaN, Infinity, 1.5, 10 * 3…
+    159|       await expect(claimJob(pool, { jobId: job.id, workerId: 'w', leas…
+       |                                                                                               ^
+    160|     }
+    161|     const c = await claimJob(pool, { jobId: job.id, workerId: 'w', lea…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review minors 7–8: job guard and audit coverage > direct SQL cannot rewrite a running or finished job
+AssertionError: promise resolved "Result{ command: 'UPDATE', …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ Result {
++   "RowCtor": null,
++   "_parsers": undefined,
++   "_prebuiltEmptyResultObject": null,
++   "_types": TypeOverrides {
++     "_types": {
++       "arrayParser": {
++         "create": [Function create],
++       },
++       "builtins": {
++         "ABSTIME": 702,
++         "ACLITEM": 1033,
++         "BIT": 1560,
++         "BOOL": 16,
++         "BPCHAR": 1042,
++         "BYTEA": 17,
++         "CHAR": 18,
++         "CID": 29,
++         "CIDR": 650,
++         "CIRCLE": 718,
++         "DATE": 1082,
++         "FLOAT4": 700,
++         "FLOAT8": 701,
++         "GTSVECTOR": 3642,
++         "INET": 869,
++         "INT2": 21,
++         "INT4": 23,
++         "INT8": 20,
++         "INTERVAL": 1186,
++         "JSON": 114,
++         "JSONB": 3802,
++         "MACADDR": 829,
++         "MACADDR8": 774,
++         "MONEY": 790,
++         "NUMERIC": 1700,
++         "OID": 26,
++         "PATH": 602,
++         "PG_DEPENDENCIES": 3402,
++         "PG_LSN": 3220,
++         "PG_NDISTINCT": 3361,
++         "PG_NODE_TREE": 194,
++         "POLYGON": 604,
++         "REFCURSOR": 1790,
++         "REGCLASS": 2205,
++         "REGCONFIG": 3734,
++         "REGDICTIONARY": 3769,
++         "REGNAMESPACE": 4089,
++         "REGOPER": 2203,
++         "REGOPERATOR": 2204,
++         "REGPROC": 24,
++         "REGPROCEDURE": 2202,
++         "REGROLE": 4096,
++         "REGTYPE": 2206,
++         "RELTIME": 703,
++         "SMGR": 210,
++         "TEXT": 25,
++         "TID": 27,
++         "TIME": 1083,
++         "TIMESTAMP": 1114,
++         "TIMESTAMPTZ": 1184,
++         "TIMETZ": 1266,
++         "TINTERVAL": 704,
++         "TSQUERY": 3615,
++         "TSVECTOR": 3614,
++         "TXID_SNAPSHOT": 2970,
++         "UUID": 2950,
++         "VARBIT": 1562,
++         "VARCHAR": 1043,
++         "XID": 28,
++         "XML": 142,
++       },
++       "getTypeParser": [Function getTypeParser],
++       "setTypeParser": [Function setTypeParser],
++     },
++     "binary": {},
++     "text": {},
++   },
++   "command": "UPDATE",
++   "fields": [],
++   "oid": null,
++   "rowAsArray": false,
++   "rowCount": 1,
++   "rows": [],
+  }
+
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:178:52
+    176|       "UPDATE jobs SET result = '{}' WHERE id = $1",
+    177|       'UPDATE jobs SET finished_at = now() WHERE id = $1',
+    178|     ]) await expect(pool.query(sql, [job.id]), sql).rejects.toThrow(/t…
+       |                                                    ^
+    179|     await pool.query("UPDATE jobs SET status = 'CANCELLED', finished_a…
+    180|     await expect(pool.query('UPDATE jobs SET last_error = last_error W…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  tests/tasks/PW-013/review-fixes.int.test.ts > review minors 7–8: job guard and audit coverage > per-node outline approvals and active pointer changes are audited
+AssertionError: expected [ { …(3) }, { …(3) }, { …(3) } ] to deeply equal ArrayContaining{…}
+
+- Expected
++ Received
+
+- ArrayContaining [
++ [
+    {
+-     "action": "active_story_changed",
+-     "entity_type": "paper",
+-     "to_state": "ff7e5baa-ae47-4d2e-ace6-c54e3e0dd616",
++     "action": "created",
++     "entity_type": "story_revision",
++     "to_state": "DRAFT",
+    },
+    {
+-     "action": "approved",
+-     "entity_type": "outline_node",
++     "action": "state_changed",
++     "entity_type": "story_revision",
+      "to_state": "APPROVED",
++   },
++   {
++     "action": "created",
++     "entity_type": "outline_revision",
++     "to_state": "DRAFT",
+    },
+  ]
+
+ ❯ tests/tasks/PW-013/review-fixes.int.test.ts:199:21
+    197|     await pool.query("INSERT INTO outline_node_approvals (outline_revi…
+    198|     const actions = (await pool.query('SELECT entity_type, action, to_…
+    199|     expect(actions).toEqual(expect.arrayContaining([
+       |                     ^
+    200|       { entity_type: 'paper', action: 'active_story_changed', to_state…
+    201|       { entity_type: 'outline_node', action: 'approved', to_state: 'AP…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  10 failed | 1 passed (11)
+   Start at  02:08:58
+   Duration  1.14s (tests 56%, transform 31%, import 12%)
+

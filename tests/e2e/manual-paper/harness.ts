@@ -11,6 +11,7 @@ import { buildServer } from '../../../apps/api/src/server.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { startLocalWorker } from '../../../apps/worker/src/local/index.ts';
 import { selectionHandlers } from '../../../apps/worker/src/selection/index.ts';
+import { curationHandlers, createMockAssessor } from '../../../apps/worker/src/curation/index.ts';
 import { createMockProvider } from '../../../packages/providers/src/mock/index.ts';
 
 export interface Harness {
@@ -43,7 +44,7 @@ export async function startHarness(opts: { worker?: { chunkDelayMs?: number } } 
   const origins: string[] = [];
   const app = buildServer({ pool, allowedOrigins: origins });
   const api = await app.listen({ host: '127.0.0.1', port: 0 });
-  const worker = opts.worker ? startLocalWorker(pool, { handlers: selectionHandlers(pool, createMockProvider(opts.worker)), pollMs: 50 }) : null;
+  const worker = opts.worker ? startLocalWorker(pool, { handlers: { ...selectionHandlers(pool, createMockProvider(opts.worker)), ...curationHandlers(pool, createMockAssessor()) }, pollMs: 50 }) : null;
   const port = await freePort();
   let vite: ViteDevServer | undefined;
   try {

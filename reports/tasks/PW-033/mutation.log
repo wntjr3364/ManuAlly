@@ -1,0 +1,26 @@
+KILLED style_rule
+KILLED retracted_override
+KILLED preprint_warning
+KILLED unknown_candidate
+SURVIVED every_candidate
+KILLED extra_fields
+KILLED exclude_needs_reason
+SURVIVED exclusion_only_when_excluded
+KILLED read_depth_from_system
+SURVIVED worker_search_scope
+KILLED retracted_adopt
+SURVIVED decided_once_precheck
+KILLED api_search_scope
+KILLED max_searches
+KILLED dedupe_ids
+SURVIVED project_use_role
+KILLED list_searches
+# after adding the 'closing gaps found by mutation' tests:
+KILLED every_candidate
+KILLED exclusion_only_when_excluded
+SURVIVED worker_search_scope
+SURVIVED decided_once_precheck
+KILLED project_use_role
+# after tightening (error text; a DOI not already in the library):
+KILLED worker_search_scope
+KILLED decided_once_precheck

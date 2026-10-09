@@ -1079,7 +1079,7 @@
       "id": "PW-033",
       "phase": "P04",
       "title": "AI 문헌 후보 선정",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-032"
       ],

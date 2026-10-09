@@ -9,7 +9,7 @@
 // Run:
 //   node --experimental-strip-types tests/tasks/PW-024/live-smoke.manual.ts \
 //     --profile ~/.local/state/paper-workspace/claude-profile --sentinel /tmp/sentinel.json \
-//     --approve-live-smoke --budget-usd 0.10 --out reports/tasks/PW-024/live-evidence.json [--claude /path/to/claude]
+//     --approve-live-smoke --budget-usd 0.10 --out reports/tasks/PW-024/live-evidence.json --claude "$(command -v claude)"
 // It records: CLI version, the session id we chose, that resume continued it, init tools (must be
 // []), exit codes and usage. No prompts' answers beyond the check word, no tokens, no paths of secrets.
 import fs from 'node:fs';
@@ -18,7 +18,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { decideClaudeCall, startClaudeTurn, type ClaudeRun, type Sentinel } from '../../../packages/providers/src/claude/index.ts';
-import { loadRegistry, resolveCapability } from '../../../packages/providers/src/core/index.ts';
+import { loadRegistry } from '../../../packages/providers/src/core/index.ts';
 
 const argv = process.argv.slice(2);
 const opt = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -26,28 +26,27 @@ const expand = (p?: string) => (p?.startsWith('~/') ? path.join(os.homedir(), p.
 const profile = expand(opt('--profile'));
 const sentinelFile = expand(opt('--sentinel'));
 const out = expand(opt('--out'));
-const claude = opt('--claude') ?? 'claude';
+const claude = expand(opt('--claude'));
 const budget = Number(opt('--budget-usd') ?? 0);
-if (!argv.includes('--approve-live-smoke') || !profile || !sentinelFile || !out || !(budget > 0)) {
-  console.error('not run: needs --approve-live-smoke, --profile, --sentinel, --budget-usd > 0 and --out (see the header)');
+if (!argv.includes('--approve-live-smoke') || !profile || !sentinelFile || !out || !(budget > 0) || !claude || !path.isAbsolute(claude)) {
+  console.error('not run: needs --approve-live-smoke, --profile, --sentinel, --budget-usd > 0, --out and --claude <absolute path> (see the header)');
   process.exit(2);
 }
-const version = spawnSync(claude, ['--version'], { encoding: 'utf8' }).stdout.trim();
+const version = spawnSync(claude!, ['--version'], { encoding: 'utf8', env: { PATH: process.env.PATH } }).stdout.trim();
 const sentinelAll = JSON.parse(fs.readFileSync(sentinelFile, 'utf8')) as { claude_agent?: Sentinel };
 const sentinel = sentinelAll.claude_agent ? { ...sentinelAll.claude_agent, provider: 'claude_agent' } as Sentinel : null;
-const capability = resolveCapability(loadRegistry(), { provider: 'claude_agent', version: `claude-code ${version.split(' ')[0]}`, auth_mode: 'subscription_cli_login', deployment_profile: 'PERSONAL_LOCAL' });
-const decision = decideClaudeCall({ capability, purpose: 'live_smoke', approval: { approved: true, max_turns: 2, budget_usd: budget }, sentinel });
+const decision = decideClaudeCall(loadRegistry(), { key: { version: `claude-code ${version.split(' ')[0]}`, auth_mode: 'subscription_cli_login', deployment_profile: 'PERSONAL_LOCAL' }, purpose: 'live_smoke', approval: { approved: true, max_turns: 2, budget_usd: budget }, sentinel });
 if (!decision.allowed) { console.error(`not run: ${decision.reason}`); process.exit(2); }
 
 function newRun(): ClaudeRun {
   const base = fs.mkdtempSync(path.join(process.env.XDG_RUNTIME_DIR ?? os.tmpdir(), 'pw-smoke-'));
   const r = { dir: base, cwd: path.join(base, 'work'), homeDir: path.join(base, 'home'), tmpDir: path.join(base, 'tmp'), mcpConfigPath: path.join(base, 'mcp.json') };
   for (const d of [r.cwd, r.homeDir, r.tmpDir]) fs.mkdirSync(d, { mode: 0o700 });
-  fs.writeFileSync(r.mcpConfigPath, JSON.stringify({ mcpServers: {} }));
+  fs.writeFileSync(r.mcpConfigPath, JSON.stringify({ mcpServers: {} }), { mode: 0o600 });
   return r;
 }
 async function turn(prompt: string, session: { new: string } | { resume: string }) {
-  const t = startClaudeTurn({ decision, cmd: claude, run: newRun(), profileDir: profile!, prompt, session, effort: 'low' });
+  const t = startClaudeTurn({ decision, cmd: claude!, run: newRun(), profileDir: profile!, prompt, session, effort: 'low' });
   const events = [];
   for await (const e of t.events) events.push(e);
   return { events, result: await t.done };

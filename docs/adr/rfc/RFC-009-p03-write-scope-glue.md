@@ -29,3 +29,6 @@ User decision / reviewer:
 - PW-023
   - `apps/api/src/providers/**`(새 route 폴더: `GET /api/providers/capabilities`), `apps/api/src/server.ts`(등록)
   - `packages/providers/package.json`(`./core/index.ts` export)
+- PW-024 리뷰 반영
+  - `packages/providers/src/core/admission.ts`(새 파일: Claude·Codex 공용 gate. 등록부를 직접 읽고, 만료·turn·USD 예산을 둔다)
+  - `packages/providers/src/core/capabilities.ts`(`liveEvidenceOk` export), `packages/providers/src/core/index.ts`

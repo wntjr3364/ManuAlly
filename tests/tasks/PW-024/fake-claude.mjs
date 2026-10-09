@@ -6,13 +6,14 @@
 // - the prompt arrives on stdin; the answer mentions the previous prompt of a resumed session
 // - an unknown flag is an error; a profile without a login marker answers "not logged in"
 // Test controls are files in the profile (the adapter passes no other environment): `report-other`
-// (report a different session id), `delay-ms` (wait before answering).
+// (report a different session id), `delay-ms` (wait before answering), `cost` (total_cost_usd).
 // It also records what it saw (argv, env names, cwd) in $HOME/seen.json, so tests can check that the
 // adapter passed nothing else.
 import fs from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
+if (args[0] === '--version') { process.stdout.write(`2.1.294 (Claude Code)\n`); process.exit(0); }
 const out = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 const home = process.env.HOME;
 const get = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : null; };
@@ -44,6 +45,6 @@ process.stdin.on('end', () => {
   setTimeout(() => {
     out({ type: 'assistant', session_id: id, message: { content: [{ type: 'text', text: `turn ${history.length}: ${input.trim()}${prev}` }], usage: { input_tokens: 12, output_tokens: 5 } } });
     out({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed' } });
-    out({ type: 'result', subtype: 'success', is_error: false, result: 'ok', usage: { input_tokens: 12, output_tokens: 5 }, session_id: id });
+    out({ type: 'result', subtype: 'success', is_error: false, result: 'ok', usage: { input_tokens: 12, output_tokens: 5 }, session_id: id, ...(fs.existsSync(path.join(profile, 'cost')) ? { total_cost_usd: Number(fs.readFileSync(path.join(profile, 'cost'), 'utf8')) } : {}) });
   }, delay);
 });

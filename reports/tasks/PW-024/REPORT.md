@@ -94,3 +94,31 @@
 
 ## 다음
 PW-025: Codex App Server adapter
+
+## 독립 리뷰 결과 반영 (2026-10-09)
+- 결론: changes requested(MAJOR 1, minor 4, nit 2).
+- 문제없다고 확인된 것
+  - 발급되지 않거나 거부된 결정으로는 실행되지 않는다.
+  - argv allowlist, 환경 변수 whitelist(API key 차단), profile 별칭 검사는 spike와 같다.
+  - 세션 범위, 프로세스 그룹 취소, live smoke 스크립트의 승인 플래그, TST-024A의 blocked/not_run 기록도 문제없다.
+
+| 지적 | 조치 |
+|---|---|
+| **MAJOR 유일한 gate가 호출자가 준 capability 객체를 믿음**<br>손으로 만든 `{admission: 'approved', live_evidence: true}`로 paper_work가 허용됐다. 반대로 등록부에서 얻은 capability는 늘 거부됐다 | 공용 gate `packages/providers/src/core/admission.ts`(`decideRun`)를 만들었다. 호출자는 키(버전·인증·배포 형태)만 넘기고, gate가 등록부를 직접 읽는다. paper_work는 approved 행과 PW-023의 구조화된 live evidence(같은 CLI 버전)가 필요하다. 결정에는 키가 기록된다. `decideClaudeCall(registry, {key, …})`. 회귀 시험: 위조 capability를 넘겨도 등록부가 requires_verification이면 거부된다 |
+| minor-1 실행 폴더를 확인하지 않아 "자기 MCP config만"이 호출자에게 달려 있었음 | `assertPrivateRunFolder` |
+| | 실행 폴더: 본인 소유, mode 700, symlink 아님. 그 상위(runs root)도 본인 소유이고 다른 사람이 쓸 수 없다 |
+| | work·home·tmp는 안쪽의 개인 폴더다 |
+| | MCP config: 실행 폴더 안의 일반 파일, 본인 소유, 다른 사람이 쓸 수 없음, 내용은 `mcpServers`만 |
+| | 회귀 시험 6가지: 공유 폴더, `/`, 쓰기 열린 config, 다른 키, symlink, 밖의 파일 |
+| minor-2 아무 프로그램이나 실행할 수 있고 버전을 확인하지 않음 | 제품 API에서 `cmdPrefix`를 없앴다. 명령은 절대 경로의 실행 파일이어야 하고 다른 사람이 쓸 수 없어야 한다. 같은 whitelist 환경에서 `--version`을 읽어 결정의 버전과 다르면 거부한다. 시험용 대역 CLI도 `--version`에 답하는 실행 파일이다 |
+| minor-3 승인 예산을 집행하지 않음 | 결정은 기본 1시간 뒤 만료된다. turn마다 하나씩 쓰고(`spendTurn`), 승인한 turn 수가 끝나면 거부한다. provider가 보고한 비용(turn 범위 usage)을 더해 USD 예산에 닿으면 실행을 멈추고, 다음 turn은 거부한다. 회귀 시험 3가지 |
+| minor-4 세션 id 불일치를 표시만 함 | init에서 다른 id가 보고되면 그 자리에서 프로세스 그룹을 취소한다. 오류 이벤트 하나만 내고 `stopped: 'session id mismatch'`로 끝낸다. 회귀 시험 |
+| nit 리더가 끝난 뒤 남은 자식에게 신호를 보내지 않음 | PW-028(잔여 정리·재연결)에서 spike의 `groupStillOurs` 방식으로 한다 |
+| nit live smoke가 결정 전에 `--version`을 실행함 | 모델 호출이나 로그인이 아니어서 유지한다. 대신 절대 경로의 `--claude`를 요구하고, PATH만 넘긴다 |
+
+- mutation(`mutation-review.log`): 9종 모두 탐지했다.
+  - 등록부 승인 없는 paper work, turn 수, USD 예산, 만료
+  - 바이너리 버전, 상대 경로, 불일치 미중단, 공유 실행 폴더, MCP config 내용
+- 실행
+  - PW-024: unit 23, 통합 2
+  - `pnpm test` exit 0(`pnpm-test-review.log`, PW-025와 함께 실행): unit 241, integration 198, contracts 15, e2e 77, spikes 70

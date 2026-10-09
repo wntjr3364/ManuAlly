@@ -58,7 +58,7 @@ function checkEntry(e: unknown, i: number): RegistryEntry {
   return e as RegistryEntry;
 }
 
-function liveEvidenceOk(v: unknown, version: string): boolean {
+export function liveEvidenceOk(v: unknown, version: string): boolean {
   const l = v as { checked_at?: unknown; cli_version?: unknown; host?: unknown; tests?: unknown; passed?: unknown } | null;
   return !!l && typeof l === 'object'
     && typeof l.checked_at === 'string' && !Number.isNaN(Date.parse(l.checked_at))

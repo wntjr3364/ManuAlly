@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P02 진행 중**. PW-015 in_review(리뷰 3회, 최종 approve). 다음은 PW-016.
+- 현재 단계: **P02 진행 중**. PW-015·016 in_review. 다음은 PW-017.
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).
@@ -46,6 +46,7 @@
 | PW-013 | in_review | (P01) | REQ-013 / TST-013A,B | 통합 31/31(리뷰 회귀 16 포함, PostgreSQL+pg-boss), mutation 7종 탐지, 리뷰·재리뷰 반영(재리뷰 approve), `pnpm test` exit 0 | 기능 경로 연결(draft request→job, PW-014/P02), 승인 actor 기록(PW-014), worker 상시 루프·recoverJobs 호출·재발행 상한(P02/P03) |
 | PW-014 | in_review | (P01) | REQ-014 / TST-014A,B | E2E 25/25(Chromium·실제 API·PostgreSQL, 2회 반복 42/42, 불안정했던 시험 60회 반복 60/60), unit 19, 통합 1, 리뷰 4회 반영, 실제 dev 실행 smoke, `pnpm test` exit 0 | IME·자동저장(PW-015/022), asset/reference 입력(P04), 배포·공유 서버 격리(P07) |
 | PW-015 | in_review | (P02) | REQ-015 / TST-015A,B | unit 34, 통합 9, 브라우저 16(CDP 한글 IME), RED(구현 전·리뷰 전·재리뷰 전 코드), mutation 31종 중 30 탐지(1 동등), 독립 리뷰(major 1·minor 7)·재리뷰(minor 4·nit 3) 반영, 최종 확인 approve(nit 2 반영), `pnpm test` exit 0 | 실제 IME·Firefox/Safari(PW-022), 인용 입력 UI(PW-019), revision 누적(PW-021/P07), 복구본 기본값 켜짐 사용자 확인 |
+| PW-016 | in_review | (P02) | REQ-016 / TST-016A,B | unit 8, 브라우저 5(CDP 한글 지시), RED(구현 전·이전 앱), mutation 7종 탐지, `pnpm test` exit 0 | 서버 전송(PW-017/020), 단축키 설정, 해상도·실제 IME(PW-022) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

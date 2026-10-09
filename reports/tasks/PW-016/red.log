@@ -1,0 +1,25 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-016/selection.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-016/selection.test.ts [ tests/tasks/PW-016/selection.test.ts ]
+Error: Cannot find module '../../../apps/web/src/features/selection-chat/target.ts' imported from /home/user/ManuAlly/tests/tasks/PW-016/selection.test.ts
+ ❯ tests/tasks/PW-016/selection.test.ts:3:1
+      1| // PW-016 — selection target and frozen selection request (TST-016A / …
+      2| import { describe, expect, test } from 'vitest';
+      3| import { selectionTarget } from '../../../apps/web/src/features/select…
+       | ^
+      4| import { INTENTS, buildSelectionRequest, freezeSelection, intentAllowe…
+      5| import { editorSchema } from '../../../apps/web/src/features/paper/blo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  07:00:07
+   Duration  438ms (worker 97%, environment 3%)
+

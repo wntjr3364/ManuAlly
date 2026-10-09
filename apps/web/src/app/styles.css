@@ -27,3 +27,7 @@ ul.plain li { padding: 8px 0; border-bottom: 1px solid #eef1f5; display: flex; g
 .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
 .notice { border: 1px solid #c9a227; background: #fff8e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; }
 .notice button { margin-right: 8px; }
+.selection-chat-host { position: relative; }
+.selection-toolbar { position: absolute; z-index: 5; display: flex; gap: 4px; align-items: center; background: #fff; border: 1px solid #c8ced6; border-radius: 6px; padding: 4px; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+.selection-popup { position: relative; z-index: 6; border: 1px solid #8fb3e8; }
+.frozen-selection { background: #cfe3ff; }

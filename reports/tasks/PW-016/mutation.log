@@ -1,0 +1,8 @@
+killed: Enter during IME composition sends [1 failed]
+killed: request uses the current head instead of the frozen base [1 failed]
+control (expected to survive): no behaviour change
+killed: actions enabled before the stored revision [1 failed]
+killed: rewrite allowed before outline approval [1 failed]
+killed: cross-block range becomes a target [1 failed]
+killed: empty selection becomes a target [1 failed]
+killed: Esc does not restore the frozen range (after strengthening the test) [1 failed]

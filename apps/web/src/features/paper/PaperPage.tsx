@@ -30,7 +30,7 @@ export function PaperPage({ paperId }: { paperId: string }) {
       </div>
       <div role="tabpanel" hidden={tab !== 'plan'}>{opened.has('plan') && <StoryOutlineTab paper={paper} onChange={reload} visible={tab === 'plan'} />}</div>
       <div role="tabpanel" hidden={tab !== 'sources'}>{opened.has('sources') && <EvidenceTab paperId={paper.id} visible={tab === 'sources'} />}</div>
-      <div role="tabpanel" hidden={tab !== 'manuscript'}>{opened.has('manuscript') && <ManuscriptTab paperId={paper.id} />}</div>
+      <div role="tabpanel" hidden={tab !== 'manuscript'}>{opened.has('manuscript') && <ManuscriptTab paperId={paper.id} outlineApproved={paper.active_outline_revision_id !== null} />}</div>
       <div role="tabpanel" hidden={tab !== 'versions'}>{opened.has('versions') && <SnapshotsTab paperId={paper.id} visible={tab === 'versions'} />}</div>
     </main>
   );

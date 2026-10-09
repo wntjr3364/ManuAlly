@@ -528,7 +528,7 @@
       "id": "PW-016",
       "phase": "P02",
       "title": "Selection toolbar·Short Chat",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-015"
       ],

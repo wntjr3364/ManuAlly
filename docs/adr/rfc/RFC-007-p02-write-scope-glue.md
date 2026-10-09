@@ -57,3 +57,11 @@ User decision / reviewer:
   - `packages/config/test-patterns.ts`, `packages/config/playwright.config.ts`
     - 브라우저 시험 폴더를 `tests/e2e`에서 `tests`로 넓혔다(`tests/tasks/PW-xxx/*.e2e.ts`).
     - Playwright 설정이 test-patterns의 값을 그대로 쓴다.
+- PW-016
+  - `apps/web/src/editor/ManuscriptEditor.tsx`
+    - FrozenSelection extension 추가
+    - SelectionChat 표시(저장 상태·잠금·개요 승인 여부 전달)
+    - 개발용 시험 handle `selectText`
+  - `apps/web/src/features/paper/{ManuscriptTab,PaperPage}.tsx`: 개요 승인 여부(`active_outline_revision_id`) 전달
+  - `apps/web/src/app/styles.css`: 선택 도구·popup·고정 범위 스타일
+

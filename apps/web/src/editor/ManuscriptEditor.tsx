@@ -22,6 +22,8 @@ import {
   recoveryEndedForPage, recoveryOwner, saveDraft, setRecoveryEnabled, storageWorks, type Draft,
 } from './recovery.ts';
 import { ReadOnlyDocument, renderDocument } from './ReadOnlyDocument.tsx';
+import { SelectionChat } from '../features/selection-chat/SelectionChat.tsx';
+import { FrozenSelection } from '../features/selection-chat/frozen-highlight.ts';
 
 export interface Revision { id: string; content_json: JSONContent; schema_version: number }
 export interface DocInfo { document: { id: string; kind: string; head_revision_id: string }; head: Revision }
@@ -42,7 +44,9 @@ function findOffers(info: DocInfo, tabId: string, openTabs: Set<string> | null):
   });
 }
 
-export function ManuscriptEditor({ paperId, info }: { paperId: string; info: DocInfo }) {
+const extensions = [...editorExtensions, FrozenSelection];
+
+export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { paperId: string; info: DocInfo; outlineApproved?: boolean }) {
   const [save, dispatch] = useReducer(saveReducer, info.head.id, initialSaveState);
   const containerRef = useRef<HTMLDivElement>(null);
   const [problems, setProblems] = useState<string[]>([]);
@@ -66,7 +70,7 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   const initial = info.head.content_json.content?.length ? info.head.content_json : undefined;
 
   const editor = useEditor({
-    extensions: editorExtensions,
+    extensions,
     content: initial,
     editable: false,
     enableContentCheck: true,
@@ -243,6 +247,17 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
     (window as { __pwManuscript?: unknown }).__pwManuscript = {
       composing: () => editor.view.composing,
       insertAtStart: (text: string) => applyExternalPatch(editor.view, (s) => s.tr.insertText(text, 1)),
+      // selects the first occurrence of text (inside one block) as a user would with the mouse
+      selectText: (text: string) => {
+        let found: { from: number; to: number } | null = null;
+        editor.state.doc.descendants((node, pos) => {
+          if (found || !node.isText) return;
+          const i = node.text!.indexOf(text);
+          if (i >= 0) found = { from: pos + i, to: pos + i + text.length };
+        });
+        if (found) editor.chain().focus().setTextSelection(found).run();
+        return found;
+      },
     };
   }, [editor]);
 
@@ -306,6 +321,7 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
         <span role="status" data-testid="save-status" className={`save-status ${unsaved ? 'unsaved' : 'saved'}`}>{saveLabel(save)}</span>
       </div>
       {problems.length > 0 && <ul role="alert" className="error">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
+      <SelectionChat editor={editor} documentId={info.document.id} baseRevisionId={save.headRevisionId} canRequest={save.status === 'saved' && !locked} outlineApproved={outlineApproved} />
       <div className="editor" data-testid="editor"><EditorContent editor={editor} /></div>
       {endedHere && <p role="alert" className="hint" data-testid="recovery-ended">다른 탭에서 로그아웃되어 이 화면에서는 저장되지 않은 변경을 임시 보관하지 않습니다. 새로고침하거나 다시 로그인하면 다시 켜집니다.</p>}
       {owner && storage && storageOk && !endedHere && (

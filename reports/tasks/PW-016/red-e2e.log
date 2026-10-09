@@ -1,0 +1,121 @@
+
+Running 5 tests using 1 worker
+
+[1/5] tests/tasks/PW-016/selection.e2e.ts:45:1 › TST-016A: a Korean instruction typed in the popup keeps the original selection and base revision
+  1) tests/tasks/PW-016/selection.e2e.ts:45:1 › TST-016A: a Korean instruction typed in the popup keeps the original selection and base revision 
+
+    Error: page.evaluate: TypeError: window.__pwManuscript.selectText is not a function
+        at eval (eval at evaluate (:311:30), <anonymous>:1:28)
+        at UtilityScript.evaluate (<anonymous>:313:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at eval (eval at evaluate (:311:30), <anonymous>:1:28)
+        at UtilityScript.evaluate (<anonymous>:313:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at selectText (/home/user/ManuAlly/tests/tasks/PW-016/selection.e2e.ts:33:55)
+        at /home/user/ManuAlly/tests/tasks/PW-016/selection.e2e.ts:52:9
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-f3dbd-selection-and-base-revision/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-f3dbd-selection-and-base-revision/error-context.md
+
+
+[2/5] tests/tasks/PW-016/selection.e2e.ts:82:1 › TST-016B: no selection is never the whole manuscript; cross-paragraph and whole-document selections are refused
+  2) tests/tasks/PW-016/selection.e2e.ts:82:1 › TST-016B: no selection is never the whole manuscript; cross-paragraph and whole-document selections are refused 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator: getByTestId('selection-message')
+    Expected: "먼저 문장을 선택하세요"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveText" getByTestId('selection-message') with timeout 5000ms
+      - waiting for getByTestId('selection-message')
+
+
+      90 |   await expect(toolbar(page)).toHaveCount(0); // a caret is not a target
+      91 |   await page.keyboard.press('Control+Shift+K');
+    > 92 |   await expect(page.getByTestId('selection-message')).toHaveText('먼저 문장을 선택하세요');
+         |                                                       ^
+      93 |   await expect(popup(page)).toHaveCount(0);
+      94 |   await page.keyboard.press('Shift+ArrowUp'); // from the second paragraph into the first
+      95 |   await expect(toolbar(page)).toContainText('한 문단 안에서 선택하세요');
+        at /home/user/ManuAlly/tests/tasks/PW-016/selection.e2e.ts:92:55
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-a0cc1-ment-selections-are-refused/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-a0cc1-ment-selections-are-refused/error-context.md
+
+
+[3/5] tests/tasks/PW-016/selection.e2e.ts:104:1 › TST-016B: moving focus does not change the frozen range; Esc puts the selection back
+  3) tests/tasks/PW-016/selection.e2e.ts:104:1 › TST-016B: moving focus does not change the frozen range; Esc puts the selection back 
+
+    Error: page.evaluate: TypeError: window.__pwManuscript.selectText is not a function
+        at eval (eval at evaluate (:311:30), <anonymous>:1:28)
+        at UtilityScript.evaluate (<anonymous>:313:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at eval (eval at evaluate (:311:30), <anonymous>:1:28)
+        at UtilityScript.evaluate (<anonymous>:313:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at selectText (/home/user/ManuAlly/tests/tasks/PW-016/selection.e2e.ts:33:55)
+        at /home/user/ManuAlly/tests/tasks/PW-016/selection.e2e.ts:110:9
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-10013-Esc-puts-the-selection-back/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-10013-Esc-puts-the-selection-back/error-context.md
+
+
+[4/5] tests/tasks/PW-016/selection.e2e.ts:131:1 › keyboard only: Ctrl+Shift+K reaches the toolbar, Enter opens the popup and sends
+  4) tests/tasks/PW-016/selection.e2e.ts:131:1 › keyboard only: Ctrl+Shift+K reaches the toolbar, Enter opens the popup and sends 
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator: getByTestId('selection-toolbar').getByRole('button', { name: '질문' })
+    Expected: focused
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeFocused" getByTestId('selection-toolbar').getByRole('button', { name: '질문' }) with timeout 5000ms
+      - waiting for getByTestId('selection-toolbar').getByRole('button', { name: '질문' })
+
+
+      137 |   await page.keyboard.press('Shift+Home');
+      138 |   await page.keyboard.press('Control+Shift+K');
+    > 139 |   await expect(toolbar(page).getByRole('button', { name: '질문' })).toBeFocused();
+          |                                                                   ^
+      140 |   await page.keyboard.press('Tab');
+      141 |   await expect(toolbar(page).getByRole('button', { name: '문법' })).toBeFocused();
+      142 |   await page.keyboard.press('Enter');
+        at /home/user/ManuAlly/tests/tasks/PW-016/selection.e2e.ts:139:67
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-e8d74-r-opens-the-popup-and-sends/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-e8d74-r-opens-the-popup-and-sends/error-context.md
+
+
+[5/5] tests/tasks/PW-016/selection.e2e.ts:150:1 › requests wait for the stored revision; academic rewrite waits for an approved outline
+  5) tests/tasks/PW-016/selection.e2e.ts:150:1 › requests wait for the stored revision; academic rewrite waits for an approved outline 
+
+    Error: page.evaluate: TypeError: window.__pwManuscript.selectText is not a function
+        at eval (eval at evaluate (:311:30), <anonymous>:1:28)
+        at UtilityScript.evaluate (<anonymous>:313:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at eval (eval at evaluate (:311:30), <anonymous>:1:28)
+        at UtilityScript.evaluate (<anonymous>:313:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at selectText (/home/user/ManuAlly/tests/tasks/PW-016/selection.e2e.ts:33:55)
+        at /home/user/ManuAlly/tests/tasks/PW-016/selection.e2e.ts:155:9
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-0e033-its-for-an-approved-outline/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-0e033-its-for-an-approved-outline/error-context.md
+
+
+  5 failed
+    tests/tasks/PW-016/selection.e2e.ts:45:1 › TST-016A: a Korean instruction typed in the popup keeps the original selection and base revision 
+    tests/tasks/PW-016/selection.e2e.ts:82:1 › TST-016B: no selection is never the whole manuscript; cross-paragraph and whole-document selections are refused 
+    tests/tasks/PW-016/selection.e2e.ts:104:1 › TST-016B: moving focus does not change the frozen range; Esc puts the selection back 
+    tests/tasks/PW-016/selection.e2e.ts:131:1 › keyboard only: Ctrl+Shift+K reaches the toolbar, Enter opens the popup and sends 
+    tests/tasks/PW-016/selection.e2e.ts:150:1 › requests wait for the stored revision; academic rewrite waits for an approved outline 

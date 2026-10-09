@@ -8,7 +8,7 @@ import { unsupportedTypes } from './editor-extensions.ts';
 import { ManuscriptEditor, type DocInfo } from '../../editor/ManuscriptEditor.tsx';
 import { ReadOnlyDocument } from '../../editor/ReadOnlyDocument.tsx';
 
-export function ManuscriptTab({ paperId }: { paperId: string }) {
+export function ManuscriptTab({ paperId, outlineApproved = false }: { paperId: string; outlineApproved?: boolean }) {
   const [doc, setDoc] = useState<DocInfo | null | undefined>(undefined);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
@@ -30,5 +30,5 @@ export function ManuscriptTab({ paperId }: { paperId: string }) {
   if (doc.head.schema_version !== EDITOR_SCHEMA_VERSION) return <ReadOnlyDocument content={doc.head.content_json} reason={`다른 문서 형식 버전(${doc.head.schema_version}; 현재 ${EDITOR_SCHEMA_VERSION}) — 변환(migration)이 필요한 내용`} />;
   const unsupported = unsupportedTypes(doc.head.content_json);
   if (unsupported.length) return <ReadOnlyDocument content={doc.head.content_json} reason={`편집기가 아직 지원하지 않는 요소(${unsupported.join(', ')})`} />;
-  return <ManuscriptEditor key={doc.document.id} paperId={paperId} info={doc} />;
+  return <ManuscriptEditor key={doc.document.id} paperId={paperId} info={doc} outlineApproved={outlineApproved} />;
 }

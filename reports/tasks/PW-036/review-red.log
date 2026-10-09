@@ -1,0 +1,8 @@
+# PW-036 review fixes — RED (badacb0/7508a06 implementation, new tests) Fri Oct  9 17:33:40 UTC 2026
+     × MINOR 1: a figure id in another letter case still finds the paragraphs that mention it 80ms
+     × MINOR 2: paragraphs of every document (e.g. a supplement) that mention the figure are flagged 92ms
+     × MINOR 3: evidence recorded from a figure file without a version link still counts: its claim and facts are flagged and the trace names the figure 85ms
+     × nit: a fact read from the whole figure (no panel) is flagged on any change 82ms
+     × nits: figure files are not source documents, and a version only takes a figure file 54ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 7 passed (12)

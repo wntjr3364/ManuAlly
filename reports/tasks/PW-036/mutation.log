@@ -21,3 +21,16 @@ SURVIVED upload_figure_scope
 # after closing the two survivors:
 KILLED unit_matches
 KILLED upload_figure_scope
+# review fixes (Fri Oct  9 17:33:46 UTC 2026)
+SURVIVED case_compare (redundant with case_normalize: either alone handles the letter case; both together below)
+SURVIVED case_normalize (redundant with case_compare)
+KILLED all_documents
+BADMUTANT unlinked_evidence (the patch kept the unlinked rows; redone below)
+KILLED whole_figure
+KILLED figure_file_only
+KILLED unit_current
+KILLED version_at_time
+KILLED list_pdf_only
+KILLED get_pdf_only
+KILLED case_both
+KILLED unlinked_evidence_2

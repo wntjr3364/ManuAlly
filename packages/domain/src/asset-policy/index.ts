@@ -130,12 +130,13 @@ const ASSET_COLUMNS = `a.id, a.paper_id, a.sha256, a.byte_size::float8 AS byte_s
 const ASSET_FROM = `FROM asset_revisions a JOIN asset_sources s ON s.asset_revision_id = a.id
   JOIN LATERAL (SELECT * FROM asset_policy_revisions q WHERE q.asset_revision_id = a.id ORDER BY q.created_at DESC, q.id DESC LIMIT 1) p ON true`;
 
+// source PDFs only (figure files are figure/table versions, PW-036)
 export async function listSourceAssets(db: Queryable, paperId: string): Promise<SourceAsset[]> {
-  return (await db.query<SourceAsset>(`SELECT ${ASSET_COLUMNS} ${ASSET_FROM} WHERE a.paper_id = $1 ORDER BY a.created_at, a.id`, [paperId])).rows;
+  return (await db.query<SourceAsset>(`SELECT ${ASSET_COLUMNS} ${ASSET_FROM} WHERE a.paper_id = $1 AND s.kind = 'source_pdf' ORDER BY a.created_at, a.id`, [paperId])).rows;
 }
 export async function getSourceAsset(db: Queryable, paperId: string, id: string): Promise<SourceAsset | null> {
   if (!UUID_RE.test(id)) return null;
-  return (await db.query<SourceAsset>(`SELECT ${ASSET_COLUMNS} ${ASSET_FROM} WHERE a.paper_id = $1 AND a.id = $2`, [paperId, id])).rows[0] ?? null;
+  return (await db.query<SourceAsset>(`SELECT ${ASSET_COLUMNS} ${ASSET_FROM} WHERE a.paper_id = $1 AND a.id = $2 AND s.kind = 'source_pdf'`, [paperId, id])).rows[0] ?? null;
 }
 
 // Stores the record of an inspected original whose bytes are already in the content-addressed store.

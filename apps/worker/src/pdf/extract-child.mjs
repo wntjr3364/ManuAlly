@@ -9,6 +9,16 @@ import { Buffer } from 'node:buffer';
 import { createRequire } from 'node:module';
 
 const MAX_RUNS_PER_PAGE = 50_000;
+const WARMUP = (() => {
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    '<< /Length 33 >>\nstream\nBT /F1 12 Tf 10 50 Td (ok) Tj ET\nendstream', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+  let out = '%PDF-1.7\n';
+  const offs = [];
+  objs.forEach((o, i) => { offs.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+  const x = out.length;
+  return out + `xref\n0 6\n0000000000 65535 f \n${offs.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}trailer << /Size 6 /Root 1 0 R >>\nstartxref\n${x}\n%%EOF\n`;
+})();
 const MAX_TEXT = 20_000_000;
 
 async function readStdin() {
@@ -24,6 +34,11 @@ async function main() {
   const require = createRequire(import.meta.url);
   const pkg = path.dirname(require.resolve('pdfjs-dist/package.json'));
   const pdfjs = await import(path.join(pkg, 'legacy/build/pdf.mjs'));
+  // warm up the parser on a tiny built-in document (its worker and standard-font data load lazily), so
+  // that a broken installation fails here, in the 'load' stage, not while parsing the owner's PDF
+  const warm = pdfjs.getDocument({ data: new Uint8Array(Buffer.from(WARMUP, 'latin1')), disableFontFace: true, useSystemFonts: false, enableXfa: false, stopAtErrors: true, standardFontDataUrl: path.join(pkg, 'standard_fonts') + path.sep, verbosity: 0 });
+  await (await (await warm.promise).getPage(1)).getTextContent();
+  await warm.destroy();
   const data = new Uint8Array(await readStdin());
   stage = 'parse';
   const task = pdfjs.getDocument({

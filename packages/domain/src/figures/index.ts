@@ -96,7 +96,8 @@ export function versionChanges(prev: Pick<FigureVersion, 'caption' | 'panels' | 
 interface DocNode { type?: string; attrs?: Record<string, unknown>; content?: DocNode[] }
 function blocksMentioning(doc: DocNode, figureId: string): { id: string; text: string }[] {
   const out: { id: string; text: string }[] = [];
-  const has = (n: DocNode): boolean => (n.type === 'figure_ref' && n.attrs?.targetId === figureId) || (n.content ?? []).some(has);
+  const id = figureId.toLowerCase();
+  const has = (n: DocNode): boolean => (n.type === 'figure_ref' && String(n.attrs?.targetId ?? '').toLowerCase() === id) || (n.content ?? []).some(has);
   const text = (n: DocNode): string => (n.type === 'text' ? String((n as { text?: string }).text ?? '') : (n.content ?? []).map(text).join(''));
   const walk = (n: DocNode) => {
     if (typeof n.attrs?.id === 'string' && ['paragraph', 'heading', 'table'].includes(String(n.type))) {
@@ -109,8 +110,17 @@ function blocksMentioning(doc: DocNode, figureId: string): { id: string; text: s
   return out;
 }
 
-export async function addFigureVersion(pool: TxPool, a: { paperId: string; ownerId: string; figureId: string; body: unknown }) {
-  if (!UUID_RE.test(a.figureId)) throw new DomainError('NOT_FOUND', 'figure not found');
+// Evidence that comes from a figure: linked to one of its versions, or recorded from the file of one of
+// its versions without a link (then the panel is the one its locator names, or the whole figure).
+const FIGURE_EVIDENCE = `
+  SELECT f.evidence_id, f.panel FROM figure_evidence_links f WHERE f.paper_id = $1 AND f.figure_id = $2
+  UNION
+  SELECT e.id, coalesce(e.locator->>'panel', '') FROM evidence_records e JOIN figure_versions v ON v.asset_revision_id = e.source_asset_revision_id AND v.paper_id = e.paper_id
+  WHERE e.paper_id = $1 AND v.figure_id = $2 AND e.kind IN ('figure_panel', 'table_cell') AND NOT EXISTS (SELECT 1 FROM figure_evidence_links x WHERE x.evidence_id = e.id)`;
+
+export async function addFigureVersion(pool: TxPool, a0: { paperId: string; ownerId: string; figureId: string; body: unknown }) {
+  if (!UUID_RE.test(a0.figureId)) throw new DomainError('NOT_FOUND', 'figure not found');
+  const a = { ...a0, figureId: a0.figureId.toLowerCase() };
   const b = (a.body ?? {}) as Record<string, unknown>;
   const extra = Object.keys(b).filter((k) => !['caption', 'panels', 'asset_id'].includes(k));
   if (extra.length) throw new DomainError('INVALID', `unknown fields: ${extra.join(', ').slice(0, 100)}`, extra[0]);
@@ -121,7 +131,10 @@ export async function addFigureVersion(pool: TxPool, a: { paperId: string; owner
   return inTransaction(pool, async (tx) => {
     const fig = (await tx.query<{ id: string; archived_at: string | null }>('SELECT id, archived_at FROM figure_objects WHERE paper_id = $1 AND id = $2 FOR UPDATE', [a.paperId, a.figureId])).rows[0];
     if (!fig || fig.archived_at) throw new DomainError('NOT_FOUND', 'figure not found');
-    if (assetId && !(await tx.query('SELECT 1 FROM asset_revisions WHERE paper_id = $1 AND id = $2', [a.paperId, assetId])).rowCount) throw new DomainError('NOT_FOUND', 'file not found in this paper', 'asset_id');
+    // a figure/table file of this paper (not a source PDF or another kind of asset)
+    if (assetId && !(await tx.query("SELECT 1 FROM asset_revisions a JOIN asset_sources s ON s.asset_revision_id = a.id WHERE a.paper_id = $1 AND a.id = $2 AND s.kind = 'figure_file'", [a.paperId, assetId])).rowCount) {
+      throw new DomainError('NOT_FOUND', 'figure file not found in this paper', 'asset_id');
+    }
     const prev = (await tx.query<FigureVersion>('SELECT id, figure_id, version_no, caption, panels, asset_revision_id, created_at FROM figure_versions WHERE figure_id = $1 ORDER BY version_no DESC LIMIT 1', [a.figureId])).rows[0];
     const next = { caption, panels, asset_revision_id: assetId };
     const reasons = prev ? versionChanges(prev, next) : [];
@@ -139,22 +152,25 @@ export async function addFigureVersion(pool: TxPool, a: { paperId: string; owner
             target.kind === 'claim' ? target.claimId : null, target.kind === 'fact' ? target.factId : null, why]);
         flags.push({ target_kind: target.kind, reasons: why });
       };
-      // paragraphs of the manuscript (current revision) that mention the figure
-      const docs = (await tx.query<{ id: string; content_json: DocNode }>(
-        "SELECT d.id, r.content_json FROM documents d JOIN document_revisions r ON r.id = d.head_revision_id WHERE d.paper_id = $1 AND d.kind = 'manuscript'", [a.paperId])).rows;
-      for (const d of docs) for (const blk of blocksMentioning(d.content_json, a.figureId)) await flag({ kind: 'paragraph', documentId: d.id, blockId: blk.id }, reasons);
+      // paragraphs of every document (current revisions) that mention the figure. The document rows are
+      // locked first, so a save cannot slip in between reading a head and committing the flags.
+      const heads = (await tx.query<{ id: string; head_revision_id: string }>('SELECT id, head_revision_id FROM documents WHERE paper_id = $1 ORDER BY id FOR SHARE', [a.paperId])).rows;
+      for (const h of heads) {
+        const content = (await tx.query<{ content_json: DocNode }>('SELECT content_json FROM document_revisions WHERE id = $1', [h.head_revision_id])).rows[0]!.content_json;
+        for (const blk of blocksMentioning(content, a.figureId)) await flag({ kind: 'paragraph', documentId: h.id, blockId: blk.id }, reasons);
+      }
       // claims relying on evidence from this figure
       const claims = (await tx.query<{ id: string }>(
-        `SELECT DISTINCT c.id FROM claims c JOIN claim_evidence_links l ON l.claim_id = c.id JOIN figure_evidence_links f ON f.evidence_id = l.evidence_id
-         WHERE c.paper_id = $1 AND f.figure_id = $2 AND c.approval_state IN ('DRAFT', 'APPROVED') ORDER BY c.id`, [a.paperId, a.figureId])).rows;
+        `SELECT DISTINCT c.id FROM claims c JOIN claim_evidence_links l ON l.claim_id = c.id JOIN (${FIGURE_EVIDENCE}) f ON f.evidence_id = l.evidence_id
+         WHERE c.paper_id = $1 AND c.approval_state IN ('DRAFT', 'APPROVED') ORDER BY c.id`, [a.paperId, a.figureId])).rows;
       for (const c of claims) await flag({ kind: 'claim', claimId: c.id }, reasons);
-      // facts read from a panel that changed (or from any panel when the file changed)
+      // facts read from a panel that changed, from the whole figure (no panel), or from any panel when the file changed
       const facts = (await tx.query<{ id: string; unit: string; panel: string }>(
-        `SELECT fr.id, fr.unit, f.panel FROM fact_records fr JOIN figure_evidence_links f ON f.evidence_id = fr.evidence_id
-         WHERE fr.paper_id = $1 AND f.figure_id = $2 AND fr.verification_state IN ('CANDIDATE', 'VERIFIED') ORDER BY fr.id`, [a.paperId, a.figureId])).rows;
+        `SELECT fr.id, fr.unit, f.panel FROM fact_records fr JOIN (${FIGURE_EVIDENCE}) f ON f.evidence_id = fr.evidence_id
+         WHERE fr.paper_id = $1 AND fr.verification_state IN ('CANDIDATE', 'VERIFIED') ORDER BY fr.id`, [a.paperId, a.figureId])).rows;
       const nextPanels = new Map(panels.map((p) => [p.panel, p]));
       for (const f of facts) {
-        const why = reasons.filter((r) => r === 'new_file' || r.endsWith(`:${f.panel}`));
+        const why = f.panel === '' ? [...reasons] : reasons.filter((r) => r === 'new_file' || r.endsWith(`:${f.panel}`));
         const np = nextPanels.get(f.panel);
         if (np && np.unit && f.unit !== np.unit) why.push(`fact_unit_differs:${f.panel}`);
         if (why.length) await flag({ kind: 'fact', factId: f.id }, why);
@@ -204,15 +220,24 @@ export async function traceClaim(db: Queryable, paperId: string, claimId: string
   const claim = (await db.query<{ id: string; kind: string; text: string; approval_state: string }>('SELECT id, kind, text, approval_state FROM claims WHERE paper_id = $1 AND id = $2', [paperId, claimId])).rows[0];
   if (!claim) throw new DomainError('NOT_FOUND', 'claim not found');
   const numbers = await figureNumbers(db, paperId);
-  const links = (await db.query<{ relation: string; evidence_id: string; kind: string; label: string; locator: Record<string, unknown>; extraction_state: string; source_asset_revision_id: string | null; reference_id: string | null }>(
-    `SELECT l.relation, e.id AS evidence_id, e.kind, e.label, e.locator, e.extraction_state, e.source_asset_revision_id, e.reference_id
+  const links = (await db.query<{ relation: string; evidence_id: string; kind: string; label: string; locator: Record<string, unknown>; extraction_state: string; source_asset_revision_id: string | null; reference_id: string | null; created_at: string }>(
+    `SELECT l.relation, e.id AS evidence_id, e.kind, e.label, e.locator, e.extraction_state, e.source_asset_revision_id, e.reference_id, e.created_at
      FROM claim_evidence_links l JOIN evidence_records e ON e.id = l.evidence_id WHERE l.paper_id = $1 AND l.claim_id = $2 ORDER BY l.created_at, e.id`, [paperId, claimId])).rows;
   const out = [];
   for (const l of links) {
-    const fig = (await db.query<{ figure_id: string; figure_version_id: string; panel: string; version_no: number; panels: Panel[]; current_version_no: number }>(
-      `SELECT f.figure_id, f.figure_version_id, f.panel, v.version_no, v.panels, (SELECT max(version_no) FROM figure_versions WHERE figure_id = f.figure_id) AS current_version_no
-       FROM figure_evidence_links f JOIN figure_versions v ON v.id = f.figure_version_id WHERE f.evidence_id = $1`, [l.evidence_id])).rows[0];
+    type FigRow = { figure_id: string; panel: string; version_no: number; panels: Panel[]; current_version_no: number; current_panels: Panel[]; linked: boolean };
+    const CURRENT = `(SELECT max(version_no) FROM figure_versions WHERE figure_id = v.figure_id) AS current_version_no,
+      (SELECT panels FROM figure_versions WHERE figure_id = v.figure_id ORDER BY version_no DESC LIMIT 1) AS current_panels`;
+    // linked to a version, or (not linked) read from the file of a version of a figure
+    const fig = (await db.query<FigRow>(
+      `SELECT v.figure_id, f.panel, v.version_no, v.panels, ${CURRENT}, true AS linked FROM figure_evidence_links f JOIN figure_versions v ON v.id = f.figure_version_id WHERE f.evidence_id = $1`, [l.evidence_id])).rows[0]
+      ?? (l.source_asset_revision_id && ['figure_panel', 'table_cell'].includes(l.kind) ? (await db.query<FigRow>(
+        // not linked: the version with that file that existed when the evidence was recorded
+        `SELECT v.figure_id, $3::text AS panel, v.version_no, v.panels, ${CURRENT}, false AS linked FROM figure_versions v
+         WHERE v.paper_id = $1 AND v.asset_revision_id = $2 ORDER BY (v.created_at <= $4) DESC, CASE WHEN v.created_at <= $4 THEN -v.version_no ELSE v.version_no END LIMIT 1`,
+        [paperId, l.source_asset_revision_id, String(l.locator.panel ?? ''), l.created_at])).rows[0] : undefined);
     const panel = fig?.panels.find((p) => p.panel === fig.panel) ?? null;
+    const currentPanel = fig?.current_panels.find((p) => p.panel === fig.panel) ?? null;
     const facts = (await db.query<{ id: string; entity: string; metric: string; value_text: string; unit: string; group_label: string; comparison: string; n: number | null; verification_state: string }>(
       'SELECT id, entity, metric, value_text, unit, group_label, comparison, n, verification_state FROM fact_records WHERE paper_id = $1 AND evidence_id = $2 ORDER BY created_at, id', [paperId, l.evidence_id])).rows;
     const anchorId = typeof l.locator.anchor_id === 'string' && UUID_RE.test(l.locator.anchor_id) ? l.locator.anchor_id : null;
@@ -223,10 +248,10 @@ export async function traceClaim(db: Queryable, paperId: string, claimId: string
       evidence: { id: l.evidence_id, kind: l.kind, label: l.label, state: l.extraction_state, locator: l.locator, source_asset_revision_id: l.source_asset_revision_id, reference_id: l.reference_id },
       figure: fig ? {
         id: fig.figure_id, ...(numbers.get(fig.figure_id) ?? { kind: 'figure', title: '(archived)', number: null }), version_no: fig.version_no, current_version_no: fig.current_version_no,
-        outdated: fig.version_no !== fig.current_version_no, panel: fig.panel, unit: panel?.unit ?? null, groups: panel?.groups ?? [],
+        outdated: fig.version_no !== fig.current_version_no, linked: fig.linked, panel: fig.panel, unit: panel?.unit ?? null, groups: panel?.groups ?? [], current_unit: currentPanel?.unit ?? null,
       } : null,
       source_location: anchor,
-      facts: facts.map((f) => ({ ...f, unit_matches_panel: panel ? (panel.unit === '' || panel.unit === f.unit) : null })),
+      facts: facts.map((f) => ({ ...f, unit_matches_panel: panel ? (panel.unit === '' || panel.unit === f.unit) : null, unit_matches_current: currentPanel ? (currentPanel.unit === '' || currentPanel.unit === f.unit) : null })),
     });
   }
   const flags = (await db.query('SELECT id, figure_id, reasons, created_at FROM figure_review_flags WHERE paper_id = $1 AND claim_id = $2 AND status = \'open\' ORDER BY created_at', [paperId, claimId])).rows;

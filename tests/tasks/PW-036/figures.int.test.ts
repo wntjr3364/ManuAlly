@@ -183,3 +183,60 @@ describe('TST-036B: a new version, unit or group change is never applied silentl
     expect((await uploadFile(s.p, other.fig.id, PNG('cross'))).statusCode).toBe(404);
   });
 });
+
+// review (PW-036)
+describe('review fixes', () => {
+  test('MINOR 1: a figure id in another letter case still finds the paragraphs that mention it', async () => {
+    const s = await setup();
+    const r = (await call('alice', 'POST', `/api/papers/${s.p}/figures/${s.fig.id.toUpperCase()}/versions`, { caption: 'ABC1 induction in roots.', panels: [{ panel: 'A', unit: 'log2 fold', groups: ['WT', 'abc1'] }], asset_id: s.file1.asset_id }, 201)).json();
+    expect(r.flags.map((f: { target_kind: string }) => f.target_kind).sort()).toEqual(['claim', 'fact', 'paragraph']);
+  });
+
+  test('MINOR 2: paragraphs of every document (e.g. a supplement) that mention the figure are flagged', async () => {
+    const s = await setup();
+    const sup = (await call('alice', 'POST', `/api/papers/${s.p}/documents`, { kind: 'supplement' }, 201)).json().document;
+    const sb = randomUUID();
+    await call('alice', 'POST', `/api/papers/${s.p}/documents/${sup.id}/revisions`, { expected_head_revision_id: sup.head_revision_id, schema_version: 1, reason: 'manual',
+      content_json: { type: 'doc', content: [{ type: 'paragraph', attrs: { id: sb }, content: [{ type: 'text', text: 'See ' }, { type: 'figure_ref', attrs: { targetId: s.fig.id } }] }] } }, 201);
+    await call('alice', 'POST', `/api/papers/${s.p}/figures/${s.fig.id}/versions`, { caption: 'Changed.', panels: [{ panel: 'A', unit: 'fold', groups: ['WT', 'abc1'] }], asset_id: s.file1.asset_id }, 201);
+    const flags = (await call('alice', 'GET', `/api/papers/${s.p}/review-flags`, undefined, 200)).json().flags.filter((f: { target_kind: string }) => f.target_kind === 'paragraph');
+    expect(flags.map((f: { document_id: string; block_id: string }) => [f.document_id, f.block_id]).sort()).toEqual([[s.doc.id, s.b1], [sup.id, sb]].sort());
+  });
+
+  test('MINOR 3: evidence recorded from a figure file without a version link still counts: its claim and facts are flagged and the trace names the figure', async () => {
+    const s = await setup();
+    const loose = (await call('alice', 'POST', `/api/papers/${s.p}/evidence`, { kind: 'figure_panel', source_asset_revision_id: s.file1.asset_id, locator: { panel: 'A' }, label: 'Fig. 1A (not linked)' }, 201)).json();
+    const fact = (await call('alice', 'POST', `/api/papers/${s.p}/facts`, { evidence_id: loose.id, entity: 'ABC1', metric: 'fold change', value_text: '2.5', unit: 'fold', group: 'abc1 vs WT', comparison: 'WT', n: 3, extraction_method: 'figure_reading' }, 201)).json();
+    const claim = (await call('alice', 'POST', `/api/papers/${s.p}/claims`, { kind: 'observation', text: 'Relies on an unlinked panel reading.' }, 201)).json();
+    await call('alice', 'POST', `/api/papers/${s.p}/claims/${claim.id}/evidence-links`, { evidence_id: loose.id, relation: 'supports' }, 201);
+    const before = (await call('alice', 'GET', `/api/papers/${s.p}/claims/${claim.id}/trace`, undefined, 200)).json();
+    expect(before.links[0].figure).toMatchObject({ id: s.fig.id, number: 1, version_no: 1, linked: false, panel: 'A', unit: 'fold' });
+    await call('alice', 'POST', `/api/papers/${s.p}/figures/${s.fig.id}/versions`, { caption: 'ABC1 induction in roots.', panels: [{ panel: 'A', unit: 'log2 fold', groups: ['WT', 'abc1'] }], asset_id: s.file1.asset_id }, 201);
+    const flags = (await call('alice', 'GET', `/api/papers/${s.p}/review-flags`, undefined, 200)).json().flags;
+    expect(flags.some((f: { claim_id: string }) => f.claim_id === claim.id)).toBe(true);
+    expect(flags.some((f: { fact_id: string }) => f.fact_id === (Array.isArray(fact) ? fact[0] : fact).id)).toBe(true);
+    // the trace compares the value with the current version too
+    const after = (await call('alice', 'GET', `/api/papers/${s.p}/claims/${claim.id}/trace`, undefined, 200)).json();
+    expect(after.links[0].figure).toMatchObject({ outdated: true, current_unit: 'log2 fold' });
+    expect(after.links[0].facts[0]).toMatchObject({ unit_matches_panel: true, unit_matches_current: false });
+  });
+
+  test('nit: a fact read from the whole figure (no panel) is flagged on any change', async () => {
+    const s = await setup();
+    const whole = (await call('alice', 'POST', `/api/papers/${s.p}/evidence`, { kind: 'figure_panel', source_asset_revision_id: s.file1.asset_id, locator: { panel: 'whole' }, label: 'whole figure' }, 201)).json();
+    await call('alice', 'POST', `/api/papers/${s.p}/evidence/${whole.id}/figure-link`, { figure_version_id: s.v1.id }, 201);
+    const f = (await call('alice', 'POST', `/api/papers/${s.p}/facts`, { evidence_id: whole.id, entity: 'ABC1', metric: 'count', value_text: '12', unit: 'cells', group: 'all', n: 3, extraction_method: 'figure_reading' }, 201)).json();
+    await call('alice', 'POST', `/api/papers/${s.p}/figures/${s.fig.id}/versions`, { caption: 'ABC1 induction in roots.', panels: [{ panel: 'A', unit: 'fold', groups: ['WT', 'abc1', 'abc2'] }], asset_id: s.file1.asset_id }, 201);
+    const flags = (await call('alice', 'GET', `/api/papers/${s.p}/review-flags`, undefined, 200)).json().flags;
+    expect(flags.find((x: { fact_id: string }) => x.fact_id === (Array.isArray(f) ? f[0] : f).id)).toMatchObject({ reasons: ['groups_changed:A'] });
+  });
+
+  test('nits: figure files are not source documents, and a version only takes a figure file', async () => {
+    const s = await setup();
+    expect((await call('alice', 'GET', `/api/papers/${s.p}/assets`, undefined, 200)).json().assets).toEqual([]);
+    expect((await call('alice', 'POST', `/api/papers/${s.p}/assets/${s.file1.asset_id}/extract`, { idempotency_key: randomUUID() })).statusCode).toBe(404);
+    expect((await call('alice', 'GET', `/api/papers/${s.p}/assets/${s.file1.asset_id}/content`)).statusCode).toBe(404);
+    const pdf = (await app.inject({ method: 'POST', url: `/api/papers/${s.p}/assets?license=cc-by`, headers: { ...H.alice, 'content-type': 'application/pdf' }, payload: PAPER_V1() })).json();
+    expect((await call('alice', 'POST', `/api/papers/${s.p}/figures/${s.fig.id}/versions`, { caption: 'x', panels: [], asset_id: pdf.id })).statusCode).toBe(404);
+  });
+});

@@ -41,3 +41,4 @@ User decision / reviewer:
   - `packages/domain/src/evidence/index.ts`: `retractRecord`(승인된 주장, 검증된 근거·사실의 철회; DB가 이미 허용하던 전이)
   - `apps/api/src/routes/evidence/index.ts`(철회 route), 새 route 폴더 `apps/api/src/outline-impact/**`, `apps/api/src/server.ts`
   - `apps/web/src/features/paper/EvidenceTab.tsx`, `apps/web/src/features/evidence/TracePanel.tsx`(철회 버튼), `apps/web/src/features/paper/StoryOutlineTab.tsx`(영향 panel)
+- PW-040 리뷰 반영: `packages/search/src/retrieval/index.ts`(지지 근거 없는 관찰 주장 보류 `claim_unsupported`, `RETRIEVAL_VERSION` pw-retrieval-3, `settledMaterial.excerptIds`), `apps/api/src/outline-impact/index.ts`(scope에 settledMaterial)

@@ -70,3 +70,24 @@
 
 ## 다음
 PW-041: WritingProfile 생성·승인
+
+## 리뷰 반영 (1차, changes requested — MAJOR 1, MINOR 2, NIT 3)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR: 주장의 근거를 철회해도 주장은 APPROVED로 남고, 주장만 적은 node는 영향이 없다. 그 주장이 generation scope·PW-039·PW-037에 계속 쓰였다 | (1) 지지 근거 중 검증된 것이 하나도 남지 않은 승인된 관찰 주장은 **계산상 unsupported**다. 따로 저장하지 않는다. PW-037 `candidatePool`은 이를 `claim_unsupported`로 보류한다(`RETRIEVAL_VERSION` pw-retrieval-3). 그래서 `settledMaterial`(PW-039)과 node scope에서도 빠진다. (2) `derive()`는 node가 적은 주장의 근거(그리고 그 근거의 사실·그림·인용 문헌)도 의존으로 본다. key에 `via-claim:<id>`로 경로를 적는다. 주장 자체에는 `claim_unsupported` 영향이 생긴다. 철회는 막지 않는다. 잘못된 측정을 거두는 것은 사용자의 권리다 | 주장만 적은 n4: 근거 철회 → `claim_unsupported`, `evidence_withdrawn`(via-claim key), gate 차단, scope 제외(`claim_unsupported`), settledMaterial에서 빠짐 |
+| MINOR 1: 보관된 그림은 영향이 아님 | `figure_archived`(보관 시각을 key에 넣음) | 보관 → n3 영향 |
+| MINOR 2: nodeScope가 PW-037 gate를 거치지 않음 | `nodeScope`가 호출자에게 `settledMaterial`을 받는다(search가 domain에 의존하므로 반대 방향 import는 못 함). gate가 막은 주장·사실·원문 인용은 사유와 함께 `excluded`에 남긴다. API는 `?provider=`로 공급자를 정한다(기본 MOCK, 모르는 값은 422) | 그림 새 버전 → 이전 버전에서 읽은 사실이 `read_from_older_figure_version`으로 빠짐 |
+| NIT: 동시 검토가 500 | `ON CONFLICT DO NOTHING` | 다른 트랜잭션이 같은 검토를 커밋하지 않은 채 있는 동안 검토 → 201(결정적 재현) |
+| NIT: 두 번째 제거가 가려짐 | `source_removed` key에 제거 시각을 넣음 | 제거 → 검토 → 다시 넣음 → 다시 제거 → gate 차단 |
+| NIT: 읽을 때마다 계산 | 지금 그대로다. 개요가 커지면 요청 단위 cache를 남은 위험으로 둔다 | — |
+
+- 범위 밖 추가: `packages/search/src/retrieval/index.ts`
+  - 근거 없는 관찰 주장 보류, `settledMaterial`에 `excerptIds`
+  - PW-037 module이다. RFC-012 부록에 적었다.
+- RED(`red-review.log`): 9f909b6 구현으로 새·바뀐 시험 5개가 실패한다.
+- GREEN: 통합 13, 브라우저 1.
+- mutation(`mutation.log` 하단): 8종 모두 탐지.
+  - 근거 없는 주장, 주장 경유 의존, 보관 그림, 제거 시각 key
+  - 동시 검토: 결정적 재현으로 바꾼 뒤 탐지
+  - scope의 주장·사실 gate, retrieval 보류
+- 회귀: `pnpm test` exit 0 — unit 282, integration 412, contracts 17, 브라우저 89 (`pnpm-test-review.log`)

@@ -1,0 +1,7 @@
+     × withdrawn evidence, a retracted fact and a redrawn figure are impacts of the nodes that rely on them; a newer figure version is a new impact 157ms
+     × MAJOR: a node that lists only a claim sees the claim's evidence withdrawn; the claim is no longer settled anywhere 135ms
+     × MINOR 1: an archived figure is an impact of the nodes reading it 91ms
+     × MINOR 2: the generation scope leaves out what the gates withhold (a fact read from an older figure version) 110ms
+     × nits: two reviews of the same impact at once are one review; a reference removed again is a new impact 196ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 8 passed (13)

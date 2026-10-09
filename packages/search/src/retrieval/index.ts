@@ -20,7 +20,7 @@ import { externalSendDecision } from '@pw/domain/asset-policy/index.ts';
 import { noticesOf } from '@pw/domain/literature/index.ts';
 
 // part of every fingerprint: a change of these rules is a change of the context
-export const RETRIEVAL_VERSION = 'pw-retrieval-2';
+export const RETRIEVAL_VERSION = 'pw-retrieval-3'; // 3: unsupported observations withheld (PW-040 review)
 const KEEP_RECORDS = 20;
 
 export type Via = 'citation' | 'figure_ref' | 'claim' | 'lexical';
@@ -135,13 +135,17 @@ async function candidatePool(db: Queryable, paperId: string, provider: string): 
     });
   }
   // approved claims: withheld when flagged, or when any evidence they rely on comes from a source that may not go out
-  const claims = (await db.query<{ id: string; text: string; content_hash: string; evidence: string[] }>(
-    `SELECT c.id, c.text, c.content_hash, coalesce(array_agg(l.evidence_id ORDER BY l.evidence_id) FILTER (WHERE l.evidence_id IS NOT NULL), '{}') AS evidence
-     FROM claims c LEFT JOIN claim_evidence_links l ON l.claim_id = c.id WHERE c.paper_id = $1 AND c.approval_state = 'APPROVED' GROUP BY c.id ORDER BY c.id`, [paperId])).rows;
+  const claims = (await db.query<{ id: string; kind: string; text: string; content_hash: string; evidence: string[]; supported: boolean }>(
+    `SELECT c.id, c.kind, c.text, c.content_hash, coalesce(array_agg(l.evidence_id ORDER BY l.evidence_id) FILTER (WHERE l.evidence_id IS NOT NULL), '{}') AS evidence,
+            bool_or(l.relation = 'supports' AND e.extraction_state = 'VERIFIED') AS supported
+     FROM claims c LEFT JOIN claim_evidence_links l ON l.claim_id = c.id LEFT JOIN evidence_records e ON e.id = l.evidence_id
+     WHERE c.paper_id = $1 AND c.approval_state = 'APPROVED' GROUP BY c.id ORDER BY c.id`, [paperId])).rows;
   for (const c of claims) {
     const sourceReason = c.evidence.map((e) => gates.get(e)).find((g) => g && (g.removed || g.reason));
-    const withheld = flaggedClaims.has(c.id) ? 'open_review_flags' : sourceReason ? (sourceReason.removed ? 'source_removed' : sourceReason.reason) : null;
-    out.push({ kind: 'claim', id: c.id, text: c.text, evidenceId: null, referenceId: null, figureId: null, locator: { evidence_ids: c.evidence }, withheld, stateKey: [c.id, c.content_hash, c.evidence, flaggedClaims.has(c.id), c.evidence.map((e) => gates.get(e)?.stateKey ?? null)] });
+    // an observation whose supporting evidence was withdrawn is no longer settled (PW-040 review MAJOR)
+    const unsupported = c.kind === 'observation' && c.supported !== true;
+    const withheld = flaggedClaims.has(c.id) ? 'open_review_flags' : unsupported ? 'claim_unsupported' : sourceReason ? (sourceReason.removed ? 'source_removed' : sourceReason.reason) : null;
+    out.push({ kind: 'claim', id: c.id, text: c.text, evidenceId: null, referenceId: null, figureId: null, locator: { evidence_ids: c.evidence }, withheld, stateKey: [c.id, c.content_hash, c.evidence, unsupported, flaggedClaims.has(c.id), c.evidence.map((e) => gates.get(e)?.stateKey ?? null)] });
   }
   return out;
 }
@@ -149,10 +153,11 @@ async function candidatePool(db: Queryable, paperId: string, provider: string): 
 // The paper's settled facts and approved claims that may serve as material for this provider (PW-039
 // review): the same gates as a paragraph context — not from a removed or retracted source, not from a
 // source that may not be sent, not read from an older figure version, no open review flag.
-export async function settledMaterial(db: Queryable, paperId: string, provider: string): Promise<{ factIds: Set<string>; claimIds: Set<string>; withheld: { kind: string; id: string; reason: string }[] }> {
+export interface SettledMaterial { factIds: Set<string>; claimIds: Set<string>; excerptIds: Set<string>; withheld: { kind: string; id: string; reason: string }[] }
+export async function settledMaterial(db: Queryable, paperId: string, provider: string): Promise<SettledMaterial> {
   const pool = await candidatePool(db, paperId, provider);
   const ok = (k: string) => new Set(pool.filter((c) => c.kind === k && !c.withheld).map((c) => c.id));
-  return { factIds: ok('fact'), claimIds: ok('claim'), withheld: pool.filter((c) => c.kind !== 'excerpt' && c.withheld).map((c) => ({ kind: c.kind, id: c.id, reason: c.withheld! })) };
+  return { factIds: ok('fact'), claimIds: ok('claim'), excerptIds: ok('excerpt'), withheld: pool.filter((c) => c.withheld).map((c) => ({ kind: c.kind, id: c.id, reason: c.withheld! })) };
 }
 
 // Lexical search within one paper (used for the "related" part of a context, and on its own).

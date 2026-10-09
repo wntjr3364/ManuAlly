@@ -19,6 +19,7 @@ import { createFigure, createReference } from '../../../packages/domain/src/refe
 import { ingestCandidate } from '../../../packages/domain/src/literature/index.ts';
 import { addFigureVersion, linkFigureEvidence, recordFigureFile } from '../../../packages/domain/src/figures/index.ts';
 import { checkDraftGate } from '../../../packages/domain/src/outlines/index.ts';
+import { settledMaterial } from '../../../packages/search/src/retrieval/index.ts';
 
 const ORIGIN = 'http://127.0.0.1:5173';
 let db: { url: string; drop: () => Promise<void> };
@@ -155,7 +156,8 @@ describe('TST-040A: only the node\'s scope; changes of its sources are tracked',
     await retract(w, 'evidence', w.e2.id, w.e2.content_hash);
     await addFigureVersion(pool, { paperId: w.paperId, ownerId: w.owner, figureId: w.fig.id, body: { caption: 'v2', panels: [{ panel: 'A', unit: 'fold', groups: ['WT'] }], asset_id: w.file.id } });
     const list = await impacts(w);
-    expect(list.map((i) => [i.node_id, i.change]).sort()).toEqual([[w.n1.node_id, 'fact_withdrawn'], [w.n2.node_id, 'evidence_withdrawn'], [w.n3.node_id, 'figure_version_changed']].sort());
+    // c2 rests only on e2: withdrawing e2 also leaves the approved observation c2 unsupported (review MAJOR)
+    expect(list.map((i) => [i.node_id, i.change]).sort()).toEqual([[w.n1.node_id, 'fact_withdrawn'], [w.n2.node_id, 'claim_unsupported'], [w.n2.node_id, 'evidence_withdrawn'], [w.n3.node_id, 'figure_version_changed']].sort());
     const fig = list.find((i) => i.change === 'figure_version_changed')!;
     await call('alice', 'POST', `/api/papers/${w.paperId}/outline/revisions/${w.outlineId}/impacts/resolve`, { intent: 'resolve_impact', node_id: w.n3.node_id, key: fig.key });
     expect(await gate(w, w.n3.node_id)).toBe('passed');
@@ -220,5 +222,84 @@ describe('TST-040B: the approved outline stays in force; nothing unrelated is lo
     const d = (await call('alice', 'POST', `/api/papers/${w.paperId}/documents`, { kind: 'manuscript' })).json();
     expect((await call('bob', 'POST', `/api/papers/${w.paperId}/outline/revisions/${w.outlineId}/nodes/${w.n1.node_id}/paragraphs`, { document_id: d.document.id, block_id: randomUUID() })).statusCode).toBe(404);
     expect((await call('alice', 'POST', `/api/papers/${w.paperId}/outline/revisions/${w.outlineId}/nodes/${randomUUID()}/paragraphs`, { document_id: d.document.id, block_id: randomUUID() })).statusCode).toBe(404);
+  });
+});
+
+describe('review (PW-040)', () => {
+  // a revision whose nodes are the world's plus extra ones, approved
+  async function withNodes(w: W, extra: ReturnType<typeof node>[]) {
+    const o = (await call('alice', 'POST', `/api/papers/${w.paperId}/outline/revisions`, { parent_revision_id: w.outlineId, story_revision_id: w.storyId, nodes: [w.n1, w.n2, w.n3, ...extra] })).json();
+    await call('alice', 'POST', `/api/papers/${w.paperId}/outline/revisions/${o.id}/approve`, { intent: 'approve_outline', content_hash: o.content_hash });
+    return o.id as string;
+  }
+  const impactsOf = async (w: W, rev: string) => (await call('alice', 'GET', `/api/papers/${w.paperId}/outline/revisions/${rev}/impacts`)).json() as { node_id: string; change: string; key: string }[];
+
+  test('MAJOR: a node that lists only a claim sees the claim\'s evidence withdrawn; the claim is no longer settled anywhere', async () => {
+    const w = await world();
+    const n4 = node({ paragraph_goal: 'Leaf claim only', claim_ids: [w.c2.id] });
+    const rev = await withNodes(w, [n4]);
+    expect((await settledMaterial(pool, w.paperId, 'mock')).claimIds.has(w.c2.id)).toBe(true);
+    await retract(w, 'evidence', w.e2.id, w.e2.content_hash);
+    const mine = (await impactsOf(w, rev)).filter((i) => i.node_id === n4.node_id);
+    expect(mine.map((i) => i.change).sort()).toEqual(['claim_unsupported', 'evidence_withdrawn']);
+    expect(mine.find((i) => i.change === 'evidence_withdrawn')!.key).toBe(`via-claim:${w.c2.id}|evidence:${w.e2.id}:evidence_withdrawn`);
+    expect(await gate(w, n4.node_id, rev)).toEqual(['impact_review_required']);
+    const sc = (await call('alice', 'GET', `/api/papers/${w.paperId}/outline/revisions/${rev}/nodes/${n4.node_id}/scope`)).json();
+    expect(sc.claims).toEqual([]);
+    expect(sc.excluded).toEqual([{ kind: 'claim', id: w.c2.id, reason: 'claim_unsupported' }]);
+    // PW-037/PW-039: no longer settled material
+    const settled = await settledMaterial(pool, w.paperId, 'mock');
+    expect(settled.claimIds.has(w.c2.id)).toBe(false);
+    expect(settled.withheld).toEqual(expect.arrayContaining([{ kind: 'claim', id: w.c2.id, reason: 'claim_unsupported' }]));
+  });
+
+  test('MINOR 1: an archived figure is an impact of the nodes reading it', async () => {
+    const w = await world();
+    await pool.query('UPDATE figure_objects SET archived_at = clock_timestamp() WHERE id = $1', [w.fig.id]);
+    expect((await impacts(w)).map((i) => [i.node_id, i.change])).toEqual([[w.n3.node_id, 'figure_archived']]);
+  });
+
+  test('MINOR 2: the generation scope leaves out what the gates withhold (a fact read from an older figure version)', async () => {
+    const w = await world();
+    const [f3] = await createFactCandidates(pool, { paperId: w.paperId, ownerId: w.owner, origin: 'user', single: true, facts: [{ evidence_id: w.e3.id, entity: 'ABC1 Fig1A', metric: 'fold change', value_text: '3.3', unit: 'fold', group: 'drought', comparison: 'control', n: 3, extraction_method: 'figure_reading' }] });
+    await reviewFact(pool, { paperId: w.paperId, ownerId: w.owner, id: f3!.id, to: 'VERIFIED', body: { intent: 'verify_fact', content_hash: f3!.content_hash } });
+    const scope = async () => (await call('alice', 'GET', `/api/papers/${w.paperId}/outline/revisions/${w.outlineId}/nodes/${w.n3.node_id}/scope`)).json();
+    expect((await scope()).facts.map((f: { id: string }) => f.id)).toEqual([f3!.id]);
+    await addFigureVersion(pool, { paperId: w.paperId, ownerId: w.owner, figureId: w.fig.id, body: { caption: 'v2', panels: [{ panel: 'A', unit: 'fold', groups: ['WT'] }], asset_id: w.file.id } });
+    const sc = await scope();
+    expect(sc.facts).toEqual([]);
+    expect(sc.excluded).toEqual([{ kind: 'fact', id: f3!.id, reason: 'read_from_older_figure_version' }]);
+    expect((await call('alice', 'GET', `/api/papers/${w.paperId}/outline/revisions/${w.outlineId}/nodes/${w.n3.node_id}/scope?provider=other`)).statusCode).toBe(422);
+  });
+
+  test('nits: two reviews of the same impact at once are one review; a reference removed again is a new impact', async () => {
+    const w = await world();
+    await retract(w, 'claims', w.c1.id, w.c1.content_hash);
+    const [imp] = await impacts(w);
+    // another review of it is in flight (not yet committed) while this one checks and writes
+    const other = await pool.connect();
+    try {
+      await other.query('BEGIN');
+      await other.query("INSERT INTO outline_impact_resolutions (paper_id, outline_revision_id, node_id, impact_key, resolution, resolved_by) VALUES ($1, $2, $3, $4, 'reviewed', $5)", [w.paperId, w.outlineId, imp!.node_id, imp!.key, w.owner]);
+      const mine = call('alice', 'POST', `/api/papers/${w.paperId}/outline/revisions/${w.outlineId}/impacts/resolve`, { intent: 'resolve_impact', node_id: imp!.node_id, key: imp!.key });
+      await new Promise((r) => setTimeout(r, 300));
+      await other.query('COMMIT');
+      expect((await mine).statusCode).toBe(201);
+    } finally {
+      other.release();
+    }
+    // a quoted reference: removed, reviewed, added back, removed again
+    const r = await createReference(pool, { paperId: w.paperId, ownerId: w.owner, body: { title: 'Again work', authors: [{ family: 'Kim' }] } });
+    const e = await createEvidence(pool, { paperId: w.paperId, ownerId: w.owner, body: { kind: 'literature_excerpt', reference_id: r.id, locator: { quote: 'again quote' }, label: 'Again' } });
+    await reviewEvidence(pool, { paperId: w.paperId, ownerId: w.owner, id: e.id, to: 'VERIFIED', body: { intent: 'verify_evidence', content_hash: e.content_hash } });
+    const n5 = node({ paragraph_goal: 'Quote again', role: 'background', evidence_ids: [e.id] });
+    const rev = await withNodes(w, [n5]);
+    const remove = () => pool.query('UPDATE project_references SET removed_at = clock_timestamp() WHERE paper_id = $1 AND reference_id = $2', [w.paperId, r.id]);
+    await remove();
+    const first = (await impactsOf(w, rev)).find((i) => i.node_id === n5.node_id)!;
+    await call('alice', 'POST', `/api/papers/${w.paperId}/outline/revisions/${rev}/impacts/resolve`, { intent: 'resolve_impact', node_id: n5.node_id, key: first.key });
+    await pool.query('UPDATE project_references SET removed_at = NULL WHERE paper_id = $1 AND reference_id = $2', [w.paperId, r.id]);
+    await remove();
+    expect(await gate(w, n5.node_id, rev)).toEqual(['impact_review_required']);
   });
 });

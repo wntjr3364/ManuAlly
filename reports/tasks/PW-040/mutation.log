@@ -17,3 +17,14 @@ KILLED status_impact
 KILLED retract_only_settled
 KILLED retract_hash
 KILLED ui_resolve
+# review fixes (Fri Oct  9 20:59:00 UTC 2026)
+KILLED claim_unsupported
+KILLED deps_via_claims
+KILLED figure_archived
+KILLED removal_epoch_key
+SURVIVED resolve_on_conflict
+KILLED scope_settled_claims
+KILLED scope_settled_facts
+KILLED retrieval_unsupported
+# after making the concurrent review deterministic:
+KILLED resolve_on_conflict

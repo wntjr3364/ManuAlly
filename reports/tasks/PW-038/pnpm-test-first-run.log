@@ -1,0 +1,202 @@
+
+> paper-workspace@ test /home/user/ManuAlly
+> pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:integration && pnpm run test:contracts && pnpm run test:e2e && pnpm run test:spikes && pnpm run test:evals && pnpm run pack-check
+
+
+> paper-workspace@ typecheck /home/user/ManuAlly
+> tsc --noEmit -p packages/config/tsconfig.check.json
+
+
+> paper-workspace@ lint /home/user/ManuAlly
+> eslint .
+
+
+> paper-workspace@ test:unit /home/user/ManuAlly
+> vitest run --config packages/config/vitest.unit.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  26 passed (26)
+      Tests  278 passed (278)
+   Start at  18:25:41
+   Duration  11.79s (tests 88%, transform 6%, import 6%, worker 1%)
+
+    Isolate  26 workers spawned · ~163ms startup each (spawn + environment, per file)
+             at least ~1.25s faster with isolate: false — reuses workers across files instead of one per file
+
+
+> paper-workspace@ test:integration /home/user/ManuAlly
+> vitest run --config packages/config/vitest.integration.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  34 passed (34)
+      Tests  369 passed (369)
+   Start at  18:25:53
+   Duration  41.07s (tests 88%, import 8%, transform 4%)
+
+
+> paper-workspace@ test:contracts /home/user/ManuAlly
+> vitest run --config packages/config/vitest.contracts.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  4 passed (4)
+      Tests  17 passed (17)
+   Start at  18:26:35
+   Duration  1.09s (tests 42%, transform 35%, import 22%, worker 1%)
+
+
+> paper-workspace@ test:e2e /home/user/ManuAlly
+> playwright test --config packages/config/playwright.config.ts
+
+
+Running 85 tests using 1 worker
+
+  ✓   1 tests/e2e/health.e2e.ts:9:1 › browser reaches the API health endpoint and sees the mock provider (1.2s)
+  ✓   2 tests/e2e/manual-paper/manual-paper.e2e.ts:24:1 › TST-014A: manuscript, approvals, evidence and snapshot survive a new browser session (5.4s)
+  ✓   3 tests/e2e/manual-paper/manual-paper.e2e.ts:111:1 › TST-014B: a database failure during save is never shown as saved, and the text is kept (2.3s)
+  ✓   4 tests/e2e/manual-paper/rereview-fixes.e2e.ts:25:1 › MA1: the browser Back button asks before discarding unsaved text, and staying keeps it (1.6s)
+  ✓   5 tests/e2e/manual-paper/rereview-fixes.e2e.ts:42:1 › MA2: a saved story whose list field had a trailing newline or spaces is not "unsaved", and can be approved (1.2s)
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/api/src/server.ts" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/api/src/server.ts?raw" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/domain/src/shared/db.ts" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/domain/src/shared/db.ts?raw" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/web/vite.config.ts" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/web/vite.config.ts?raw" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/.git/config" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/.git/config?raw" is outside of Vite serving allow list.
+  ✓   6 tests/e2e/manual-paper/rereview-fixes.e2e.ts:61:1 › minor 1: workspace sources behind pnpm links and VCS files are not served (43ms)
+  ✓   7 tests/e2e/manual-paper/rereview-fixes.e2e.ts:72:1 › minor 2: Enter at the start of a paragraph keeps its id with its text (1.3s)
+  ✓   8 tests/e2e/manual-paper/rereview-fixes.e2e.ts:89:1 › minor 4: a manuscript stored with another schema version opens read-only (1.0s)
+  ✓   9 tests/e2e/manual-paper/rereview-fixes.e2e.ts:107:1 › minor 5: after another session saved the story first, the newer version can be loaded explicitly (2.1s)
+  ✓  10 tests/e2e/manual-paper/rereview-fixes.e2e.ts:130:1 › minor 6: unsent evidence/fact form text counts as unsaved (1.2s)
+  ✓  11 tests/e2e/manual-paper/rereview-fixes.e2e.ts:142:1 › final check MAJOR-1: typing at the start of a paragraph keeps its id (1.5s)
+  ✓  12 tests/e2e/manual-paper/rereview-fixes.e2e.ts:160:1 › final check minor 1: cancelling Forward keeps the browser history as it was (1.3s)
+  ✓  13 tests/e2e/manual-paper/rereview-fixes.e2e.ts:186:1 › final check minor 2: an outline conflict offers to reload the outline only, keeping unsaved story text (2.6s)
+  ✓  14 tests/e2e/manual-paper/rereview-fixes.e2e.ts:218:1 › verification minor 1: undo/redo of a multi-paragraph paste at a paragraph start keeps that paragraph id (1.6s)
+  ✓  15 tests/e2e/manual-paper/rereview-fixes.e2e.ts:247:1 › verification minor 2: a #fragment change on the same page neither prompts nor breaks Back (1.8s)
+  ✓  16 tests/e2e/manual-paper/rereview-fixes.e2e.ts:267:1 › verification minor 3: text typed before the story has loaded still asks before leaving (1.2s)
+  ✓  17 tests/e2e/manual-paper/rereview-fixes.e2e.ts:287:1 › verification minor 4: a title typed while the previous paper is being created is kept (928ms)
+  ✓  18 tests/e2e/manual-paper/review-fixes.e2e.ts:25:1 › M1: a manuscript with content the editor cannot edit opens read-only, shows it, and cannot be overwritten (1.2s)
+  ✓  19 tests/e2e/manual-paper/review-fixes.e2e.ts:46:1 › M2: unsaved text survives tab switches; leaving the paper or logging out asks first (1.6s)
+  ✓  20 tests/e2e/manual-paper/review-fixes.e2e.ts:66:1 › M3: approval is only offered for what is saved; unsaved form edits block it and are kept (1.4s)
+  ✓  21 tests/e2e/manual-paper/review-fixes.e2e.ts:87:1 › minor 5: a replicate count that is not a whole number is refused, not silently dropped (1.3s)
+  ✓  22 tests/e2e/manual-paper/review-fixes.e2e.ts:99:1 › an outline loaded from the server can be edited, saved again and approved (1.7s)
+  ✓  23 tests/e2e/manual-paper/review-fixes.e2e.ts:122:1 › minor 1: a pasted citation keeps its reference and locator (1.6s)
+  ✓  24 tests/e2e/manual-paper/review-fixes.e2e.ts:143:1 › typing before the story finishes loading is kept, not overwritten by the load (1.7s)
+The request id "/home/user/ManuAlly/CLAUDE.md" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/PROGRESS.md" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/apps/api/src/server.ts" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/.env.example" is outside of Vite serving allow list.
+  ✓  25 tests/e2e/manual-paper/review-fixes.e2e.ts:162:1 › minor 7: the dev server does not serve repository files outside the web app (19ms)
+  ✓  26 tests/tasks/PW-015/editor.e2e.ts:95:1 › TST-015A: Korean IME, italic, sub/superscript and a citation are autosaved and come back after reload (7.1s)
+  ✓  27 tests/tasks/PW-015/editor.e2e.ts:144:1 › TST-015B: an outside patch is refused while composing and applied after (1.5s)
+  ✓  28 tests/tasks/PW-015/editor.e2e.ts:163:1 › TST-015B: a failing save is never shown as saved; it is retried and then stored once (9.3s)
+  ✓  29 tests/tasks/PW-015/editor.e2e.ts:182:1 › TST-015B: offline shows not saved; coming back online saves (3.3s)
+  ✓  30 tests/tasks/PW-015/editor.e2e.ts:196:1 › TST-015B: a save whose answer was lost is not stored twice and not reported as a conflict (7.1s)
+  ✓  31 tests/tasks/PW-015/editor.e2e.ts:239:1 › TST-015A: unsaved text is offered back from this browser and then saved (5.8s)
+  ✓  32 tests/tasks/PW-015/editor.e2e.ts:255:1 › TST-015A: a recovery copy older than the server text is shown for copying, never merged (4.1s)
+  ✓  33 tests/tasks/PW-015/editor.e2e.ts:276:1 › TST-015A: logout leaves no recovery copy; turning recovery off stores none (7.7s)
+  ✓  34 tests/tasks/PW-015/editor.e2e.ts:297:1 › Korean composition inside a paragraph keeps the paragraph id (1.6s)
+  ✓  35 tests/tasks/PW-015/editor.e2e.ts:312:1 › review 2: a save right after typing leaves no copy of the saved text behind (2.3s)
+  ✓  36 tests/tasks/PW-015/editor.e2e.ts:323:1 › review 3: tabs keep their own recovery copies; an open tab's copy is not offered elsewhere (7.5s)
+  ✓  37 tests/tasks/PW-015/editor.e2e.ts:363:1 › review 7: a browser that blocks site storage is told that nothing is kept locally (3.4s)
+  ✓  38 tests/tasks/PW-015/editor.e2e.ts:375:1 › review 8: signing in removes recovery copies another account left in this browser (944ms)
+  ✓  39 tests/tasks/PW-015/editor.e2e.ts:385:1 › re-review 1: a duplicated tab does not share the tab id of the open original (9.0s)
+  ✓  40 tests/tasks/PW-015/editor.e2e.ts:418:1 › re-review 4: after a logout in another tab, an open editor keeps no copy (3.3s)
+  ✓  41 tests/tasks/PW-015/editor.e2e.ts:438:1 › final check nit 2: a tab without an open editor also stops keeping copies after a logout elsewhere (5.8s)
+  ✓  42 tests/tasks/PW-016/selection.e2e.ts:45:1 › TST-016A: a Korean instruction typed in the popup keeps the original selection and base revision (5.8s)
+  ✓  43 tests/tasks/PW-016/selection.e2e.ts:82:1 › TST-016B: no selection is never the whole manuscript; cross-paragraph and whole-document selections are refused (3.3s)
+  ✓  44 tests/tasks/PW-016/selection.e2e.ts:104:1 › TST-016B: moving focus does not change the frozen range; Esc puts the selection back (3.7s)
+  ✓  45 tests/tasks/PW-016/selection.e2e.ts:133:1 › keyboard only: Ctrl+Shift+K reaches the toolbar, Enter opens the popup and sends (3.5s)
+  ✓  46 tests/tasks/PW-016/selection.e2e.ts:152:1 › requests wait for the stored revision; academic rewrite waits for an approved outline (3.4s)
+  ✓  47 tests/tasks/PW-016/selection.e2e.ts:178:1 › review 2: a citation-only selection can be asked about but not edited; atoms are named in the scope (3.5s)
+  ✓  48 tests/tasks/PW-016/selection.e2e.ts:199:1 › review 1 / nit: Esc or Enter that belongs to an IME composition keeps the popup and the instruction (3.5s)
+  ✓  49 tests/tasks/PW-016/selection.e2e.ts:221:1 › review 3 / nits: the shortcut explains disabled actions, stale messages clear, Esc leaves the toolbar (3.4s)
+  ✓  50 tests/tasks/PW-017/proposals.e2e.ts:51:1 › TST-017A: one apply changes only the selected range, and no extra autosave follows (9.0s)
+  ✓  51 tests/tasks/PW-017/proposals.e2e.ts:76:1 › TST-017B: a proposal made before the manuscript changed cannot be applied (6.2s)
+  ✓  52 tests/tasks/PW-017/proposals.e2e.ts:90:1 › TST-017B: a proposal that changes a number shows why and has no apply button (4.0s)
+  ✓  53 tests/tasks/PW-017/proposals.e2e.ts:100:1 › TST-017B: an apply whose answer was lost is retried with the same key and applied once (4.0s)
+  ✓  54 tests/tasks/PW-017/proposals.e2e.ts:123:1 › review MINOR-2: a 5xx answer after the server applied is treated as unknown, then resolved by the same key (6.2s)
+  ✓  55 tests/tasks/PW-017/proposals.e2e.ts:147:1 › rejecting a proposal keeps the text and removes it from the list (4.1s)
+  ✓  56 tests/tasks/PW-017/proposals.e2e.ts:157:1 › re-review MINOR: a retry refused with 401 after a lost answer still finds out that it was applied (4.1s)
+  ✓  57 tests/tasks/PW-018/comments.e2e.ts:42:1 › TST-018A: after the paragraph moves and a small edit, the comment stays on its sentence (7.9s)
+  ✓  58 tests/tasks/PW-018/comments.e2e.ts:60:1 › TST-018B: a deleted sentence or two equal candidates leave the comment without a place; it can be attached again (8.5s)
+  ✓  59 tests/tasks/PW-018/comments.e2e.ts:86:1 › replies, resolve and reopen; a resolved comment has no highlight (6.7s)
+  ✓  60 tests/tasks/PW-019/references.e2e.ts:47:1 › TST-019A: labels and the bibliography follow the document, the style and the figure order (4.7s)
+  ✓  61 tests/tasks/PW-019/references.e2e.ts:78:1 › TST-019B: a citation to a reference this paper does not have is flagged and left out of the bibliography (1.9s)
+  ✓  62 tests/tasks/PW-020/stream.e2e.ts:43:1 › TST-020A: a question streams an answer, labelled MOCK, and leaves the manuscript alone (6.1s)
+  ✓  63 tests/tasks/PW-020/stream.e2e.ts:58:1 › TST-020A: a correction is "ready, not applied" until the owner applies it, then "applied" (4.2s)
+  ✓  64 tests/tasks/PW-020/stream.e2e.ts:75:1 › TST-020B: reloading mid-answer does not cancel; the answer is complete after the reload (5.4s)
+  ✓  65 tests/tasks/PW-020/stream.e2e.ts:87:1 › TST-020B: "취소" stops the job; no answer is completed and nothing is proposed (5.0s)
+  ✓  66 tests/tasks/PW-021/versions.e2e.ts:33:1 › TST-021A: an applied AI edit is undone after a reload, and versions compare (6.0s)
+  ✘  67 tests/tasks/PW-021/versions.e2e.ts:73:1 › TST-021B: an import shows its losses and replaces the manuscript only after confirmation; the old text is restorable (1.0m)
+  ✓  68 tests/tasks/PW-021/versions.e2e.ts:108:1 › TST-021B: with unsaved typing in the editor, the versions tab does not change the head (4.4s)
+  ✓  69 tests/tasks/PW-022/selection-gate.e2e.ts:24:3 › TST-022A: keyboard workflow at 1366×768 (6.0s)
+  ✓  70 tests/tasks/PW-022/selection-gate.e2e.ts:24:3 › TST-022A: keyboard workflow at 1920×1080 (5.6s)
+  ✓  71 tests/tasks/PW-022/selection-gate.e2e.ts:78:1 › TST-022B: duplicate sentences — only the selected occurrence changes (4.8s)
+  ✓  72 tests/tasks/PW-022/selection-gate.e2e.ts:94:1 › TST-022B: emoji before the selection — the change lands at the right characters (4.5s)
+  ✓  73 tests/tasks/PW-022/selection-gate.e2e.ts:107:1 › TST-022B: citation atoms — a change that would move a citation to another word is refused; a safe one keeps both atoms in place (7.2s)
+  ✓  74 tests/tasks/PW-022/selection-gate.e2e.ts:141:1 › TST-022B: two tabs — a proposal made before another tab's edit is refused, and an old tab never overwrites an apply (11.6s)
+  ✓  75 tests/tasks/PW-022/selection-gate.e2e.ts:193:1 › TST-022B: background reloads (window focus) do not touch the editor while a selection is being made (4.5s)
+  ✓  76 tests/tasks/PW-022/selection-gate.e2e.ts:213:1 › TST-022B: an autosave (new stored head) does not make the comments layer dispatch when nothing changed (6.6s)
+  ✓  77 tests/tasks/PW-022/selection-gate.e2e.ts:232:1 › TST-022B: selecting with the keyboard right after the page loads keeps every keystroke (7.7s)
+  ✓  78 tests/tasks/PW-028/runs.e2e.ts:41:1 › TST-028A: reload keeps the run; 중지 stores the cancel; every reconnect shows the stored state (6.2s)
+  ✓  79 tests/tasks/PW-028/runs.e2e.ts:69:1 › TST-028A: while offline the tab says so; when the network returns it shows what the database holds (6.1s)
+  ✓  80 tests/tasks/PW-029/usage.e2e.ts:12:1 › TST-029A: the runs tab shows app usage, context and account quota separately (1.2s)
+  ✓  81 tests/tasks/PW-032/known-doi.e2e.ts:10:1 › a known DOI with other details: the library work is offered, never overwritten (3.1s)
+  ✓  82 tests/tasks/PW-033/curation.e2e.ts:16:1 › TST-033A/B: suggestions are shown with use, fit, depth and warnings; nothing is adopted until the owner decides (2.0s)
+  ✓  83 tests/tasks/PW-035/pdf.e2e.ts:25:1 › TST-035A/B: confirm a quote, reload, re-open it as a highlight on the rendered (and rotated) page (5.0s)
+  ✓  84 tests/tasks/PW-036/trace.e2e.ts:16:1 › TST-036A/B: trace a claim to its figure and value; a unit change asks for review without touching the text (1.9s)
+  ✓  85 tests/tasks/PW-038/import.e2e.ts:57:1 › TST-038A/B: import shows each outcome, cites by stable id, re-import links, Zotero only reads (2.8s)
+
+
+  1) tests/tasks/PW-021/versions.e2e.ts:73:1 › TST-021B: an import shows its losses and replaces the manuscript only after confirmation; the old text is restorable 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '미리 보기' })
+        - locator resolved to <button disabled type="button">미리 보기</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+          - waiting 100ms
+        109 × waiting for element to be visible, enabled and stable
+            - element is not enabled
+          - retrying click action
+            - waiting 500ms
+
+
+      76 |   await page.getByLabel('가져올 파일').setInputFiles({ name: 'draft.md', mimeType: 'text/markdown', buffer: Buffer.from('# Results\n\nCells grew **2.4-fold** ([site](https://example.org)).\n\n- one\n- two\n') });
+      77 |   await expect(page.getByLabel('형식', { exact: true })).toHaveValue('markdown');
+    > 78 |   await page.getByRole('button', { name: '미리 보기' }).click();
+         |                                                     ^
+      79 |   const prev = page.getByTestId('import-preview');
+      80 |   await expect(prev).toContainText('draft.md');
+      81 |   await expect(prev.getByTestId('import-losses')).toContainText('링크 주소를 빼고');
+        at /home/user/ManuAlly/tests/tasks/PW-021/versions.e2e.ts:78:53
+
+    Error Context: packages/config/test-results/tasks-PW-021-versions.e2e.-54158--the-old-text-is-restorable/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-021-versions.e2e.-54158--the-old-text-is-restorable/error-context.md
+
+  1 failed
+    tests/tasks/PW-021/versions.e2e.ts:73:1 › TST-021B: an import shows its losses and replaces the manuscript only after confirmation; the old text is restorable 
+  84 passed (6.9m)
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Test failed. See above for more details.
+exit 1

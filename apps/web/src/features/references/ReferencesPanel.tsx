@@ -6,6 +6,7 @@ import type { Editor } from '@tiptap/core';
 import { bibliography, type CitationStyle, type FigureMeta, type RefMeta } from '@pw/editor-core';
 import { ApiError, api, errorText } from '../../app/api.ts';
 import { labelsFor, setReferenceContext } from './reference-labels.ts';
+import { ImportReferences } from './ImportReferences.tsx';
 
 const STYLE_LABEL: Record<CitationStyle, string> = { numeric: '번호 [1]', author_year: '저자-연도 (Kim 2020)' };
 
@@ -133,6 +134,7 @@ export function ReferencesPanel({ paperId, editor, canInsert, headRevisionId }: 
           <button type="button" onClick={() => setKnown(null)}>취소</button>
         </div>
       )}
+      <ImportReferences paperId={paperId} onImported={() => void load()} />
       <h3>그림·표</h3>
       <ul className="plain" data-testid="figure-list">
         {figures.slice().sort((a, b) => (a.kind === b.kind ? a.position - b.position : a.kind < b.kind ? -1 : 1)).map((f) => (

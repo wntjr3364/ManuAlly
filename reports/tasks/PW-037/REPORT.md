@@ -83,3 +83,7 @@ PW-038: 문헌 이식성·읽기 연동 gate
 - mutation(`mutation.log` 하단): 9종 모두 탐지(사실의 전송 gate 상속, 제거 상속, 주장의 원문 상속, 철회 gate, 민감 gate, 저장 context 제공, recorded 표시, pruning, 사실 문장).
 - 회귀: `pnpm test` exit 0 — unit 278, integration 358, contracts 17, 브라우저 84 (`pnpm-test-review.log`).
 - 남은 위험: 정보성 기록이 되면서 cache의 성능 이득은 없다(원래도 작았다). 철회 판정은 서재가 아는 notice까지만이다(새 notice는 검색·추가 때 들어온다).
+
+## 재리뷰
+- approve (69f6659, 7901ab8).
+- 남은 NIT(기록만, 바꾸지 않음): 근거 중 하나라도 gate 사유가 있으면 주장도 withheld된다(확인한 PDF 위치가 없는 인용 `no_confirmed_source_document` 포함). 주장 문장은 논문 자신의 문장이라 과하게 막는 쪽이다. 인용을 PDF 위치 없이 기록하는 경우가 많으면 승인된 주장이 writer에 거의 가지 않을 수 있다. 안전한 방향이라 그대로 두고, P05 Writer(PW-042)에서 실제 사용을 보고 "원문 전송 불가" 표시로 나눌지 정한다.

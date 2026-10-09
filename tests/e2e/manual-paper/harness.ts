@@ -8,6 +8,7 @@ import { createServer, type ViteDevServer } from 'vite';
 import { createTempDatabase } from '../../../packages/config/src/test-db.ts';
 import { migrate } from '../../../apps/api/src/db/migrate.ts';
 import { buildServer } from '../../../apps/api/src/server.ts';
+import type { ZoteroConfig } from '../../../packages/search/src/zotero/index.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { startLocalWorker } from '../../../apps/worker/src/local/index.ts';
 import { selectionHandlers } from '../../../apps/worker/src/selection/index.ts';
@@ -36,7 +37,7 @@ async function freePort(): Promise<number> {
 }
 
 // worker: run AI jobs in this process with the mock provider (PW-020); chunkDelayMs makes streaming visible
-export async function startHarness(opts: { worker?: { chunkDelayMs?: number } } = {}): Promise<Harness> {
+export async function startHarness(opts: { worker?: { chunkDelayMs?: number }; zotero?: Partial<ZoteroConfig> } = {}): Promise<Harness> {
   const root = path.resolve('.');
   const db = await createTempDatabase();
   const pool = new pg.Pool({ connectionString: db.url, max: 6 });
@@ -47,7 +48,7 @@ export async function startHarness(opts: { worker?: { chunkDelayMs?: number } } 
   const origins: string[] = [];
   // source documents go to a temporary folder of this run
   const assetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-e2e-assets-'));
-  const app = buildServer({ pool, allowedOrigins: origins, assets: { dir: assetDir } });
+  const app = buildServer({ pool, allowedOrigins: origins, assets: { dir: assetDir }, ...(opts.zotero ? { zotero: opts.zotero } : {}) });
   const api = await app.listen({ host: '127.0.0.1', port: 0 });
   const worker = opts.worker ? startLocalWorker(pool, { handlers: { ...selectionHandlers(pool, createMockProvider(opts.worker)), ...curationHandlers(pool, createMockAssessor()), ...pdfHandlers(pool, { assetDir }) }, pollMs: 50 }) : null;
   const port = await freePort();

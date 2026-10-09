@@ -1,0 +1,25 @@
+# PW-038 mutations (Fri Oct  9 18:20:57 UTC 2026) — each line breaks one rule; integration + browser
+KILLED dup_key
+KILLED doi_library_lookup
+KILLED keep_library_metadata
+KILLED unknown_doi_not_invented
+KILLED stable_key_reuse
+KILLED source_recorded
+SURVIVED size_limit
+KILLED bib_macro_dropped
+KILLED doi_list_no_metadata
+KILLED get_only
+KILLED auth_reason
+SURVIVED https_only
+KILLED caps_no_sync
+KILLED zotero_source
+KILLED ui_sync_shown
+KILLED ui_key_cleared
+KILLED ui_refresh_list
+SURVIVED ui_status_label
+# after the follow-up tests (size limit, https only, status label):
+KILLED size_limit
+KILLED https_only
+KILLED ui_status_label
+# self-review: a RIS ID longer than 200 characters gave a database error (500); the key is now cut like the others
+KILLED ris_key_length (without the cut the long-key test fails: 500)

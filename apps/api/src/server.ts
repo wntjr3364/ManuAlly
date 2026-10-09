@@ -19,6 +19,8 @@ import { registerCurationRoutes } from './curation/index.ts';
 import { registerAssetRoutes, type AssetConfig } from './assets/index.ts';
 import { registerPdfRoutes } from './pdf/index.ts';
 import { registerFigureVersionRoutes } from './figure-versions/index.ts';
+import { registerReferenceImportRoutes } from './reference-import/index.ts';
+import type { ZoteroConfig } from '@pw/search/zotero/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -51,6 +53,8 @@ export interface ServerOptions {
   eventStreamMaxMs?: number;
   // where immutable source documents are stored (PW-034); without it the asset routes refuse
   assets?: AssetConfig;
+  // tests only: a loopback stand-in for the Zotero Web API
+  zotero?: Partial<ZoteroConfig>;
 }
 
 export function buildServer(opts: ServerOptions): FastifyInstance {
@@ -115,6 +119,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerAssetRoutes(app, db, opts.assets);
   registerPdfRoutes(app, db);
   registerFigureVersionRoutes(app, db, opts.assets);
+  registerReferenceImportRoutes(app, db, { zotero: opts.zotero });
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;
 }

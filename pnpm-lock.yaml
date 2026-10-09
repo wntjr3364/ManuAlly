@@ -88,6 +88,9 @@ importers:
       '@pw/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      '@pw/search':
+        specifier: workspace:*
+        version: link:../../packages/search
       fastify:
         specifier: 5.12.5
         version: 5.12.5

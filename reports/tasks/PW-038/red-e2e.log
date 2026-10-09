@@ -1,0 +1,25 @@
+
+  1) tests/tasks/PW-038/import.e2e.ts:57:1 › TST-038A/B: import shows each outcome, cites by stable id, re-import links, Zotero only reads 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.selectOption: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByTestId('reference-import').getByRole('form', { name: '파일에서 가져오기' }).getByLabel('가져올 형식')
+
+
+      70 |   // BibTeX, pasted: two added, the repeated key is refused (not guessed)
+      71 |   const fileForm = imp(page).getByRole('form', { name: '파일에서 가져오기' });
+    > 72 |   await fileForm.getByLabel('가져올 형식').selectOption('bibtex');
+         |                                       ^
+      73 |   await fileForm.getByLabel('가져올 내용').fill(BIB);
+      74 |   await fileForm.getByRole('button', { name: '가져오기' }).click();
+      75 |   const results = imp(page).getByTestId('import-results');
+        at /home/user/ManuAlly/tests/tasks/PW-038/import.e2e.ts:72:39
+
+    Error Context: packages/config/test-results/tasks-PW-038-import.e2e.ts-57e0a-ort-links-Zotero-only-reads/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-038-import.e2e.ts-57e0a-ort-links-Zotero-only-reads/error-context.md
+
+  1 failed
+    tests/tasks/PW-038/import.e2e.ts:57:1 › TST-038A/B: import shows each outcome, cites by stable id, re-import links, Zotero only reads 

@@ -1,0 +1,7 @@
+     × an import creates works with stable ids, records its source, and importing again gives the same ids 27ms
+     × imported references are cited by their stable ids and appear in the bibliography 11ms
+     × a DOI the library knows keeps the library's metadata; a DOI list never invents metadata 9ms
+     × bad input is refused as a whole or per entry, never partly guessed 10ms
+     × a Zotero import only reads (GET), records "zotero" as the source, and re-reading changed items never overwrites the library or writes back 28ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 3 passed (8)

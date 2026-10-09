@@ -11,6 +11,7 @@
     "@pw/domain": "workspace:*",
     "@pw/editor-core": "workspace:*",
     "@pw/providers": "workspace:*",
+    "@pw/search": "workspace:*",
     "fastify": "5.12.5",
     "pg": "8.23.0"
   },

@@ -1242,7 +1242,7 @@
       "id": "PW-038",
       "phase": "P04",
       "title": "문헌 이식성·읽기 연동 gate",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-037"
       ],

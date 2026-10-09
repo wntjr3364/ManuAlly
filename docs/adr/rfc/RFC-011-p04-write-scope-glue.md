@@ -64,3 +64,8 @@ User decision / reviewer:
   - `packages/domain/src/evidence/index.ts`(PW-011): 문헌 인용 locator의 선택 항목 `anchor_id`(확인한 PDF 위치와 인용 텍스트·쪽이 같아야 함)
   - `apps/web/src/features/paper/EvidenceTab.tsx`(TracePanel 붙임)
 - PW-037: `packages/search/package.json`(workspace 의존성 `@pw/domain`, `./*` export 추가. 새 외부 의존성 없음), `pnpm-lock.yaml`
+- PW-038
+  - `apps/api/src/reference-import/**`(새 route 폴더), `apps/api/src/server.ts`(등록, 시험용 `zotero` 옵션)
+  - `apps/api/package.json`(`@pw/search` workspace 의존성. 새 외부 의존성 없음), `pnpm-lock.yaml`
+  - `apps/web/src/features/references/ImportReferences.tsx`(새 화면), `ReferencesPanel.tsx`(붙임)
+  - `tests/e2e/manual-paper/harness.ts`(시험용 `zotero` 옵션 전달)

@@ -1,0 +1,41 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-018/anchor.test.ts (15 tests | 1 failed | 14 skipped) 20ms
+   ❯ final check regressions (1)
+     × final check MINOR-1 P8: a paragraph edge alone is not evidence 17ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-018/anchor.test.ts > final check regressions > final check MINOR-1 P8: a paragraph edge alone is not evidence
+AssertionError: expected { state: 'ATTACHED', …(4) } to deeply equal { state: 'ORPHANED', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "reason": "TEXT_CHANGED",
+-   "state": "ORPHANED",
++   "block_id": "00000000-0000-4000-8000-0000000000a1",
++   "from": 0,
++   "moved": false,
++   "state": "ATTACHED",
++   "to": 6,
+  }
+
+ ❯ tests/tasks/PW-018/anchor.test.ts:120:78
+    118|     const d0 = doc(para(A, text('Effect was large.')));
+    119|     const a = makeAnchor(d0, A, 0, 6);
+    120|     expect(resolveAnchor(doc(para(A, text('Effect sizes were small.'))…
+       |                                                                              ^
+    121|     expect(resolveAnchor(doc(para(A, text('Effect was large. Clearly s…
+    122|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 skipped (15)
+   Start at  08:23:03
+   Duration  440ms (transform 67%, import 23%, tests 8%, worker 2%)
+

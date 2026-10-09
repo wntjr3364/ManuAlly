@@ -70,14 +70,15 @@ function occurrences(node: PMNode, flat: string, quote: string, atoms: readonly 
   for (let i = flat.indexOf(quote); i >= 0; i = flat.indexOf(quote, i + 1)) if (sameAtomList(atomsBetween(node, i, i + quote.length), atoms)) at.push(i);
   return at;
 }
-// the NEAR characters right before / after the occurrence equal the recorded ones (a block edge counts as text)
+// the NEAR characters right before / after the occurrence equal the recorded ones. A paragraph edge is
+// not evidence (any new sentence starting with the same word would match it).
 const nearBefore = (flat: string, i: number, prefix: string) => {
   const t = prefix.slice(-NEAR);
-  return t ? flat.slice(Math.max(0, i - t.length), i) === t : i === 0;
+  return t !== '' && flat.slice(Math.max(0, i - t.length), i) === t;
 };
 const nearAfter = (flat: string, i: number, len: number, suffix: string) => {
   const t = suffix.slice(0, NEAR);
-  return t ? flat.slice(i + len, i + len + t.length) === t : i + len === flat.length;
+  return t !== '' && flat.slice(i + len, i + len + t.length) === t;
 };
 
 export function resolveAnchor(doc: PMNode, a: Anchor): Resolved {

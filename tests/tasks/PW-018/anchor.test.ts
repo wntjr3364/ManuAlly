@@ -112,3 +112,12 @@ describe('re-review regressions', () => {
     expect(resolveAnchor(d0, reordered)).toMatchObject({ state: 'ATTACHED', moved: false });
   });
 });
+
+describe('final check regressions', () => {
+  test('final check MINOR-1 P8: a paragraph edge alone is not evidence', () => {
+    const d0 = doc(para(A, text('Effect was large.')));
+    const a = makeAnchor(d0, A, 0, 6);
+    expect(resolveAnchor(doc(para(A, text('Effect sizes were small.'))), a)).toEqual({ state: 'ORPHANED', reason: 'TEXT_CHANGED' });
+    expect(resolveAnchor(doc(para(A, text('Effect was large. Clearly so.'))), a)).toMatchObject({ state: 'ATTACHED', from: 0 }); // the text after it still matches
+  });
+});

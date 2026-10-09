@@ -1,0 +1,4 @@
+# PW-035 RED: implementation removed (migration, domain/api/worker pdf modules), tests as written (Fri Oct  9 16:36:35 UTC 2026)
+ FAIL  tests/tasks/PW-035/pdf.int.test.ts [ tests/tasks/PW-035/pdf.int.test.ts ]
+Error: Cannot find module './pdf/index.ts' imported from /home/user/ManuAlly/apps/api/src/server.ts
+      Tests  no tests

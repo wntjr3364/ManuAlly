@@ -1,0 +1,26 @@
+# PW-035 mutations (Fri Oct  9 16:36:56 UTC 2026) — behaviour-level RED: each line breaks one rule
+KILLED ambiguous
+KILLED prefix_context
+KILLED not_found
+KILLED status_gate
+SURVIVED no_text_page
+KILLED keep_right
+SURVIVED stale_check
+KILLED rotation_math
+KILLED char_weights
+KILLED candidates
+KILLED not_extracted
+SURVIVED idempotent
+KILLED integrity
+KILLED rotated_flag
+KILLED rotated_text_flag
+KILLED no_text_status
+KILLED timeout
+SURVIVED parse_error (equivalent: a child error always comes without pages, and the message keeps the error text either way)
+SURVIVED stop_at_errors
+# after the 'closing gaps found by mutation' tests:
+KILLED no_text_page
+KILLED stale_check
+KILLED idempotent
+SURVIVED parse_error (equivalent: a child error always comes without pages, and the message keeps the error text either way)
+KILLED stop_at_errors

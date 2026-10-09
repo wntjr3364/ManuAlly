@@ -53,3 +53,8 @@ User decision / reviewer:
   - `apps/api/src/server.ts`(`assets` 옵션, `registerAssetRoutes` 등록)
   - `apps/api/src/index.ts`(원본 저장 폴더: `PW_ASSET_DIR`, 기본 `$XDG_DATA_HOME` 또는 `~/.local/share` 아래 `paper-workspace/assets`. 실행 사용자 자신의 폴더)
 - PW-034 리뷰 반영: `apps/api/src/index.ts`(기본 저장 폴더를 `defaultAssetDir()`로). 저장 모듈은 `packages/domain/src/asset-policy/store.ts`로 옮겼다(PW-034 범위의 domain 모듈, worker도 씀).
+- PW-035
+  - 공유 schema: `jobs.intent`에 `parse_source` 추가(`pw_035_0001`, `packages/domain/src/jobs/index.ts`의 `JOB_INTENTS`). 선례: PW-020의 `ask_selection`
+  - `packages/domain/src/pdf/**`(새 모듈), `apps/api/src/pdf/**`(새 route 폴더), `apps/api/src/server.ts`(등록), `apps/worker/src/main.ts`(handler 등록)
+  - `apps/web/src/app/api.ts`(`apiRaw`), `apps/web/src/features/paper/PaperPage.tsx`("원문" tab), `tests/e2e/manual-paper/harness.ts`(임시 저장 폴더, handler)
+  - 의존성: `pdfjs-dist@6.4.299`(P00 결정 기록 §4에 고정, Apache-2.0)를 `apps/worker`·`apps/web`에 정확한 버전으로 추가. root `package.json`의 `pnpm.overrides`에서 선택 native 의존성 `@napi-rs/canvas`를 제거. `pnpm-lock.yaml` 갱신

@@ -17,6 +17,7 @@ import { registerProviderRoutes } from './providers/index.ts';
 import { registerUsageRoutes } from './usage/index.ts';
 import { registerCurationRoutes } from './curation/index.ts';
 import { registerAssetRoutes, type AssetConfig } from './assets/index.ts';
+import { registerPdfRoutes } from './pdf/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -111,6 +112,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerUsageRoutes(app, db);
   registerCurationRoutes(app, db);
   registerAssetRoutes(app, db, opts.assets);
+  registerPdfRoutes(app, db);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;
 }

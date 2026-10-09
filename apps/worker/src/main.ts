@@ -5,6 +5,8 @@ import { createMockProvider, selectProvider } from '@pw/providers';
 import { startLocalWorker } from './local/index.ts';
 import { selectionHandlers } from './selection/index.ts';
 import { curationHandlers, createMockAssessor } from './curation/index.ts';
+import { pdfHandlers } from './pdf/index.ts';
+import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const url = process.env.PW_DATABASE_URL;
@@ -12,7 +14,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   selectProvider(process.env); // refuses anything but an admitted provider
   const pool = new pg.Pool({ connectionString: url, max: 6 });
   const worker = startLocalWorker(pool, {
-    handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()) },
+    handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()), ...pdfHandlers(pool, { assetDir: defaultAssetDir() }) },
     onError: (e) => console.error('worker error:', e instanceof Error ? e.message : e),
   });
   const stop = async () => { await worker.stop(); await pool.end(); process.exit(0); };

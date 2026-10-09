@@ -12,6 +12,9 @@ import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { startLocalWorker } from '../../../apps/worker/src/local/index.ts';
 import { selectionHandlers } from '../../../apps/worker/src/selection/index.ts';
 import { curationHandlers, createMockAssessor } from '../../../apps/worker/src/curation/index.ts';
+import { pdfHandlers } from '../../../apps/worker/src/pdf/index.ts';
+import fs from 'node:fs';
+import os from 'node:os';
 import { createMockProvider } from '../../../packages/providers/src/mock/index.ts';
 
 export interface Harness {
@@ -42,9 +45,11 @@ export async function startHarness(opts: { worker?: { chunkDelayMs?: number } } 
   c.release();
   await createOwner(pool, { username: 'alice', password: 'correct horse battery' });
   const origins: string[] = [];
-  const app = buildServer({ pool, allowedOrigins: origins });
+  // source documents go to a temporary folder of this run
+  const assetDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pw-e2e-assets-'));
+  const app = buildServer({ pool, allowedOrigins: origins, assets: { dir: assetDir } });
   const api = await app.listen({ host: '127.0.0.1', port: 0 });
-  const worker = opts.worker ? startLocalWorker(pool, { handlers: { ...selectionHandlers(pool, createMockProvider(opts.worker)), ...curationHandlers(pool, createMockAssessor()) }, pollMs: 50 }) : null;
+  const worker = opts.worker ? startLocalWorker(pool, { handlers: { ...selectionHandlers(pool, createMockProvider(opts.worker)), ...curationHandlers(pool, createMockAssessor()), ...pdfHandlers(pool, { assetDir }) }, pollMs: 50 }) : null;
   const port = await freePort();
   let vite: ViteDevServer | undefined;
   try {
@@ -59,6 +64,7 @@ export async function startHarness(opts: { worker?: { chunkDelayMs?: number } } 
     await app.close();
     await pool.end();
     await db.drop();
+    fs.rmSync(assetDir, { recursive: true, force: true });
     throw e;
   }
   const webUrl = `http://127.0.0.1:${port}`;
@@ -81,6 +87,7 @@ export async function startHarness(opts: { worker?: { chunkDelayMs?: number } } 
       await app.close();
       await pool.end();
       await db.drop();
+      fs.rmSync(assetDir, { recursive: true, force: true });
     },
   };
 }

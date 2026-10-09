@@ -35,4 +35,12 @@ export async function api<T>(method: 'GET' | 'POST' | 'PATCH', url: string, body
   return data as T;
 }
 
+// A raw body (e.g. a PDF original), with the CSRF token; the answer is JSON.
+export async function apiRaw<T>(url: string, body: Blob, contentType: string): Promise<T> {
+  const res = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': contentType, 'x-pw-csrf': csrf }, body });
+  const data = parseJson(await res.text());
+  if (!res.ok) throw new ApiError(res.status, data as ApiError['body']);
+  return data as T;
+}
+
 export const errorText = (e: unknown) => (e instanceof ApiError ? `${e.message}${e.body?.missing ? ` (${e.body.missing.join(', ')})` : ''}` : e instanceof Error ? e.message : String(e));

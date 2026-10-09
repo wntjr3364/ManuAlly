@@ -1145,7 +1145,7 @@
       "id": "PW-035",
       "phase": "P04",
       "title": "PDF parsing·highlight locator",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-034"
       ],

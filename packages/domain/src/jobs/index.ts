@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { DomainError, UUID_RE, inTransaction, storable, type Queryable, type TxPool } from '../shared/db.ts';
 import { canonicalJson, contentHash } from '../revisions/index.ts';
 
-export const JOB_INTENTS = ['draft_paragraph', 'revise_selection', 'ask_selection', 'review', 'extract_facts', 'literature_search', 'export'] as const;
+export const JOB_INTENTS = ['draft_paragraph', 'revise_selection', 'ask_selection', 'review', 'extract_facts', 'literature_search', 'export', 'parse_source'] as const;
 export type JobIntent = (typeof JOB_INTENTS)[number];
 export type JobStatus = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED' | 'STALE' | 'WAITING_QUOTA' | 'WAITING_AUTH' | 'WAITING_BUDGET' | 'WAITING_USER';
 export const TERMINAL: JobStatus[] = ['SUCCEEDED', 'FAILED', 'CANCELLED', 'STALE'];

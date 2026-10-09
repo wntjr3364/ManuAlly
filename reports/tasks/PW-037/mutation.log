@@ -14,3 +14,13 @@ KILLED limits
 KILLED paper_scope
 # after the unverified-excerpt test:
 KILLED verified_excerpts
+# review fixes (Fri Oct  9 18:09:32 UTC 2026)
+KILLED fact_inherits_send
+KILLED fact_inherits_removed
+KILLED claim_inherits_source
+KILLED retracted_gate
+KILLED sensitive_gate
+KILLED fresh_not_served
+KILLED recorded_flag
+KILLED pruning
+KILLED fact_text

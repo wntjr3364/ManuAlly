@@ -12,6 +12,7 @@ import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { createPaper } from '../../../packages/domain/src/papers/index.ts';
 import { createReference, createFigure } from '../../../packages/domain/src/references/index.ts';
 import { recordSourceAsset, decideAssetPolicy } from '../../../packages/domain/src/asset-policy/index.ts';
+import { ingestCandidate } from '../../../packages/domain/src/literature/index.ts';
 import { approveClaim, createClaim, createEvidence, createFactCandidates, linkClaimEvidence, reviewEvidence, reviewFact } from '../../../packages/domain/src/evidence/index.ts';
 import { addFigureVersion, linkFigureEvidence, recordFigureFile } from '../../../packages/domain/src/figures/index.ts';
 import { createDocument, saveRevision } from '../../../packages/domain/src/revisions/index.ts';
@@ -93,7 +94,7 @@ describe('TST-037A: only what the selected paragraph relates to enters the conte
     expect(c.paragraph.text).toContain('In drought-stressed roots');
     const byId = new Map(c.items.map((i) => [i.id, i]));
     expect(byId.get(w.e1.evidence.id)).toMatchObject({ kind: 'excerpt', via: 'citation', text: 'ABC1 transcripts accumulate in drought-stressed roots within six hours.', locator: { reference_id: w.r1.id, page_index: 0, sha256: w.e1.asset.sha256 } });
-    expect(byId.get(w.fact.id)).toMatchObject({ kind: 'fact', via: 'figure_ref', text: 'ABC1 fold change = 2.4 fold (abc1 vs WT vs WT, n=3)', locator: { figure_id: w.fig.id, panel: 'A', version_no: 1 } });
+    expect(byId.get(w.fact.id)).toMatchObject({ kind: 'fact', via: 'figure_ref', text: 'ABC1 · fold change = 2.4 fold; group: abc1 vs WT; compared with: WT; n=3', locator: { figure_id: w.fig.id, panel: 'A', version_no: 1 } });
     expect(byId.get(w.claim.id)).toMatchObject({ kind: 'claim', via: 'claim' });
     expect(byId.get(w.e2.evidence.id)).toMatchObject({ via: 'lexical' });
     expect(byId.has(w.e4.evidence.id)).toBe(false);
@@ -146,33 +147,33 @@ describe('TST-037B: nothing leaks through scope, permissions or the cache', () =
     expect(c.items.some((i) => bobIds.includes(i.id))).toBe(false);
   });
 
-  test('the cache returns a context only while every input is unchanged: a withdrawn permission, a removed reference, a retracted record or a new figure version are never served from it', async () => {
+  test('records: an identical context is recognised while every input is unchanged: a withdrawn permission, a removed reference, a retracted record or a new figure version are never served from it', async () => {
     const w = await world(ids.alice!);
     const first = await ctx(w, w.p1);
-    expect(first.cached).toBe(false);
+    expect(first.recorded_before).toBe(false);
     const again = await ctx(w, w.p1);
-    expect(again).toMatchObject({ cached: true, fingerprint: first.fingerprint });
+    expect(again).toMatchObject({ recorded_before: true, fingerprint: first.fingerprint });
     expect(again.items).toEqual(first.items);
     // the source's send permission is withdrawn
     await decideAssetPolicy(pool, { paperId: w.paperId, ownerId: w.owner, assetId: w.e1.asset.id, body: { external_send: 'denied' } });
     const afterPolicy = await ctx(w, w.p1);
-    expect(afterPolicy.cached).toBe(false);
+    expect(afterPolicy.recorded_before).toBe(false);
     expect(afterPolicy.items.some((i) => i.id === w.e1.evidence.id)).toBe(false);
     expect(afterPolicy.withheld.some((x) => x.id === w.e1.evidence.id)).toBe(true);
     // a reference is removed from the paper
     await pool.query('UPDATE project_references SET removed_at = clock_timestamp() WHERE paper_id = $1 AND reference_id = $2', [w.paperId, w.r2.id]);
     const afterRemove = await ctx(w, w.p1);
-    expect(afterRemove.cached).toBe(false);
+    expect(afterRemove.recorded_before).toBe(false);
     expect([...afterRemove.items, ...afterRemove.withheld].some((i) => i.id === w.e2.evidence.id)).toBe(false);
     // the approved claim is retracted
     await pool.query("UPDATE claims SET approval_state = 'RETRACTED', closed_at = clock_timestamp() WHERE id = $1", [w.claim.id]);
     const afterRetract = await ctx(w, w.p1);
-    expect(afterRetract.cached).toBe(false);
+    expect(afterRetract.recorded_before).toBe(false);
     expect(afterRetract.items.some((i) => i.id === w.claim.id)).toBe(false);
     // a new figure version: the fact read from the older version is withheld, not served from the cache
     await addFigureVersion(pool, { paperId: w.paperId, ownerId: w.owner, figureId: w.fig.id, body: { caption: 'ABC1.', panels: [{ panel: 'A', unit: 'log2 fold', groups: ['WT', 'abc1'] }], asset_id: w.file.id } });
     const afterVersion = await ctx(w, w.p1);
-    expect(afterVersion.cached).toBe(false);
+    expect(afterVersion.recorded_before).toBe(false);
     expect(afterVersion.withheld).toEqual(expect.arrayContaining([expect.objectContaining({ id: w.fact.id, reason: 'read_from_older_figure_version' })]));
     // cached rows are immutable records
     await expect(pool.query("UPDATE retrieval_cache SET context = '{}'")).rejects.toThrow(/immutable/);
@@ -186,8 +187,65 @@ describe('TST-037B: nothing leaks through scope, permissions or the cache', () =
       { type: 'paragraph', attrs: { id: w.p1 }, content: [{ type: 'text', text: 'Rewritten without citations.' }] },
     ] } });
     const b = await ctx(w, w.p1);
-    expect(b.cached).toBe(false);
+    expect(b.recorded_before).toBe(false);
     expect(b.fingerprint).not.toBe(a.fingerprint);
     expect(b.items.filter((i) => i.via !== 'lexical')).toEqual([]);
+  });
+});
+
+// review (PW-037)
+describe('review fixes', () => {
+  test('MAJOR: a fact read from a source that may not be sent, or whose reference was removed, does not enter (not even by words)', async () => {
+    const w = await world(ids.alice!);
+    // a verified fact recorded on the excerpt of the send-denied source r3
+    const [f3] = await createFactCandidates(pool, { paperId: w.paperId, ownerId: w.owner, origin: 'user', single: true, facts: [{ evidence_id: w.e3.evidence.id, entity: 'ABC1 transcripts drought roots transporter', metric: 'density', value_text: '7.7', unit: 'per um2', group: 'roots', comparison: 'leaves', n: 4, extraction_method: 'manual_entry' }] });
+    await reviewFact(pool, { paperId: w.paperId, ownerId: w.owner, id: f3!.id, to: 'VERIFIED', body: { intent: 'verify_fact', content_hash: f3!.content_hash } });
+    let c = await ctx(w, w.p1);
+    expect(c.items.some((i) => i.id === f3!.id)).toBe(false);
+    expect(c.withheld).toEqual(expect.arrayContaining([expect.objectContaining({ id: f3!.id, reason: 'asset_send_denied' })]));
+    // the reference is removed: the fact is gone entirely
+    await pool.query('UPDATE project_references SET removed_at = clock_timestamp() WHERE paper_id = $1 AND reference_id = $2', [w.paperId, w.r3.id]);
+    c = await ctx(w, w.p1);
+    expect([...c.items, ...c.withheld].some((i) => i.id === f3!.id)).toBe(false);
+    expect(JSON.stringify(c.items)).not.toContain('7.7');
+  });
+
+  test('MINOR 1: a sensitive paper sends nothing', async () => {
+    const w = await world(ids.alice!);
+    await pool.query("UPDATE paper_projects SET data_classification = 'sensitive' WHERE id = $1", [w.paperId]);
+    await expect(ctx(w, w.p1)).rejects.toThrow(/sensitive/);
+  });
+
+  test('MINOR 2: an excerpt (and a claim on it) from a work the library knows as retracted is withheld', async () => {
+    const w = await world(ids.alice!);
+    // r1 gets a DOI and a retraction notice about that DOI enters the owner's library
+    await pool.query("INSERT INTO reference_identifiers (owner_id, reference_id, kind, value) VALUES ($1, $2, 'doi', '10.5555/r1.retracted')", [w.owner, w.r1.id]);
+    const s = (await pool.query("INSERT INTO literature_searches (paper_id, created_by, source, query, params, cache_key, endpoint, status) VALUES ($1, $2, 'crossref', 'q', '{}', repeat('c', 64), 'https://x', 'ok') RETURNING id", [w.paperId, w.owner])).rows[0].id;
+    const cand = (await pool.query(`INSERT INTO literature_candidates (search_id, paper_id, source, rank, source_record_id, doi, title, authors, year, container, work_type, is_preprint, relations, update_notice)
+      VALUES ($1, $2, 'crossref', 1, '10.5555/notice.r1', '10.5555/notice.r1', 'Retraction: r1', '[]', 2024, 'J', 'journal-article', false, '{}', '{"type":"retraction","target_doi":"10.5555/r1.retracted"}') RETURNING id`, [s, w.paperId])).rows[0].id;
+    await ingestCandidate(pool, { ownerId: w.owner, candidateId: cand });
+    const claim = await createClaim(pool, { paperId: w.paperId, ownerId: w.owner, body: { kind: 'background', text: 'ABC1 transcripts accumulate in drought-stressed roots.' } });
+    await linkClaimEvidence(pool, { paperId: w.paperId, ownerId: w.owner, claimId: claim.id, body: { evidence_id: w.e1.evidence.id, relation: 'supports' } });
+    await approveClaim(pool, { paperId: w.paperId, ownerId: w.owner, id: claim.id, body: { intent: 'approve_claim', content_hash: claim.content_hash } });
+    const c = await ctx(w, w.p1);
+    expect(c.withheld).toEqual(expect.arrayContaining([expect.objectContaining({ id: w.e1.evidence.id, reason: 'source_retracted' })]));
+    expect(c.items.some((i) => i.id === w.e1.evidence.id || i.id === claim.id)).toBe(false);
+  });
+
+  test('MINOR 3: the context is always computed now — a stored record is never served instead; records are pruned', async () => {
+    const w = await world(ids.alice!);
+    const a = await ctx(w, w.p1);
+    // tamper with the stored record (as if an older rule had produced it): the next call is still fresh
+    await pool.query('DELETE FROM retrieval_cache WHERE fingerprint = $1', [a.fingerprint]);
+    await pool.query("INSERT INTO retrieval_cache (paper_id, document_id, block_id, provider, fingerprint, context) VALUES ($1, $2, $3, 'claude_agent', $4, $5)",
+      [w.paperId, w.documentId, w.p1, a.fingerprint, JSON.stringify({ paragraph: { block_id: w.p1, text: 'stale' }, items: [{ kind: 'fact', id: 'x', text: 'LEAKED 99', via: 'lexical', locator: {} }], withheld: [], truncated: false })]);
+    const b = await ctx(w, w.p1);
+    expect(b.recorded_before).toBe(true);
+    expect(JSON.stringify(b)).not.toContain('LEAKED');
+    expect(b.items).toEqual(a.items);
+    await expect(pool.query("UPDATE retrieval_cache SET context = '{}'")).rejects.toThrow(/immutable/);
+    // pruning: at most 20 records per paragraph and provider
+    for (let i = 0; i < 22; i++) await ctx(w, w.p1, 'claude_agent', { maxItems: 100 + i });
+    expect((await pool.query('SELECT count(*)::int AS n FROM retrieval_cache WHERE paper_id = $1 AND block_id = $2', [w.paperId, w.p1])).rows[0].n).toBe(20);
   });
 });

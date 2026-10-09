@@ -67,3 +67,19 @@
 
 ## 다음
 PW-038: 문헌 이식성·읽기 연동 gate
+
+## 리뷰 반영 (1차, changes requested → 수정)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR: 전송 불가·제거된 원문에서 읽은 사실이 단어 일치로 들어감 | 사실·주장은 근거 원문의 gate(`sourceGates`)를 물려받는다. 참고문헌이 빠지면 그 원문에서 나온 사실은 아예 후보가 아니고, 전송 불가면 사유와 함께 withheld | `MAJOR: a fact read from a source that may not be sent…` |
+| MINOR 1: 민감 논문도 자기 사실·주장을 보냄 | `data_classification = 'sensitive'`이면 403 `paper_is_sensitive`(redaction 정책이 생기기 전까지 아무것도 보내지 않음) | `MINOR 1` |
+| MINOR 2: 철회 문헌 확인 없음 | 서재가 철회로 아는 문헌(자체 표시 또는 철회 notice)의 인용은 `source_retracted`, 그 인용에 기댄 주장도 같은 사유로 withheld | `MINOR 2` |
+| MINOR 3: cache가 저장된 context를 내줌 | context는 항상 지금 계산한다. 저장은 기록용(`recorded_before`)이고 대신 내주지 않는다. 행은 바꿀 수 없고(새 trigger) 문단·공급자별 최근 20개만 남긴다(`pw_037_0002_retrieval_records.sql`). `RETRIEVAL_VERSION = 'pw-retrieval-2'`가 fingerprint에 들어간다 | `MINOR 3`(저장 행을 바꿔 넣어도 결과에 나오지 않음, 22회 뒤 20개) |
+| nit: 사실 문장의 "vs" 중복 | `ABC1 · fold change = 2.4 fold; group: abc1 vs WT; compared with: WT; n=3` | 기존 시험 기대값 갱신 |
+| nit: 질의 수 | 앵커·전송 결정·검토 flag를 묶어서 조회(상관 부질의 제거), 소유자 조회는 한 번 | — |
+
+- RED(`red-review.log`): 5a75ab5 구현과 migration 0001만으로 12개 중 7개 실패(사실 문장, `recorded_before` 없음, MAJOR, 민감, 철회, 기록 대신 제공).
+- GREEN: 통합 12.
+- mutation(`mutation.log` 하단): 9종 모두 탐지(사실의 전송 gate 상속, 제거 상속, 주장의 원문 상속, 철회 gate, 민감 gate, 저장 context 제공, recorded 표시, pruning, 사실 문장).
+- 회귀: `pnpm test` exit 0 — unit 278, integration 358, contracts 17, 브라우저 84 (`pnpm-test-review.log`).
+- 남은 위험: 정보성 기록이 되면서 cache의 성능 이득은 없다(원래도 작았다). 철회 판정은 서재가 아는 notice까지만이다(새 notice는 검색·추가 때 들어온다).

@@ -39,10 +39,10 @@ export function reduce(s: StreamState, e: ServerEvent): StreamState {
   const d = e.data;
   switch (e.event) {
     case 'status': {
-      // a new run (retry after a failure or an expired lease) replaces whatever the earlier run sent
+      // every run reports exactly one status, first: a new run (retry after a failure or an expired
+      // lease) replaces whatever an earlier run sent — also for events stored without a run number
       const run = typeof d.run === 'number' ? d.run : null;
-      const fresh = run !== s.run;
-      return { ...s, run, phase: fresh || s.phase === 'queued' ? 'running' : s.phase, answer: fresh ? '' : s.answer, note: fresh ? '' : s.note, label: (d.label as string | null) ?? null, provider: (d.provider as string) ?? null };
+      return { ...s, run, phase: 'running', answer: '', note: '', label: (d.label as string | null) ?? null, provider: (d.provider as string) ?? null };
     }
     case 'delta':
       return { ...s, phase: 'answering', answer: s.answer + String(d.text ?? '') };

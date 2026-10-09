@@ -78,3 +78,15 @@ describe('review fixes', () => {
     expect(canCancel(s)).toBe(true);
   });
 });
+
+describe('re-review nit', () => {
+  test('status events stored without a run number still restart the answer', () => {
+    const s = run([
+      { event: 'status', id: 1, data: { state: 'running', label: 'MOCK' } },
+      { event: 'delta', id: 2, data: { text: 'old ' } },
+      { event: 'status', id: 3, data: { state: 'running', label: 'MOCK' } },
+      { event: 'delta', id: 4, data: { text: 'new' } },
+    ]);
+    expect(s.answer).toBe('new');
+  });
+});

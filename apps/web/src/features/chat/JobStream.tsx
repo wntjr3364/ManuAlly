@@ -2,7 +2,7 @@
 // Events; the browser resumes from the last event it saw after a dropped connection, and leaving the
 // page never cancels a job (only the "취소" button does). Mock output always carries a MOCK badge.
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { api, errorText } from '../../app/api.ts';
+import { ApiError, api, errorText } from '../../app/api.ts';
 import { PHASE_LABEL, canCancel, initialState, partialAnswer, reduce, withProposalStatus, type ServerEvent, type StreamState } from './stream-state.ts';
 
 export interface JobRef { id: string; intent: string; instruction: string; quote: string }
@@ -19,7 +19,7 @@ export function MockBadge({ label }: { label: string | null }) {
 
 function JobItem({ paperId, job, proposalRefresh, onProposal }: { paperId: string; job: JobRef; proposalRefresh: number; onProposal?: () => void }) {
   const [s, dispatch] = useReducer(reducer, initialState);
-  const [conn, setConn] = useState<'open' | 'retrying' | 'lost'>('open');
+  const [conn, setConn] = useState<'open' | 'retrying' | 'lost' | 'login'>('open');
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState('');
   // the server closes a stream now and then on purpose (rotate); the reconnect that follows is normal
@@ -42,7 +42,10 @@ function JobItem({ paperId, job, proposalRefresh, onProposal }: { paperId: strin
     }
     es.onerror = () => {
       if (es.readyState !== EventSource.CLOSED && rotating.current) return;
-      setConn(es.readyState === EventSource.CLOSED ? 'lost' : 'retrying');
+      if (es.readyState !== EventSource.CLOSED) { setConn('retrying'); return; }
+      setConn('lost');
+      // the browser gives up e.g. after a 401: say so when the session has ended (logout elsewhere)
+      void api('GET', '/api/auth/session').catch((e) => { if (e instanceof ApiError && e.status === 401) setConn('login'); });
     };
     return () => es.close(); // leaving the page only closes the stream
   }, [paperId, job.id, attempt]);
@@ -76,6 +79,7 @@ function JobItem({ paperId, job, proposalRefresh, onProposal }: { paperId: strin
         <span role="status" data-testid="ai-job-phase">{PHASE_LABEL[s.phase]}{s.note && s.phase !== 'no_change' ? `: ${s.note}` : ''}</span>{' '}
         <MockBadge label={s.label} />
         {!s.ended && conn === 'retrying' && <span className="hint"> · 연결이 끊겨 다시 연결하는 중</span>}
+        {!s.ended && conn === 'login' && <span className="hint" role="alert"> · 로그인이 필요합니다 — 다시 로그인하면 진행을 이어서 볼 수 있습니다(작업은 계속됨)</span>}
         {!s.ended && conn === 'lost' && (
           <span className="hint"> · 연결 끊김(작업은 계속됨) <button type="button" onClick={() => { setConn('open'); setAttempt((n) => n + 1); }}>다시 연결</button></span>
         )}

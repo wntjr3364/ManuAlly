@@ -138,3 +138,79 @@ test('minor 6: unsent evidence/fact form text counts as unsaved', async ({ page 
   await expect.poll(() => dialogs.length).toBe(1);
   expect(dialogs[0]).toMatch(/근거/);
 });
+
+test('final check MAJOR-1: typing at the start of a paragraph keeps its id', async ({ page }) => {
+  await login(page);
+  await newPaper(page, 'Type start paper');
+  await page.getByRole('tab', { name: '원고' }).click();
+  await page.getByRole('button', { name: '원고 만들기' }).click();
+  const pm = page.getByTestId('editor').locator('.ProseMirror');
+  await pm.click();
+  await page.keyboard.type('alpha');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('beta');
+  const idOf = (text: string) => pm.locator('p', { hasText: text }).getAttribute('data-block-id');
+  const before = await idOf('beta');
+  await page.keyboard.press('Home');
+  await page.keyboard.type('X');
+  await expect(pm.locator('p', { hasText: 'Xbeta' })).toHaveCount(1);
+  expect(await idOf('Xbeta')).toBe(before);
+});
+
+test('final check minor 1: cancelling Forward keeps the browser history as it was', async ({ page }) => {
+  await login(page);
+  for (const t of ['Hist one', 'Hist two']) {
+    await page.getByLabel('새 논문 제목').fill(t);
+    await page.getByRole('button', { name: '새 논문' }).click();
+  }
+  await page.getByRole('link', { name: 'Hist one' }).click();
+  const one = page.url();
+  await page.getByRole('link', { name: 'Paper Workspace' }).click();
+  await page.getByRole('link', { name: 'Hist two' }).click();
+  const two = page.url();
+  await page.goBack();
+  await page.goBack();
+  await expect(page).toHaveURL(one);
+  await page.getByLabel('핵심 메시지').fill('unsaved in one');
+  page.once('dialog', (d) => d.dismiss());
+  await page.goForward();
+  await expect(page).toHaveURL(one);
+  await expect(page.getByLabel('핵심 메시지')).toHaveValue('unsaved in one');
+  // history is unchanged: after discarding, Forward twice still reaches paper two
+  await page.getByLabel('핵심 메시지').fill('');
+  await page.goForward();
+  await page.goForward();
+  await expect(page).toHaveURL(two);
+});
+
+test('final check minor 2: an outline conflict offers to reload the outline only, keeping unsaved story text', async ({ page, browser }) => {
+  await login(page);
+  await newPaper(page, 'Outline conflict paper');
+  await page.getByLabel('연구 목적').fill('p');
+  await page.getByLabel('핵심 질문').fill('q');
+  await page.getByLabel('핵심 메시지').fill('m');
+  await page.getByRole('button', { name: '스토리 저장' }).click();
+  await page.getByRole('button', { name: '이 스토리 버전 승인' }).click();
+  await expect(page.getByTestId('story-status')).toHaveText('APPROVED');
+  await page.getByLabel('섹션').fill('Results');
+  await page.getByLabel('문단 목표').fill('mine v1');
+  await page.getByRole('button', { name: '개요 저장' }).click();
+  await expect(page.getByTestId('outline-status')).toHaveText('DRAFT');
+  const other = await browser.newPage();
+  await login(other);
+  await other.getByRole('link', { name: 'Outline conflict paper' }).click();
+  await expect(other.getByLabel('문단 목표')).toHaveValue('mine v1');
+  await other.getByLabel('문단 목표').fill('theirs v2');
+  await other.getByRole('button', { name: '개요 저장' }).click();
+  await expect(other.getByTestId('outline-status')).toHaveText('DRAFT');
+  await other.close();
+  await page.getByLabel('새로운 점').fill('unsaved story text');
+  await page.getByLabel('문단 목표').fill('mine v2');
+  await page.getByRole('button', { name: '개요 저장' }).click();
+  await expect(page.getByRole('button', { name: '최신 개요 불러오기' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '최신 스토리 불러오기' })).toHaveCount(0);
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: '최신 개요 불러오기' }).click();
+  await expect(page.getByLabel('문단 목표')).toHaveValue('theirs v2');
+  await expect(page.getByLabel('새로운 점')).toHaveValue('unsaved story text');
+});

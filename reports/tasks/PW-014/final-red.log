@@ -1,0 +1,69 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-014/block-ids.test.ts (9 tests | 3 failed) 40ms
+   ❯ block ids (9)
+     × typing or pasting inline text at the start of a paragraph keeps its id 10ms
+     × the first character typed into an empty paragraph keeps its id 2ms
+     × pasting two paragraphs at the start of B: B keeps its id on its own text, the pasted ones get new ids 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-014/block-ids.test.ts > block ids > typing or pasting inline text at the start of a paragraph keeps its id
+AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]
+
+- Expected
++ Received
+
+  [
+    "00000000-0000-4000-8000-00000000000a",
+-   "00000000-0000-4000-8000-00000000000b",
++   "be2fa199-9786-40d5-bcf5-83e8003d4020",
+    "00000000-0000-4000-8000-00000000000c",
+  ]
+
+ ❯ tests/tasks/PW-014/block-ids.test.ts:73:21
+     71|     const s0 = createEditorState(doc());
+     72|     const s1 = step(s0, (s) => s.tr.insertText('X', offsetOf(s, B) + 1…
+     73|     expect(ids(s1)).toEqual([A, B, C]);
+       |                     ^
+     74|     expect(s1.doc.child(1).textContent).toBe('Xsecond');
+     75|     const s2 = step(s1, (s) => s.tr.insertText('pasted ', offsetOf(s, …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/tasks/PW-014/block-ids.test.ts > block ids > the first character typed into an empty paragraph keeps its id
+AssertionError: expected [ …(2) ] to deeply equal [ …(2) ]
+
+- Expected
++ Received
+
+  [
+    "00000000-0000-4000-8000-00000000000a",
+-   "00000000-0000-4000-8000-00000000000e",
++   "ac6d6238-d2a5-4208-9693-0d170bbf088d",
+  ]
+
+ ❯ tests/tasks/PW-014/block-ids.test.ts:83:21
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/tasks/PW-014/block-ids.test.ts > block ids > pasting two paragraphs at the start of B: B keeps its id on its own text, the pasted ones get new ids
+AssertionError: expected [ …(4) ] to include '00000000-0000-4000-8000-00000000000b'
+ ❯ tests/tasks/PW-014/block-ids.test.ts:95:17
+     93|     const out = ids(s1);
+     94|     expect(new Set(out).size).toBe(out.length);
+     95|     expect(out).toContain(B);
+       |                 ^
+     96|     expect(s1.doc.child(out.indexOf(B)).textContent).toContain('second…
+     97|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 6 passed (9)
+   Start at  03:29:37
+   Duration  445ms (transform 54%, import 29%, tests 15%, worker 2%)
+

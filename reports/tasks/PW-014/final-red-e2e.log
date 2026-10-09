@@ -1,0 +1,86 @@
+
+Running 3 tests using 1 worker
+
+  ✘  1 tests/e2e/manual-paper/rereview-fixes.e2e.ts:142:1 › final check MAJOR-1: typing at the start of a paragraph keeps its id (1.5s)
+  ✘  2 tests/e2e/manual-paper/rereview-fixes.e2e.ts:160:1 › final check minor 1: cancelling Forward keeps the browser history as it was (6.5s)
+  ✘  3 tests/e2e/manual-paper/rereview-fixes.e2e.ts:186:1 › final check minor 2: an outline conflict offers to reload the outline only, keeping unsaved story text (7.4s)
+
+
+  1) tests/e2e/manual-paper/rereview-fixes.e2e.ts:142:1 › final check MAJOR-1: typing at the start of a paragraph keeps its id 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "78cf6ad4-c36a-42d2-8552-be963c2b0c8e"
+    Received: "be8f78c6-c3a6-4d28-a2ce-a69b84efaf36"
+
+      155 |   await page.keyboard.type('X');
+      156 |   await expect(pm.locator('p', { hasText: 'Xbeta' })).toHaveCount(1);
+    > 157 |   expect(await idOf('Xbeta')).toBe(before);
+          |                               ^
+      158 | });
+      159 |
+      160 | test('final check minor 1: cancelling Forward keeps the browser history as it was', async ({ page }) => {
+        at /home/user/ManuAlly/tests/e2e/manual-paper/rereview-fixes.e2e.ts:157:31
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-f90d1-of-a-paragraph-keeps-its-id/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-f90d1-of-a-paragraph-keeps-its-id/error-context.md
+
+  2) tests/e2e/manual-paper/rereview-fixes.e2e.ts:160:1 › final check minor 1: cancelling Forward keeps the browser history as it was 
+
+    Error: expect(page).toHaveURL(expected) failed
+
+    Expected: "http://127.0.0.1:33749/papers/a1002771-cc24-418d-bb55-6b60246f6730"
+    Received: "http://127.0.0.1:33749/papers/30543378-9bcc-439e-bf91-f43c41c0d0d5"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveURL" with timeout 5000ms
+        14 × locator resolved to <html lang="ko">…</html>
+           - unexpected value "http://127.0.0.1:33749/papers/30543378-9bcc-439e-bf91-f43c41c0d0d5"
+
+
+      181 |   await page.goForward();
+      182 |   await page.goForward();
+    > 183 |   await expect(page).toHaveURL(two);
+          |                      ^
+      184 | });
+      185 |
+      186 | test('final check minor 2: an outline conflict offers to reload the outline only, keeping unsaved story text', async ({ page, browser }) => {
+        at /home/user/ManuAlly/tests/e2e/manual-paper/rereview-fixes.e2e.ts:183:22
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-39f54-e-browser-history-as-it-was/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-39f54-e-browser-history-as-it-was/error-context.md
+
+  3) tests/e2e/manual-paper/rereview-fixes.e2e.ts:186:1 › final check minor 2: an outline conflict offers to reload the outline only, keeping unsaved story text 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('button', { name: '최신 개요 불러오기' })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('button', { name: '최신 개요 불러오기' }) with timeout 5000ms
+      - waiting for getByRole('button', { name: '최신 개요 불러오기' })
+
+
+      208 |   await page.getByLabel('문단 목표').fill('mine v2');
+      209 |   await page.getByRole('button', { name: '개요 저장' }).click();
+    > 210 |   await expect(page.getByRole('button', { name: '최신 개요 불러오기' })).toBeVisible();
+          |                                                                  ^
+      211 |   await expect(page.getByRole('button', { name: '최신 스토리 불러오기' })).toHaveCount(0);
+      212 |   page.once('dialog', (d) => d.accept());
+      213 |   await page.getByRole('button', { name: '최신 개요 불러오기' }).click();
+        at /home/user/ManuAlly/tests/e2e/manual-paper/rereview-fixes.e2e.ts:210:66
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-eea07--keeping-unsaved-story-text/error-context.md
+
+    Error Context: packages/config/test-results/manual-paper-rereview-fixe-eea07--keeping-unsaved-story-text/error-context.md
+
+  3 failed
+    tests/e2e/manual-paper/rereview-fixes.e2e.ts:142:1 › final check MAJOR-1: typing at the start of a paragraph keeps its id 
+    tests/e2e/manual-paper/rereview-fixes.e2e.ts:160:1 › final check minor 1: cancelling Forward keeps the browser history as it was 
+    tests/e2e/manual-paper/rereview-fixes.e2e.ts:186:1 › final check minor 2: an outline conflict offers to reload the outline only, keeping unsaved story text 

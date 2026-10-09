@@ -67,6 +67,35 @@ describe('block ids', () => {
     expect(ids(s1)[1]).not.toBe(B);
   });
 
+  test('typing or pasting inline text at the start of a paragraph keeps its id', () => {
+    const s0 = createEditorState(doc());
+    const s1 = step(s0, (s) => s.tr.insertText('X', offsetOf(s, B) + 1));
+    expect(ids(s1)).toEqual([A, B, C]);
+    expect(s1.doc.child(1).textContent).toBe('Xsecond');
+    const s2 = step(s1, (s) => s.tr.insertText('pasted ', offsetOf(s, A) + 1));
+    expect(ids(s2)).toEqual([A, B, C]);
+  });
+
+  test('the first character typed into an empty paragraph keeps its id', () => {
+    const E = '00000000-0000-4000-8000-00000000000e';
+    const s0 = createEditorState(schema.nodeFromJSON({ type: 'doc', content: [{ type: 'paragraph', attrs: { id: A }, content: [{ type: 'text', text: 'a' }] }, { type: 'paragraph', attrs: { id: E } }] }));
+    const s1 = step(s0, (s) => s.tr.insertText('x', offsetOf(s, E) + 1));
+    expect(ids(s1)).toEqual([A, E]);
+  });
+
+  test('pasting two paragraphs at the start of B: B keeps its id on its own text, the pasted ones get new ids', () => {
+    const s0 = createEditorState(doc());
+    const two = schema.nodeFromJSON({ type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'P1' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'P2' }] },
+    ] });
+    const s1 = step(s0, (s) => s.tr.replace(offsetOf(s, B) + 1, offsetOf(s, B) + 1, two.slice(1, two.content.size - 1)));
+    const out = ids(s1);
+    expect(new Set(out).size).toBe(out.length);
+    expect(out).toContain(B);
+    expect(s1.doc.child(out.indexOf(B)).textContent).toContain('second');
+  });
+
   test('blocks without ids get one; deleting a block leaves the others alone', () => {
     const bare = schema.nodeFromJSON({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }, { type: 'paragraph', attrs: { id: B } }] });
     const s0 = createEditorState(bare);

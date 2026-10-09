@@ -1,7 +1,7 @@
 // Story and outline are written by hand and approved explicitly, version by version (spec 03).
 // The approve buttons send the exact content hash of the version shown; the server checks it.
 import { useEffect, useRef, useState } from 'react';
-import { api, errorText } from '../../app/api.ts';
+import { ApiError, api, errorText } from '../../app/api.ts';
 import type { Paper } from './PapersPage.tsx';
 import type { Evidence } from './EvidenceTab.tsx';
 import { setUnsaved } from '../../app/unsaved.ts';
@@ -50,14 +50,15 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
   const baseForm = useRef(formOf(null));
   const baseNodes = useRef<Node[]>([newNodeTemplate]);
 
-  async function load(force = false) {
+  // force: discard screen edits of that part and show the stored latest version
+  async function load(force: 'story' | 'outline' | null = null) {
     const s = await api<{ latest: StoryRev | null; active: StoryRev | null; missing: string[] }>('GET', `/api/papers/${paper.id}/story`);
     setStory(s);
     // server data replaces the form only where the user has not typed since the last known server
     // state (typing before the first load or during a save is kept)
     const storyBase = formOf(s.latest);
     const before = baseForm.current; // read now: the updater below runs later
-    setForm((prev) => (force || sameStory(prev, before) || sameStory(prev, storyBase) ? storyBase : prev));
+    setForm((prev) => (force === 'story' || sameStory(prev, before) || sameStory(prev, storyBase) ? storyBase : prev));
     baseForm.current = storyBase;
     const o = await api<{ latest: OutlineRev | null; active: OutlineRev | null }>('GET', `/api/papers/${paper.id}/outline`);
     if (o.latest) {
@@ -65,7 +66,7 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
       setOutline({ latest: full, active: o.active });
       const nodesBase = full.nodes ?? [newNodeTemplate];
       const before = baseNodes.current;
-      setNodes((prev) => (force || nodeKey(prev) === nodeKey(before) || nodeKey(prev) === nodeKey(nodesBase) ? nodesBase : prev));
+      setNodes((prev) => (force === 'outline' || nodeKey(prev) === nodeKey(before) || nodeKey(prev) === nodeKey(nodesBase) ? nodesBase : prev));
       baseNodes.current = nodesBase;
     } else setOutline(o);
     setEvidence(await api<Evidence[]>('GET', `/api/papers/${paper.id}/evidence`));
@@ -82,30 +83,35 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
   // evidence added in the 자료 tab appears in the selector when coming back (form edits are kept)
   useEffect(() => { if (visible) api<Evidence[]>('GET', `/api/papers/${paper.id}/evidence`).then(setEvidence).catch(() => {}); }, [visible, paper.id]);
 
-  const act = (fn: () => Promise<unknown>) => async () => {
+  // which part had a save conflict (someone else saved first), so only that part can be reloaded
+  const [conflict, setConflict] = useState<'story' | 'outline' | null>(null);
+  const act = (fn: () => Promise<unknown>, part: 'story' | 'outline') => async () => {
     setError('');
+    setConflict(null);
     try {
       await fn();
       await load();
       onChange();
     } catch (e) {
       setError(errorText(e));
+      if (e instanceof ApiError && e.status === 409 && /stale|changed/i.test(e.message)) setConflict(part);
     }
   };
-  const saveStory = act(() => api('POST', `/api/papers/${paper.id}/story/revisions`, { parent_revision_id: story?.latest?.id ?? null, ...payloadOf(form) }));
-  // after someone else saved first (409), the user can discard their screen edits and load the newer version
-  const loadLatest = async () => {
-    if (!window.confirm('화면의 저장되지 않은 내용을 버리고 최신 버전을 불러올까요?')) return;
+  const saveStory = act(() => api('POST', `/api/papers/${paper.id}/story/revisions`, { parent_revision_id: story?.latest?.id ?? null, ...payloadOf(form) }), 'story');
+  // after someone else saved first (409), the user can discard that part's screen edits and load the newer version
+  const loadLatest = async (part: 'story' | 'outline') => {
+    if (!window.confirm(`화면의 저장되지 않은 ${part === 'story' ? '스토리' : '개요'} 내용을 버리고 최신 버전을 불러올까요?`)) return;
     setError('');
-    await load(true).catch((e) => setError(errorText(e)));
+    setConflict(null);
+    await load(part).catch((e) => setError(errorText(e)));
   };
-  const approveStory = act(() => api('POST', `/api/papers/${paper.id}/story/revisions/${story!.latest!.id}/approve`, { intent: 'approve_story', content_hash: story!.latest!.content_hash }));
+  const approveStory = act(() => api('POST', `/api/papers/${paper.id}/story/revisions/${story!.latest!.id}/approve`, { intent: 'approve_story', content_hash: story!.latest!.content_hash }), 'story');
   const saveOutline = act(() => api('POST', `/api/papers/${paper.id}/outline/revisions`, {
     parent_revision_id: outline?.latest?.id ?? null,
     story_revision_id: paper.active_story_revision_id,
     nodes: nodes.map(editable),
-  }));
-  const approveOutline = act(() => api('POST', `/api/papers/${paper.id}/outline/revisions/${outline!.latest!.id}/approve`, { intent: 'approve_outline', content_hash: outline!.latest!.content_hash }));
+  }), 'outline');
+  const approveOutline = act(() => api('POST', `/api/papers/${paper.id}/outline/revisions/${outline!.latest!.id}/approve`, { intent: 'approve_outline', content_hash: outline!.latest!.content_hash }), 'outline');
   const setNode = (i: number, patch: Partial<Node>) => setNodes(nodes.map((n, j) => (j === i ? { ...n, ...patch } : n)));
   const f = (k: keyof typeof form) => ({ value: form[k], onChange: (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value }) });
 
@@ -114,9 +120,9 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
       {error && (
         <div role="alert" className="error">
           {error}{' '}
-          {/stale|changed/i.test(error) && (
+          {conflict && (
             <>
-              <button type="button" onClick={loadLatest}>최신 스토리 불러오기</button>{' '}
+              <button type="button" onClick={() => void loadLatest(conflict)}>{conflict === 'story' ? '최신 스토리 불러오기' : '최신 개요 불러오기'}</button>{' '}
               <span className="hint">(화면의 변경은 버려집니다. 필요하면 먼저 복사해 두세요)</span>
             </>
           )}

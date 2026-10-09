@@ -25,10 +25,13 @@ export function reconcileBlockIds(oldDoc: PMNode, state: EditorState, transactio
   oldDoc.forEach((node, offset) => {
     const id = node.attrs.id as unknown;
     if (!BLOCK_TYPES.includes(node.type.name) || typeof id !== 'string' || !UUID.test(id)) return;
-    // follow the first position inside the block (not its start): Enter at the very start then
-    // leaves the id with the text, and content inserted before the block pushes it along
+    // follow the first position inside the block (not its start) and claim the top-level block that
+    // now contains it: Enter at the very start leaves the id with the text, content inserted before
+    // the block pushes it along, and text typed at its start stays in the same block
     const r = mapping.mapResult(offset + 1, 1);
-    const at = r.pos - 1;
+    const $p = state.doc.resolve(Math.min(r.pos, state.doc.content.size));
+    const at = $p.depth >= 1 ? $p.before(1) : -1;
+    if (at < 0) return;
     if (r.deleted) replaced.push([at, id]);
     else if (!claims.has(at)) claims.set(at, id);
   });

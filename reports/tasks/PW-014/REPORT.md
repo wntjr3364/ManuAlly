@@ -161,3 +161,17 @@ P01 gate(사용자 승인). `reports/phases/P01_GATE.md`
 - 실행
   - 브라우저 18/18(`e2e.log`). 전체 2회 반복 36/36. 충돌 시험 8회 반복 8/8. 최초 실행에서 충돌 시험 1건이 시험 자체의 타이밍 문제로 실패했다(다른 창이 로드 중에 입력). 로드를 기다리도록 고쳤다.
   - `pnpm test` exit 0: unit 67, integration 130, contracts 13, e2e 18, spikes 70, evals/pack PASS
+
+## 최종 확인 리뷰 반영 (2026-10-09)
+- 결론: changes requested(major 1, minor 2).
+- **MAJOR-1은 재리뷰 m2를 고치다가 내가 새로 만든 회귀다.** 단락 맨 앞에 입력하면 그 단락 id가 바뀌었다.
+  - 원인: 블록 안 첫 위치의 이동 결과에서 1을 뺀 값을 블록 시작으로 간주했다. 그 앞에 글자가 들어가면 블록 시작이 아니게 된다.
+  - 수정: 이동한 위치를 **포함하는** 최상위 블록이 id를 갖는다(`resolve(pos).before(1)`, 리뷰어가 검증한 방식).
+  - 단위 시험 3건 추가: 맨 앞 입력·붙여넣기, 빈 단락 첫 글자, 맨 앞에 두 단락 붙여넣기. 수정 전 3건 실패(`final-red.log`).
+  - 브라우저 시험 1건 추가.
+- minor 1: 앞으로 가기를 취소하면 history를 덮어썼다. 이제 history state에 index를 두고, 취소하면 `history.go(차이)`로 되돌린다. 기록이 바뀌지 않는다.
+- minor 2: 개요 충돌에도 "최신 스토리 불러오기"가 나와 스토리 입력까지 버렸다. 이제 충돌난 부분(스토리 또는 개요)만 다시 불러온다.
+- 브라우저 시험 3건: 이전 커밋(9dbef58)의 웹 코드에서 3건 모두 실패하고(`final-red-e2e.log`), 수정 후 통과한다.
+- 실행
+  - 브라우저 21/21, 전체 2회 반복 42/42(`e2e.log`)
+  - `pnpm test` exit 0: unit 70, integration 130, contracts 13, e2e 21, spikes 70, evals/pack PASS

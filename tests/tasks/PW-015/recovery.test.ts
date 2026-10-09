@@ -2,8 +2,8 @@
 // and tab, for a limited time, only when enabled, and removes everything at logout.
 import { describe, expect, test } from 'vitest';
 import {
-  LIVE_MS, RETENTION_MS, clearAllRecoveryData, clearDraft, clearLive, clearOtherAccounts, isRecoveryEnabled, loadDrafts, markLive,
-  purgeExpired, saveDraft, setRecoveryEnabled, storageWorks, tabIdFor, type Draft,
+  RETENTION_MS, claimTabId, clearAllRecoveryData, clearDraft, clearOtherAccounts, isRecoveryEnabled, loadDrafts, openTabIds,
+  purgeExpired, saveDraft, setRecoveryEnabled, storageWorks, type Draft, type TabLocks,
 } from '../../../apps/web/src/editor/recovery.ts';
 
 class MemStorage implements Storage {
@@ -42,7 +42,28 @@ const content = {
   }],
 };
 const draft = (over: Partial<Draft> = {}): Draft => ({ ownerId: OWNER_A, paperId: 'p1', documentId: DOC, tabId: 'tab-1', baseRevisionId: 'rev-1', schemaVersion: 1, content, savedAt: 1_000, ...over });
-const load = (s: Storage, owner = OWNER_A, doc = DOC, tab = 'tab-1', now = 2_000) => loadDrafts(s, owner, doc, tab, now);
+const load = (s: Storage, owner = OWNER_A, doc = DOC, tab = 'tab-1', now = 2_000, open: Set<string> | null = new Set()) => loadDrafts(s, owner, doc, tab, now, open);
+
+// Web Locks as the browser provides them, shared by all tabs; release() ends a tab (close or crash)
+class FakeLocks {
+  held = new Map<string, () => void>();
+  forTab(): TabLocks & { release(): void } {
+    const mine: string[] = [];
+    return {
+      request: async (name, _o, cb) => {
+        if (this.held.has(name)) return cb(null);
+        let end!: () => void;
+        const done = new Promise<void>((r) => { end = r; });
+        this.held.set(name, end);
+        mine.push(name);
+        void cb({ name });
+        return done;
+      },
+      query: async () => ({ held: [...this.held.keys()].map((name) => ({ name })) }),
+      release: () => { for (const n of mine) { this.held.get(n)?.(); this.held.delete(n); } },
+    };
+  }
+}
 
 describe('local recovery', () => {
   test('a draft round-trips with Korean text, marks and a citation', () => {
@@ -70,26 +91,41 @@ describe('local recovery', () => {
     expect(load(s, OWNER_A, DOC, 'tab-X').map((d) => d.tabId)).toEqual(['tab-B']);
   });
 
-  test('review 3: a copy of another tab that is still open is not offered and not deleted', () => {
+  test('review 3 / re-review 1-2: a copy of another tab that is still open (holds its lock) is not offered', async () => {
     const s = new MemStorage();
-    saveDraft(s, draft({ tabId: 'tab-B' }));
-    markLive(s, 'tab-B', 1_900);
-    expect(load(s, OWNER_A, DOC, 'tab-X', 2_000)).toEqual([]);
-    expect(load(s, OWNER_A, DOC, 'tab-B', 2_000)).toHaveLength(1); // its own tab still sees it
-    expect(load(s, OWNER_A, DOC, 'tab-X', 1_900 + LIVE_MS)).toHaveLength(1); // the tab stopped refreshing
-    clearLive(s, 'tab-B');
-    expect(load(s, OWNER_A, DOC, 'tab-X', 2_000)).toHaveLength(1);
+    const locks = new FakeLocks();
+    const tabB = locks.forTab();
+    const b = await claimTabId(new MemStorage(), tabB);
+    saveDraft(s, draft({ tabId: b.id }));
+    const open = await openTabIds(locks.forTab());
+    expect(open?.has(b.id)).toBe(true);
+    expect(load(s, OWNER_A, DOC, 'tab-X', 2_000, open)).toEqual([]);
+    expect(load(s, OWNER_A, DOC, b.id, 2_000, open)).toHaveLength(1); // its own tab still sees it
+    tabB.release(); // tab B closed or crashed
+    expect(load(s, OWNER_A, DOC, 'tab-X', 2_000, await openTabIds(locks.forTab()))).toHaveLength(1);
+    // without Web Locks it cannot be known whether another tab is open: only the own copy is offered
+    expect(load(s, OWNER_A, DOC, 'tab-X', 2_000, null)).toEqual([]);
+    expect(load(s, OWNER_A, DOC, b.id, 2_000, null)).toHaveLength(1);
   });
 
-  test('a reloaded tab keeps its id; a duplicated tab of an open one gets a new id', () => {
-    const local = new MemStorage();
+  test('re-review 1 / nit 3: a reloaded or crashed tab keeps its id; a duplicate of an open tab gets a new one', async () => {
+    const locks = new FakeLocks();
     const session = new MemStorage();
-    const id = tabIdFor(session, local, 1_000);
-    expect(tabIdFor(session, local, 1_000)).toBe(id); // reload (the old page cleared its live mark)
-    markLive(local, id, 1_000);
-    const dup = tabIdFor(session, local, 2_000); // same session copy, original still open
-    expect(dup).not.toBe(id);
-    expect(tabIdFor(null, local, 2_000)).toMatch(/^[0-9a-f-]{36}$/);
+    const first = locks.forTab();
+    const a = await claimTabId(session, first);
+    expect(a.locked).toBe(true);
+    // duplicated tab: the session copy carries the same id while the original still holds its lock
+    const dupSession = new MemStorage();
+    dupSession.setItem('pw-recovery-tab', a.id);
+    const dup = await claimTabId(dupSession, locks.forTab());
+    expect(dup.id).not.toBe(a.id);
+    expect(dupSession.getItem('pw-recovery-tab')).toBe(dup.id);
+    // the original page goes away (reload or crash): the lock is released, the same id comes back
+    first.release();
+    expect((await claimTabId(session, locks.forTab())).id).toBe(a.id);
+    // no Web Locks: the id comes from the session copy, not locked
+    expect(await claimTabId(session, null)).toEqual({ id: a.id, locked: false });
+    expect(await openTabIds(null)).toBeNull();
   });
 
   test('drafts older than the retention period are removed', () => {
@@ -98,7 +134,6 @@ describe('local recovery', () => {
     saveDraft(s, draft({ documentId: DOC2, savedAt: RETENTION_MS }));
     expect(load(s, OWNER_A, DOC, 'tab-1', RETENTION_MS + 1)).toEqual([]);
     expect(s.length).toBe(1);
-    markLive(s, 'old-tab', 0);
     purgeExpired(s, 2 * RETENTION_MS + 1);
     expect(s.length).toBe(0);
   });
@@ -159,7 +194,6 @@ describe('local recovery', () => {
     saveDraft(s, draft());
     saveDraft(s, draft({ ownerId: OWNER_B }));
     setRecoveryEnabled(s, OWNER_A, false);
-    markLive(s, 'tab-1', 1);
     s.setItem('unrelated', '1');
     clearAllRecoveryData(s);
     expect([...s.m.keys()]).toEqual(['unrelated']);

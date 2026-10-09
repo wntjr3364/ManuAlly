@@ -1,0 +1,105 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-015/autosave.test.ts (19 tests | 2 failed | 17 skipped) 23ms
+   ❯ autosave (19)
+     × re-review 3: a held resend stays visible while typing and is resent when the page regains focus 15ms
+     × re-review nit 1: a save queued while a resend was in flight is dropped when that resend is held 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-015/autosave.test.ts > autosave > re-review 3: a held resend stays visible while typing and is resent when the page regains focus
+AssertionError: expected 'failed' to be 'blocked' // Object.is equality
+
+Expected: "blocked"
+Received: "failed"
+
+ ❯ tests/tasks/PW-015/autosave.test.ts:279:30
+    277|     await vi.advanceTimersByTimeAsync(2000);
+    278|     await r.answer({ ok: false, kind: 'rejected', message: '로그인이 만료되었습…
+    279|     expect(r.state().status).toBe('blocked');
+       |                              ^
+    280|     for (let i = 0; i < 5; i++) { r.setDoc(`X${i}`); await vi.advanceT…
+    281|     expect(r.state().status).toBe('blocked'); // typing does not turn …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-015/autosave.test.ts > autosave > re-review nit 1: a save queued while a resend was in flight is dropped when that resend is held
+AssertionError: expected [ { version: 1, …(4) }, …(2) ] to have a length of 2 but got 3
+
+- Expected
++ Received
+
+- 2
++ 3
+
+ ❯ tests/tasks/PW-015/autosave.test.ts:305:20
+    303|     r.auto.compositionEnded();
+    304|     await vi.advanceTimersByTimeAsync(60_000);
+    305|     expect(r.sent).toHaveLength(2);
+       |                    ^
+    306|   });
+    307|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 17 skipped (19)
+   Start at  05:41:36
+   Duration  376ms (transform 78%, tests 11%, import 9%, worker 2%)
+
+
+Running 2 tests using 1 worker
+
+[1/2] tests/tasks/PW-015/editor.e2e.ts:383:1 › re-review 1: a duplicated tab does not share the tab id of the open original
+  1) tests/tasks/PW-015/editor.e2e.ts:383:1 › re-review 1: a duplicated tab does not share the tab id of the open original 
+
+    Error: expect(received).not.toBe(expected) // Object.is equality
+
+    Expected: not "77a8c9c1-9be8-46b6-8808-19365a544352"
+
+      398 |   await expect(editor(b)).toHaveAttribute('contenteditable', 'true');
+      399 |   const idB = await b.evaluate(() => sessionStorage.getItem('pw-recovery-tab'));
+    > 400 |   expect(idB).not.toBe(idA);
+          |                   ^
+      401 |   // A types while its saves fail: its copy is not offered to (or deletable by) B
+      402 |   await a.goto(url);
+      403 |   await a.getByRole('tab', { name: '원고' }).click();
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:400:19
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-5c060-tab-id-of-the-open-original/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-5c060-tab-id-of-the-open-original/error-context.md
+
+
+[2/2] tests/tasks/PW-015/editor.e2e.ts:416:1 › re-review 4: after a logout in another tab, an open editor keeps no copy
+  2) tests/tasks/PW-015/editor.e2e.ts:416:1 › re-review 4: after a logout in another tab, an open editor keeps no copy 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "pw-recovery:v1:draft:0aaa47ee-cbd9-4ef8-94f1-5633734769c1:eb040439-d15e-4908-a693-bf1d5659311d:9a14b68b-3b72-4bbd-8764-d4ad034b5cbd",
+    + ]
+
+      426 |   await expect(status(a)).not.toHaveText('저장됨', { timeout: 10_000 });
+      427 |   await a.waitForTimeout(1000); // longer than the copy delay
+    > 428 |   expect(await allRecoveryKeys(a)).toEqual([]);
+          |                                    ^
+      429 |   await closeTab(a);
+      430 |   expect(await allRecoveryKeys(b)).toEqual([]);
+      431 | });
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:428:36
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-d0b12-n-open-editor-keeps-no-copy/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-d0b12-n-open-editor-keeps-no-copy/error-context.md
+
+
+  2 failed
+    tests/tasks/PW-015/editor.e2e.ts:383:1 › re-review 1: a duplicated tab does not share the tab id of the open original 
+    tests/tasks/PW-015/editor.e2e.ts:416:1 › re-review 4: after a logout in another tab, an open editor keeps no copy 

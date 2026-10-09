@@ -5,7 +5,7 @@
 // - unsaved text is also kept in this browser (per account, document and tab; 7 days; can be turned
 //   off; removed at logout) and offered back when the page is opened again. A copy made from an older
 //   server version is shown for copying, never merged silently. Copies of tabs that are still open
-//   are left to them.
+//   are left to them (Web Locks, recovery.ts). A logout in another tab stops copies in this one.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/core';
@@ -18,8 +18,8 @@ import { initialSaveState, isUnsaved, saveLabel, saveReducer } from '../features
 import { Autosave, type SaveRequest, type SendResult } from './autosave.ts';
 import { applyExternalPatch } from './patch-gate.ts';
 import {
-  LIVE_REFRESH_MS, browserStorage, clearDraft, clearLive, isRecoveryEnabled, loadDrafts, markLive, pageTabId, purgeExpired, recoveryOwner,
-  saveDraft, setRecoveryEnabled, storageWorks, type Draft,
+  browserLocks, browserStorage, clearDraft, endRecoveryForPage, isLogoutEvent, isRecoveryEnabled, loadDrafts, openTabIds, pageTabId, purgeExpired,
+  recoveryOwner, saveDraft, setRecoveryEnabled, storageWorks, type Draft,
 } from './recovery.ts';
 import { ReadOnlyDocument, renderDocument } from './ReadOnlyDocument.tsx';
 
@@ -30,12 +30,12 @@ const DRAFT_DELAY_MS = 400;
 const LOGIN_EXPIRED = '로그인이 만료되었습니다 — 다른 탭에서 다시 로그인한 뒤 저장을 누르세요';
 
 // recovery copies to offer when the editor opens; copies equal to the stored text are dropped
-function findOffers(info: DocInfo, tabId: string): Draft[] {
+function findOffers(info: DocInfo, tabId: string, openTabs: Set<string> | null): Draft[] {
   const storage = browserStorage();
   const owner = recoveryOwner();
   if (!storage || !owner) return [];
   purgeExpired(storage, Date.now());
-  return loadDrafts(storage, owner, info.document.id, tabId, Date.now()).filter((d) => {
+  return loadDrafts(storage, owner, info.document.id, tabId, Date.now(), openTabs).filter((d) => {
     if (canonicalJson(d.content) !== canonicalJson(info.head.content_json)) return true;
     clearDraft(storage, d);
     return false;
@@ -47,12 +47,15 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   const containerRef = useRef<HTMLDivElement>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [contentError, setContentError] = useState('');
-  const tabId = useMemo(() => pageTabId(), []);
-  const [offers, setOffers] = useState<Draft[]>(() => findOffers(info, tabId));
+  // this tab's id (and which other tabs are open) is known shortly after the page loads; until then
+  // the editor stays locked so no copy is written or offered under the wrong id
+  const [tabId, setTabId] = useState<string | null>(null);
+  const [offers, setOffers] = useState<Draft[]>([]);
   const [draftNote, setDraftNote] = useState('');
   const storage = useMemo(() => browserStorage(), []);
   const storageOk = useMemo(() => storageWorks(storage), [storage]);
-  const owner = recoveryOwner();
+  // fixed for this editor's lifetime (a logout elsewhere stops copies via recoveryOwner(), checked on write)
+  const owner = useMemo(() => recoveryOwner(), []);
   const [recoveryOn, setRecoveryOn] = useState(() => (storage && owner ? isRecoveryEnabled(storage, owner) : false));
   const recoveryOnRef = useRef(recoveryOn);
   recoveryOnRef.current = recoveryOn;
@@ -63,7 +66,7 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   const editor = useEditor({
     extensions: editorExtensions,
     content: initial,
-    editable: offers.length === 0,
+    editable: false,
     enableContentCheck: true,
     onContentError: ({ error }) => setContentError(error.message),
     onCreate: ({ editor: ed }) => {
@@ -81,8 +84,22 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   const editorRef = useRef(editor);
   editorRef.current = editor;
 
-  // the editor is locked while recovery copies wait for a decision
-  useEffect(() => { editor?.setEditable(offers.length === 0); }, [editor, offers.length]);
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const { id } = await pageTabId();
+      const open = await openTabIds(browserLocks());
+      if (!live) return;
+      setOffers(findOffers(info, id, open));
+      setTabId(id);
+    })();
+    return () => { live = false; };
+  }, [info]);
+
+  // locked until the tab id is known, and while this tab's own copy waits for a decision (typing
+  // would overwrite it); other tabs' copies do not lock the editor
+  const locked = tabId === null || offers.some((d) => d.tabId === tabId);
+  useEffect(() => { editor?.setEditable(!locked); }, [editor, locked]);
 
   const cancelDraftTimer = () => {
     if (draftTimer.current) clearTimeout(draftTimer.current);
@@ -93,7 +110,7 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
     draftTimer.current = null;
     const ed = editorRef.current;
     const auto = autoRef.current;
-    if (!ed || !auto || !storage || !owner || !recoveryOnRef.current) return;
+    if (!ed || !auto || !storage || !owner || !tabId || !recoveryOnRef.current || recoveryOwner() !== owner) return;
     if (auto.version === 0) return;
     const r = saveDraft(storage, { ownerId: owner, paperId, documentId: info.document.id, tabId, baseRevisionId: auto.headRevisionId, schemaVersion: EDITOR_SCHEMA_VERSION, content: ed.getJSON(), savedAt: Date.now() });
     setDraftNote(r.ok || r.error === 'disabled' ? '' : r.error);
@@ -104,22 +121,20 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
     draftTimer.current = setTimeout(writeDraft, DRAFT_DELAY_MS);
   }
 
-  // this tab is open: other tabs leave its recovery copies alone
+  // a logout in another tab: keep nothing of this manuscript in the browser any more
   useEffect(() => {
-    if (!storage || !storageOk) return;
-    const beat = () => markLive(storage, tabId, Date.now());
-    const gone = () => clearLive(storage, tabId);
-    beat();
-    const t = setInterval(beat, LIVE_REFRESH_MS);
-    addEventListener('pagehide', gone);
-    addEventListener('pageshow', beat);
-    return () => {
-      clearInterval(t);
-      removeEventListener('pagehide', gone);
-      removeEventListener('pageshow', beat);
-      gone();
+    if (!storage) return;
+    const onStorage = (e: StorageEvent) => {
+      if (!isLogoutEvent(e)) return;
+      endRecoveryForPage();
+      cancelDraftTimer();
+      if (owner && tabId) clearDraft(storage, { ownerId: owner, documentId: info.document.id, tabId });
+      setRecoveryOn(false);
+      recoveryOnRef.current = false;
     };
-  }, [storage, storageOk, tabId]);
+    addEventListener('storage', onStorage);
+    return () => removeEventListener('storage', onStorage);
+  }, [storage, owner, tabId, info.document.id]);
 
   // the autosave controller lives as long as this editor
   useEffect(() => {
@@ -172,7 +187,7 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
       dispatch,
       onInvalid: setProblems,
       onSaved: (req) => {
-        if (!storage || !owner) return;
+        if (!storage || !owner || !tabId) return;
         if (auto.version === req.version) {
           // fully saved: this tab's copy is no longer needed (and no pending write may bring it back)
           cancelDraftTimer();
@@ -185,11 +200,16 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
     // ProseMirror leaves composing mode just after compositionend
     const onCompositionEnd = () => setTimeout(() => auto.compositionEnded(), 0);
     const onOnline = () => auto.online();
+    const onResume = () => { if (document.visibilityState === 'visible') auto.resume(); };
     dom.addEventListener('compositionend', onCompositionEnd);
     addEventListener('online', onOnline);
+    addEventListener('focus', onResume);
+    document.addEventListener('visibilitychange', onResume);
     return () => {
       dom.removeEventListener('compositionend', onCompositionEnd);
       removeEventListener('online', onOnline);
+      removeEventListener('focus', onResume);
+      document.removeEventListener('visibilitychange', onResume);
       auto.dispose();
       autoRef.current = null;
       cancelDraftTimer();
@@ -253,7 +273,6 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   // goes to the editor (not to the button, where Space would press it again); keyboard users can
   // still Tab to the buttons
   const keepFocus = (e: { preventDefault(): void }) => e.preventDefault();
-  const locked = offers.length > 0;
   const mark = (name: 'bold' | 'italic' | 'subscript' | 'superscript', label: string) => (
     <button type="button" aria-pressed={editor?.isActive(name) ?? false} disabled={locked} onMouseDown={keepFocus} onClick={() => editor?.chain().focus().toggleMark(name).run()}>{label}</button>
   );

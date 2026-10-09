@@ -1,7 +1,9 @@
 // Save status of the manuscript editor (spec 04 "저장·접근성": no "저장됨" before the server acks).
 // Every edit bumps a local version. A save carries the version it sent; only the acknowledgement of
 // the version that is still on screen shows 저장됨. Failures and conflicts stay unsaved.
-export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'failed' | 'conflict';
+// blocked: a request whose answer was lost was then refused (e.g. the login expired); nothing more is
+// sent until the user saves explicitly or the page regains focus/network. Typing does not hide it.
+export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'failed' | 'conflict' | 'blocked';
 
 export interface SaveState {
   status: SaveStatus;
@@ -15,7 +17,7 @@ export type SaveAction =
   | { type: 'edit' }
   | { type: 'saveStart'; version?: number }
   | { type: 'saveOk'; version: number; headRevisionId: string }
-  | { type: 'saveFailed'; version: number; error: string; conflict?: boolean }
+  | { type: 'saveFailed'; version: number; error: string; conflict?: boolean; blocked?: boolean }
   | { type: 'loaded'; headRevisionId: string };
 
 export const initialSaveState = (headRevisionId: string): SaveState => ({ status: 'saved', editVersion: 0, inFlight: null, headRevisionId, error: null });
@@ -25,7 +27,7 @@ export function saveReducer(s: SaveState, a: SaveAction): SaveState {
     case 'loaded':
       return initialSaveState(a.headRevisionId);
     case 'edit':
-      return { ...s, editVersion: s.editVersion + 1, status: s.inFlight !== null ? 'saving' : s.status === 'conflict' ? 'conflict' : 'dirty' };
+      return { ...s, editVersion: s.editVersion + 1, status: s.inFlight !== null ? 'saving' : s.status === 'conflict' || s.status === 'blocked' ? s.status : 'dirty' };
     case 'saveStart':
       return { ...s, inFlight: a.version ?? s.editVersion, status: 'saving', error: null };
     case 'saveOk': {
@@ -35,7 +37,7 @@ export function saveReducer(s: SaveState, a: SaveAction): SaveState {
     }
     case 'saveFailed':
       if (a.version !== s.inFlight) return s;
-      return { ...s, inFlight: null, status: a.conflict ? 'conflict' : 'failed', error: a.error };
+      return { ...s, inFlight: null, status: a.conflict ? 'conflict' : a.blocked ? 'blocked' : 'failed', error: a.error };
   }
 }
 
@@ -51,6 +53,8 @@ export function saveLabel(s: SaveState): string {
       return '저장 중… (아직 저장되지 않음)';
     case 'failed':
       return `저장 실패 — 저장되지 않았습니다${s.error ? ` (${s.error})` : ''}`;
+    case 'blocked':
+      return `저장 중단 — 저장되지 않았습니다${s.error ? ` (${s.error})` : ''}. 저장 버튼을 누르면 다시 보냅니다.`;
     case 'conflict':
       return '다른 곳에서 먼저 바뀐 원고 — 이 내용은 저장되지 않았습니다. 새로고침 전 내용을 복사해 두세요.';
   }

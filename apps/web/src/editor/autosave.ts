@@ -89,6 +89,12 @@ export class Autosave {
     if (this.#retry && !this.#inFlight) void this.#run('retry');
   }
 
+  // the page regained focus or became visible (e.g. after logging in again in another tab):
+  // a held request is tried once more
+  resume(): void {
+    if (this.#held && !this.#inFlight) void this.#run('retry');
+  }
+
   dispose(): void {
     this.#disposed = true;
     this.#clearWaits();
@@ -175,16 +181,20 @@ export class Autosave {
       else if (this.#version !== req.version) this.#schedule();
       return;
     }
-    this.#o.dispatch({ type: 'saveFailed', version: req.version, error: res.message, conflict: res.kind === 'conflict' });
+    const hold = res.kind === 'rejected' && resend;
+    this.#o.dispatch({ type: 'saveFailed', version: req.version, error: res.message, conflict: res.kind === 'conflict', blocked: hold });
     if (res.kind === 'conflict') {
       this.#retry = null;
       this.#stopped = true;
       return;
     }
     if (res.kind === 'rejected') {
-      if (resend) {
-        // an earlier answer was lost, so the server may already hold this request: keep it pending
+      if (hold) {
+        // an earlier answer was lost, so the server may already hold this request: keep it pending.
+        // Saves queued meanwhile are dropped: only an explicit save, focus or the network resends it.
         this.#held = true;
+        this.#urgent = null;
+        this.#due = false;
         return;
       }
       // a new save the server refused (nothing stored); the next edit or an explicit save tries again

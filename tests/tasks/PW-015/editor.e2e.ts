@@ -240,7 +240,8 @@ test('TST-015A: unsaved text is offered back from this browser and then saved', 
   await page.goto(url);
   await page.getByRole('tab', { name: '원고' }).click();
   await expect(page.getByTestId('recovery-offer')).toContainText('저장되지 않은 원고 변경');
-  await expect(editor(page)).toHaveAttribute('contenteditable', 'false');
+  // the copy came from another (closed) tab: it does not lock this editor (re-review nit 2)
+  await expect(editor(page)).toHaveAttribute('contenteditable', 'true');
   await evidence(page, '3-recovery-offer.png');
   await page.getByRole('button', { name: '복구본 불러오기' }).click();
   await expect(editor(page)).toHaveText('복구할 문장 x');
@@ -353,6 +354,8 @@ test('review 3: tabs keep their own recovery copies; an open tab\'s copy is not 
   await c.reload();
   await c.getByRole('tab', { name: '원고' }).click();
   await expect(c.getByTestId('recovery-text')).toHaveText('bbb text of tab B');
+  // another tab's copy does not lock this editor (re-review nit 2)
+  await expect(editor(c)).toHaveAttribute('contenteditable', 'true');
 });
 
 test('review 7: a browser that blocks site storage is told that nothing is kept locally', async ({ page }) => {
@@ -375,4 +378,54 @@ test('review 8: signing in removes recovery copies another account left in this 
   });
   await login(page);
   await expect.poll(() => allRecoveryKeys(page)).toEqual([]);
+});
+
+test('re-review 1: a duplicated tab does not share the tab id of the open original', async ({ context }) => {
+  const a = await context.newPage();
+  await login(a);
+  await newManuscript(a, 'Duplicate tab paper');
+  const url = a.url();
+  await expect(editor(a)).toHaveAttribute('contenteditable', 'true'); // the tab id has been claimed
+  const idA = await a.evaluate(() => sessionStorage.getItem('pw-recovery-tab'));
+  expect(idA).toMatch(/^[0-9a-f-]{36}$/);
+  // A leaves the editor (the page, and its tab lock, stay)
+  await a.getByRole('link', { name: 'Paper Workspace' }).click();
+  // B is a duplicate of A: the browser copies A's sessionStorage
+  const b = await context.newPage();
+  await b.addInitScript((id) => { if (!sessionStorage.getItem('pw-recovery-tab')) sessionStorage.setItem('pw-recovery-tab', id); }, idA!);
+  await b.goto(url);
+  await b.getByRole('tab', { name: '원고' }).click();
+  await expect(editor(b)).toHaveAttribute('contenteditable', 'true');
+  const idB = await b.evaluate(() => sessionStorage.getItem('pw-recovery-tab'));
+  expect(idB).not.toBe(idA);
+  // A types while its saves fail: its copy is not offered to (or deletable by) B
+  await a.goto(url);
+  await a.getByRole('tab', { name: '원고' }).click();
+  await a.route('**/saves', (r) => r.abort('failed'));
+  await editor(a).click();
+  await a.keyboard.type('text only tab A has');
+  await expect(status(a)).toContainText('저장 실패', { timeout: 10_000 });
+  await expect.poll(() => recoveryKeys(a)).toHaveLength(1);
+  await b.reload();
+  await b.getByRole('tab', { name: '원고' }).click();
+  await expect(editor(b)).toHaveAttribute('contenteditable', 'true');
+  await expect(b.getByTestId('recovery-offer')).toHaveCount(0);
+  expect(await recoveryKeys(a)).toHaveLength(1);
+});
+
+test('re-review 4: after a logout in another tab, an open editor keeps no copy', async ({ context }) => {
+  const a = await context.newPage();
+  await login(a);
+  await newManuscript(a, 'Logout elsewhere paper');
+  const b = await context.newPage();
+  await b.goto(h.webUrl);
+  await b.getByRole('button', { name: '로그아웃' }).click();
+  await expect(b.getByLabel('사용자 이름')).toBeVisible();
+  await editor(a).click();
+  await a.keyboard.type('typed after logout elsewhere');
+  await expect(status(a)).not.toHaveText('저장됨', { timeout: 10_000 });
+  await a.waitForTimeout(1000); // longer than the copy delay
+  expect(await allRecoveryKeys(a)).toEqual([]);
+  await closeTab(a);
+  expect(await allRecoveryKeys(b)).toEqual([]);
 });

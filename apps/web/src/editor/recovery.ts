@@ -3,18 +3,20 @@
 // - one entry per account, document and browser tab: tabs never overwrite or delete each other's copy
 // - an entry is only returned for the account that wrote it; signing in removes other accounts' entries
 // - entries expire after RETENTION_MS; a stored entry that is not a valid document is dropped
-// - an open tab marks itself live; its copy is neither offered to nor deleted by another tab
+// - an open tab holds a Web Lock named after its id for the page's lifetime (released by the browser
+//   when the tab closes or crashes, unaffected by timer throttling); copies of tabs that hold their
+//   lock are neither offered to nor deleted by another tab. Without Web Locks no other tab's copy is
+//   offered.
 // - a per-account setting turns it off (and removes that account's entries)
 // - logout removes every entry of every account
 // It is a convenience copy, never the canonical text: the server revision stays the source of truth.
 import { EDITOR_SCHEMA_VERSION, validateDocument } from '@pw/editor-core';
 
 export const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-export const LIVE_MS = 15_000; // a tab that refreshed its live mark this recently is open
-export const LIVE_REFRESH_MS = 5_000;
 const PREFIX = 'pw-recovery:v1:';
 const DRAFT = `${PREFIX}draft:`;
-const LIVE = `${PREFIX}live:`;
+const TAB_LOCK = 'pw-recovery-tab:';
+const LOGOUT_KEY = 'pw-logout';
 const draftKey = (ownerId: string, documentId: string, tabId: string) => `${DRAFT}${ownerId}:${documentId}:${tabId}`;
 const offKey = (ownerId: string) => `${PREFIX}off:${ownerId}`;
 
@@ -99,20 +101,57 @@ function parse(raw: string | null): Draft | null {
 
 const usable = (d: Draft | null, now: number) => d !== null && now - d.savedAt <= RETENTION_MS && d.savedAt <= now + 60_000;
 
-export function markLive(storage: Storage, tabId: string, now: number): void {
-  attempt(() => storage.setItem(`${LIVE}${tabId}`, String(now)), undefined);
+export interface TabLocks {
+  request(name: string, options: { ifAvailable: boolean }, cb: (lock: unknown) => Promise<unknown> | undefined): Promise<unknown>;
+  query(): Promise<{ held?: { name?: string }[] }>;
 }
-export function clearLive(storage: Storage, tabId: string): void {
-  attempt(() => storage.removeItem(`${LIVE}${tabId}`), undefined);
+
+// ids of tabs that are open now (they hold their lock); null when that cannot be known
+export async function openTabIds(locks: TabLocks | null): Promise<Set<string> | null> {
+  if (!locks) return null;
+  try {
+    const q = await locks.query();
+    return new Set((q.held ?? []).map((l) => l.name ?? '').filter((n) => n.startsWith(TAB_LOCK)).map((n) => n.slice(TAB_LOCK.length)));
+  } catch {
+    return null;
+  }
 }
-export function isLive(storage: Storage, tabId: string, now: number): boolean {
-  const t = Number(attempt(() => storage.getItem(`${LIVE}${tabId}`), null));
-  return Number.isFinite(t) && t > 0 && now - t < LIVE_MS;
+
+// Takes this page's tab id and holds its lock until the page goes away. A reload (or a reload after a
+// crash) gets the same id back from sessionStorage; a duplicated tab whose original is still open
+// cannot take the lock and gets a new id.
+export async function claimTabId(session: Storage | null, locks: TabLocks | null): Promise<{ id: string; locked: boolean }> {
+  const key = 'pw-recovery-tab';
+  let id = session ? attempt(() => session.getItem(key), null) : null;
+  for (let i = 0; i < 5; i++) {
+    id ??= crypto.randomUUID();
+    if (!locks) break;
+    const name = TAB_LOCK + id;
+    const got = await new Promise<boolean>((resolve) => {
+      locks.request(name, { ifAvailable: true }, (lock) => {
+        if (!lock) {
+          resolve(false);
+          return undefined;
+        }
+        resolve(true);
+        return new Promise(() => {}); // held for the page's lifetime
+      }).catch(() => resolve(false));
+    });
+    if (got) {
+      if (session) attempt(() => session.setItem(key, id!), undefined);
+      return { id, locked: true };
+    }
+    id = null;
+  }
+  id ??= crypto.randomUUID();
+  if (session) attempt(() => session.setItem(key, id!), undefined);
+  return { id, locked: false };
 }
 
 // Copies of this document this tab may offer, own tab first, then newest first. Copies of other
-// tabs that are still open are left to them; broken or expired copies are removed.
-export function loadDrafts(storage: Storage, ownerId: string, documentId: string, tabId: string, now: number): Draft[] {
+// tabs that are still open are left to them (all of them when that is unknown: openTabs null);
+// broken or expired copies are removed.
+export function loadDrafts(storage: Storage, ownerId: string, documentId: string, tabId: string, now: number, openTabs: Set<string> | null): Draft[] {
   if (!isRecoveryEnabled(storage, ownerId)) return [];
   const prefix = `${DRAFT}${ownerId}:${documentId}:`;
   const out: Draft[] = [];
@@ -123,7 +162,7 @@ export function loadDrafts(storage: Storage, ownerId: string, documentId: string
       attempt(() => storage.removeItem(k), undefined);
       continue;
     }
-    if (d!.tabId !== tabId && isLive(storage, d!.tabId, now)) continue;
+    if (d!.tabId !== tabId && (openTabs === null || openTabs.has(d!.tabId))) continue;
     out.push(d!);
   }
   return out.sort((a, b) => Number(b.tabId === tabId) - Number(a.tabId === tabId) || b.savedAt - a.savedAt);
@@ -136,9 +175,6 @@ export function purgeExpired(storage: Storage, now: number): void {
   for (const k of keys(storage)) {
     if (k.startsWith(DRAFT)) {
       if (!usable(parse(attempt(() => storage.getItem(k), null)), now)) attempt(() => storage.removeItem(k), undefined);
-    } else if (k.startsWith(LIVE)) {
-      const t = Number(attempt(() => storage.getItem(k), null));
-      if (!(now - t < RETENTION_MS)) attempt(() => storage.removeItem(k), undefined);
     }
   }
 }
@@ -155,28 +191,25 @@ export function clearAllRecoveryData(storage: Storage): void {
   for (const k of keys(storage)) attempt(() => storage.removeItem(k), undefined);
 }
 
-// This tab's id, kept in sessionStorage so a reload of the same tab finds its own copy. A duplicated
-// tab inherits the id while the original is open; it then takes a new one.
-export function tabIdFor(session: Storage | null, local: Storage | null, now: number): string {
-  const key = 'pw-recovery-tab';
-  let id = session ? attempt(() => session.getItem(key), null) : null;
-  if (!id || (local && isLive(local, id, now))) {
-    id = crypto.randomUUID();
-    if (session) attempt(() => session.setItem(key, id!), undefined);
-  }
-  return id;
-}
+// this page's tab id, claimed once per page load
+let pageTab: Promise<{ id: string; locked: boolean }> | null = null;
+export const pageTabId = () => (pageTab ??= claimTabId(browserSessionStorage(), browserLocks()));
+export const browserLocks = (): TabLocks | null => attempt(() => (navigator as { locks?: TabLocks }).locks ?? null, null);
 
-// this page's tab id, decided once per page load
-let pageTab: string | null = null;
-export function pageTabId(): string {
-  pageTab ??= tabIdFor(browserSessionStorage(), browserStorage(), Date.now());
-  return pageTab;
+// Logout in one tab tells the other tabs of this browser (storage event) to stop keeping copies.
+export function announceLogout(storage: Storage): void {
+  attempt(() => storage.setItem(LOGOUT_KEY, String(Date.now())), undefined);
 }
+export const isLogoutEvent = (e: { key: string | null }) => e.key === LOGOUT_KEY;
+let pageLoggedOut = false;
+// after a logout seen in this page, nothing is kept locally until the page is loaded again
+export function endRecoveryForPage(): void { pageLoggedOut = true; currentOwner = null; }
+// a sign-in in this page starts keeping copies again
+export function resumeRecoveryForPage(): void { pageLoggedOut = false; }
 
 // The signed-in account, set by the app shell; the editor stores drafts under it.
 let currentOwner: string | null = null;
-export const setRecoveryOwner = (ownerId: string | null) => { currentOwner = ownerId; };
+export const setRecoveryOwner = (ownerId: string | null) => { currentOwner = pageLoggedOut ? null : ownerId; };
 export const recoveryOwner = () => currentOwner;
 
 // browser storage, or null where none is available

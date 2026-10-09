@@ -47,6 +47,10 @@ User decision / reviewer:
     - 로그인한 계정을 복구 저장소에 알린다.
     - 로그아웃 시 이 브라우저의 복구본을 모두 지운다.
     - 로그인 시 다른 계정의 복구본과 설정을 지운다(PW-015 리뷰 8).
+    - 로그아웃을 다른 탭에 알린다(storage 이벤트). 이 탭에서 다시 로그인하면 복구를 다시 켠다(PW-015 재리뷰 4).
+  - `apps/web/src/features/paper/save-state.ts`
+    - `blocked` 상태 추가(PW-015 재리뷰 3). 입력해도 유지되고, 다시 보내면 해제된다.
+    - PW-014 시험은 그대로 통과한다.
   - `apps/web/src/app/styles.css`: 복구 안내 상자 스타일(`.notice`)
   - `apps/api/src/server.ts`: `registerDocumentSaveRoutes` 등록
   - `packages/config/test-patterns.ts`, `packages/config/playwright.config.ts`

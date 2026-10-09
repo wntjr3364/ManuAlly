@@ -269,6 +269,42 @@ describe('autosave', () => {
     expect(r.sent[0]!.manual).toBe(false);
   });
 
+  test('re-review 3: a held resend stays visible while typing and is resent when the page regains focus', async () => {
+    const r = rig();
+    r.setDoc('X');
+    await vi.advanceTimersByTimeAsync(1000);
+    await r.answer({ ok: false, kind: 'network', message: '네트워크 오류' });
+    await vi.advanceTimersByTimeAsync(2000);
+    await r.answer({ ok: false, kind: 'rejected', message: '로그인이 만료되었습니다' });
+    expect(r.state().status).toBe('blocked');
+    for (let i = 0; i < 5; i++) { r.setDoc(`X${i}`); await vi.advanceTimersByTimeAsync(60_000); }
+    expect(r.state().status).toBe('blocked'); // typing does not turn it into an ordinary "unsaved"
+    expect(r.labels.at(-1)).toMatch(/저장 중단.*로그인이 만료/);
+    expect(r.sent).toHaveLength(2);
+    r.auto.resume(); // e.g. after signing in again in another tab
+    expect(r.sent).toHaveLength(3);
+    expect(r.sent[2]).toEqual(r.sent[0]);
+    await r.answer({ ok: true, headRevisionId: 'rev-1' });
+    expect(r.state().status).toBe('dirty');
+    r.auto.resume(); // nothing held any more
+    expect(r.sent).toHaveLength(3);
+  });
+
+  test('re-review nit 1: a save queued while a resend was in flight is dropped when that resend is held', async () => {
+    const r = rig();
+    r.setDoc('X');
+    await vi.advanceTimersByTimeAsync(1000);
+    await r.answer({ ok: false, kind: 'network', message: '네트워크 오류' });
+    await vi.advanceTimersByTimeAsync(2000); // resend in flight
+    r.composing.on = true;
+    r.auto.saveNow(); // queued
+    await r.answer({ ok: false, kind: 'rejected', message: '로그인이 만료되었습니다' });
+    r.composing.on = false;
+    r.auto.compositionEnded();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(r.sent).toHaveLength(2);
+  });
+
   test('dispose stops all timers', async () => {
     const r = rig();
     r.setDoc('a');

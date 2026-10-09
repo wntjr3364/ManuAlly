@@ -38,3 +38,7 @@ KILLED finite_transform
 SURVIVED finite_check_used
 # after the stand-in extractor test:
 KILLED finite_check_used
+# re-review fixes (Fri Oct  9 17:08:24 UTC 2026) — also RED evidence (each line reverts one fix)
+KILLED load_stage
+KILLED oom_retryable
+KILLED child_stage

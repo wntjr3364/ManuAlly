@@ -3,9 +3,11 @@
 // a time limit and an output cap, with an empty environment (no secrets inherited) and its own process
 // group (killed whole on every finish). Pages get reading-order flags; nothing is guessed: a failure is
 // a failure, an image-only page has no text.
-// A failure that depends on the file (a parse error, too much memory or output) is final for this
-// extractor version; one that may depend on the moment (time limit, start failure, a kill by signal)
-// is "transient": the job fails and may be asked again, nothing is stored.
+// A failure that depends on the file (a parse error, too much output, positions that are not numbers)
+// is final for this extractor version; one that may depend on the moment or the host (time limit,
+// start failure, the parser failing to load, a kill by signal, running out of memory — the limit or the
+// host's pressure may change) is "transient": the job fails with the reason and may be asked again,
+// nothing is stored.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -53,7 +55,7 @@ export async function extractPdf(bytes: Buffer, limits: ExtractLimits = {}): Pro
     child.on('close', (code, signal) => {
       if (done) return;
       // V8 ends a process that hits the memory limit with a fatal trap/abort: a property of the file
-      if (signal === 'SIGTRAP' || signal === 'SIGABRT' || code === 133 || code === 134) return finish({ ok: false, reason: 'the PDF needs more memory than the parser is allowed', transient: false });
+      if (signal === 'SIGTRAP' || signal === 'SIGABRT' || code === 133 || code === 134) return finish({ ok: false, reason: `the PDF needs more memory than the parser is allowed (${memoryMb} MB)`, transient: true });
       if (signal || code !== 0) return finish({ ok: false, reason: `the extractor stopped (${signal ?? `exit ${code}`})`, transient: true });
       finish({ ok: true, text: Buffer.concat(chunks).toString('utf8') });
     });
@@ -61,7 +63,7 @@ export async function extractPdf(bytes: Buffer, limits: ExtractLimits = {}): Pro
     child.stdin.end(bytes);
   });
   if (!out.ok) return { status: 'failed', reason: out.reason, transient: out.transient };
-  let parsed: { pages?: Omit<ExtractedPage, 'flags'>[]; error?: string };
+  let parsed: { pages?: Omit<ExtractedPage, 'flags'>[]; error?: string; stage?: string };
   try {
     parsed = JSON.parse(out.text);
   } catch {
@@ -71,7 +73,10 @@ export async function extractPdf(bytes: Buffer, limits: ExtractLimits = {}): Pro
     const e = String(parsed.error ?? 'no pages');
     // memory exhausted under the limit: a property of the file at this limit, stated as such
     const memory = /allocation failed|out of memory|invalid array length/i.test(e);
-    return { status: 'failed', reason: memory ? 'the PDF needs more memory than the parser is allowed' : `the PDF could not be parsed (${e.slice(0, 300)})`, transient: false };
+    if (memory) return { status: 'failed', reason: `the PDF needs more memory than the parser is allowed (${memoryMb} MB)`, transient: true };
+    // only an error while reading this PDF is the PDF's result; the parser failing to load is not
+    if (parsed.stage !== 'parse') return { status: 'failed', reason: `the parser could not start (${e.slice(0, 300)})`, transient: true };
+    return { status: 'failed', reason: `the PDF could not be parsed (${e.slice(0, 300)})`, transient: false };
   }
   if (!extractorPagesValid(parsed.pages)) return { status: 'failed', reason: 'the extractor gave positions that are not numbers', transient: false };
   const pages = parsed.pages.map((p) => ({ ...p, flags: pageFlags(p) }));

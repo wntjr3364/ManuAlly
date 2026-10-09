@@ -250,19 +250,30 @@ describe('closing gaps found by mutation', () => {
 
 // review (PW-035)
 describe('review fixes', () => {
-  test('MINOR 1: the parser runs under a real memory limit — a small decompression bomb stops it quickly, and that is recorded as the file\'s result', async () => {
+  test('MINOR 1: the parser runs under a real memory limit — a small decompression bomb stops it quickly; the job fails with the limit named, and it can be asked again (with more memory)', async () => {
     const bomb = bombPdf(400 * 1024 * 1024);
     expect(bomb.length).toBeLessThan(1_000_000);
     const t0 = Date.now();
     const x = await extractPdf(bomb, { memoryMb: 192, timeoutMs: 60_000 });
-    expect(x).toMatchObject({ status: 'failed', transient: false });
-    expect((x as { reason: string }).reason).toMatch(/more memory/);
+    expect(x).toMatchObject({ status: 'failed', transient: true });
+    expect((x as { reason: string }).reason).toMatch(/more memory than the parser is allowed \(192 MB\)/);
     expect(Date.now() - t0).toBeLessThan(20_000);
-    // through the job: stored as failed for this extractor (the same file would fail the same way)
     const p = await newPaper();
     const a = await upload(p, bomb);
-    const { view } = await extract(p, a.id, { memoryMb: 192 });
-    expect(view.extraction).toMatchObject({ status: 'failed' });
+    const { job, view } = await extract(p, a.id, { memoryMb: 192 });
+    expect(job.status).toBe('FAILED');
+    expect(job.last_error).toMatch(/192 MB/);
+    expect(view.extraction).toBeNull();
+  });
+
+  test('re-review: a parser that fails to load is not the PDF\'s result', async () => {
+    const fake = path.join(dir, 'broken-child.mjs');
+    fs.writeFileSync(fake, `try { await import('pdfjs-missing-module'); } catch (e) { process.stdout.write(JSON.stringify({ stage: 'load', error: 'Error: ' + e.message }) + '\\n'); }`);
+    expect(await extractPdf(PAPER_V1(), { childPath: fake })).toMatchObject({ status: 'failed', transient: true, reason: expect.stringMatching(/could not start/) });
+    // an answer without a stage (an older or broken child) is not trusted as the PDF's result either
+    const noStage = path.join(dir, 'nostage-child.mjs');
+    fs.writeFileSync(noStage, `process.stdout.write(JSON.stringify({ error: 'Error: something' }) + '\\n');`);
+    expect(await extractPdf(PAPER_V1(), { childPath: noStage })).toMatchObject({ transient: true });
   });
 
   test('nit: the keep right is checked again when the job runs and whenever the extracted text is used', async () => {

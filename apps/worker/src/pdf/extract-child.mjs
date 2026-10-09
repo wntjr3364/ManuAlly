@@ -17,11 +17,15 @@ async function readStdin() {
   return Buffer.concat(chunks);
 }
 
+// 'load' until the parser and the bytes are ready: an error before that is about this process, not the PDF
+let stage = 'load';
+
 async function main() {
   const require = createRequire(import.meta.url);
   const pkg = path.dirname(require.resolve('pdfjs-dist/package.json'));
   const pdfjs = await import(path.join(pkg, 'legacy/build/pdf.mjs'));
   const data = new Uint8Array(await readStdin());
+  stage = 'parse';
   const task = pdfjs.getDocument({
     data, disableFontFace: true, useSystemFonts: false, enableXfa: false, stopAtErrors: true,
     standardFontDataUrl: path.join(pkg, 'standard_fonts') + path.sep, verbosity: 0,
@@ -53,5 +57,5 @@ async function main() {
 }
 
 main().catch((e) => {
-  process.stdout.write(JSON.stringify({ error: String(e?.name ?? 'Error').slice(0, 50) + ': ' + String(e?.message ?? e).slice(0, 300) }) + '\n');
+  process.stdout.write(JSON.stringify({ stage, error: String(e?.name ?? 'Error').slice(0, 50) + ': ' + String(e?.message ?? e).slice(0, 300) }) + '\n');
 });

@@ -119,3 +119,13 @@ PW-036: Figure/Table/Fact 출처 연결
   - 브라우저의 pdf.js 렌더링은 사용자 기기 메모리를 쓴다(소유자 자신의 파일).
 - 시험: 통합 18(+5). RED는 `review-red.log`. mutation은 `mutation.log` 끝에 있고 모두 탐지했다.
 - 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 333, contracts 17, 브라우저 83(`pnpm-test-review.log`).
+
+## 재리뷰 반영 (2026-10-09, 재리뷰: MINOR 1 고치면 approve, nit 1)
+- MINOR: 파서 자체가 뜨지 못하면(모듈 누락, 설치 손상) 모든 PDF가 영구 실패로 저장되던 문제를 고쳤다.
+  - child가 단계(`stage: 'load' | 'parse'`)를 알린다.
+  - 바이트를 받은 뒤(`parse`)의 오류만 파일의 결과로 저장한다. 단계가 없거나 `load`면 재시도 가능한 실패다(대역 child 시험).
+- nit: 메모리 부족도 재시도 가능한 실패로 바꿨다. 상한이나 host 상황이 바뀔 수 있기 때문이다.
+  - job 오류에 상한(MB)을 적는다.
+  - 폭탄 PDF는 다시 요청해도 1초 안팎에 같은 이유로 멈추고 저장되는 것은 없다.
+- 시험: 통합 19. 되돌림 mutation 3종을 탐지했다(RED 증거 겸용).
+- 회귀: PW-035 통합과 lint로 확인했다. 전체 `pnpm test`는 다음 커밋(PW-036)과 함께 돌린다.

@@ -110,3 +110,13 @@ PW-035: PDF 파싱·anchor
   - parser sandbox(PW-035)로 미룬 바이트 검사의 한계: 다른 필터(LZW 등) 안의 dictionary, 깨진 PDF의 뷰어별 해석 차이, `/URI` 링크
 - 시험: 통합 15(+5). RED는 `review-red.log`. mutation은 `mutation.log` 끝에 13종 있고, 12종을 탐지했다. 나머지 1종은 동치다.
 - 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 313, contracts 17, 브라우저 82(`pnpm-test-review.log`).
+
+## 재리뷰 반영 (2026-10-09, 재리뷰: MINOR 1 고치면 approve, nit 1)
+- MINOR: `/Type /ObjStm`이 없어도 `/N`과 `/First`가 있는 stream은 object stream으로 보고 풀어서 검사한다. 뷰어가 `/Type` 없이 압축 객체를 읽을 수 있기 때문이다.
+  - 일반 content stream은 객체를 담지 않는다. 그래서 풀지 않는다. 그 안의 `/JS` 같은 이름은 실행되지 않고, 풀어서 보면 오탐만 는다.
+- nit: 상한 초과 거절은 하루 10건까지만 기록한다(무한 증가 방지).
+- 남은 위험(parser sandbox로 넘김)
+  - 바이너리 안의 우연한 `stream\n`은 오거부만 만든다(통과는 아님).
+  - 손상된 xref를 재구성해 닿는 객체, object stream이 아닌 stream의 비-Flate 필터
+- 시험: 통합 17(+2). 되돌림 mutation 2종을 탐지했다(RED 증거 겸용, `mutation.log`).
+- 회귀: 이 반영은 PW-034 통합 17, typecheck, lint로 확인했다. 전체 `pnpm test`는 다음 커밋(PW-035)과 함께 돌린다(`reports/tasks/PW-035/pnpm-test.log`).

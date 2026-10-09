@@ -52,7 +52,9 @@ export function inspectPdf(buf: Buffer, limits: { maxBytes?: number; maxPages?: 
     if (objAt < 0) continue;
     if (m.index - objAt > MAX_DICT) return { ok: false, reason: 'malformed', detail: 'a stream dictionary is implausibly long' };
     const dict = unescapeNames(raw.slice(objAt, m.index));
-    if (!/\/Type\s*\/ObjStm\b/.test(dict)) continue;
+    // an object stream by its type, or by the entries a reader uses to find objects in it (/N, /First):
+    // viewers may resolve compressed objects without looking at /Type
+    if (!/\/Type\s*\/ObjStm\b/.test(dict) && !(/\/N\s+\d/.test(dict) && /\/First\s+\d/.test(dict))) continue;
     objStms++;
     const start = m.index + m[0].length;
     const end = raw.indexOf('endstream', start);
@@ -250,8 +252,14 @@ export async function reserveFetchAttempt(pool: TxPool, a: { paperId: string; ow
   const refused = await inTransaction(pool, async (tx) => {
     await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`fetch-cap:${a.ownerId}`]);
     const n = (await tx.query<{ n: number }>("SELECT count(*)::int AS n FROM asset_fetches WHERE owner_id = $1 AND outcome = 'attempted' AND attempted_at > clock_timestamp() - interval '24 hours'", [a.ownerId])).rows[0]!.n;
-    await logFetch(tx, { ...a, outcome: n >= cap ? 'daily_cap' : 'attempted', assetId: null });
-    return n >= cap;
+    if (n < cap) {
+      await logFetch(tx, { ...a, outcome: 'attempted', assetId: null });
+      return false;
+    }
+    // refusals are recorded, but only the first few per day (a client cannot grow the log without limit)
+    const logged = (await tx.query<{ n: number }>("SELECT count(*)::int AS n FROM asset_fetches WHERE owner_id = $1 AND outcome = 'daily_cap' AND attempted_at > clock_timestamp() - interval '24 hours'", [a.ownerId])).rows[0]!.n;
+    if (logged < 10) await logFetch(tx, { ...a, outcome: 'daily_cap', assetId: null });
+    return true;
   });
   if (refused) throw new FetchRefused('daily_cap', `at most ${cap} source fetches per day`);
 }

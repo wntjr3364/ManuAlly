@@ -53,3 +53,6 @@ KILLED keep_right_gate
 KILLED unknown_settings
 KILLED already_stored
 KILLED deadline
+# re-review fixes (Fri Oct  9 16:30:53 UTC 2026) — also the RED evidence: each line reverts one fix
+KILLED untyped_objstm
+KILLED refusal_log_cap

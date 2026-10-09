@@ -348,3 +348,18 @@ describe('review fixes', () => {
     expect((await upload('alice', p, pdf('/Lang (pl)'), { externalsend: 'allowed' })).statusCode).toBe(422);
   });
 });
+
+// re-review (PW-034)
+describe('re-review fixes', () => {
+  test('MINOR: an object stream without /Type /ObjStm (only /N and /First) is inflated and inspected', () => {
+    const data = zlib.deflateSync(Buffer.from('<< /S /JavaScript /JS (app.alert(1)) >>', 'latin1'));
+    const untyped = Buffer.concat([Buffer.from('90 0 obj << /N 1 /First 5 /Filter /FlateDecode >>\nstream\n', 'latin1'), data, Buffer.from('\nendstream\nendobj\n', 'latin1')]);
+    expect(inspectPdf(pdf('/OpenAction 10 0 R', 1, untyped))).toMatchObject({ ok: false, reason: 'active_content' });
+  });
+
+  test('nit: refusals over the cap are logged only a few times per day', async () => {
+    const p = await newPaper('carol'); // carol used her cap above
+    for (let i = 0; i < 15; i++) await call('carol', 'POST', `/api/papers/${p}/assets/fetch`, { url: 'https://oa.test/again.pdf' });
+    expect((await pool.query("SELECT count(*)::int AS n FROM asset_fetches WHERE owner_id = $1 AND outcome = 'daily_cap'", [ids.carol])).rows[0].n).toBe(10);
+  });
+});

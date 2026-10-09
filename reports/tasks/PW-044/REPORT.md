@@ -90,3 +90,7 @@ PW-045: 과학적 부정 fixture·rubric gate
 - GREEN: 통합 12, 브라우저 1.
 - mutation(`mutation.log` 하단): 6종 모두 탐지.
 - 회귀: `pnpm test` exit 0 — unit 344, integration 451, contracts 17, 브라우저 93 (`pnpm-test-review.log`).
+
+## 재리뷰 (ee5a89a): approve
+- 확인: MINOR와 NIT 4개 모두 닫힘. 리뷰어 실행: 통합 12/12, 브라우저 1/1.
+- 참고: 나중에 되돌린 AI 편집도 저자 판단에 남는다(보수적).

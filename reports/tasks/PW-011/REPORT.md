@@ -65,7 +65,7 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-011
   - DB는 owner 아닌 검증자, 단계 건너뛰기, 검증 전 생성을 막는다.
   - 승인·검증은 사용자가 본 content_hash를 요구한다.
 - p/q 혼동: 별칭을 추측하지 않고, 종류별로 분리 저장하며, 병합 시 종류를 합치지 않는다.
-- 숫자 변형: 원문 텍스트를 그대로 저장한다(반올림·정규화 없음). 범위·말로 쓴 값은 사실로 받지 않는다.
+- 숫자 변형: ~~원문 텍스트를 그대로 저장한다~~ — **최초 커밋(8c80932)에서는 거짓이었다**(리뷰 M1, 아래). 수정 후 원문 텍스트를 그대로 저장하고, DB가 `value = value_text::numeric`을 검사한다. 범위·말로 쓴 값은 사실로 받지 않는다.
 - 근거 없는 관찰 주장: 검증된 지지 근거 없이 승인할 수 없다.
 
 ## 미실행 / 남은 위험 / 이월
@@ -82,3 +82,24 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-011
 
 ## 다음 Task
 PW-012 공유 editor schema + contracts(자동 시작하지 않음, 리뷰 후).
+
+## 독립 리뷰 결과 반영 (2026-10-09)
+결론: changes requested(major 1, minor 6). 모두 수정했다.
+- 수정 위치: `pw_011_0002_review_fixes.sql`, `evidence/index.ts`, `routes/outlines/index.ts`(오류 응답을 공용 sender로 통일)
+- 회귀 시험: `tests/tasks/PW-011/review-fixes.int.test.ts` 22건. 수정 전 18건 실패(`review-red.log`). 4건은 이미 맞게 동작하던 경로의 보강이다.
+
+| 지적 | 조치 |
+|---|---|
+| **M1 원문 숫자 텍스트가 정규화되어 저장됨**(`2.4E3`→`2400`, `1.0e-5`→`0.000010`), content_hash와 저장값 불일치 | 같은 parameter를 numeric과 text에 함께 써서 생긴 문제다. 두 값을 따로 bind한다. DB CHECK `value = value_text::numeric`(fact·통계). 7가지 표기를 왕복 시험 |
+| m1 지수 overflow·`1.00000000000000000001` 같은 p → 500 | 지수 ±300 제한. 확률은 float 대신 정확한 10진 비교. 남는 DB 오류(22003/23514/22P02)는 422로 변환 |
+| m2 보정된 값을 `p_value`로 저장 가능, merge가 종류 검사 안 함 | `p_value`에 adjustment가 있으면 거부(API·DB CHECK). merge도 종류를 검사 |
+| m3 observation 근거 규칙이 API에만 있음, 검토 시각을 SQL로 임의 지정 가능 | claims trigger 추가. 검토 시각은 trigger가 서버 시계로 기록 |
+| m4 시험 공백 | 잘못된 hash로 검증·승인(3종) 409, 다른 owner의 쓰기 5종 404, 대소문자·공백 변형 통계 종류 시험 추가 |
+| m5 출처 정보 느슨 | AI 추출 여부와 extraction_method 일치(API·DB CHECK). 제거된 문헌의 evidence는 검증 불가. 기각된 evidence에 link 불가. page_index 상한. log2FC 등도 비교 지표로 인식 |
+| m6 보고서 부정확 | 위 "숫자 변형" 항목을 정정 |
+
+- 기존 시험 1건 수정: AI 경로 시험이 `extraction_method: manual_entry`를 보내고 있었다. m5 규칙상 이제 거부가 맞으므로, 그 값을 빼고 기본값(ai_extraction)을 쓰게 했다.
+- 실행
+  - PW-011 통합 32/32(`green.log`)
+  - `pnpm test` exit 0: unit 30, integration 97, contracts 6, e2e 1, spikes 70, evals/pack PASS
+  - 이 수치에는 작업 중인 PW-012 시험(미커밋)도 포함되어 있다.

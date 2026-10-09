@@ -188,7 +188,7 @@ describe('TST-011B: AI or import cannot forge verification, and p and q stay dif
     expect(ok.json().map((f: { origin: string; verification_state: string }) => [f.origin, f.verification_state])).toEqual([['import', 'CANDIDATE'], ['import', 'CANDIDATE']]);
     // the domain entry point used by future AI extraction cannot set a verifier either
     await expect(createFactCandidates(pool, { paperId: p.id, ownerId: aliceId, origin: 'ai_extraction', facts: [{ ...factBody(ev.id), verified_by: aliceId }] })).rejects.toThrow(/verified_by/);
-    const ai = await createFactCandidates(pool, { paperId: p.id, ownerId: aliceId, origin: 'ai_extraction', facts: [factBody(ev.id)] });
+    const ai = await createFactCandidates(pool, { paperId: p.id, ownerId: aliceId, origin: 'ai_extraction', facts: [factBody(ev.id, { extraction_method: undefined })] }); // AI facts cannot claim manual entry (review m5)
     expect(ai[0]).toMatchObject({ origin: 'ai_extraction', verification_state: 'CANDIDATE', verified_by: null });
   });
 

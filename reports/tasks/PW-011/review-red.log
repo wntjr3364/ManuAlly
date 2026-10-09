@@ -1,0 +1,461 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts (22 tests | 18 failed) 1034ms
+   ❯ review M1: the number text is stored exactly as the source wrote it (8)
+     × value 2.4E3 comes back unchanged and matches its numeric value 43ms
+     × value 1e2 comes back unchanged and matches its numeric value 21ms
+     × value 00012 comes back unchanged and matches its numeric value 18ms
+     × value -0 comes back unchanged and matches its numeric value 18ms
+     × value .5 comes back unchanged and matches its numeric value 21ms
+     × value 2.40 comes back unchanged and matches its numeric value 17ms
+     × value +3.0 comes back unchanged and matches its numeric value 20ms
+     × the database refuses a numeric value that differs from its text 30ms
+   ❯ review m1: out-of-range numbers are a 422, never a 500 (7)
+     × {"value_text":"1e99999999"} 15ms
+     × {"value_text":"1e-99999999"} 11ms
+     × {"value_text":"1e999"} 15ms
+     × {"statistics":[{"kind":"df","value_text":"1e99999999"}]} 13ms
+     × {"statistics":[{"kind":"p_value","value_text":"1.00000000000000000001"}]} 13ms
+   ❯ review m2: an adjusted value cannot be stored as a raw p-value (1)
+     × p_value with an adjustment method is refused (API and DB); merge validates kinds 14ms
+   ❯ review m3: the database also enforces claim evidence and review timestamps (1)
+     × an observation cannot be approved by SQL without verified supporting evidence; review time is the server clock 10ms
+   ❯ review m5: provenance and source checks (3)
+     × extraction method must agree with origin 15ms
+     × links to rejected evidence, verifying evidence of a removed reference, and huge page numbers are refused 21ms
+     × log fold-change metrics also need the comparison group before verification 25ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 18 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review M1: the number text is stored exactly as the source wrote it > value 2.4E3 comes back unchanged and matches its numeric value
+AssertionError: expected '2400' to be '2.4E3' // Object.is equality
+
+Expected: "2.4E3"
+Received: "2400"
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:63:28
+     61|     expect(r.statusCode, r.body).toBe(201);
+     62|     const got = (await call('GET', `/api/papers/${p.id}/facts/${r.json…
+     63|     expect(got.value_text).toBe(text);
+       |                            ^
+     64|     expect(Number(got.value)).toBe(Number(text));
+     65|     expect(got.statistics[0].value_text).toBe('1.0e-5');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review M1: the number text is stored exactly as the source wrote it > value 1e2 comes back unchanged and matches its numeric value
+AssertionError: expected '100' to be '1e2' // Object.is equality
+
+Expected: "1e2"
+Received: "100"
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:63:28
+     61|     expect(r.statusCode, r.body).toBe(201);
+     62|     const got = (await call('GET', `/api/papers/${p.id}/facts/${r.json…
+     63|     expect(got.value_text).toBe(text);
+       |                            ^
+     64|     expect(Number(got.value)).toBe(Number(text));
+     65|     expect(got.statistics[0].value_text).toBe('1.0e-5');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review M1: the number text is stored exactly as the source wrote it > value 00012 comes back unchanged and matches its numeric value
+AssertionError: expected '12' to be '00012' // Object.is equality
+
+Expected: "00012"
+Received: "12"
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:63:28
+     61|     expect(r.statusCode, r.body).toBe(201);
+     62|     const got = (await call('GET', `/api/papers/${p.id}/facts/${r.json…
+     63|     expect(got.value_text).toBe(text);
+       |                            ^
+     64|     expect(Number(got.value)).toBe(Number(text));
+     65|     expect(got.statistics[0].value_text).toBe('1.0e-5');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review M1: the number text is stored exactly as the source wrote it > value -0 comes back unchanged and matches its numeric value
+AssertionError: expected '0' to be '-0' // Object.is equality
+
+Expected: "-0"
+Received: "0"
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:63:28
+     61|     expect(r.statusCode, r.body).toBe(201);
+     62|     const got = (await call('GET', `/api/papers/${p.id}/facts/${r.json…
+     63|     expect(got.value_text).toBe(text);
+       |                            ^
+     64|     expect(Number(got.value)).toBe(Number(text));
+     65|     expect(got.statistics[0].value_text).toBe('1.0e-5');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review M1: the number text is stored exactly as the source wrote it > value .5 comes back unchanged and matches its numeric value
+AssertionError: expected '0.5' to be '.5' // Object.is equality
+
+Expected: ".5"
+Received: "0.5"
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:63:28
+     61|     expect(r.statusCode, r.body).toBe(201);
+     62|     const got = (await call('GET', `/api/papers/${p.id}/facts/${r.json…
+     63|     expect(got.value_text).toBe(text);
+       |                            ^
+     64|     expect(Number(got.value)).toBe(Number(text));
+     65|     expect(got.statistics[0].value_text).toBe('1.0e-5');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review M1: the number text is stored exactly as the source wrote it > value 2.40 comes back unchanged and matches its numeric value
+AssertionError: expected '0.000010' to be '1.0e-5' // Object.is equality
+
+Expected: "1.0e-5"
+Received: "0.000010"
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:65:42
+     63|     expect(got.value_text).toBe(text);
+     64|     expect(Number(got.value)).toBe(Number(text));
+     65|     expect(got.statistics[0].value_text).toBe('1.0e-5');
+       |                                          ^
+     66|   });
+     67|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review M1: the number text is stored exactly as the source wrote it > value +3.0 comes back unchanged and matches its numeric value
+AssertionError: expected '3.0' to be '+3.0' // Object.is equality
+
+Expected: "+3.0"
+Received: "3.0"
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:63:28
+     61|     expect(r.statusCode, r.body).toBe(201);
+     62|     const got = (await call('GET', `/api/papers/${p.id}/facts/${r.json…
+     63|     expect(got.value_text).toBe(text);
+       |                            ^
+     64|     expect(Number(got.value)).toBe(Number(text));
+     65|     expect(got.statistics[0].value_text).toBe('1.0e-5');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review M1: the number text is stored exactly as the source wrote it > the database refuses a numeric value that differs from its text
+AssertionError: promise resolved "Result{ command: 'INSERT', …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ Result {
++   "RowCtor": null,
++   "_parsers": undefined,
++   "_prebuiltEmptyResultObject": null,
++   "_types": TypeOverrides {
++     "_types": {
++       "arrayParser": {
++         "create": [Function create],
++       },
++       "builtins": {
++         "ABSTIME": 702,
++         "ACLITEM": 1033,
++         "BIT": 1560,
++         "BOOL": 16,
++         "BPCHAR": 1042,
++         "BYTEA": 17,
++         "CHAR": 18,
++         "CID": 29,
++         "CIDR": 650,
++         "CIRCLE": 718,
++         "DATE": 1082,
++         "FLOAT4": 700,
++         "FLOAT8": 701,
++         "GTSVECTOR": 3642,
++         "INET": 869,
++         "INT2": 21,
++         "INT4": 23,
++         "INT8": 20,
++         "INTERVAL": 1186,
++         "JSON": 114,
++         "JSONB": 3802,
++         "MACADDR": 829,
++         "MACADDR8": 774,
++         "MONEY": 790,
++         "NUMERIC": 1700,
++         "OID": 26,
++         "PATH": 602,
++         "PG_DEPENDENCIES": 3402,
++         "PG_LSN": 3220,
++         "PG_NDISTINCT": 3361,
++         "PG_NODE_TREE": 194,
++         "POLYGON": 604,
++         "REFCURSOR": 1790,
++         "REGCLASS": 2205,
++         "REGCONFIG": 3734,
++         "REGDICTIONARY": 3769,
++         "REGNAMESPACE": 4089,
++         "REGOPER": 2203,
++         "REGOPERATOR": 2204,
++         "REGPROC": 24,
++         "REGPROCEDURE": 2202,
++         "REGROLE": 4096,
++         "REGTYPE": 2206,
++         "RELTIME": 703,
++         "SMGR": 210,
++         "TEXT": 25,
++         "TID": 27,
++         "TIME": 1083,
++         "TIMESTAMP": 1114,
++         "TIMESTAMPTZ": 1184,
++         "TIMETZ": 1266,
++         "TINTERVAL": 704,
++         "TSQUERY": 3615,
++         "TSVECTOR": 3614,
++         "TXID_SNAPSHOT": 2970,
++         "UUID": 2950,
++         "VARBIT": 1562,
++         "VARCHAR": 1043,
++         "XID": 28,
++         "XML": 142,
++       },
++       "getTypeParser": [Function getTypeParser],
++       "setTypeParser": [Function setTypeParser],
++     },
++     "binary": {},
++     "text": {},
++   },
++   "command": "INSERT",
++   "fields": [],
++   "oid": 0,
++   "rowAsArray": false,
++   "rowCount": 1,
++   "rows": [],
+  }
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:75:7
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m1: out-of-range numbers are a 422, never a 500 > {"value_text":"1e99999999"}
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m1: out-of-range numbers are a 422, never a 500 > {"value_text":"1e-99999999"}
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m1: out-of-range numbers are a 422, never a 500 > {"statistics":[{"kind":"df","value_text":"1e99999999"}]}
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m1: out-of-range numbers are a 422, never a 500 > {"statistics":[{"kind":"p_value","value_text":"1.00000000000000000001"}]}
+AssertionError: {"error":"internal"}: expected 500 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 500
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:95:34
+     93|     const ev = await evidence(p.id);
+     94|     const r = await postFact(p.id, factBody(ev.id, over));
+     95|     expect(r.statusCode, r.body).toBe(422);
+       |                                  ^
+     96|   });
+     97|   test('a p-value of exactly 1 or 0 is fine', async () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m1: out-of-range numbers are a 422, never a 500 > {"value_text":"1e999"}
+AssertionError: {"id":"42033af5-6516-4708-8f6a-38f9adfae54e","paper_id":"1bd09855-2f9b-4a3a-9c45-a6422a6725a4","evidence_id":"12ecd4c2-16df-41bb-995c-d5df217b2e65","entity":"ABC1","metric":"fold_change","value":"1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","value_text":"1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","unit":"fold","group":"drought","comparison":"control","n":3,"extraction_method":"manual_entry","content_hash":"ec85d5ee4159a5bb9ce91b20ac6cb602ebb08cb760c3718182c890657ecf7549","origin":"user","verification_state":"CANDIDATE","created_by":"a70794c4-96c8-4e0e-935e-24addfea4b2e","created_at":"2026-10-09T01:42:27.871Z","verified_by":null,"verified_at":null,"closed_at":null,"statistics":[]}: expected 201 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 201
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:95:34
+     93|     const ev = await evidence(p.id);
+     94|     const r = await postFact(p.id, factBody(ev.id, over));
+     95|     expect(r.statusCode, r.body).toBe(422);
+       |                                  ^
+     96|   });
+     97|   test('a p-value of exactly 1 or 0 is fine', async () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m2: an adjusted value cannot be stored as a raw p-value > p_value with an adjustment method is refused (API and DB); merge validates kinds
+AssertionError: expected 201 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 201
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:109:26
+    107|     const ev = await evidence(p.id);
+    108|     const r = await postFact(p.id, factBody(ev.id, { statistics: [{ ki…
+    109|     expect(r.statusCode).toBe(422);
+       |                          ^
+    110|     expect(r.json().field).toMatch(/adjustment/);
+    111|     for (const kind of ['P_value', 'p_value ', 'Q_VALUE', 'padj', 'p-v…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m3: the database also enforces claim evidence and review timestamps > an observation cannot be approved by SQL without verified supporting evidence; review time is the server clock
+AssertionError: promise resolved "Result{ command: 'UPDATE', …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ Result {
++   "RowCtor": null,
++   "_parsers": undefined,
++   "_prebuiltEmptyResultObject": null,
++   "_types": TypeOverrides {
++     "_types": {
++       "arrayParser": {
++         "create": [Function create],
++       },
++       "builtins": {
++         "ABSTIME": 702,
++         "ACLITEM": 1033,
++         "BIT": 1560,
++         "BOOL": 16,
++         "BPCHAR": 1042,
++         "BYTEA": 17,
++         "CHAR": 18,
++         "CID": 29,
++         "CIDR": 650,
++         "CIRCLE": 718,
++         "DATE": 1082,
++         "FLOAT4": 700,
++         "FLOAT8": 701,
++         "GTSVECTOR": 3642,
++         "INET": 869,
++         "INT2": 21,
++         "INT4": 23,
++         "INT8": 20,
++         "INTERVAL": 1186,
++         "JSON": 114,
++         "JSONB": 3802,
++         "MACADDR": 829,
++         "MACADDR8": 774,
++         "MONEY": 790,
++         "NUMERIC": 1700,
++         "OID": 26,
++         "PATH": 602,
++         "PG_DEPENDENCIES": 3402,
++         "PG_LSN": 3220,
++         "PG_NDISTINCT": 3361,
++         "PG_NODE_TREE": 194,
++         "POLYGON": 604,
++         "REFCURSOR": 1790,
++         "REGCLASS": 2205,
++         "REGCONFIG": 3734,
++         "REGDICTIONARY": 3769,
++         "REGNAMESPACE": 4089,
++         "REGOPER": 2203,
++         "REGOPERATOR": 2204,
++         "REGPROC": 24,
++         "REGPROCEDURE": 2202,
++         "REGROLE": 4096,
++         "REGTYPE": 2206,
++         "RELTIME": 703,
++         "SMGR": 210,
++         "TEXT": 25,
++         "TID": 27,
++         "TIME": 1083,
++         "TIMESTAMP": 1114,
++         "TIMESTAMPTZ": 1184,
++         "TIMETZ": 1266,
++         "TINTERVAL": 704,
++         "TSQUERY": 3615,
++         "TSVECTOR": 3614,
++         "TXID_SNAPSHOT": 2970,
++         "UUID": 2950,
++         "VARBIT": 1562,
++         "VARCHAR": 1043,
++         "XID": 28,
++         "XML": 142,
++       },
++       "getTypeParser": [Function getTypeParser],
++       "setTypeParser": [Function setTypeParser],
++     },
++     "binary": {},
++     "text": {},
++   },
++   "command": "UPDATE",
++   "fields": [],
++   "oid": null,
++   "rowAsArray": false,
++   "rowCount": 1,
++   "rows": [],
+  }
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:122:148
+    120|     const p = await paper();
+    121|     const c = (await call('POST', `/api/papers/${p.id}/claims`, { kind…
+    122|     await expect(pool.query("UPDATE claims SET approval_state = 'APPRO…
+       |                                                                                                                                                    ^
+    123|     const ev = await evidence(p.id);
+    124|     await pool.query("UPDATE evidence_records SET extraction_state = '…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m5: provenance and source checks > extraction method must agree with origin
+AssertionError: expected 201 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 201
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:164:104
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m5: provenance and source checks > links to rejected evidence, verifying evidence of a removed reference, and huge page numbers are refused
+AssertionError: expected 201 to be 409 // Object.is equality
+
+- Expected
++ Received
+
+- 409
++ 201
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:173:144
+    171|     await call('POST', `/api/papers/${p.id}/evidence/${ev.id}/reject`,…
+    172|     const c = (await call('POST', `/api/papers/${p.id}/claims`, { kind…
+    173|     expect((await call('POST', `/api/papers/${p.id}/claims/${c.id}/evi…
+       |                                                                                                                                                ^
+    174|     const { rows } = await pool.query("INSERT INTO reference_works (ow…
+    175|     await pool.query('INSERT INTO project_references (paper_id, refere…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/18]⎯
+
+ FAIL  tests/tasks/PW-011/review-fixes.int.test.ts > review m5: provenance and source checks > log fold-change metrics also need the comparison group before verification
+AssertionError: expected 200 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 200
+
+ ❯ tests/tasks/PW-011/review-fixes.int.test.ts:188:26
+    186|     const f = (await postFact(p.id, factBody(ev.id, { metric: 'log2FC'…
+    187|     const r = await call('POST', `/api/papers/${p.id}/facts/${f.id}/ve…
+    188|     expect(r.statusCode).toBe(422);
+       |                          ^
+    189|     expect(r.json().missing).toContain('comparison');
+    190|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/18]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  18 failed | 4 passed (22)
+   Start at  01:42:26
+   Duration  1.80s (tests 63%, transform 29%, import 8%)
+

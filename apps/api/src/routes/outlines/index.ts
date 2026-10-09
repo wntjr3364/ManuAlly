@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import {
-  OutlineError, approveOutlineRevision, approveStoryRevision, checkDraftGate, createOutlineRevision, createStoryRevision,
+  approveOutlineRevision, approveStoryRevision, checkDraftGate, createOutlineRevision, createStoryRevision,
   getOutline, getOutlineRevision, getStory, getStoryRevision,
 } from '@pw/domain/outlines/index.ts';
 import type { TxPool } from '@pw/domain/revisions/index.ts';
@@ -8,7 +8,6 @@ import { DomainError } from '@pw/domain/shared/db.ts';
 import { sendDomainError } from '../../auth/plugin.ts';
 
 const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'not_found' });
-const STATUS = { NOT_FOUND: 404, CONFLICT: 409, INVALID: 422, FORBIDDEN: 403 } as const;
 
 export function registerOutlineRoutes(app: FastifyInstance, pool: TxPool): void {
   const scoped = { config: { paperScoped: true } };
@@ -16,7 +15,6 @@ export function registerOutlineRoutes(app: FastifyInstance, pool: TxPool): void 
     try {
       return reply.code(status).send(await fn());
     } catch (e) {
-      if (e instanceof OutlineError) return reply.code(STATUS[e.code]).send({ error: e.code.toLowerCase(), message: e.message, field: e.field ?? null, ...e.details });
       if (e instanceof DomainError) return sendDomainError(e, reply);
       throw e;
     }

@@ -1,8 +1,9 @@
 // Claims, evidence records and fact records (spec 02 "과학 근거", spec 05 "Evidence와 Fact").
 // Everything starts as a candidate/draft. Only the paper owner, through an explicit verify/approve
 // action that names the exact content hash, moves it on; requests can never carry a verifier.
-// A fact keeps the source's exact number text, its unit, groups, n and statistics; p, adjusted p and
-// q are different statistic kinds and are never inferred from loose labels or merged.
+// A fact keeps the source's exact number text (DB-checked to equal its numeric value), its unit,
+// groups, n and statistics; p, adjusted p and q are different statistic kinds and are never
+// inferred from loose labels or merged.
 import { randomUUID } from 'node:crypto';
 import { DomainError, UUID_RE, inTransaction, storable, type Queryable, type TxPool } from '../shared/db.ts';
 import { contentHash } from '../revisions/index.ts';
@@ -19,8 +20,30 @@ export const STAT_KINDS = ['p_value', 'adjusted_p_value', 'q_value', 'test_stati
 export type StatKind = (typeof STAT_KINDS)[number];
 const PROBABILITY_KINDS: StatKind[] = ['p_value', 'adjusted_p_value', 'q_value'];
 // metrics that compare two groups: a control/comparison group is required before verification
-const RELATIVE_METRICS = /(fold|ratio|difference|change|odds|hazard|relative|vs)/i;
-const NUMBER = /^[+-]?(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?$/;
+// (conservative: a false match only asks for the comparison group)
+const RELATIVE_METRICS = /(fold|fc|ratio|diff|change|odds|hazard|relative|delta|\bvs\b|versus)/i;
+// a decimal number as printed in a source; the exponent is bounded so PostgreSQL numeric holds it
+const NUMBER = /^([+-]?)(\d+(?:\.\d*)?|\.\d+)(?:[eE]([+-]?\d{1,3}))?$/;
+const MAX_EXPONENT = 300;
+
+function isNumberText(s: string): boolean {
+  const m = NUMBER.exec(s);
+  return !!m && Math.abs(Number(m[3] ?? 0)) <= MAX_EXPONENT;
+}
+// exact decimal comparison with 0 and 1 (floats would round 1.00000000000000000001 to 1)
+function isProbability(s: string): boolean {
+  const m = NUMBER.exec(s)!;
+  const [whole, frac = ''] = m[2]!.split('.');
+  let digits = `${whole}${frac}`.replace(/^0+/, '');
+  if (!digits) return true; // zero, with any sign
+  if (m[1] === '-') return false;
+  digits = digits.replace(/0+$/, '');
+  // value = 0.d1d2… × 10^magnitude, where magnitude counts digits before the decimal point
+  const lead = `${whole}${frac}`.length - `${whole}${frac}`.replace(/^0+/, '').length;
+  const magnitude = (whole?.length ?? 0) - lead + Number(m[3] ?? 0);
+  if (magnitude < 1) return true; // below 1
+  return magnitude === 1 && digits === '1'; // exactly 1
+}
 // reviewer/state fields are set by the server only
 const SERVER_FIELDS = ['verified_by', 'verified_at', 'verification_state', 'extraction_state', 'approved_by', 'approved_at', 'approval_state', 'origin', 'status', 'closed_at', 'value'];
 
@@ -76,7 +99,7 @@ function locator(kind: (typeof EVIDENCE_KINDS)[number], v: unknown): Record<stri
   for (const k of spec.optional) {
     if (o[k] === undefined || o[k] === null) continue;
     if (k === 'page_index') {
-      if (!Number.isInteger(o[k]) || (o[k] as number) < 0) throw invalid('locator.page_index must be a 0-based page number', 'locator.page_index');
+      if (!Number.isInteger(o[k]) || (o[k] as number) < 0 || (o[k] as number) > 100_000) throw invalid('locator.page_index must be a 0-based page number', 'locator.page_index');
       out[k] = o[k] as number;
     } else out[k] = str(o[k], `locator.${k}`, 2000);
   }
@@ -164,7 +187,14 @@ async function review(pool: TxPool, a: {
 
 export async function reviewEvidence(pool: TxPool, a: { paperId: string; ownerId: string; id: string; body: unknown; to: 'VERIFIED' | 'REJECTED' }) {
   const hash = reviewBody(a.body, a.to === 'VERIFIED' ? 'verify_evidence' : 'reject_evidence');
-  await review(pool, { table: 'evidence_records', state: 'extraction_state', paperId: a.paperId, ownerId: a.ownerId, id: a.id, hash, to: a.to });
+  await review(pool, {
+    table: 'evidence_records', state: 'extraction_state', paperId: a.paperId, ownerId: a.ownerId, id: a.id, hash, to: a.to,
+    before: async (tx, row) => {
+      if (a.to !== 'VERIFIED' || !row.reference_id) return;
+      const ref = await tx.query('SELECT 1 FROM project_references WHERE paper_id = $1 AND reference_id = $2 AND removed_at IS NULL FOR SHARE', [a.paperId, row.reference_id]);
+      if (!ref.rows[0]) throw new DomainError('CONFLICT', 'the quoted reference was removed from this paper; add it back before verifying', 'reference_id');
+    },
+  });
   return (await getEvidence(pool, a.paperId, a.id))!;
 }
 
@@ -197,10 +227,11 @@ function statistics(v: unknown, prefix: string): Required<Statistic>[] {
     }
     const kind = o.kind as StatKind;
     const valueText = str(o.value_text, `${f}.value_text`, 40, { required: true });
-    if (!NUMBER.test(valueText)) throw invalid(`${f}.value_text must be a number as written in the source`, `${f}.value_text`);
-    if (PROBABILITY_KINDS.includes(kind) && !(Number(valueText) >= 0 && Number(valueText) <= 1)) throw invalid(`${f}.value_text: a ${kind} lies between 0 and 1`, `${f}.value_text`);
+    if (!isNumberText(valueText)) throw invalid(`${f}.value_text must be a number as written in the source (exponent at most ±${MAX_EXPONENT})`, `${f}.value_text`);
+    if (PROBABILITY_KINDS.includes(kind) && !isProbability(valueText)) throw invalid(`${f}.value_text: a ${kind} lies between 0 and 1`, `${f}.value_text`);
     const adjustment = str(o.adjustment, `${f}.adjustment`, 200);
     if (kind === 'adjusted_p_value' && !adjustment.trim()) throw invalid(`${f}.adjustment must name the correction method for an adjusted p-value`, `${f}.adjustment`);
+    if (kind === 'p_value' && adjustment) throw invalid(`${f}.adjustment: a corrected value is an adjusted_p_value (or q_value), not a raw p_value`, `${f}.adjustment`);
     return { kind, value_text: valueText, test: str(o.test, `${f}.test`, 200), adjustment };
   });
   const kinds = out.map((s) => s.kind);
@@ -214,6 +245,7 @@ function statistics(v: unknown, prefix: string): Required<Statistic>[] {
 export function mergeStatistics(a: Statistic[], b: Statistic[]): Statistic[] {
   const out = new Map<StatKind, Statistic>();
   for (const s of [...a, ...b]) {
+    if (!STAT_KINDS.includes(s.kind)) throw new DomainError('INVALID', `unknown statistic kind ${JSON.stringify(s.kind)}`, 'statistics');
     const prev = out.get(s.kind);
     if (prev && (prev.value_text !== s.value_text || (prev.test ?? '') !== (s.test ?? '') || (prev.adjustment ?? '') !== (s.adjustment ?? ''))) {
       throw new DomainError('CONFLICT', `conflict: two different ${s.kind} values (${prev.value_text}, ${s.value_text}); the user must choose`, 'statistics');
@@ -223,12 +255,20 @@ export function mergeStatistics(a: Statistic[], b: Statistic[]): Statistic[] {
   return [...out.values()];
 }
 
+// provenance: AI-extracted facts say so, and nothing else may claim to be AI-extracted
+function extractionMethod(v: unknown, field: string, origin: Origin): FactInput['extraction_method'] {
+  if (v === undefined) return origin === 'ai_extraction' ? 'ai_extraction' : 'manual_entry';
+  const m = oneOf(v, field, EXTRACTION_METHODS);
+  if ((origin === 'ai_extraction') !== (m === 'ai_extraction')) throw invalid(`${field} ${m} does not match origin ${origin}`, field);
+  return m;
+}
+
 function factInput(v: unknown, prefix: string, origin: Origin): FactInput {
   const o = obj(v, prefix);
   onlyKeys(o, ['evidence_id', 'entity', 'metric', 'value_text', 'unit', 'group', 'comparison', 'n', 'extraction_method', 'statistics'], prefix);
   if (!isUuid(o.evidence_id)) throw invalid(`${at(prefix, 'evidence_id')} must name the evidence record the value was read from`, at(prefix, 'evidence_id'));
   const valueText = str(o.value_text, at(prefix, 'value_text'), 40, { required: true });
-  if (!NUMBER.test(valueText)) throw invalid(`${at(prefix, 'value_text')} must be a number as written in the source (no words or ranges)`, at(prefix, 'value_text'));
+  if (!isNumberText(valueText)) throw invalid(`${at(prefix, 'value_text')} must be a number as written in the source (no words or ranges; exponent at most ±${MAX_EXPONENT})`, at(prefix, 'value_text'));
   if (o.unit === undefined || o.unit === null) throw invalid(`${at(prefix, 'unit')} is required ("" only while it is still unknown)`, at(prefix, 'unit'));
   if (o.n !== undefined && o.n !== null && (!Number.isInteger(o.n) || (o.n as number) < 1 || (o.n as number) > 10_000_000)) throw invalid(`${at(prefix, 'n')} must be a whole number of replicates or null`, at(prefix, 'n'));
   return {
@@ -240,7 +280,7 @@ function factInput(v: unknown, prefix: string, origin: Origin): FactInput {
     group: str(o.group, at(prefix, 'group'), 300),
     comparison: str(o.comparison, at(prefix, 'comparison'), 300),
     n: (o.n as number | undefined) ?? null,
-    extraction_method: o.extraction_method === undefined ? (origin === 'ai_extraction' ? 'ai_extraction' : 'manual_entry') : oneOf(o.extraction_method, at(prefix, 'extraction_method'), EXTRACTION_METHODS),
+    extraction_method: extractionMethod(o.extraction_method, at(prefix, 'extraction_method'), origin),
     statistics: statistics(o.statistics, prefix),
   };
 }
@@ -282,6 +322,7 @@ export async function createFactCandidates(pool: TxPool, a: { paperId: string; o
   return inTransaction(pool, async (tx) => {
     await owner(tx, a.paperId);
     const ids: string[] = [];
+    try {
     for (const [i, f] of inputs.entries()) {
       const ev = await tx.query<{ extraction_state: string }>('SELECT extraction_state FROM evidence_records WHERE id = $1 AND paper_id = $2', [f.evidence_id, a.paperId]);
       const field = a.single ? 'evidence_id' : `facts[${i}].evidence_id`;
@@ -289,14 +330,22 @@ export async function createFactCandidates(pool: TxPool, a: { paperId: string; o
       if (['REJECTED', 'RETRACTED'].includes(ev.rows[0].extraction_state)) throw new DomainError('CONFLICT', 'that evidence record was rejected or retracted', field);
       const id = randomUUID();
       await tx.query(
+        // the number and its source text are bound separately: a shared parameter would be typed
+        // numeric and store the normalised form (2.4E3 -> 2400) as the "source" text
         `INSERT INTO fact_records (id, paper_id, evidence_id, entity, metric, value, value_text, unit, group_label, comparison, n, extraction_method, content_hash, origin, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6::numeric, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-        [id, a.paperId, f.evidence_id, f.entity, f.metric, f.value_text, f.unit, f.group, f.comparison, f.n, f.extraction_method, contentHash(f), a.origin, a.ownerId],
+         VALUES ($1, $2, $3, $4, $5, $6::numeric, $7::text, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        [id, a.paperId, f.evidence_id, f.entity, f.metric, f.value_text, f.value_text, f.unit, f.group, f.comparison, f.n, f.extraction_method, contentHash(f), a.origin, a.ownerId],
       );
       for (const s of f.statistics) {
-        await tx.query('INSERT INTO fact_statistics (fact_id, paper_id, kind, value, value_text, test, adjustment) VALUES ($1, $2, $3, $4::numeric, $4, $5, $6)', [id, a.paperId, s.kind, s.value_text, s.test, s.adjustment]);
+        await tx.query('INSERT INTO fact_statistics (fact_id, paper_id, kind, value, value_text, test, adjustment) VALUES ($1, $2, $3, $4::numeric, $5::text, $6, $7)', [id, a.paperId, s.kind, s.value_text, s.value_text, s.test, s.adjustment]);
       }
       ids.push(id);
+    }
+    } catch (e) {
+      // input the checks above should already have refused; never a 500 for a bad number
+      const code = (e as { code?: string }).code;
+      if (code === '22003' || code === '23514' || code === '22P02') throw new DomainError('INVALID', 'a value is out of range or inconsistent', 'facts', { cause: e });
+      throw e;
     }
     const out: FactRecord[] = [];
     for (const id of ids) out.push((await readFact(tx, a.paperId, id))!);
@@ -385,11 +434,13 @@ export async function linkClaimEvidence(pool: TxPool, a: { paperId: string; owne
   onlyKeys(b, ['evidence_id', 'relation'], '');
   const relation = oneOf(b.relation, 'relation', LINK_RELATIONS);
   if (!isUuid(a.claimId) || !(await getClaim(pool, a.paperId, a.claimId))) throw new DomainError('NOT_FOUND', 'claim not found');
-  if (!isUuid(b.evidence_id) || !(await getEvidence(pool, a.paperId, b.evidence_id))) throw new DomainError('NOT_FOUND', 'evidence record not found in this paper', 'evidence_id');
+  const ev = isUuid(b.evidence_id) ? await getEvidence(pool, a.paperId, b.evidence_id) : null;
+  if (!ev) throw new DomainError('NOT_FOUND', 'evidence record not found in this paper', 'evidence_id');
+  if (ev.extraction_state === 'REJECTED' || ev.extraction_state === 'RETRACTED') throw new DomainError('CONFLICT', `that evidence record was ${ev.extraction_state.toLowerCase()}`, 'evidence_id');
   const { rows } = await pool.query(
     `INSERT INTO claim_evidence_links (claim_id, paper_id, evidence_id, relation, created_by) VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT DO NOTHING RETURNING claim_id, evidence_id, relation, created_at`,
-    [a.claimId, a.paperId, b.evidence_id.toLowerCase(), relation, a.ownerId],
+    [a.claimId, a.paperId, ev.id, relation, a.ownerId],
   );
   if (!rows[0]) throw new DomainError('CONFLICT', 'this evidence is already linked to the claim');
   return rows[0];

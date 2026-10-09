@@ -1,0 +1,50 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-024/claude.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-024/claude.test.ts [ tests/tasks/PW-024/claude.test.ts ]
+Error: Cannot find module '../../../packages/providers/src/claude/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-024/claude.test.ts
+ ❯ tests/tasks/PW-024/claude.test.ts:12:1
+     10| import path from 'node:path';
+     11| import { randomUUID } from 'node:crypto';
+     12| import { buildClaudeArgs, buildClaudeEnv, decideClaudeCall, isIssuedDe…
+       | ^
+     13| import { loadRegistry, resolveCapability } from '../../../packages/pro…
+     14|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  10:25:01
+   Duration  302ms (worker 97%, environment 3%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-024/sessions.int.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-024/sessions.int.test.ts [ tests/tasks/PW-024/sessions.int.test.ts ]
+Error: Cannot find module '../../../packages/providers/src/claude/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-024/sessions.int.test.ts
+ ❯ tests/tasks/PW-024/sessions.int.test.ts:11:1
+      9| import { migrate } from '../../../apps/api/src/db/migrate.ts';
+     10| import { createOwner } from '../../../apps/api/src/auth/owners.ts';
+     11| import { findSessionBinding, recordSessionBinding } from '../../../pac…
+       | ^
+     12|
+     13| let db: { url: string; drop: () => Promise<void> };
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  10:25:02
+   Duration  312ms (worker 97%, environment 3%)
+

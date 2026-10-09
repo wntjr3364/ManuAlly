@@ -789,7 +789,7 @@
       "id": "PW-024",
       "phase": "P03",
       "title": "Claude Agent adapter",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-023"
       ],

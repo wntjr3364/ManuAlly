@@ -22,7 +22,7 @@ PW-020,P02,Mock AI·스트리밍 UI,in_review,PW-019,REQ-020,"TST-020A,TST-020B"
 PW-021,P02,Version compare·Undo·기본 import,in_review,PW-020,REQ-021,"TST-021A,TST-021B",apps/web/src/features/versions/**;packages/domain/src/imports/text/**;tests/tasks/PW-021/**;reports/tasks/PW-021/**;db/migrations/pw_021_*
 PW-022,P02,선택편집 브라우저 gate,in_review,PW-021,REQ-022,"TST-022A,TST-022B",tests/e2e/editor/**;tests/tasks/PW-022/**;reports/tasks/PW-022/**;db/migrations/pw_022_*
 PW-023,P03,Provider registry·이벤트 정규화,in_review,PW-022,REQ-023,"TST-023A,TST-023B",packages/providers/src/core/**;packages/contracts/src/provider/**;tests/tasks/PW-023/**;reports/tasks/PW-023/**;db/migrations/pw_023_*
-PW-024,P03,Claude Agent adapter,planned,PW-023,REQ-024,"TST-024A,TST-024B",packages/providers/src/claude/**;tests/tasks/PW-024/**;reports/tasks/PW-024/**;db/migrations/pw_024_*
+PW-024,P03,Claude Agent adapter,in_review,PW-023,REQ-024,"TST-024A,TST-024B",packages/providers/src/claude/**;tests/tasks/PW-024/**;reports/tasks/PW-024/**;db/migrations/pw_024_*
 PW-025,P03,Codex App Server adapter,planned,PW-024,REQ-025,"TST-025A,TST-025B",packages/providers/src/codex/**;tests/tasks/PW-025/**;reports/tasks/PW-025/**;db/migrations/pw_025_*
 PW-026,P03,Isolated runner·입출력 mount,planned,PW-025,REQ-026,"TST-026A,TST-026B",apps/worker/src/runner/**;infra/sandbox/**;tests/tasks/PW-026/**;reports/tasks/PW-026/**;db/migrations/pw_026_*
 PW-027,P03,Typed tool gateway·scope,planned,PW-026,REQ-027,"TST-027A,TST-027B",apps/api/src/agent-tools/**;packages/domain/src/tool-policy/**;tests/tasks/PW-027/**;reports/tasks/PW-027/**;db/migrations/pw_027_*

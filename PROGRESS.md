@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P02 완료(사용자 위임), P03 진행**. PW-015~023 in_review. P02 gate: `reports/phases/P02_GATE.md`. 다음은 PW-024.
+- 현재 단계: **P02 완료(사용자 위임), P03 진행**. PW-015~024 in_review. P02 gate: `reports/phases/P02_GATE.md`. 다음은 PW-025.
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).
@@ -53,7 +53,8 @@
 | PW-020 | in_review | (P02) | REQ-020 / TST-020A,B | unit 15, 통합 15, 브라우저 4, mutation 16종 탐지, 독립 리뷰(major 1·minor 1·nit 4) 반영, `pnpm test` exit 0 | 실제 provider(P03, blocked/not_run), SSE polling 부하, 프록시 버퍼링·worker 서비스화(P07) |
 | PW-021 | in_review | (P02) | REQ-021 / TST-021A,B | unit 16, 통합 9, 브라우저 3, mutation 17종 탐지, 독립 리뷰(major 1·minor 3·nit 6) 반영, `pnpm test` exit 0 | DOCX 가져오기(P05/P07), 표 편집, 문단 분할·병합 lineage, 원고 문서 유일성 제약(P07) |
 | PW-022 | in_review | (P02) | REQ-022 / TST-022A,B | 브라우저 9(반복 27/27), 두 해상도 스크린샷, 찾은 제품 결함 4건(배경 재로딩 transaction, 탭 id 확보 전 입력 무시·Tiptap 옵션 재적용, 다른 탭 로그아웃 경쟁) 수정, 독립 리뷰(minor 2·nit 2) 반영, `pnpm test` exit 0 | 실제 IME·Firefox·Safari 수동 확인, 1 ms 간격 연속 키(ProseMirror 선택 동기화), 화면 배치(P07) |
-| PW-023 | in_review | (P03) | REQ-023 / TST-023A,B | unit 13, 통합 1, mutation 10종 탐지, `pnpm test` exit 0 | Claude·Codex 필드 경로 실측(PW-030), capability 설정 화면(PW-030) |
+| PW-023 | in_review | (P03) | REQ-023 / TST-023A,B | unit 19, 통합 1, mutation 16종 탐지, 독립 리뷰(minor 3·nit 2) 반영, `pnpm test` exit 0 | Claude·Codex 필드 경로 실측(PW-030), capability 설정 화면(PW-030) |
+| PW-024 | in_review | (P03) | REQ-024 / TST-024A,B | unit 20(대역 CLI), 통합 2, mutation 13종 탐지, `pnpm test` exit 0. **TST-024A live: blocked/not_run**(사용자 PC 수동 smoke 스크립트 제공) | 실제 CLI live smoke, 커널 격리(PW-026), 예산 집행(PW-029), 서버 DB 기반 승인 근거(PW-030) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

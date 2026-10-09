@@ -11,7 +11,7 @@ import type { Editor } from '@tiptap/core';
 import { TextSelection } from '@tiptap/pm/state';
 import { SelectionError, type SelectionSnapshot } from '@pw/editor-core';
 import { selectionTarget, type SelectionTarget } from './target.ts';
-import { INTENTS, MAX_INSTRUCTION, buildSelectionRequest, freezeSelection, intentAllowed, type Intent, type SelectionRequest } from './request.ts';
+import { INTENTS, MAX_INSTRUCTION, buildSelectionRequest, describeQuote, freezeSelection, intentAllowed, type Intent, type SelectionRequest } from './request.ts';
 import { frozenRange, setFrozenRange } from './frozen-highlight.ts';
 
 type BlockTarget = Extract<SelectionTarget, { kind: 'block' }>;
@@ -48,6 +48,7 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
       const { from, to } = editor.state.selection;
       const t = selectionTarget(editor.state.doc, from, to);
       setTarget(t);
+      if (t.kind === 'block') setMessage(''); // an earlier "select first" no longer applies
       if (t.kind === 'none' || !hostRef.current) { setPos(null); return; }
       const host = hostRef.current.getBoundingClientRect();
       const c = editor.view.coordsAtPos(Math.min(from, to));
@@ -67,8 +68,10 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
         e.preventDefault();
         const t = selectionTarget(editor.state.doc, editor.state.selection.from, editor.state.selection.to);
         if (t.kind !== 'block') { setMessage(t.kind === 'multi' ? '한 문단 안에서 선택하세요' : '먼저 문장을 선택하세요'); return; }
-        setMessage('');
-        toolbarRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus();
+        const button = toolbarRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])');
+        if (button) { setMessage(''); button.focus(); return; }
+        // every action is disabled: say why (the hint next to the buttons is not announced)
+        setMessage(toolbarRef.current?.querySelector('.hint')?.textContent || '이 선택에는 지금 사용할 수 있는 작업이 없습니다');
       }
     };
     dom.addEventListener('keydown', onKey);
@@ -79,8 +82,11 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
     if (!editor || target.kind !== 'block' || !canRequest) return;
     const t = target; // frozen now, before anything else can change
     const json = editor.getJSON();
+    const docAtStart = editor.state.doc;
     try {
       const selection = await freezeSelection(json, t);
+      // the document changed while hashing: the screen positions no longer fit, start over
+      if (editor.state.doc !== docAtStart) { setMessage('문서가 바뀌었습니다 — 다시 선택하세요'); return; }
       setFrozen({ intent, target: t, selection, baseRevisionId });
       setInstruction('');
       setMessage('');
@@ -111,24 +117,29 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
   };
 
   const onInputKey = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+    const composing = e.nativeEvent.isComposing || e.keyCode === 229;
+    // Esc during an IME composition cancels the composition, not the popup
+    if (e.key === 'Escape' && !composing) { e.preventDefault(); close(); return; }
     // Enter sends; Shift+Enter is a new line; Enter that ends an IME composition never sends
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); submit(); }
+    if (e.key === 'Enter' && !e.shiftKey && !composing) { e.preventDefault(); submit(); }
   };
 
   const hint = !canRequest ? '저장된 뒤 요청할 수 있습니다' : '';
   return (
     <div ref={hostRef} className="selection-chat-host">
       {!frozen && target.kind !== 'none' && pos && (
-        <div ref={toolbarRef} role="toolbar" aria-label="선택 도구" className="selection-toolbar" data-testid="selection-toolbar" style={{ top: pos.top, left: pos.left }}>
+        <div ref={toolbarRef} role="toolbar" aria-label="선택 도구" className="selection-toolbar" data-testid="selection-toolbar" style={{ top: pos.top, left: pos.left }}
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); editor?.view.focus(); } }}>
           {target.kind === 'multi' ? (
             <span className="hint">한 문단 안에서 선택하세요</span>
           ) : (
             <>
               {(Object.keys(INTENTS) as Intent[]).map((i) => {
                 const allowed = intentAllowed(i, outlineApproved);
+                const textless = INTENTS[i].edits && !describeQuote(target.quote).editable;
                 return (
-                  <button key={i} type="button" disabled={!canRequest || !allowed} title={!allowed ? '개요를 승인한 뒤 사용할 수 있습니다' : hint || undefined}
+                  <button key={i} type="button" disabled={!canRequest || !allowed || textless}
+                    title={!allowed ? '개요를 승인한 뒤 사용할 수 있습니다' : textless ? '글자가 없는 선택(인용·공백만)은 고칠 수 없습니다' : hint || undefined}
                     onMouseDown={(e) => e.preventDefault()} onClick={() => void open(i)}>{INTENTS[i].label}</button>
                 );
               })}
@@ -140,7 +151,10 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
       {frozen && (
         <div role="dialog" aria-label={`${INTENTS[frozen.intent].label} 요청`} className="selection-popup card" data-testid="selection-popup">
           <p className="hint" data-testid="selection-scope">
-            대상: {blockLabel(frozen.target)} · 선택 {frozen.selection.quote.length}자 “{excerpt(frozen.selection.quote)}”
+            {(() => {
+              const q = describeQuote(frozen.target.quote, frozen.selection.atoms); // the target quote keeps a placeholder per atom
+              return <>대상: {blockLabel(frozen.target)} · 선택 {q.chars}자{q.atomCount ? ` · 인용 등 ${q.atomCount}개` : ''} “{excerpt(q.display)}”</>;
+            })()}
           </p>
           <p className="hint">
             {INTENTS[frozen.intent].edits
@@ -163,7 +177,7 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
         <section aria-label="선택 요청" data-testid="selection-requests">
           {requests.map((r, i) => (
             <p key={i} className="hint" data-request={JSON.stringify(r)}>
-              {INTENTS[r.intent].label}: “{excerpt(r.selection.quote)}”{r.instruction ? ` — ${r.instruction}` : ''} · 준비됨(AI 연결 전)
+              {INTENTS[r.intent].label}: “{excerpt(r.selection.quote)}”{r.selection.atoms.length ? ` (인용 등 ${r.selection.atoms.length}개)` : ''}{r.instruction ? ` — ${r.instruction}` : ''} · 준비됨(AI 연결 전)
             </p>
           ))}
         </section>

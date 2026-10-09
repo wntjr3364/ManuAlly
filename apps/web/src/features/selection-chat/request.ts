@@ -18,6 +18,17 @@ export const MAX_INSTRUCTION = 2000;
 
 export const intentAllowed = (intent: Intent, outlineApproved: boolean) => outlineApproved || INTENTS[intent].preApproval;
 
+// The quote as shown to the user: atoms (U+FFFC) become "[인용/수식/그림]" placeholders; characters are
+// counted without them. A range without any visible text can be asked about but never edited.
+const ATOM_LABEL: Record<string, string> = { citation: '인용', math_inline: '수식', figure_ref: '그림/표' };
+export function describeQuote(quote: string, atoms: readonly { type: string }[] = []) {
+  let i = 0;
+  const display = quote.replace(/\ufffc/g, () => `[${ATOM_LABEL[atoms[i++]?.type ?? ''] ?? '요소'}]`);
+  const chars = [...quote.replace(/\ufffc/g, '')].length;
+  const atomCount = (quote.match(/\ufffc/g) ?? []).length;
+  return { display, chars, atomCount, editable: /[^\s\ufffc]/u.test(quote) };
+}
+
 export interface SelectionRequest {
   document_id: string;
   base_revision_id: string;

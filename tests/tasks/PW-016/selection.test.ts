@@ -1,7 +1,7 @@
 // PW-016 — selection target and frozen selection request (TST-016A / TST-016B, unit part).
 import { describe, expect, test } from 'vitest';
 import { selectionTarget } from '../../../apps/web/src/features/selection-chat/target.ts';
-import { INTENTS, buildSelectionRequest, freezeSelection, intentAllowed } from '../../../apps/web/src/features/selection-chat/request.ts';
+import { INTENTS, buildSelectionRequest, describeQuote, freezeSelection, intentAllowed } from '../../../apps/web/src/features/selection-chat/request.ts';
 import { editorSchema } from '../../../apps/web/src/features/paper/block-ids.ts';
 import { parseDocument, snapshotSelection } from '../../../packages/editor-core/src/index.ts';
 
@@ -78,5 +78,14 @@ describe('frozen selection request', () => {
     expect(intentAllowed('concise', false)).toBe(true);
     expect(intentAllowed('rewrite', false)).toBe(false);
     expect(intentAllowed('rewrite', true)).toBe(true);
+  });
+});
+
+describe('review 2: what the scope line shows', () => {
+  test('atoms are named, characters are counted without them, and a text-less range is not editable', () => {
+    expect(describeQuote('induced \ufffc', [{ type: 'citation' }])).toEqual({ display: 'induced [인용]', chars: 8, atomCount: 1, editable: true });
+    expect(describeQuote('\ufffc', [{ type: 'citation' }])).toMatchObject({ display: '[인용]', chars: 0, editable: false });
+    expect(describeQuote('   ')).toMatchObject({ editable: false });
+    expect(describeQuote('a😀b')).toMatchObject({ chars: 3, editable: true });
   });
 });

@@ -166,3 +166,73 @@ test('requests wait for the stored revision; academic rewrite waits for an appro
   await expect(rewrite).toBeDisabled();
   await expect(rewrite).toHaveAttribute('title', '개요를 승인한 뒤 사용할 수 있습니다');
 });
+
+async function pasteCitation(page: Page) {
+  await editor(page).evaluate((el) => {
+    const dt = new DataTransfer();
+    dt.setData('text/html', '<span data-pw-citation="" data-reference-id="00000000-0000-4000-8000-0000000000f1">[인용]</span>');
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+}
+
+test('review 2: a citation-only selection can be asked about but not edited; atoms are named in the scope', async ({ page }) => {
+  await login(page);
+  await newManuscript(page, 'Atom paper');
+  await editor(page).click();
+  await page.keyboard.type('induced ');
+  await pasteCitation(page);
+  await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
+  await editor(page).locator('span[data-pw-citation]').click(); // selects the atom alone
+  await expect(toolbar(page)).toBeVisible();
+  for (const name of ['문법', '간결화']) {
+    const b = toolbar(page).getByRole('button', { name });
+    await expect(b).toBeDisabled();
+    await expect(b).toHaveAttribute('title', /글자가 없는 선택/);
+  }
+  await toolbar(page).getByRole('button', { name: '질문' }).click();
+  await expect(page.getByTestId('selection-scope')).toContainText('선택 0자 · 인용 등 1개 “[인용]”');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Shift+Home');
+  await expect(toolbar(page).getByRole('button', { name: '문법' })).toBeEnabled();
+});
+
+test('review 1 / nit: Esc or Enter that belongs to an IME composition keeps the popup and the instruction', async ({ page }) => {
+  await login(page);
+  await newManuscript(page, 'IME keys paper');
+  await editor(page).click();
+  await page.keyboard.type('alpha beta');
+  await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
+  await selectText(page, 'beta');
+  await toolbar(page).getByRole('button', { name: '질문' }).click();
+  const box = popup(page).getByRole('textbox');
+  await page.keyboard.type('Why ');
+  for (const key of ['Escape', 'Enter']) {
+    await box.evaluate((el, k) => {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: k, isComposing: true, bubbles: true }));
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: k, keyCode: 229, bubbles: true }));
+    }, key);
+  }
+  await expect(popup(page)).toBeVisible();
+  await expect(box).toHaveValue('Why ');
+  expect(await page.getByTestId('selection-requests').count()).toBe(0);
+});
+
+test('review 3 / nits: the shortcut explains disabled actions, stale messages clear, Esc leaves the toolbar', async ({ page }) => {
+  await login(page);
+  await newManuscript(page, 'Shortcut paper');
+  await editor(page).click();
+  await page.keyboard.press('Control+Shift+K');
+  await expect(page.getByTestId('selection-message')).toHaveText('먼저 문장을 선택하세요');
+  await page.keyboard.type('unsaved words');
+  await page.keyboard.press('Shift+Home'); // a valid selection: the old message goes away
+  await expect(page.getByTestId('selection-message')).toHaveCount(0);
+  await page.keyboard.press('Control+Shift+K'); // not saved yet: every action is disabled
+  await expect(page.getByTestId('selection-message')).toHaveText('저장된 뒤 요청할 수 있습니다');
+  await expect(editor(page)).toBeFocused();
+  await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
+  await selectText(page, 'unsaved');
+  await page.keyboard.press('Control+Shift+K');
+  await expect(toolbar(page).getByRole('button', { name: '질문' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(editor(page)).toBeFocused();
+});

@@ -952,7 +952,7 @@
       "id": "PW-029",
       "phase": "P03",
       "title": "Usage·quota 관측 기본",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-028"
       ],

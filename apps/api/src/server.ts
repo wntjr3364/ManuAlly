@@ -14,6 +14,7 @@ import { registerReferenceRoutes } from './references/index.ts';
 import { registerAiRoutes } from './events/index.ts';
 import { registerImportRoutes } from './imports/index.ts';
 import { registerProviderRoutes } from './providers/index.ts';
+import { registerUsageRoutes } from './usage/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -103,6 +104,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerReferenceRoutes(app, db);
   registerImportRoutes(app, db);
   registerProviderRoutes(app, provider);
+  registerUsageRoutes(app, db);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;
 }

@@ -6,6 +6,7 @@ import { EvidenceTab } from './EvidenceTab.tsx';
 import { ManuscriptTab } from './ManuscriptTab.tsx';
 import { VersionsTab } from '../versions/VersionsTab.tsx';
 import { RunsTab } from '../runs/RunsTab.tsx';
+import { UsagePanel } from '../usage/UsagePanel.tsx';
 import type { EditorState } from '../../editor/ManuscriptEditor.tsx';
 
 const TABS = [['plan', '구상·개요'], ['sources', '자료'], ['manuscript', '원고'], ['versions', '버전'], ['runs', 'AI 실행']] as const;
@@ -49,7 +50,7 @@ export function PaperPage({ paperId }: { paperId: string }) {
       <div role="tabpanel" hidden={tab !== 'sources'}>{opened.has('sources') && <EvidenceTab paperId={paper.id} visible={tab === 'sources'} />}</div>
       <div role="tabpanel" hidden={tab !== 'manuscript'}>{opened.has('manuscript') && <ManuscriptTab paperId={paper.id} outlineApproved={outlineApproved} reloadKey={manuscriptReload} onState={setEditorState} />}</div>
       <div role="tabpanel" hidden={tab !== 'versions'}>{opened.has('versions') && <VersionsTab paperId={paper.id} visible={tab === 'versions'} editor={opened.has('manuscript') ? editorState : null} onHeadChanged={headChanged} />}</div>
-      <div role="tabpanel" hidden={tab !== 'runs'}>{opened.has('runs') && <RunsTab paperId={paper.id} visible={tab === 'runs'} />}</div>
+      <div role="tabpanel" hidden={tab !== 'runs'}>{opened.has('runs') && <><RunsTab paperId={paper.id} visible={tab === 'runs'} /><UsagePanel paperId={paper.id} visible={tab === 'runs'} /></>}</div>
     </main>
   );
 }

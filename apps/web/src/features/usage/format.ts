@@ -5,7 +5,7 @@ export interface Metric { value: number | null; unknown: boolean }
 export const UNKNOWN = '알 수 없음';
 
 export function tokens(m: Metric): string {
-  if (m.value === null) return UNKNOWN;
+  if (m.value === null || (m.unknown && m.value === 0)) return UNKNOWN;
   const n = m.value.toLocaleString('ko-KR');
   return m.unknown ? `${n} 이상 (일부 보고 없음)` : n;
 }

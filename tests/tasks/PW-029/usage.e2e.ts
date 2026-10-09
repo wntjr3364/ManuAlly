@@ -22,6 +22,8 @@ test('TST-029A: the runs tab shows app usage, context and account quota separate
   const at = (m: number) => new Date(Date.UTC(2026, 9, 9, 1, m)).toISOString();
   await recordUsage(h.pool, { paperId, provider: 'claude_agent', nativeSessionId: sid, eventKey: `${sid}:t1`, observedAt: at(0), data: { scope: 'turn', input_tokens: 1000, output_tokens: 100, cost_usd_estimate: 0.01, context_window: 200_000 } });
   await recordUsage(h.pool, { paperId, provider: 'claude_agent', nativeSessionId: sid, eventKey: `${sid}:s1`, observedAt: at(1), data: { scope: 'session', input_tokens: 1000, output_tokens: 100, cost_usd_estimate: 0.01, context_window: null } });
+  await recordUsage(h.pool, { paperId, provider: 'claude_agent', nativeSessionId: sid, eventKey: `${sid}:m2`, observedAt: at(3), data: { scope: 'message', input_tokens: 1300, output_tokens: 80, cost_usd_estimate: null, context_window: 200_000 } });
+  await recordUsage(h.pool, { paperId, provider: 'claude_agent', nativeSessionId: sid, eventKey: `${sid}:m3`, observedAt: at(4), data: { scope: 'message', input_tokens: 1700, output_tokens: 120, cost_usd_estimate: null, context_window: 200_000 } });
   await recordUsage(h.pool, { paperId, provider: 'claude_agent', nativeSessionId: sid, eventKey: `${sid}:t2`, observedAt: at(5), data: { scope: 'turn', input_tokens: 3000, output_tokens: 200, cost_usd_estimate: 0.02, context_window: 200_000 } });
   await recordUsage(h.pool, { paperId, provider: 'claude_agent', nativeSessionId: sid, eventKey: `${sid}:s2`, observedAt: at(6), data: { scope: 'session', input_tokens: 4000, output_tokens: 300, cost_usd_estimate: 0.03, context_window: null } });
   await recordQuota(h.pool, { provider: 'claude_agent', authProfileId: 'claude-main', bucket: 'five_hour', eventKey: `${sid}:q1`, observedAt: at(6), data: { status: 'warning', used_percent: 82.5, resets_at: '2026-10-09T05:00:00Z', raw_resets_at: null, unknown_reason: null } });
@@ -31,7 +33,7 @@ test('TST-029A: the runs tab shows app usage, context and account quota separate
   await expect(panel.getByTestId('usage-input')).toHaveText('4,000'); // the session total, not 8,000
   await expect(panel.getByTestId('usage-output')).toHaveText('300');
   await expect(panel.getByTestId('usage-cost')).toHaveText('$0.0300 (추정)');
-  await expect(panel.getByTestId('usage-context')).toContainText('3,000 / 200,000 토큰 · 1.5%');
+  await expect(panel.getByTestId('usage-context')).toContainText('1,700 / 200,000 토큰 · 0.9%'); // one request, not the turn total
   const five = panel.getByTestId('quota').filter({ hasText: 'five_hour' });
   await expect(five.getByTestId('quota-used')).toHaveText('82.5%');
   await expect(five.getByTestId('quota-reset')).toContainText('오후 2:00');

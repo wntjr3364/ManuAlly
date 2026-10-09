@@ -8,6 +8,7 @@ describe('usage display', () => {
     expect(tokens({ value: 1200, unknown: false })).toBe('1,200');
     expect(tokens({ value: 50, unknown: true })).toBe('50 이상 (일부 보고 없음)');
     expect(usd({ value: 0, unknown: true })).toBe('알 수 없음');
+    expect(tokens({ value: 0, unknown: true })).toBe('알 수 없음'); // nothing known is not "0 이상"
     expect(usd({ value: 0.03, unknown: false })).toBe('$0.0300 (추정)');
     expect(percentText(null)).toBe('알 수 없음');
   });

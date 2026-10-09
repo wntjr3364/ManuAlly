@@ -33,17 +33,18 @@ export function UsagePanel({ paperId, visible }: { paperId: string; visible: boo
   return (
     <section aria-label="사용량" data-testid="usage">
       <h2>사용량</h2>
+      {failed && <p role="status" className="warn" data-testid="usage-stale">다시 읽지 못했습니다 — 아래는 마지막으로 읽은 값입니다.</p>}
       <h3>이 논문의 AI 사용량 (앱 기록)</h3>
       <dl data-testid="usage-billed">
         <dt>입력 토큰</dt><dd data-testid="usage-input">{tokens(b.input_tokens)}</dd>
         <dt>출력 토큰</dt><dd data-testid="usage-output">{tokens(b.output_tokens)}</dd>
         <dt>비용</dt><dd data-testid="usage-cost">{usd(b.cost_usd_estimate)}</dd>
       </dl>
-      {b.anomalies > 0 && <p className="warn" data-testid="usage-anomaly">누적 보고가 줄어든 기록 {b.anomalies}건 — 합계에 넣지 않았습니다.</p>}
+      {b.anomalies > 0 && <p className="warn" data-testid="usage-anomaly">누적 보고가 줄어든 기록 {b.anomalies}건 — 줄어든 값은 빼지 않고, 늘어난 부분만 셌습니다.</p>}
       <p className="hint">공급자가 보고한 값과 추정 비용입니다. 실제 청구액과 다를 수 있습니다.</p>
-      <h3>문맥 (마지막 요청 기준)</h3>
+      <h3>문맥 (마지막 모델 요청 하나 기준)</h3>
       <p data-testid="usage-context">
-        {c.basis === 'unknown' ? `문맥 사용량 ${UNKNOWN}` : `${c.last_input_tokens!.toLocaleString('ko-KR')} / ${c.window!.toLocaleString('ko-KR')} 토큰 · ${percentText(c.used_percent)} · ${kst(c.observed_at!)} 관측`}
+        {c.basis === 'unknown' ? `문맥 사용량 ${UNKNOWN} (요청 하나의 크기가 보고되지 않음)` : `${c.last_input_tokens!.toLocaleString('ko-KR')} / ${c.window!.toLocaleString('ko-KR')} 토큰 · ${percentText(c.used_percent)} · ${kst(c.observed_at!)} 관측`}
       </p>
       <h3>계정 한도 (공급자 관측)</h3>
       {!quota.length && <p data-testid="quota-none">관측된 계정 한도 정보가 없습니다 ({UNKNOWN}).</p>}

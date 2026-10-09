@@ -4,3 +4,15 @@ Error: Cannot find module '../../../packages/domain/src/usage/index.ts' imported
  FAIL  tests/tasks/PW-029/format.test.ts [ tests/tasks/PW-029/format.test.ts ]
 Error: Cannot find module '../../../apps/web/src/features/usage/format.ts' imported from /home/user/ManuAlly/tests/tasks/PW-029/format.test.ts
       Tests  no tests
+# re-review RED (before the re-review fixes; PW-028 and PW-029 tests ran together)
+     × a session's cumulative reports become deltas; its turn reports are not added on top; context is the last request, not the total 36ms
+     × without session reports the turns are counted; values not reported are unknown, never 0 30ms
+     × a cumulative total that goes down is an anomaly (not a negative cost); a late lower report does not inflate the next one 29ms
+     × a reset time without an explicit zone, or not a full ISO time, is kept raw with a reason — never parsed into a guess 8ms
+     × after a cancel (or a takeover) the run's tool token creates nothing 296ms
+     × a run left behind by a crashed worker is ended if (and only if) it is still that run 4037ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  6 failed | 14 passed (20)
+     × unknown values are "알 수 없음" or a lower bound, never 0 17ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 1 passed (2)

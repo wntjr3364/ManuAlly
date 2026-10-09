@@ -141,7 +141,7 @@ describe('TST-028B: late answers change nothing; only the run\'s own processes a
     await cancel(b.jobId);
     await supB;
     expect(alive(own.pid!)).toBe(true);
-    own.kill('SIGKILL');
+    process.kill(-own.pid!, 'SIGKILL'); // its whole group (with its own grandchild)
   });
 
   test('a record that does not match the live process (pid reused, other marker) ends nothing', async () => {
@@ -161,8 +161,8 @@ describe('TST-028B: late answers change nothing; only the run\'s own processes a
       expect(await terminateRunGroup(pool, f, { graceMs: 100 })).toBe('gone');
     }
     expect(alive(victim.pid!)).toBe(true);
-    victim.kill('SIGKILL');
-    r.child.kill('SIGKILL');
+    process.kill(-victim.pid!, 'SIGKILL');
+    process.kill(-r.record.pgid, 'SIGKILL');
   });
 
   // review MAJOR: the tool gateway is part of the run: a cancelled or taken-over run's token is dead
@@ -189,6 +189,21 @@ describe('TST-028B: late answers change nothing; only the run\'s own processes a
     expect((await propose(tb.token)).error?.code).toBe('invalid_token');
     expect(await count()).toBe(1);
     await expect(issueRunToken(pool, { ownerId, paperId, documentId: d.document.id, handleIds: [], provider: 'codex', tools: ['get_approved_outline'], ttlMs: 60_000, jobId: a.jobId, fencingToken: a.fencingToken })).rejects.toThrow(/not running/);
+    // re-review MINOR-A: a cancel that commits after the token check but before the write still wins
+    const c = await runningJob();
+    const tc = await tokenFor(c);
+    const canceller = await pool.connect();
+    try {
+      await canceller.query('BEGIN');
+      await canceller.query("UPDATE jobs SET status = 'CANCELLED', finished_at = clock_timestamp(), lease_owner = NULL, lease_expires_at = NULL WHERE id = $1", [c.jobId]);
+      const pending = propose(tc.token); // passes the token check (the cancel is not committed yet), then waits on the job row
+      await new Promise((r) => setTimeout(r, 200));
+      await canceller.query('COMMIT');
+      expect((await pending).error?.code).toBe('invalid_token');
+    } finally {
+      canceller.release();
+    }
+    expect(await count()).toBe(1);
   });
 
   // review MINOR-2: a child that dropped the marker but stayed in the run's group is ended too
@@ -246,6 +261,12 @@ describe('reconciliation after a worker restart', () => {
     // the same worker restarting does end its own run with an expired lease
     expect(await reconcileRunProcesses(pool, { host: os.hostname(), workerId: 'w1', graceMs: 300 })).toMatchObject({ ended: 1 });
     expect(await waitFor(() => !alive(live.record.pid))).toBe(true);
+    // re-review MINOR-B: a crashed worker restarts with a new id; its run whose lease expired long ago
+    // (well past any late heartbeat) is an orphan and is ended
+    const orphan = await start();
+    await pool.query("UPDATE jobs SET lease_expires_at = clock_timestamp() - interval '10 minutes' WHERE id = $1", [orphan.jobId]);
+    expect(await reconcileRunProcesses(pool, { host: os.hostname(), workerId: 'local-new', orphanAfterMs: 60_000, graceMs: 300 })).toMatchObject({ ended: 1 });
+    expect(await waitFor(() => !alive(orphan.record.pid))).toBe(true);
   });
 
   test('process records can only be ended once; nothing else about them changes', async () => {

@@ -17,3 +17,6 @@ KILLED  unmarked descendants ignored :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯
 KILLED  db outage never stops the run :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 24 passed (25) 
 KILLED  reconcile kills other workers' expired runs :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 24 passed (25) 
 KILLED  reconcile never ends own expired runs :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 24 passed (25) 
+# re-review fixes
+KILLED  no job re-check inside the write transaction :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 11 passed (12) 
+KILLED  orphans of a restarted worker kept :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 11 passed (12) 

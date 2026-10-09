@@ -30,10 +30,19 @@ const text = (v: unknown, name: string, max: number): string | null => {
   if (typeof v !== 'string' || !v.length || v.length > max) throw bad(`${name} must be text up to ${max} characters`, name);
   return v;
 };
+// Only explicit times are times: ISO 8601 with a zone (Z or ±hh:mm), or epoch seconds as a number. A
+// bare "5" or a zone-less local time would otherwise be parsed into a guess (re-review MINOR-3).
+const ISO_WITH_ZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})$/;
+export function explicitTime(v: unknown): string | null {
+  if (typeof v === 'number' && Number.isFinite(v) && v > 0) return new Date(v * 1000).toISOString();
+  if (typeof v === 'string' && ISO_WITH_ZONE.test(v) && !Number.isNaN(Date.parse(v))) return new Date(v).toISOString();
+  return null;
+}
 const when = (v: unknown, name: string): string => {
   if (v === undefined) return new Date().toISOString();
-  if (typeof v !== 'string' || Number.isNaN(Date.parse(v))) throw bad(`${name} must be a time`, name);
-  return new Date(v).toISOString();
+  const t = explicitTime(v);
+  if (!t) throw bad(`${name} must be an ISO time with a zone, or epoch seconds`, name);
+  return t;
 };
 
 export interface RecordedUsage { duplicate: boolean; delta: { input_tokens: number | null; output_tokens: number | null; cost_usd: number | null } | null; anomaly: string | null }
@@ -58,6 +67,8 @@ export async function recordUsage(pool: TxPool, a: {
   const unknown = FIELDS.filter((f) => values[f] === null);
   const session = text(a.nativeSessionId, 'native_session_id', 200);
   if (scope === 'session' && !session) throw bad('a cumulative (session) report needs the native session id', 'native_session_id');
+  // a report that names neither its run nor its session cannot be related to any other: refused
+  if (!session && a.jobId == null) throw bad('a usage report needs its run or a session', 'job_id');
   const observed = when(a.observedAt, 'observed_at');
 
   return inTransaction(pool, async (tx) => {
@@ -73,6 +84,9 @@ export async function recordUsage(pool: TxPool, a: {
       const prev = (await tx.query<{ i: string | null; o: string | null; c: string | null }>(
         `SELECT max(input_tokens) AS i, max(output_tokens) AS o, max(cost_usd_estimate) AS c FROM usage_events
          WHERE provider = $1 AND native_session_id = $2 AND scope = 'session'`, [a.provider, session])).rows[0]!;
+      // per field: the increase over the highest so far, never negative. A field that went down is an
+      // anomaly (flagged) but does not cancel another field's increase (re-review MINOR-2); the sum of
+      // deltas always equals each field's highest report.
       const step = (cur: number | null, p: string | null) => {
         if (cur === null) return null;
         if (p === null) return cur;
@@ -81,7 +95,6 @@ export async function recordUsage(pool: TxPool, a: {
         return diff;
       };
       delta = { input_tokens: step(input, prev.i), output_tokens: step(output, prev.o), cost_usd: step(cost, prev.c) };
-      if (flag.anomaly) delta = { input_tokens: null, output_tokens: null, cost_usd: null };
       if (delta.cost_usd !== null) delta.cost_usd = Math.round(delta.cost_usd * 1e6) / 1e6;
     }
     // a concurrent delivery of the same event (not serialized by the session lock) is a duplicate too
@@ -99,7 +112,7 @@ export async function recordUsage(pool: TxPool, a: {
 export interface Metric { value: number | null; unknown: boolean }
 export interface UsageSummary {
   billed: { input_tokens: Metric; output_tokens: Metric; cost_usd_estimate: Metric; anomalies: number };
-  context: { window: number | null; last_input_tokens: number | null; used_percent: number | null; basis: 'last_reported_message_or_turn' | 'unknown'; observed_at: string | null };
+  context: { window: number | null; last_input_tokens: number | null; used_percent: number | null; basis: 'last_request' | 'unknown'; observed_at: string | null };
   by_scope: Record<UsageScope, number>;
 }
 
@@ -113,10 +126,11 @@ export async function usageSummary(db: Queryable, paperId: string, opts: { jobId
     context_window: number | null; delta_input_tokens: string | null; delta_output_tokens: string | null; delta_cost_usd: string | null; anomaly: string | null; observed_at: string; job_id: string | null }>(
     `SELECT provider, native_session_id, scope, input_tokens, output_tokens, cost_usd_estimate, context_window, delta_input_tokens, delta_output_tokens, delta_cost_usd, anomaly, observed_at, job_id
      FROM usage_events WHERE ${where} ORDER BY observed_at, created_at`, params);
+  // one group per run (job) when the report names it — its reports with and without a session id
+  // describe the same requests (re-review MINOR-4); otherwise per provider session
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
-    // reports without a session id are grouped per run (job)
-    const g = `${r.provider}:${r.native_session_id ?? `job:${r.job_id ?? 'none'}`}`;
+    const g = r.job_id ? `job:${r.job_id}` : `${r.provider}:session:${r.native_session_id}`;
     groups.set(g, [...(groups.get(g) ?? []), r]);
   }
   const total = { input_tokens: { value: 0, unknown: false }, output_tokens: { value: 0, unknown: false }, cost_usd_estimate: { value: 0, unknown: false } } as Record<'input_tokens' | 'output_tokens' | 'cost_usd_estimate', { value: number; unknown: boolean }>;
@@ -127,7 +141,7 @@ export async function usageSummary(db: Queryable, paperId: string, opts: { jobId
     const counted = sess.length ? sess : rs.filter((r) => r.scope === 'turn').length ? rs.filter((r) => r.scope === 'turn') : rs.filter((r) => r.scope === 'message');
     for (const r of counted) {
       if (r.scope === 'session') {
-        if (r.anomaly) { anomalies++; continue; }
+        if (r.anomaly) anomalies++;
         add('input_tokens', r.delta_input_tokens); add('output_tokens', r.delta_output_tokens); add('cost_usd_estimate', r.delta_cost_usd);
       } else {
         add('input_tokens', r.input_tokens); add('output_tokens', r.output_tokens); add('cost_usd_estimate', r.cost_usd_estimate);
@@ -135,14 +149,16 @@ export async function usageSummary(db: Queryable, paperId: string, opts: { jobId
     }
   }
   const metric = (m: { value: number; unknown: boolean }, hasRows: boolean): Metric => (hasRows ? { value: Math.round(m.value * 1e6) / 1e6, unknown: m.unknown } : { value: null, unknown: true });
-  // context: the latest single message/turn report that gave both its input size and the window
-  const last = [...rows].reverse().find((r) => r.scope !== 'session' && r.input_tokens !== null && r.context_window !== null);
+  // context: the latest single model request (message scope) that gave its input size and the window.
+  // A turn total sums several requests and a session total sums the session: neither is the size of
+  // one request, so without a message report the context size is unknown (re-review MAJOR).
+  const last = [...rows].reverse().find((r) => r.scope === 'message' && r.input_tokens !== null && r.context_window !== null);
   const by_scope = { message: 0, turn: 0, session: 0 };
   for (const r of rows) by_scope[r.scope]++;
   return {
     billed: { input_tokens: metric(total.input_tokens, rows.length > 0), output_tokens: metric(total.output_tokens, rows.length > 0), cost_usd_estimate: metric(total.cost_usd_estimate, rows.length > 0), anomalies },
     context: last
-      ? { window: last.context_window, last_input_tokens: Number(last.input_tokens), used_percent: Math.round((Number(last.input_tokens) / last.context_window!) * 1000) / 10, basis: 'last_reported_message_or_turn', observed_at: new Date(last.observed_at).toISOString() }
+      ? { window: last.context_window, last_input_tokens: Number(last.input_tokens), used_percent: Math.round((Number(last.input_tokens) / last.context_window!) * 1000) / 10, basis: 'last_request', observed_at: new Date(last.observed_at).toISOString() }
       : { window: null, last_input_tokens: null, used_percent: null, basis: 'unknown', observed_at: null },
     by_scope,
   };
@@ -160,12 +176,15 @@ export async function recordQuota(db: Queryable, a: {
   if (!QUOTA_STATUS.includes(d.status as QuotaData['status'])) throw bad(`status must be one of ${QUOTA_STATUS.join(', ')}`, 'status');
   const used = d.used_percent === null || d.used_percent === undefined ? null : Number(d.used_percent);
   if (used !== null && (!Number.isFinite(used) || used < 0 || used > 100)) throw bad('used_percent must be between 0 and 100, or null', 'used_percent');
+  // a reset time the provider gave in a form that is not an explicit time is kept raw, with a reason
   let resets: string | null = null;
+  let raw = text(d.raw_resets_at, 'raw_resets_at', 100);
+  let reason = text(d.unknown_reason, 'unknown_reason', 500);
   if (d.resets_at !== null && d.resets_at !== undefined) {
-    if (typeof d.resets_at !== 'string' || Number.isNaN(Date.parse(d.resets_at))) throw bad('resets_at must be a time, or null when not reported', 'resets_at');
-    resets = new Date(d.resets_at).toISOString();
+    resets = explicitTime(d.resets_at);
+    if (!resets) { raw = String(d.resets_at).slice(0, 100); reason = 'reset time in an unverified format'; }
   }
-  const reason = text(d.unknown_reason, 'unknown_reason', 500) ?? (resets === null ? 'reset time not reported' : null);
+  if (resets === null) reason ??= 'reset time not reported';
   const retry = a.retryAfterS === undefined || a.retryAfterS === null ? null : count(a.retryAfterS, 'retry_after_s');
   if (a.errorKind != null && !ERROR_KINDS.includes(a.errorKind as (typeof ERROR_KINDS)[number])) throw bad('unknown error kind', 'error_kind');
   // what the provider itself said, or nothing known
@@ -174,7 +193,7 @@ export async function recordQuota(db: Queryable, a: {
     `INSERT INTO quota_observations (provider, auth_profile_id, model, bucket, event_key, status, used_percent, resets_at, raw_resets_at, unknown_reason, confidence, retry_after_s, error_kind, observed_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT (provider, event_key) DO NOTHING`,
     [a.provider, a.authProfileId, text(a.model, 'model', 200), text(a.bucket, 'bucket', 100), text(a.eventKey, 'event_key', 300), d.status, used, resets,
-      text(d.raw_resets_at, 'raw_resets_at', 100), reason, confidence, retry, a.errorKind ?? null, when(a.observedAt, 'observed_at')]);
+      raw, reason, confidence, retry, a.errorKind ?? null, when(a.observedAt, 'observed_at')]);
   return { duplicate: r.rowCount === 0 };
 }
 

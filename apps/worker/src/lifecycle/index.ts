@@ -53,11 +53,15 @@ export function processMatches(r: RunProcessRecord): boolean {
 // reused while any member lives, so such a process descends from the run.
 function groupMembers(r: RunProcessRecord, opts: { descendants?: boolean } = {}): number[] {
   const out: number[] = [];
+  // a live process with the group's number as its pid that is not our leader leads another group: the
+  // number was reused after the run's group died out — nothing of it is ours (re-review nit)
+  const lead = isLive(r.pgid) && procGroup(r.pgid) === r.pgid ? procStartTicks(r.pgid) : null;
+  const foreignLeader = lead !== null && lead !== Number(r.proc_start_ticks);
   for (const n of fs.readdirSync('/proc')) {
     if (!/^\d+$/.test(n)) continue;
     const pid = Number(n);
     if (procGroup(pid) !== r.pgid || !isLive(pid)) continue;
-    if (hasMarker(pid, r.marker) || (opts.descendants && (procStartTicks(pid) ?? -1) >= Number(r.proc_start_ticks))) out.push(pid);
+    if (hasMarker(pid, r.marker) || (opts.descendants && !foreignLeader && (procStartTicks(pid) ?? -1) >= Number(r.proc_start_ticks))) out.push(pid);
   }
   return out;
 }
@@ -185,17 +189,20 @@ export async function superviseRun(pool: TxPool, a: {
 // (cancelled, finished, re-queued or taken over), and this worker's own runs whose lease expired. Another
 // worker's run whose lease merely expired (a late heartbeat) is left alone (review MINOR-3). A process
 // that is no longer the run is only marked.
-export async function reconcileRunProcesses(pool: TxPool, a: { host?: string; workerId?: string; graceMs?: number } = {}): Promise<{ ended: number; gone: number; kept: number }> {
+// orphanAfterMs: a lease expired this long ago belongs to a dead worker, whatever its id (worker ids
+// do not survive a restart); a slow heartbeat is far shorter. Run this periodically (RFC-010 wiring).
+export async function reconcileRunProcesses(pool: TxPool, a: { host?: string; workerId?: string; orphanAfterMs?: number; graceMs?: number } = {}): Promise<{ ended: number; gone: number; kept: number }> {
   const host = a.host ?? os.hostname();
-  const { rows } = await pool.query<Omit<RunProcessRecord, 'fencing_token' | 'proc_start_ticks'> & { fencing_token: string; proc_start_ticks: string; worker_id: string; status: string; current_token: string; lease_live: boolean }>(
+  const { rows } = await pool.query<Omit<RunProcessRecord, 'fencing_token' | 'proc_start_ticks'> & { fencing_token: string; proc_start_ticks: string; worker_id: string; status: string; current_token: string; lease_live: boolean; orphaned: boolean }>(
     `SELECT r.id, r.job_id, r.fencing_token::text AS fencing_token, r.worker_id, r.host, r.pid, r.pgid, r.proc_start_ticks::text AS proc_start_ticks, r.marker,
-            j.status, j.fencing_token::text AS current_token, (j.lease_expires_at > clock_timestamp()) AS lease_live
-     FROM run_processes r JOIN jobs j ON j.id = r.job_id WHERE r.ended_at IS NULL AND r.host = $1 ORDER BY r.started_at`, [host]);
+            j.status, j.fencing_token::text AS current_token, (j.lease_expires_at > clock_timestamp()) AS lease_live,
+            (j.lease_expires_at < clock_timestamp() - make_interval(secs => $2::double precision / 1000)) AS orphaned
+     FROM run_processes r JOIN jobs j ON j.id = r.job_id WHERE r.ended_at IS NULL AND r.host = $1 ORDER BY r.started_at`, [host, a.orphanAfterMs ?? 120_000]);
   const out = { ended: 0, gone: 0, kept: 0 };
   for (const row of rows) {
     const r: RunProcessRecord = { ...row, fencing_token: Number(row.fencing_token), proc_start_ticks: Number(row.proc_start_ticks) };
     const current = row.status === 'RUNNING' && row.current_token === row.fencing_token;
-    const stillRunning = current && (row.lease_live === true || row.worker_id !== a.workerId);
+    const stillRunning = current && (row.lease_live === true || (row.worker_id !== a.workerId && row.orphaned !== true));
     if (stillRunning && processMatches(r)) { out.kept++; continue; }
     if (!processMatches(r) && !groupMembers(r).length) { await markEnded(pool, r.id, 'gone'); out.gone++; continue; }
     const end = await terminateRunGroup(pool, r, { graceMs: a.graceMs ?? 2000, reason: () => 'reconciled' });

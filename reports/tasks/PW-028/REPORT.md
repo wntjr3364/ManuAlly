@@ -119,5 +119,19 @@
   - `mutation.log` 아래쪽: 6종 모두 탐지.
   - 통합 12(PW-027과 함께 25).
 
+## 재리뷰 반영 (2026-10-09)
+재리뷰 결론: MAJOR와 MINOR-2는 고쳐졌다고 확인. minor 2·nit 2.
+- MINOR-A: token 검사(트랜잭션 밖)와 쓰기 사이에 취소가 끼어들 수 있었다.
+  - 고침: 쓰기 트랜잭션 안에서 job 행을 `FOR SHARE`로 다시 읽어 RUNNING과 같은 fencing token을 확인한다. 취소는 먼저 commit되거나(→ `invalid_token`) 이 쓰기가 끝날 때까지 기다린다.
+  - 시험: 취소 UPDATE를 연 채로 호출 → commit → `invalid_token`, proposal 없음.
+- MINOR-B: worker id는 재시작하면 바뀐다. 그래서 죽은 worker의 run이 정리되지 않았다.
+  - 고침: lease가 `orphanAfterMs`(기본 2분)보다 오래전에 만료된 run은 누구의 run이든 고아로 보고 끝낸다. 늦은 heartbeat는 이보다 훨씬 짧다.
+  - reconcile은 주기적으로 돌려야 한다. worker 연결은 RFC-010에서 한다.
+- nit
+  - group 번호 재사용: 그 번호를 pid로 가진 살아 있는 프로세스가 우리 leader가 아니면, 자손 규칙을 쓰지 않는다.
+  - 시험 정리 코드가 leader만 죽여 손자가 남던 것을 group 단위로 고쳤다.
+  - `pw_028_0002`는 job token 행이 이미 있는 DB에서 실패할 수 있다. job token을 발급한 적이 없어 개발 DB에만 해당한다.
+- 증거: `red.log` 아래쪽, `mutation.log` 아래쪽(2종 탐지), 통합 12.
+
 ## 다음
 PW-029: Usage·quota 관측 기본

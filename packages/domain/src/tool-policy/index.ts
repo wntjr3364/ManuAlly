@@ -29,10 +29,11 @@ const PROVIDERS = ['claude_agent', 'codex', 'mock'] as const;
 export type GatewayProvider = (typeof PROVIDERS)[number];
 
 const uuid: Schema = { type: 'string', minLength: 36, maxLength: 36, pattern: UUID_RE.source };
-interface Scope { tokenId: string; ownerId: string; paperId: string; documentId: string | null; handleIds: string[]; provider: GatewayProvider }
+interface Scope { tokenId: string; ownerId: string; paperId: string; documentId: string | null; handleIds: string[]; provider: GatewayProvider; jobId: string | null; jobFencingToken: string | null }
 // a tool runs inside the call's transaction, together with its audit row (one commits with the other)
 interface Tool { description: string; input: Schema; run: (tx: Queryable, s: Scope, args: Record<string, unknown>) => Promise<unknown> }
 class NotInScope extends Error {}
+class RunEnded extends Error {}
 
 // plain text of a block from stored document JSON: inline atoms appear as [citation] / [figure]
 function blockText(node: { content?: unknown[] }): string {
@@ -182,15 +183,15 @@ export async function revokeRunToken(db: Queryable, tokenId: string): Promise<vo
 
 async function scopeOf(db: Queryable, token: unknown): Promise<(Scope & { tools: string[] }) | null> {
   if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
-  const { rows } = await db.query<{ id: string; owner_id: string; paper_id: string; document_id: string | null; handle_ids: string[]; tools: string[]; provider: GatewayProvider }>(
-    `SELECT t.id, t.owner_id, t.paper_id, t.document_id, t.handle_ids, t.tools, t.provider FROM agent_run_tokens t
+  const { rows } = await db.query<{ id: string; owner_id: string; paper_id: string; document_id: string | null; handle_ids: string[]; tools: string[]; provider: GatewayProvider; job_id: string | null; job_fencing_token: string | null }>(
+    `SELECT t.id, t.owner_id, t.paper_id, t.document_id, t.handle_ids, t.tools, t.provider, t.job_id, t.job_fencing_token::text AS job_fencing_token FROM agent_run_tokens t
      JOIN paper_projects p ON p.id = t.paper_id AND p.owner_id = t.owner_id
      LEFT JOIN jobs j ON j.id = t.job_id
      WHERE t.token_hash = $1 AND t.revoked_at IS NULL AND t.expires_at > clock_timestamp()
        -- a job's run token lives only while that run is the job's current run (cancel, takeover end it)
        AND (t.job_id IS NULL OR (j.status = 'RUNNING' AND j.fencing_token = t.job_fencing_token))`, [sha256(token)]);
   const r = rows[0];
-  return r ? { tokenId: r.id, ownerId: r.owner_id, paperId: r.paper_id, documentId: r.document_id, handleIds: r.handle_ids, tools: r.tools, provider: r.provider } : null;
+  return r ? { tokenId: r.id, ownerId: r.owner_id, paperId: r.paper_id, documentId: r.document_id, handleIds: r.handle_ids, tools: r.tools, provider: r.provider, jobId: r.job_id, jobFencingToken: r.job_fencing_token } : null;
 }
 
 export interface ToolDefinition { name: string; description: string; input_schema: Record<string, unknown> }
@@ -231,6 +232,12 @@ export async function callTool(pool: TxPool, token: string, name: unknown, args:
     // the tool's write (a proposal) and its audit row commit together, or neither does: a failed
     // audit never hides a completed write, and a retried call never finds a half-done one
     const result = await inTransaction(pool, async (tx) => {
+      // the run must still be current while the write happens: the job row is held (shared) until
+      // commit, so a cancel or takeover either commits first (and this call is refused) or waits
+      if (s.jobId) {
+        const j = (await tx.query<{ status: string; fencing_token: string }>('SELECT status, fencing_token::text AS fencing_token FROM jobs WHERE id = $1 FOR SHARE', [s.jobId])).rows[0];
+        if (!j || j.status !== 'RUNNING' || j.fencing_token !== s.jobFencingToken) throw new RunEnded();
+      }
       const r = await def.run(tx, s, args as Record<string, unknown>);
       await audit('ok', null, tx);
       return r;
@@ -238,6 +245,7 @@ export async function callTool(pool: TxPool, token: string, name: unknown, args:
     return { ok: true, result };
   } catch (e) {
     if (e instanceof NotInScope) return refuse('not_in_scope', 'that object is not part of this run');
+    if (e instanceof RunEnded) return refuse('invalid_token', 'the run token is unknown, expired or revoked');
     if (e instanceof DomainError) {
       await audit('refused', 'rejected');
       return { ok: false, error: { code: 'rejected', message: e.message.slice(0, 500) } };

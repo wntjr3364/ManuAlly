@@ -10,3 +10,9 @@ KILLED  reset shown in UTC ::       Tests  7 passed (7) ⎯⎯⎯⎯⎯⎯⎯ Fa
 KILLED  missing reset guessed in UI ::       Tests  7 passed (7) ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 1 passed (2) 
   (equivalent: ON CONFLICT (provider, event_key) DO NOTHING also reports the duplicate)
 KILLED  context from cumulative (rerun: the session report names the window) :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 6 passed (7) 
+# review fixes
+KILLED  context from a turn total :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 7 passed (8) 
+KILLED  one decreased field nulls all deltas :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 7 passed (8) 
+KILLED  loose time parsing :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 7 passed (8) 
+KILLED  grouped by session before job :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 7 passed (8) 
+KILLED  report without run or session accepted :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 7 passed (8) 

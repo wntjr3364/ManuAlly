@@ -121,3 +121,20 @@ PW-019: 인용·그림 교차참조 노드
 
 - RED: 리뷰 전 anchor 코드에서 회귀 unit 3건 실패(`review-red.log`)
 - 실행: PW-018 unit 12, 통합 6, 브라우저 3. PW-017 브라우저 7 회귀 통과. `pnpm test` exit 0(`pnpm-test-review.log`, 작업 중이던 PW-019 파일 포함): unit 140, integration 162, contracts 15, e2e 59, spikes 70
+
+## 재리뷰 결과 반영 (2026-10-09)
+- 결론: changes requested(major 2, minor 1).
+- P1·P2·P3와 문단 앞 단어 삽입(P7)은 의도대로 동작한다.
+
+| 지적 | 조치 |
+|---|---|
+| **MAJOR-1 인용이 들어간 코멘트가 만들자마자 ORPHANED**<br>저장 후 jsonb가 키 순서를 바꿔 `JSON.stringify` 비교가 실패. unit은 DB를 거치지 않아 통과 | atom 비교를 editor-core `canonicalJson`(키 정렬)으로 바꿨다. DB를 거치는 통합 시험("인용을 포함한 코멘트가 만들자마자, 그리고 그대로 둔 뒤에도 ATTACHED")과 키 순서 unit 시험을 추가했다 |
+| **MAJOR-2 평행한 문장(P4)에서 다른 문장에 붙음**<br>"In controls the number of cells … In mutants the number of cells …"에서 두 번째 문장을 지우면 첫 문장의 cells에 붙었다 | 코멘트를 만들 때 바로 앞·뒤 12자가 그 문단에서 유일했는지를 기록한다(`pw_018_0003`). 유일했던 쪽만 나중에 증거로 쓴다. P4는 ORPHANED. 유일한 쪽은 반대쪽이 편집돼도 계속 붙는다(시험) |
+| m: 짧은 인용의 양쪽을 함께 고치면 ORPHANED(P5·P6) | 안전한 쪽(ORPHANED)으로 두고 남은 위험에 적는다. 사용자는 "선택한 곳에 다시 연결"로 복구한다 |
+| nit: 기존 anchor는 마이그레이션 뒤 atom·near 기록이 없음 | 의도대로 안전한 쪽이다. atom이 있는 기존 anchor는 ORPHANED가 되고, near 증거 없이 전체 문맥으로만 붙는다 |
+
+- RED: c50e55b의 코드에서 회귀 시험 3건 실패(`rereview-red.log`, unit 2·통합 1)
+- 실행: PW-018 unit 14, 통합 7, 브라우저 3. 전체 `pnpm test`는 작업 중이던 PW-019 CSS 때문에 PW-016 브라우저 1건이 실패했다(`pnpm-test-rereview.log`). PW-018 변경과 무관하며 PW-019에서 고친다.
+- 남은 위험(추가)
+  - 짧은 인용의 앞뒤 12자 안을 모두 고치거나, 오타 수정과 문장부호 변경이 양쪽에 함께 있으면 코멘트가 ORPHANED가 된다.
+  - 편집 transaction을 따라가는 화면 강조는 그대로 유지되지만, 서버 기준 상태는 ORPHANED로 보인다.

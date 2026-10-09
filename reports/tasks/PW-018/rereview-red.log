@@ -1,0 +1,94 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-018/anchor.test.ts (14 tests | 2 failed) 23ms
+   ❯ re-review regressions (2)
+     × re-review MAJOR-2 P4: near text that was not unique when the comment was made is not evidence 7ms
+     × re-review MAJOR-1: atoms are compared independent of key order (as stored in jsonb) 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-018/anchor.test.ts > re-review regressions > re-review MAJOR-2 P4: near text that was not unique when the comment was made is not evidence
+AssertionError: expected undefined to deeply equal { before: false, after: true }
+
+- Expected:
+{
+  "after": true,
+  "before": false,
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-018/anchor.test.ts:99:20
+     97|     const second = d0.firstChild!.textContent.lastIndexOf('cells');
+     98|     const a = makeAnchor(d0, A, second, second + 5);
+     99|     expect(a.near).toEqual({ before: false, after: true });
+       |                    ^
+    100|     const d1 = doc(para(A, text('In controls the number of cells rose …
+    101|     expect(resolveAnchor(d1, a)).toEqual({ state: 'ORPHANED', reason: …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-018/anchor.test.ts > re-review regressions > re-review MAJOR-1: atoms are compared independent of key order (as stored in jsonb)
+AssertionError: expected { state: 'ORPHANED', …(1) } to match object { state: 'ATTACHED', moved: false }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "moved": false,
+-   "state": "ATTACHED",
++   "state": "ORPHANED",
+  }
+
+ ❯ tests/tasks/PW-018/anchor.test.ts:112:42
+    110|     const a = makeAnchor(d0, A, 0, 10);
+    111|     const reordered = { ...a, atoms: a.atoms.map((x) => ({ locator: x.…
+    112|     expect(resolveAnchor(d0, reordered)).toMatchObject({ state: 'ATTAC…
+       |                                          ^
+    113|   });
+    114| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 12 passed (14)
+   Start at  08:12:31
+   Duration  639ms (transform 77%, import 16%, tests 6%, worker 2%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-018/comments.int.test.ts (7 tests | 1 failed) 1158ms
+   ❯ re-review MAJOR-1: a comment over a citation, stored and read back (1)
+     × is attached right after it is made and stays attached while nothing changes 40ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-018/comments.int.test.ts > re-review MAJOR-1: a comment over a citation, stored and read back > is attached right after it is made and stays attached while nothing changes
+AssertionError: expected { state: 'ORPHANED', …(1) } to match object { state: 'ATTACHED', moved: false }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "moved": false,
+-   "state": "ATTACHED",
++   "state": "ORPHANED",
+  }
+
+ ❯ tests/tasks/PW-018/comments.int.test.ts:152:31
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  08:12:32
+   Duration  2.48s (tests 51%, transform 39%, import 10%)
+

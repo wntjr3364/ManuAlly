@@ -137,3 +137,19 @@ describe('comment threads', () => {
     expect((await app.inject({ method: 'POST', url: `/api/papers/${s.paperId}/comments/${t.id}/messages`, headers: H.bob, payload: { body: 'hi' } })).statusCode).toBe(404);
   });
 });
+
+describe('re-review MAJOR-1: a comment over a citation, stored and read back', () => {
+  test('is attached right after it is made and stays attached while nothing changes', async () => {
+    const REF = '00000000-0000-4000-8000-0000000000f1';
+    const content = docOf({ type: 'paragraph', attrs: { id: A }, content: [{ type: 'text', text: 'As shown ' }, { type: 'citation', attrs: { referenceId: REF, locator: 'p. 4' } }, { type: 'text', text: ' here.' }] });
+    const p = (await app.inject({ method: 'POST', url: '/api/papers', headers: H.alice, payload: { working_title: 'p', article_type: 'research_article' } })).json();
+    const d = (await app.inject({ method: 'POST', url: `/api/papers/${p.id}/documents`, headers: H.alice, payload: { kind: 'manuscript' } })).json();
+    const s = { paperId: p.id as string, documentId: d.document.id as string, head: d.head.id as string };
+    await save(s, content);
+    const selection = await snapshotSelection(parseDocument(content, 1), { blockId: A, from: 0, to: 10 });
+    const r = await app.inject({ method: 'POST', url: `/api/papers/${s.paperId}/documents/${s.documentId}/comments`, headers: H.alice, payload: { base_revision_id: s.head, selection, body: 'Which page?' } });
+    expect(r.statusCode, r.body).toBe(201);
+    expect(r.json().resolved).toMatchObject({ state: 'ATTACHED', moved: false });
+    expect((await list(s)).threads[0].resolved).toMatchObject({ state: 'ATTACHED', moved: false });
+  });
+});

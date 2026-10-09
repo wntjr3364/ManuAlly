@@ -90,3 +90,25 @@ describe('review regressions', () => {
     expect(resolveAnchor(doc(para(A, text('Earlier. As shown '), c(REF), text(' before.'))), a)).toMatchObject({ state: 'ATTACHED', from: 9 });
   });
 });
+
+describe('re-review regressions', () => {
+  test('re-review MAJOR-2 P4: near text that was not unique when the comment was made is not evidence', () => {
+    const d0 = doc(para(A, text('In controls the number of cells rose sharply. In mutants the number of cells fell slightly.')));
+    const second = d0.firstChild!.textContent.lastIndexOf('cells');
+    const a = makeAnchor(d0, A, second, second + 5);
+    expect(a.near).toEqual({ before: false, after: true });
+    const d1 = doc(para(A, text('In controls the number of cells rose sharply.')));
+    expect(resolveAnchor(d1, a)).toEqual({ state: 'ORPHANED', reason: 'TEXT_CHANGED' });
+    // the unique side still carries a small edit on the other side
+    const d2 = doc(para(A, text('In controls the number of cells rose sharply. In mutant lines the count of cells fell slightly.')));
+    expect(resolveAnchor(d2, a)).toMatchObject({ state: 'ATTACHED', moved: true });
+  });
+
+  test('re-review MAJOR-1: atoms are compared independent of key order (as stored in jsonb)', () => {
+    const c = { type: 'citation', attrs: { referenceId: REF, locator: 'p. 4' } };
+    const d0 = doc(para(A, text('As shown '), c, text(' here.')));
+    const a = makeAnchor(d0, A, 0, 10);
+    const reordered = { ...a, atoms: a.atoms.map((x) => ({ locator: x.locator, referenceId: x.referenceId, type: x.type })) };
+    expect(resolveAnchor(d0, reordered)).toMatchObject({ state: 'ATTACHED', moved: false });
+  });
+});

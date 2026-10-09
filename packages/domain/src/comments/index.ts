@@ -28,9 +28,9 @@ async function insertAnchor(tx: Queryable, a: { paperId: string; threadId: strin
   const v = await verifySelection(tx, { paperId: a.paperId, documentId: a.documentId, baseRevisionId: a.baseRevisionId, selection: a.selection });
   const anchor = makeAnchor(v.doc, v.snap.block_id, v.snap.from, v.snap.to);
   await tx.query(
-    `INSERT INTO comment_anchors (paper_id, document_id, thread_id, revision_id, block_id, from_pos, to_pos, quote, prefix, suffix, atoms, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-    [a.paperId, v.documentId, a.threadId, v.revisionId, anchor.block_id, anchor.from, anchor.to, anchor.quote, anchor.prefix, anchor.suffix, JSON.stringify(anchor.atoms), a.ownerId],
+    `INSERT INTO comment_anchors (paper_id, document_id, thread_id, revision_id, block_id, from_pos, to_pos, quote, prefix, suffix, atoms, near_before_unique, near_after_unique, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+    [a.paperId, v.documentId, a.threadId, v.revisionId, anchor.block_id, anchor.from, anchor.to, anchor.quote, anchor.prefix, anchor.suffix, JSON.stringify(anchor.atoms), anchor.near.before, anchor.near.after, a.ownerId],
   );
 }
 
@@ -97,14 +97,14 @@ const THREAD = 'id, document_id, state, created_by, created_at, state_changed_at
 async function hydrate(db: Queryable, paperId: string, threads: Omit<CommentThread, 'anchor' | 'resolved' | 'messages'>[], head: { id: string; doc: ReturnType<typeof parseDocument> | null }) {
   if (!threads.length) return [];
   const ids = threads.map((t) => t.id);
-  const anchors = (await db.query<{ thread_id: string; revision_id: string; block_id: string; from_pos: number; to_pos: number; quote: string; prefix: string; suffix: string; atoms: Anchor['atoms'] }>(
-    `SELECT DISTINCT ON (thread_id) thread_id, revision_id, block_id, from_pos, to_pos, quote, prefix, suffix, atoms FROM comment_anchors
+  const anchors = (await db.query<{ thread_id: string; revision_id: string; block_id: string; from_pos: number; to_pos: number; quote: string; prefix: string; suffix: string; atoms: Anchor['atoms']; near_before_unique: boolean; near_after_unique: boolean }>(
+    `SELECT DISTINCT ON (thread_id) thread_id, revision_id, block_id, from_pos, to_pos, quote, prefix, suffix, atoms, near_before_unique, near_after_unique FROM comment_anchors
      WHERE paper_id = $1 AND thread_id = ANY($2::uuid[]) ORDER BY thread_id, created_at DESC, id DESC`, [paperId, ids])).rows;
   const messages = (await db.query<CommentMessage & { thread_id: string }>(
     'SELECT id, thread_id, body, author_id, created_at FROM comment_messages WHERE paper_id = $1 AND thread_id = ANY($2::uuid[]) ORDER BY created_at, id', [paperId, ids])).rows;
   return threads.map((t): CommentThread => {
     const a = anchors.find((x) => x.thread_id === t.id)!;
-    const anchor = { revision_id: a.revision_id, block_id: a.block_id, from: a.from_pos, to: a.to_pos, quote: a.quote, prefix: a.prefix, suffix: a.suffix, atoms: a.atoms };
+    const anchor = { revision_id: a.revision_id, block_id: a.block_id, from: a.from_pos, to: a.to_pos, quote: a.quote, prefix: a.prefix, suffix: a.suffix, atoms: a.atoms, near: { before: a.near_before_unique, after: a.near_after_unique } };
     return {
       ...t,
       anchor,

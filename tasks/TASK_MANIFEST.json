@@ -853,7 +853,7 @@
       "id": "PW-026",
       "phase": "P03",
       "title": "Isolated runner·입출력 mount",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-025"
       ],

@@ -12,7 +12,7 @@ import { liveEvidenceOk, resolveCapability, type CapabilityKey, type Registry } 
 export const SENTINEL_MAX_AGE_MS = 24 * 3600e3;
 export interface Approval { approved: boolean; max_turns: number; budget_usd: number }
 export interface Sentinel { provider: string; status: 'isolated' | 'leak' | 'unknown'; host: string; checked_at: string }
-export interface OuterSandbox { kind: 'bubblewrap' | 'container' | 'vm'; verified: boolean; host: string; checked_at: string }
+export interface OuterSandbox { kind: 'bubblewrap' | 'userns' | 'container' | 'vm'; verified: boolean; host: string; checked_at: string }
 export type Purpose = 'paper_work' | 'live_smoke';
 export interface RunDecision {
   readonly allowed: boolean; readonly reason: string; readonly purpose: Purpose; readonly key: CapabilityKey;

@@ -1,0 +1,5 @@
+# PW-026 chroot escape demo (synthetic, this container, 2026-10-09T11:57:07Z)
+# design before the fix: chroot into the new root, capabilities kept (namespace root)
+stdout: escaped; host /root visible: True ; repo visible: True
+# current design: pivot_root + umount of the old root, setpriv drops all capabilities with no_new_privs
+stderr: PermissionError: [Errno 1] Operation not permitted: 'jail'

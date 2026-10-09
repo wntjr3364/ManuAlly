@@ -1,0 +1,25 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-026/runner.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-026/runner.test.ts [ tests/tasks/PW-026/runner.test.ts ]
+Error: Cannot find module '../../../apps/worker/src/runner/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-026/runner.test.ts
+ ❯ tests/tasks/PW-026/runner.test.ts:13:1
+     11| import net from 'node:net';
+     12| import crypto, { randomUUID } from 'node:crypto';
+     13| import { prepareRun, removeRun } from '../../../apps/worker/src/runner…
+       | ^
+     14| import { bwrapArgs, runSandboxed, sandboxAvailable, verifyOuterSandbox…
+     15|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  11:49:20
+   Duration  275ms (worker 97%, environment 3%)
+

@@ -63,6 +63,18 @@ export function decideRun(registry: Registry, a: {
 
 export class AdmissionRefused extends Error {}
 
+// Checks without spending (before anything is started, even `--version`).
+export function checkDecision(d: unknown, provider: 'claude_agent' | 'codex', now = Date.now()): RunDecision {
+  if (!isIssued(d)) throw new AdmissionRefused('refused: decision was not issued by the admission gate');
+  if (!d.allowed) throw new AdmissionRefused(`refused: ${d.reason}`);
+  if (d.key.provider !== provider) throw new AdmissionRefused(`refused: decision is for ${d.key.provider}, not ${provider}`);
+  if (now > Date.parse(d.expires_at)) throw new AdmissionRefused('refused: the decision has expired; ask again');
+  const s = spent.get(d)!;
+  if (s.turns >= d.max_turns) throw new AdmissionRefused(`refused: the approved ${d.max_turns} turn(s) are used up`);
+  if (s.usd >= d.budget_usd) throw new AdmissionRefused('refused: the approved budget is used up');
+  return d;
+}
+
 // Spends one turn of an issued, allowed, unexpired decision for this provider.
 export function spendTurn(d: unknown, provider: 'claude_agent' | 'codex', now = Date.now()): RunDecision {
   if (!isIssued(d)) throw new AdmissionRefused('refused: decision was not issued by the admission gate');

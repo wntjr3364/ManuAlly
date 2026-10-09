@@ -22,9 +22,16 @@ export function guardClientNotification(method: string): string {
 }
 
 export type ServerAnswer = { result: unknown } | { error: { code: number; message: string } } | { route: 'tool_gateway' };
+// v2 approval requests take `decline`; the older applyPatchApproval/execCommandApproval take `denied`
+// (ReviewDecision). Credential refresh, attestation, user input and elicitation get a JSON-RPC error
+// rather than a guessed "no". These shapes are from the generated 0.161.0 schema, not verified live.
+const LEGACY_APPROVALS = new Set(['applyPatchApproval', 'execCommandApproval']);
+const V2_APPROVALS = new Set(['item/commandExecution/requestApproval', 'item/fileChange/requestApproval', 'item/permissions/requestApproval']);
 export function serverRequestAnswer(method: string): ServerAnswer {
   const h = Object.hasOwn(HANDLING, method) ? HANDLING[method] : undefined;
-  if (h === 'decline') return { result: { decision: 'decline' } };
+  if (h === 'decline' && V2_APPROVALS.has(method)) return { result: { decision: 'decline' } };
+  if (h === 'decline' && LEGACY_APPROVALS.has(method)) return { result: { decision: 'denied' } };
+  if (h === 'decline') return { error: { code: -32000, message: `${method} is declined by this client` } };
   if (h === 'route_to_tool_gateway') return { route: 'tool_gateway' };
   return { error: { code: -32601, message: `${method} is not supported by this client` } };
 }

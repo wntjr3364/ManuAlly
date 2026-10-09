@@ -11,6 +11,8 @@ export function buildCodexArgs(opts: { listen?: 'stdio://' } = {}): string[] {
     'app-server', '--listen', 'stdio://',
     '-c', 'sandbox_mode="read-only"',
     '-c', 'approval_policy="on-request"',
+    // no MCP servers from the profile's config (the paper tool gateway is added by PW-027)
+    '-c', 'mcp_servers={}',
     ...DISABLED_FEATURES.flatMap((f) => ['-c', `features.${f}=false`]),
   ];
 }

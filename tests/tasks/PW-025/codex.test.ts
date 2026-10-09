@@ -101,10 +101,12 @@ describe('TST-025B: private stdio, allowlisted methods, declined server requests
       expect(() => guardClientRequest(m)).toThrow(/not allowlisted/);
     }
     expect(guardClientRequest('turn/start')).toBe('turn/start');
-    const { run, s } = await server();
-    await expect(s.request('thread/shellCommand', { command: 'ls' })).rejects.toThrow(/not allowlisted/);
+    const { s } = await server();
+    // review MAJOR-1: no raw RPC at all (an allowlisted method with free parameters could override the
+    // sandbox, approval policy or working folder); only the typed calls exist
+    expect(Object.keys(s).sort()).toEqual(['close', 'interrupt', 'resumeThread', 'runTurn', 'startThread']);
+    expect((s as Record<string, unknown>).request).toBeUndefined();
     await s.close();
-    expect(seen(run).client).not.toContain('thread/shellCommand');
   });
 
   test('approval and unknown server requests are declined; the server sees the decline', async () => {
@@ -116,7 +118,11 @@ describe('TST-025B: private stdio, allowlisted methods, declined server requests
     expect(answers['item/commandExecution/requestApproval']).toEqual({ decision: 'decline' });
     expect(answers['made/up/request']).toMatchObject({ error: { code: -32601 } });
     expect(serverRequestAnswer('item/fileChange/requestApproval')).toEqual({ result: { decision: 'decline' } });
-    expect(serverRequestAnswer('account/chatgptAuthTokens/refresh')).toEqual({ result: { decision: 'decline' } });
+    // review: each request gets the answer its own schema takes (legacy approvals: `denied`); requests
+    // that are not approvals get an error rather than a guessed "decline"
+    expect(serverRequestAnswer('execCommandApproval')).toEqual({ result: { decision: 'denied' } });
+    expect(serverRequestAnswer('applyPatchApproval')).toEqual({ result: { decision: 'denied' } });
+    expect(serverRequestAnswer('account/chatgptAuthTokens/refresh')).toMatchObject({ error: { code: -32000 } });
   });
 
   test('a tool call goes to the tool gateway only; without a gateway it is declined', async () => {
@@ -147,6 +153,91 @@ describe('TST-025B: private stdio, allowlisted methods, declined server requests
     await expect(startCodexServer({ decision: decision(), cmd: other, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } })).rejects.toThrow(/0\.170\.0, but the admission is for codex-cli 0\.161\.0/);
     await expect(startCodexServer({ decision: decision(), cmd: 'codex', run: newRun(), profileDir: profile })).rejects.toThrow(/absolute path/);
   });
+  test('review MAJOR-2: a second turn while one is running is refused (events cannot cross turns)', async () => {
+    const slow = path.join(root, 'profile-slow2');
+    fs.mkdirSync(slow, { mode: 0o700 });
+    fs.writeFileSync(path.join(slow, 'slow'), '');
+    const { s } = await server(newRun(), slow);
+    const t1 = await s.startThread();
+    const t2 = await s.startThread();
+    const first = s.runTurn(t1, 'one');
+    await first.next();
+    await expect(s.runTurn(t2, 'two').next()).rejects.toThrow(/already running/);
+    await s.interrupt(t1);
+    for await (const e of first) void e;
+    // once the first turn ended, the next one may start
+    const again = s.runTurn(t2, 'three');
+    expect((await again.next()).done).toBe(false);
+    await s.interrupt(t2);
+    for await (const e of again) void e;
+    await s.close();
+  });
+
+  test('review minor: a turn that never finishes is interrupted after the turn timeout and ends with an error', async () => {
+    const slow = path.join(root, 'profile-slow3');
+    fs.mkdirSync(slow, { mode: 0o700 });
+    fs.writeFileSync(path.join(slow, 'slow'), '');
+    const run = newRun();
+    const s = await startCodexServer({ decision: decision(), cmd: FAKE, run, profileDir: slow, parentEnv: { PATH: process.env.PATH! }, turnTimeoutMs: 300 });
+    const events = [];
+    for await (const e of s.runTurn(await s.startThread(), 'x')) events.push(e);
+    await s.close();
+    expect(events.at(-1)).toMatchObject({ kind: 'error', data: { message: expect.stringMatching(/did not finish within 300 ms/) } });
+    expect(seen(run).client).toContain('turn/interrupt');
+  });
+
+  test('review minor: the server stopping in the middle of a turn ends it with an error, not a silent end', async () => {
+    const dies = path.join(root, 'profile-die');
+    fs.mkdirSync(dies, { mode: 0o700 });
+    fs.writeFileSync(path.join(dies, 'die'), '');
+    const { s } = await server(newRun(), dies);
+    const events = [];
+    for await (const e of s.runTurn(await s.startThread(), 'x')) events.push(e);
+    await s.close();
+    expect(events.at(-1)).toMatchObject({ kind: 'error', data: { message: expect.stringMatching(/stopped during the turn/) } });
+    expect(events.every((e) => validateProviderEvent(e).ok)).toBe(true);
+  });
+
+  test('review minor: close() ends a server that ignores SIGTERM (SIGKILL after a grace period)', async () => {
+    const stubborn = path.join(root, 'profile-stubborn');
+    fs.mkdirSync(stubborn, { mode: 0o700 });
+    fs.writeFileSync(path.join(stubborn, 'stubborn'), '');
+    const { run, s } = await server(newRun(), stubborn);
+    const t0 = Date.now();
+    await s.close();
+    expect(Date.now() - t0).toBeLessThan(8000);
+    expect(() => process.kill(seen(run).pid, 0)).toThrow(/ESRCH/);
+  }, 15_000);
+
+  test('review minor: a profile holding agent instructions or configuration is refused', async () => {
+    for (const [name, body] of [['AGENTS.md', '# do things'], ['config.toml', '[mcp_servers.x]\ncommand = "x"\n']] as const) {
+      const p = fs.mkdtempSync(path.join(root, 'profile-cfg-'));
+      fs.chmodSync(p, 0o700);
+      fs.writeFileSync(path.join(p, name), body);
+      await expect(server(newRun(), p)).rejects.toThrow(new RegExp(`holds ${name.replace('.', '\\.')}|has a config\\.toml`));
+    }
+    const comments = fs.mkdtempSync(path.join(root, 'profile-cfg-'));
+    fs.chmodSync(comments, 0o700);
+    fs.writeFileSync(path.join(comments, 'config.toml'), '# written by codex login\n\n');
+    const ok = await server(newRun(), comments);
+    await ok.s.close();
+    expect(buildCodexArgs()).toContain('mcp_servers={}');
+  });
+
+  test('PW-024 review nit: a refused or used-up decision runs nothing, not even --version', async () => {
+    const marker = path.join(root, 'codex-spy-ran');
+    const spy = path.join(root, 'codex-spy');
+    fs.writeFileSync(spy, `#!/bin/sh\ntouch '${marker}'\necho "codex-cli 0.161.0"\n`, { mode: 0o755 });
+    const one = decision({ approval: { approved: true, max_turns: 1, budget_usd: 1 } });
+    const s = await startCodexServer({ decision: one, cmd: FAKE, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } });
+    for await (const e of s.runTurn(await s.startThread(), 'x')) void e;
+    await s.close();
+    for (const d of [decision({ sandbox: null }), { ...decision() }, one]) {
+      await expect(startCodexServer({ decision: d as never, cmd: spy, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } })).rejects.toThrow(/refused|not issued|outer filesystem sandbox/);
+    }
+    expect(fs.existsSync(marker)).toBe(false);
+  });
+
   test('each turn spends one approved turn', async () => {
     const d = decision({ approval: { approved: true, max_turns: 1, budget_usd: 1 } });
     const s = await startCodexServer({ decision: d, cmd: FAKE, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } });

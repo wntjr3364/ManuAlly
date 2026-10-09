@@ -4,7 +4,8 @@
 // Implements initialize, thread/start|resume, turn/start|interrupt with documented-shaped results and
 // notifications; during a turn it asks the client for a command approval (a server request) and, when
 // the profile holds `ask-tool`, for a tool call. It records every client message and our answers to
-// its server requests in $HOME/seen.json. Profile files are test controls (`slow` keeps a turn open).
+// its server requests in $HOME/seen.json. Profile files are test controls (`slow` keeps a turn open,
+// `die` exits in the middle of a turn, `stubborn` ignores SIGTERM and a closed stdin).
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
@@ -12,7 +13,7 @@ import readline from 'node:readline';
 if (process.argv[2] === '--version') { process.stdout.write('codex-cli 0.161.0\n'); process.exit(0); }
 const home = process.env.HOME;
 const profile = process.env.CODEX_HOME;
-const seen = { args: process.argv.slice(2), env: Object.keys(process.env).sort(), client: [], answers: {} };
+const seen = { pid: process.pid, args: process.argv.slice(2), env: Object.keys(process.env).sort(), client: [], answers: {} };
 const save = () => fs.writeFileSync(path.join(home, 'seen.json'), JSON.stringify(seen));
 const send = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 const has = (f) => fs.existsSync(path.join(profile, f));
@@ -69,7 +70,8 @@ rl.on('line', (line) => {
         send({ method: 'fs/changed', params: {} });
         send({ method: 'turn/completed', params: { turn: { id: 'tu-1', status: 'completed' } } });
       };
-      if (has('slow')) return; // stays open until turn/interrupt
+      if (has('die')) return setTimeout(() => process.exit(3), 20);
+      if (has('slow') || has('stubborn')) return; // stays open until turn/interrupt
       return setTimeout(finish, 50);
     }
     case 'turn/interrupt':
@@ -80,4 +82,5 @@ rl.on('line', (line) => {
   }
 });
 setTimeout(() => {}, 1 << 30); // stay alive until stdin closes
-rl.on('close', () => process.exit(0));
+if (has('stubborn')) process.on('SIGTERM', () => {});
+rl.on('close', () => { if (!has('stubborn')) process.exit(0); });

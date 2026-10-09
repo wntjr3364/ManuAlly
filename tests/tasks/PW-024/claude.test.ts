@@ -139,6 +139,18 @@ describe('TST-024B: no approval/budget/sentinel → refused; the developer\'s Cl
     expect(() => start({ decision: old })).toThrow(/expired/);
   });
 
+  test('PW-024 review nit: a refused, forged or used-up decision runs nothing, not even --version', async () => {
+    const marker = path.join(root, 'spy-ran');
+    const spy = path.join(root, 'claude-spy');
+    fs.writeFileSync(spy, `#!/bin/sh\ntouch '${marker}'\necho "2.1.294 (Claude Code)"\n`, { mode: 0o755 });
+    const one = decision({ approval: { approved: true, max_turns: 1, budget_usd: 1 } });
+    await turn(newRun(), 'a', { new: randomUUID() }, {}, profile, one);
+    for (const d of [decision({ approval: { ...approval, approved: false } }), { ...decision() }, one]) {
+      expect(() => start({ decision: d as never, cmd: spy })).toThrow(/refused/);
+    }
+    expect(fs.existsSync(marker)).toBe(false);
+  });
+
   test('review MINOR-2: the binary is an absolute executable whose version matches the admission', () => {
     expect(() => start({ cmd: 'claude' })).toThrow(/absolute path/);
     const script = path.join(root, 'not-exec.mjs');

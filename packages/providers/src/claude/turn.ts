@@ -13,7 +13,7 @@ import { normalizeClaude } from '../core/events.ts';
 import { Refused, assertSafeClaudeArgs, buildClaudeArgs, type EFFORTS, type SessionChoice } from './args.ts';
 import { assertNoAgentConfigAbove, buildClaudeEnv, type ClaudeRun } from './env.ts';
 import { type ClaudeDecision } from './admission.ts';
-import { addCost, spendTurn } from '../core/admission.ts';
+import { addCost, checkDecision, spendTurn } from '../core/admission.ts';
 import { assertPrivateRunFolder } from './run-folder.ts';
 
 // the CLI version as `claude --version` prints it ("2.1.294 (Claude Code)"), in registry form
@@ -46,6 +46,7 @@ export function startClaudeTurn(a: {
   decision: ClaudeDecision; cmd: string; run: ClaudeRun; profileDir: string; prompt: string; session: SessionChoice;
   effort?: (typeof EFFORTS)[number] | null; model?: string | null; parentEnv?: Record<string, string | undefined>; homes?: string[]; ownerUid?: number | null;
 }): ClaudeTurn {
+  checkDecision(a.decision, 'claude_agent'); // before anything runs, even --version
   if (typeof a.prompt !== 'string' || !a.prompt.trim() || a.prompt.length > MAX_PROMPT) throw new Refused('the prompt must be non-empty text');
   assertPrivateRunFolder(a.run, a.ownerUid === undefined ? (process.getuid?.() ?? null) : a.ownerUid);
   assertNoAgentConfigAbove(a.run.cwd);

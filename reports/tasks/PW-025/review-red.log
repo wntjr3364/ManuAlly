@@ -1,0 +1,223 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-024/claude.test.ts (24 tests | 1 failed) 1482ms
+   ❯ TST-024B: no approval/budget/sentinel → refused; the developer's Claude state is never used (20)
+     × PW-024 review nit: a refused, forged or used-up decision runs nothing, not even --version 130ms
+ ❯ tests/tasks/PW-025/codex.test.ts (25 tests | 8 failed) 21910ms
+   ❯ TST-025B: private stdio, allowlisted methods, declined server requests (13)
+     × client methods outside the allowlist are refused before anything is sent 106ms
+     × approval and unknown server requests are declined; the server sees the decline 140ms
+     × review MAJOR-2: a second turn while one is running is refused (events cannot cross turns) 88ms
+     × review minor: a turn that never finishes is interrupted after the turn timeout and ends with an error 5004ms
+     × review minor: the server stopping in the middle of a turn ends it with an error, not a silent end 134ms
+     × review minor: close() ends a server that ignores SIGTERM (SIGKILL after a grace period) 15010ms
+     × review minor: a profile holding agent instructions or configuration is refused 102ms
+     × PW-024 review nit: a refused or used-up decision runs nothing, not even --version 166ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-024/claude.test.ts > TST-024B: no approval/budget/sentinel → refused; the developer's Claude state is never used > PW-025 review nit: a refused, forged or used-up decision runs nothing, not even --version
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/tasks/PW-024/claude.test.ts:151:35
+    149|       expect(() => start({ decision: d as never, cmd: spy })).toThrow(…
+    150|     }
+    151|     expect(fs.existsSync(marker)).toBe(false);
+       |                                   ^
+    152|   });
+    153|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  tests/tasks/PW-025/codex.test.ts > TST-025B: private stdio, allowlisted methods, declined server requests > client methods outside the allowlist are refused before anything is sent
+AssertionError: expected [ 'close', 'interrupt', …(4) ] to deeply equal [ 'close', 'interrupt', …(3) ]
+
+- Expected
++ Received
+
+  [
+    "close",
+    "interrupt",
++   "request",
+    "resumeThread",
+    "runTurn",
+    "startThread",
+  ]
+
+ ❯ tests/tasks/PW-025/codex.test.ts:107:35
+    105|     // review MAJOR-1: no raw RPC at all (an allowlisted method with f…
+    106|     // sandbox, approval policy or working folder); only the typed cal…
+    107|     expect(Object.keys(s).sort()).toEqual(['close', 'interrupt', 'resu…
+       |                                   ^
+    108|     expect((s as Record<string, unknown>).request).toBeUndefined();
+    109|     await s.close();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  tests/tasks/PW-025/codex.test.ts > TST-025B: private stdio, allowlisted methods, declined server requests > approval and unknown server requests are declined; the server sees the decline
+AssertionError: expected { result: { decision: 'decline' } } to deeply equal { result: { decision: 'denied' } }
+
+- Expected
++ Received
+
+  {
+    "result": {
+-     "decision": "denied",
++     "decision": "decline",
+    },
+  }
+
+ ❯ tests/tasks/PW-025/codex.test.ts:123:56
+    121|     // review: each request gets the answer its own schema takes (lega…
+    122|     // that are not approvals get an error rather than a guessed "decl…
+    123|     expect(serverRequestAnswer('execCommandApproval')).toEqual({ resul…
+       |                                                        ^
+    124|     expect(serverRequestAnswer('applyPatchApproval')).toEqual({ result…
+    125|     expect(serverRequestAnswer('account/chatgptAuthTokens/refresh')).t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  tests/tasks/PW-025/codex.test.ts > TST-025B: private stdio, allowlisted methods, declined server requests > review MAJOR-2: a second turn while one is running is refused (events cannot cross turns)
+AssertionError: promise resolved "{ …(2) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "done": false,
++   "value": {
++     "data": {
++       "text": "Echo: ",
++     },
++     "kind": "text_delta",
++     "provider": "codex",
++     "schema_version": 1,
++   },
+  }
+
+ ❯ tests/tasks/PW-025/codex.test.ts:165:46
+    163|     const first = s.runTurn(t1, 'one');
+    164|     await first.next();
+    165|     await expect(s.runTurn(t2, 'two').next()).rejects.toThrow(/already…
+       |                                              ^
+    166|     await s.interrupt(t1);
+    167|     for await (const e of first) void e;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  tests/tasks/PW-025/codex.test.ts > TST-025B: private stdio, allowlisted methods, declined server requests > review minor: a turn that never finishes is interrupted after the turn timeout and ends with an error
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/tasks/PW-025/codex.test.ts:176:3
+    174|   });
+    175|
+    176|   test('review minor: a turn that never finishes is interrupted after …
+       |   ^
+    177|     const slow = path.join(root, 'profile-slow3');
+    178|     fs.mkdirSync(slow, { mode: 0o700 });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  tests/tasks/PW-025/codex.test.ts > TST-025B: private stdio, allowlisted methods, declined server requests > review minor: the server stopping in the middle of a turn ends it with an error, not a silent end
+AssertionError: expected { schema_version: 1, …(3) } to match object { kind: 'error', data: { …(1) } }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "data": {
+-     "message": StringMatching /stopped during the turn/,
++     "text": "x",
+    },
+-   "kind": "error",
++   "kind": "text_delta",
+  }
+
+ ❯ tests/tasks/PW-025/codex.test.ts:197:27
+    195|     for await (const e of s.runTurn(await s.startThread(), 'x')) event…
+    196|     await s.close();
+    197|     expect(events.at(-1)).toMatchObject({ kind: 'error', data: { messa…
+       |                           ^
+    198|     expect(events.every((e) => validateProviderEvent(e).ok)).toBe(true…
+    199|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  tests/tasks/PW-025/codex.test.ts > TST-025B: private stdio, allowlisted methods, declined server requests > review minor: close() ends a server that ignores SIGTERM (SIGKILL after a grace period)
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/tasks/PW-025/codex.test.ts:201:3
+    199|   });
+    200|
+    201|   test('review minor: close() ends a server that ignores SIGTERM (SIGK…
+       |   ^
+    202|     const stubborn = path.join(root, 'profile-stubborn');
+    203|     fs.mkdirSync(stubborn, { mode: 0o700 });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  tests/tasks/PW-025/codex.test.ts > TST-025B: private stdio, allowlisted methods, declined server requests > review minor: a profile holding agent instructions or configuration is refused
+AssertionError: promise resolved "{ run: { …(4) }, s: { …(6) } }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "run": {
++     "cwd": "/tmp/pw025-f1xIaa/run-HQ391b/work",
++     "dir": "/tmp/pw025-f1xIaa/run-HQ391b",
++     "homeDir": "/tmp/pw025-f1xIaa/run-HQ391b/home",
++     "tmpDir": "/tmp/pw025-f1xIaa/run-HQ391b/tmp",
++   },
++   "s": {
++     "close": [Function close],
++     "interrupt": [Function interrupt],
++     "request": [Function request],
++     "resumeThread": [Function resumeThread],
++     "runTurn": [Function runTurn],
++     "startThread": [Function startThread],
++   },
+  }
+
+ ❯ tests/tasks/PW-025/codex.test.ts:216:40
+    214|       fs.chmodSync(p, 0o700);
+    215|       fs.writeFileSync(path.join(p, name), body);
+    216|       await expect(server(newRun(), p)).rejects.toThrow(new RegExp(`ho…
+       |                                        ^
+    217|     }
+    218|     const comments = fs.mkdtempSync(path.join(root, 'profile-cfg-'));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  tests/tasks/PW-025/codex.test.ts > TST-025B: private stdio, allowlisted methods, declined server requests > PW-024 review nit: a refused or used-up decision runs nothing, not even --version
+AssertionError: expected [Function] to throw error matching /refused|not issued|outer filesystem s…/ but got 'codex app-server exited'
+
+- Expected:
+/refused|not issued|outer filesystem sandbox/
+
++ Received:
+"codex app-server exited"
+
+ ❯ tests/tasks/PW-025/codex.test.ts:235:149
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  9 failed | 40 passed (49)
+   Start at  12:06:33
+   Duration  22.73s (tests 96%, transform 3%, import 1%)
+

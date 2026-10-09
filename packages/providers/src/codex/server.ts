@@ -12,7 +12,7 @@ import { assertNoAgentConfigAbove, assertSafeProfileDir } from '../claude/env.ts
 import { buildCodexArgs } from './args.ts';
 import { PINNED_CODEX_VERSION, THREAD_DEFAULTS, guardClientNotification, guardClientRequest, serverRequestAnswer } from './policy.ts';
 import { type CodexDecision } from './admission.ts';
-import { isIssued, spendTurn } from '../core/admission.ts';
+import { checkDecision, spendTurn } from '../core/admission.ts';
 import { assertPrivateRunFolder } from '../claude/run-folder.ts';
 
 // `codex --version` → "codex-cli 0.161.0" (registry form)
@@ -26,20 +26,28 @@ export function codexCliVersion(cmd: string, env: Record<string, string>, cwd: s
 export interface CodexRun { dir: string; cwd: string; homeDir: string; tmpDir: string }
 type Msg = { id?: number | string; method?: string; params?: unknown; result?: unknown; error?: { code: number; message: string } };
 
+// Codex reads instructions (AGENTS.md) and configuration (config.toml: MCP servers, profiles) from
+// CODEX_HOME. The runtime profile holds only the login: anything else is refused.
+function assertBareCodexProfile(profile: string): void {
+  for (const n of ['AGENTS.md', 'AGENTS.override.md']) if (fs.existsSync(path.join(profile, n))) throw new Refused(`the Codex profile ${profile} holds ${n}; it may hold only the login`);
+  const cfg = path.join(profile, 'config.toml');
+  if (fs.existsSync(cfg) && fs.readFileSync(cfg, 'utf8').split('\n').some((l) => l.trim() && !l.trim().startsWith('#'))) throw new Refused(`the Codex profile ${profile} has a config.toml; it may hold only the login`);
+}
+
 export function buildCodexEnv(a: { profileDir: string; run: CodexRun; parentEnv?: Record<string, string | undefined>; homes?: string[]; ownerUid?: number | null }): Record<string, string> {
   const profile = assertSafeProfileDir(a.profileDir, { homes: a.homes, ownerUid: a.ownerUid });
+  assertBareCodexProfile(profile);
   return { PATH: (a.parentEnv ?? process.env).PATH || '/usr/local/bin:/usr/bin:/bin', HOME: a.run.homeDir, TMPDIR: a.run.tmpDir, LANG: 'C.UTF-8', TZ: 'UTC', CODEX_HOME: profile };
 }
 
 export async function startCodexServer(a: {
   decision: CodexDecision; cmd: string; run: CodexRun; profileDir: string;
   parentEnv?: Record<string, string | undefined>; homes?: string[]; ownerUid?: number | null;
-  onToolCall?: (name: string, args: unknown) => Promise<unknown>; timeoutMs?: number;
+  onToolCall?: (name: string, args: unknown) => Promise<unknown>; timeoutMs?: number; turnTimeoutMs?: number;
 }) {
   const d = a.decision;
   // the decision must be issued, allowed, unexpired and for Codex (checked again for every turn)
-  if (!isIssued(d)) throw new Refused('decision was not issued by the admission gate');
-  if (d.key.provider !== 'codex' || !d.allowed) throw new Refused(d.reason);
+  checkDecision(d, 'codex'); // before anything runs, even --version
   assertPrivateRunFolder(a.run, a.ownerUid === undefined ? (process.getuid?.() ?? null) : a.ownerUid);
   assertNoAgentConfigAbove(a.run.cwd);
   const env = buildCodexEnv(a);
@@ -100,10 +108,13 @@ export async function startCodexServer(a: {
     });
   };
 
+  const waitExit = (ms: number) => Promise.race([exit.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), ms))]);
   const close = async () => {
     child.stdin?.end();
-    const done = await Promise.race([exit.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), 2000))]);
-    if (!done && child.pid) { try { process.kill(-child.pid, 'SIGTERM'); } catch { /* gone */ } await exit; }
+    for (const sig of [null, 'SIGTERM', 'SIGKILL'] as const) {
+      if (sig && child.pid) { try { process.kill(-child.pid, sig); } catch { /* gone */ } }
+      if (await waitExit(2000)) return;
+    }
   };
 
   try {
@@ -116,8 +127,11 @@ export async function startCodexServer(a: {
   }
 
   const turns = new Map<string, string>(); // thread id -> open turn id
+  let turnActive = false;
+  const turnTimeoutMs = a.turnTimeoutMs ?? 10 * 60_000;
+  // only typed calls: no raw RPC (an allowlisted method with free parameters could override the
+  // sandbox, approval policy or working folder)
   return {
-    request,
     async startThread(): Promise<string> {
       const r = (await request('thread/start', { cwd: a.run.cwd, sandbox: THREAD_DEFAULTS.sandbox, approvalPolicy: THREAD_DEFAULTS.approvalPolicy, ephemeral: THREAD_DEFAULTS.ephemeral })) as { thread?: { id?: unknown } };
       if (typeof r?.thread?.id !== 'string') throw new Error('thread/start returned no thread id');
@@ -130,14 +144,21 @@ export async function startCodexServer(a: {
       if (r?.thread?.id !== threadId) throw new Error('thread/resume returned another thread');
       return threadId;
     },
+    // One turn at a time per server: notifications carry no reliable owner here, so a second turn
+    // could receive the first one's answer.
     async *runTurn(threadId: string, text: string): AsyncGenerator<ProviderEvent> {
+      if (turnActive) throw new Refused('a turn is already running on this Codex server');
       spendTurn(d, 'codex'); // one approved turn; refused when expired or used up (no cost is reported by Codex)
+      turnActive = true;
       const queue: ProviderEvent[] = [];
       let wake: (() => void) | null = null;
       let ended = false;
+      let timedOut = false;
       // the thread's own start notice belongs to startThread, not to this turn
       listener = (e) => { if (e.kind === 'session_started') return; queue.push(e); if (e.kind === 'turn_completed') ended = true; wake?.(); };
       void exit.then(() => { ended = true; wake?.(); });
+      const timer = setTimeout(() => { timedOut = true; ended = true; wake?.(); }, turnTimeoutMs);
+      const err = (message: string) => ({ schema_version: 1, provider: 'codex', kind: 'error', data: { kind: 'provider', message } }) as ProviderEvent;
       try {
         const r = (await request('turn/start', { threadId, input: [{ type: 'text', text }] })) as { turn?: { id?: unknown } };
         if (typeof r?.turn?.id === 'string') turns.set(threadId, r.turn.id);
@@ -147,13 +168,21 @@ export async function startCodexServer(a: {
             yield e;
             if (e.kind === 'turn_completed') return;
           }
-          if (ended) return;
+          if (ended) {
+            if (timedOut) {
+              await request('turn/interrupt', { threadId, turnId: turns.get(threadId) ?? '' }).catch(() => {});
+              yield err(`the turn did not finish within ${turnTimeoutMs} ms and was interrupted`);
+            } else yield err('the Codex app-server stopped during the turn');
+            return;
+          }
           await new Promise<void>((res) => { wake = res; });
           wake = null;
         }
       } finally {
+        clearTimeout(timer);
         listener = null;
         turns.delete(threadId);
+        turnActive = false;
       }
     },
     async interrupt(threadId: string) {

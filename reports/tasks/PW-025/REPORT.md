@@ -7,7 +7,8 @@
   - `policy.ts`
     - `guardClientRequest`: 허용 목록 12개만. shell, fs, 크레딧, 설정, 플러그인, 삭제와 모르는 메서드는 보내기 전에 거부한다.
     - `serverRequestAnswer`
-      - 승인·자격증명·attestation 요청은 `{decision: 'decline'}`
+      - v2 승인 요청은 `{decision: 'decline'}`, 옛 `applyPatchApproval`·`execCommandApproval`은 `{decision: 'denied'}`
+      - 자격증명 갱신·attestation·사용자 입력·elicitation은 JSON-RPC 오류 -32000(추측한 "거절" 값 대신)
       - 도구 호출은 tool gateway로만 보낸다
       - 그 밖은 JSON-RPC -32601
   - `args.ts`: `codex app-server --listen stdio://`만 쓴다. 포트·WebSocket은 거부한다. read-only sandbox, approval on-request(모두 거절), shell·browser·computer-use 기능은 끈다.
@@ -22,7 +23,7 @@
       - `resumeThread`: 저장된 thread id만 받는다.
       - `runTurn`: turn마다 승인 turn 하나를 쓰고, 정규화 이벤트를 흘려보낸다. thread 시작 알림은 섞지 않는다.
       - `interrupt`(`turn/interrupt`), `close`
-    - `request`도 허용 목록을 거친다.
+    - 원시 RPC(`request`)는 밖에 내놓지 않는다(리뷰 MAJOR-1). 허용된 메서드라도 매개변수로 sandbox·승인 정책·작업 폴더를 덮어쓸 수 있기 때문이다.
   - `index.ts`
 - 시험(`tests/tasks/PW-025/`)
   - `fake-codex.mjs`: stdio JSON-RPC 대역 서버
@@ -65,10 +66,24 @@
 
 ## 미실행 / 남은 위험
 - **실제 Codex app-server: blocked/not_run.** 바깥 sandbox와 사용자 로그인·승인이 필요하다.
-- **decline 응답 형식과 `thread/start`·`turn/start` 매개변수는 문서와 생성 schema 기준이다(documented_not_verified).** 실측은 PW-030(사용자 PC)에서 한다. 다르면 거절이 실패하거나 turn이 시작되지 않는다. 안전한 쪽으로 실패한다.
+- **decline 응답 형식과 `thread/start`·`turn/start` 매개변수는 문서와 생성 schema 기준이다(documented_not_verified).** 실측은 PW-030(사용자 PC)에서 한다. 형식이 다르면 서버가 답을 거부하거나 turn이 시작되지 않는다. 그때 서버가 승인 없이 진행하지 않는다는 보장은 실측 전에는 없다. 그래서 실측 전에는 등록부가 Codex를 허용하지 않는다.
 - **도구 호출 매개변수(`tool`, `arguments`)는 가정이다.** 실제 형태와 gateway 연결은 PW-027에서 한다.
 - **Codex는 비용을 보고하지 않는다.** USD 예산은 집행할 수 없고, turn 수와 만료로만 제한한다.
 - **바깥 sandbox 검증 절차(bubblewrap)는 PW-026에서 만든다.**
+
+## 독립 리뷰 반영 (2026-10-09)
+리뷰: MAJOR 2, minor 5, PW-024 nit 1. 시험을 먼저 썼다. 옛 구현에서는 9개가 실패했다(`review-red.log`). 고친 뒤 모두 통과한다.
+- MAJOR-1: 원시 `request`를 없앴다. 서버 객체에는 `startThread`, `resumeThread`, `runTurn`, `interrupt`, `close`만 있다.
+- MAJOR-2: 한 서버에서 turn은 한 번에 하나만 돈다. 알림에 믿을 만한 소유자 표시가 없어서, 두 번째 turn이 첫 turn의 답을 받을 수 있었다. 진행 중이면 두 번째 turn을 거부한다.
+- minor
+  - turn 시간 제한(기본 10분)이 지나면 `turn/interrupt`를 보내고 오류 이벤트로 끝낸다.
+  - turn 중에 서버가 멈추면 조용히 끝내지 않고 오류 이벤트를 낸다.
+  - profile에 `AGENTS.md`·`AGENTS.override.md`나 주석 아닌 `config.toml`이 있으면 거부한다. 인자에 `-c mcp_servers={}`도 넣는다.
+  - `close()`: stdin을 닫고 → SIGTERM → SIGKILL. 각 단계 2초를 기다린다. 시험은 프로세스가 실제로 사라졌는지 확인한다.
+  - 보고서 표현: decline 형식은 실측 전이라 "안전하게 실패한다"를 뺐다. 승인 요청 종류별로 schema가 받는 답을 쓰고, 승인이 아닌 요청은 오류로 답한다.
+- PW-024 nit: 결정 검사(`checkDecision`: 발급, 허용, 공급자, 만료, 남은 turn·예산)를 `--version` 실행보다 먼저 한다. Claude와 Codex 둘 다. 거부된 결정으로는 아무 프로그램도 실행되지 않는다.
+- mutation(`mutation.log` 아래쪽): 10종 모두 탐지했다. close의 SIGKILL 제거는 처음에 살아남았다. 시험이 시간만 봤기 때문이다. 프로세스 존재 확인을 더한 뒤 탐지했다.
+- unit: PW-025 27, PW-024 24.
 
 ## 다음
 PW-026: 격리 runner·입출력 mount

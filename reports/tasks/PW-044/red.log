@@ -1,0 +1,192 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-044/review.int.test.ts (9 tests | 9 failed) 1954ms
+   ❯ TST-044A: findings with span, reason, source, confidence and alternative; the owner decides (4)
+     × the reviewer sees the paragraph, its plan's claims and facts, the deterministic check and the style; a finding is stored with its exact span 132ms
+     × a finding without an exact span or with a source the reviewer was not given is dropped with the reason; an alternative with a new number is flagged 75ms
+     × the owner accepts or dismisses each finding once (intent needed; another owner gets 404); the manuscript does not change 80ms
+     × a repair from the accepted findings is one writer proposal for that paragraph; the owner applies it 70ms
+   ❯ TST-044B: no score, no blacklist, labelled self-review, one repair (5)
+     × a quality score or any field outside a finding is refused; nothing is stored 83ms
+     × the MOCK reviewer does not flag a word by itself ("Furthermore"); it flags causal language over an observation 81ms
+     × a review by the model that wrote the paragraph is labelled same_model 150ms
+     × one repair per review: a second is refused; a repair that fails its checks goes back to the owner, no new attempt is made 81ms
+     × a repair is refused when the paragraph changed since the review or is not part of an approved plan; a real reviewer needs the paper's permission 57ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > TST-044A: findings with span, reason, source, confidence and alternative; the owner decides > the reviewer sees the paragraph, its plan's claims and facts, the deterministic check and the style; a finding is stored with its exact span
+AssertionError: {"message":"Route POST:/api/papers/c663af3e-a7f0-4b95-a981-1cda73327a02/reviews not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ review tests/tasks/PW-044/review.int.test.ts:86:32
+     84| async function review(w: W, gen: Reviewer = createMockReviewer(), revi…
+     85|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/revi…
+     86|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     87|   const jobId = r.json().job.id as string;
+     88|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-044/review.int.test.ts:108:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > TST-044A: findings with span, reason, source, confidence and alternative; the owner decides > a finding without an exact span or with a source the reviewer was not given is dropped with the reason; an alternative with a new number is flagged
+AssertionError: {"message":"Route POST:/api/papers/78cea972-86f4-42cc-868a-d861ec788c89/reviews not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ review tests/tasks/PW-044/review.int.test.ts:86:32
+     84| async function review(w: W, gen: Reviewer = createMockReviewer(), revi…
+     85|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/revi…
+     86|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     87|   const jobId = r.json().job.id as string;
+     88|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-044/review.int.test.ts:126:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > TST-044A: findings with span, reason, source, confidence and alternative; the owner decides > the owner accepts or dismisses each finding once (intent needed; another owner gets 404); the manuscript does not change
+AssertionError: {"message":"Route POST:/api/papers/0de2a8c6-4294-4ba6-b571-4229331ac98f/reviews not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ review tests/tasks/PW-044/review.int.test.ts:86:32
+     84| async function review(w: W, gen: Reviewer = createMockReviewer(), revi…
+     85|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/revi…
+     86|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     87|   const jobId = r.json().job.id as string;
+     88|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-044/review.int.test.ts:139:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > TST-044A: findings with span, reason, source, confidence and alternative; the owner decides > a repair from the accepted findings is one writer proposal for that paragraph; the owner applies it
+AssertionError: {"message":"Route POST:/api/papers/d76d12bc-ed02-4318-9ad6-7235d31c7796/reviews not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ review tests/tasks/PW-044/review.int.test.ts:86:32
+     84| async function review(w: W, gen: Reviewer = createMockReviewer(), revi…
+     85|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/revi…
+     86|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     87|   const jobId = r.json().job.id as string;
+     88|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-044/review.int.test.ts:152:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > TST-044B: no score, no blacklist, labelled self-review, one repair > a quality score or any field outside a finding is refused; nothing is stored
+AssertionError: {"message":"Route POST:/api/papers/8bbf889f-b772-40a0-924c-df033bdcf794/reviews not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ review tests/tasks/PW-044/review.int.test.ts:86:32
+     84| async function review(w: W, gen: Reviewer = createMockReviewer(), revi…
+     85|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/revi…
+     86|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     87|   const jobId = r.json().job.id as string;
+     88|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-044/review.int.test.ts:181:28
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > TST-044B: no score, no blacklist, labelled self-review, one repair > the MOCK reviewer does not flag a word by itself ("Furthermore"); it flags causal language over an observation
+AssertionError: {"message":"Route POST:/api/papers/d73a507c-db43-4767-8959-914de0010b5a/reviews not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ review tests/tasks/PW-044/review.int.test.ts:86:32
+     84| async function review(w: W, gen: Reviewer = createMockReviewer(), revi…
+     85|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/revi…
+     86|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     87|   const jobId = r.json().job.id as string;
+     88|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-044/review.int.test.ts:189:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > TST-044B: no score, no blacklist, labelled self-review, one repair > a review by the model that wrote the paragraph is labelled same_model
+TypeError: Cannot read properties of undefined (reading 'id')
+ ❯ tests/tasks/PW-044/review.int.test.ts:202:52
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > TST-044B: no score, no blacklist, labelled self-review, one repair > one repair per review: a second is refused; a repair that fails its checks goes back to the owner, no new attempt is made
+AssertionError: {"message":"Route POST:/api/papers/b1166c77-5631-4c53-867d-b1877bce4ed2/reviews not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ review tests/tasks/PW-044/review.int.test.ts:86:32
+     84| async function review(w: W, gen: Reviewer = createMockReviewer(), revi…
+     85|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/revi…
+     86|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     87|   const jobId = r.json().job.id as string;
+     88|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-044/review.int.test.ts:209:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > TST-044B: no score, no blacklist, labelled self-review, one repair > a repair is refused when the paragraph changed since the review or is not part of an approved plan; a real reviewer needs the paper's permission
+AssertionError: {"message":"Route POST:/api/papers/f6a1bf2e-10f0-4f55-9553-648a4f516702/reviews not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ review tests/tasks/PW-044/review.int.test.ts:86:32
+     84| async function review(w: W, gen: Reviewer = createMockReviewer(), revi…
+     85|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/revi…
+     86|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     87|   const jobId = r.json().job.id as string;
+     88|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-044/review.int.test.ts:223:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed (9)
+   Start at  23:01:37
+   Duration  3.73s (tests 55%, transform 35%, import 10%)
+
+exit 1

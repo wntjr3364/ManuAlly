@@ -63,6 +63,8 @@ export function buildParagraph(items: unknown, original: PMNode | null): PMNode 
     throw e;
   }
 }
+// the hash a proposal or review pins a paragraph by (editor-core's block hash)
+export const paragraphHash = (n: PMNode) => blockHash(n);
 export const blockText = (n: PMNode | null) => {
   if (!n) return '';
   let t = '';

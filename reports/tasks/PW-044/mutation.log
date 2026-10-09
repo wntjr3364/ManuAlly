@@ -1,0 +1,20 @@
+# PW-044 mutations (each applied alone, then restored)
+KILLED score at top level accepted
+KILLED extra finding fields accepted
+KILLED numeric confidence accepted
+KILLED any category accepted
+KILLED missing span kept
+KILLED ambiguous span kept
+KILLED unknown source kept
+KILLED alternative number not flagged
+KILLED independence not computed
+KILLED provider policy dropped
+KILLED decide needs no intent
+KILLED decide twice
+KILLED repair without accepted findings
+EQUIVALENT repair pre-check removed alone (the UNIQUE run_id row and its 23505→409 mapping still bound it)
+KILLED repair of a changed paragraph
+KILLED repair without a plan
+KILLED failed repair not returned to the user
+KILLED repair instruction drops the findings
+KILLED repair unbounded (pre-check removed and conflict mapping removed)

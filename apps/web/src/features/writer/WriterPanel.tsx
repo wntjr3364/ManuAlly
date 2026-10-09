@@ -45,7 +45,7 @@ const WARN: Record<string, string> = { longer_than_target: '목표 분량보다 
 const textOf = (p: Proposal) => (p.paragraph?.content ?? []).map((n) => (n.type === 'text' ? n.text : n.type === 'citation' ? '[인용]' : '[…]')).join('');
 
 // headId: the editor's saved head (autosave moves it); the paragraphs offered are read from that revision
-export function WriterPanel({ paperId, documentId, headId, clean, onApplied }: { paperId: string; documentId: string; headId: string; clean: boolean; onApplied: () => void }) {
+export function WriterPanel({ paperId, documentId, headId, clean, onApplied, refreshKey = 0 }: { paperId: string; documentId: string; headId: string; clean: boolean; onApplied: () => void; refreshKey?: number }) {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [outlineId, setOutlineId] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export function WriterPanel({ paperId, documentId, headId, clean, onApplied }: {
       setNodes(o.active?.nodes ?? []);
     }).catch((e) => setError(errorText(e)));
     load().catch((e) => setError(errorText(e)));
-  }, [paperId, load]);
+  }, [paperId, load, refreshKey]);
   useEffect(() => () => { if (waiting.current) clearInterval(waiting.current); }, []);
   useEffect(() => {
     api<{ head: { id: string; content_json: { content?: { type: string; attrs?: { id?: string }; content?: { text?: string }[] }[] } } }>('GET', `/api/papers/${paperId}/documents/${documentId}`).then((d) => {

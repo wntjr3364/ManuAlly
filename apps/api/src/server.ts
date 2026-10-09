@@ -24,6 +24,7 @@ import { registerStoryAiRoutes } from './story-ai/index.ts';
 import { registerWritingProfileRoutes } from './writing-profile/index.ts';
 import { registerWriterRoutes } from './writer/index.ts';
 import { registerScientificCheckRoutes } from './scientific-checks/index.ts';
+import { registerScientificReviewRoutes } from './scientific-review/index.ts';
 import { registerOutlineImpactRoutes } from './outline-impact/index.ts';
 import type { ZoteroConfig } from '@pw/search/zotero/index.ts';
 import { selectProvider } from '@pw/providers';
@@ -129,6 +130,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerWritingProfileRoutes(app, db);
   registerWriterRoutes(app, db);
   registerScientificCheckRoutes(app, db);
+  registerScientificReviewRoutes(app, db);
   registerOutlineImpactRoutes(app, db);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;

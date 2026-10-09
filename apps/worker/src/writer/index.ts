@@ -147,7 +147,9 @@ export function createMockWriter(): Writer {
     label: 'MOCK',
     async write(c) {
       if (c.operation.mode !== 'draft') {
-        const items = (c.operation.original ?? []).map((i) => (i.type === 'text' ? { ...i, text: i.text.replace(/\s{2,}/g, ' ') } : i));
+        // accepted review findings (PW-044) arrive as '- [category] "quote": reason → alternative'
+        const swaps = [...c.instruction.matchAll(/^- \[[^\]]+\] "(.+?)": .*? → (.+)$/gm)].map((m) => [m[1]!, m[2]!] as const);
+        const items = (c.operation.original ?? []).map((i) => (i.type === 'text' ? { ...i, text: swaps.reduce((t, [q, alt]) => t.replace(q, alt), i.text).replace(/\s{2,}/g, ' ') } : i));
         const last = items[items.length - 1];
         if (last?.type === 'text' && !/[.!?]\s*$/.test(last.text)) items[items.length - 1] = { ...last, text: `${last.text.trimEnd()}.` };
         return { status: 'draft', paragraph: items, claim_ids: [], fact_ids: [] };

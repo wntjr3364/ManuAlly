@@ -8,6 +8,7 @@ import { unsupportedTypes } from './editor-extensions.ts';
 import { ManuscriptEditor, type DocInfo, type EditorState } from '../../editor/ManuscriptEditor.tsx';
 import { ReadOnlyDocument } from '../../editor/ReadOnlyDocument.tsx';
 import { WriterPanel } from '../writer/WriterPanel.tsx';
+import { ReviewPanel } from '../scientific-review/ReviewPanel.tsx';
 
 // reloadKey: bumped after the versions tab made a new head (restore, undo, import); the editor then
 // opens that head
@@ -16,6 +17,8 @@ export function ManuscriptTab({ paperId, outlineApproved = false, reloadKey = 0,
   const [error, setError] = useState('');
   // the editor's saved head and whether it has unsaved edits (the writer works on the saved text)
   const [state, setState] = useState<EditorState | null>(null);
+  // bumped when a review repair produced a writer proposal
+  const [proposalsKey, setProposalsKey] = useState(0);
   const track = useCallback((s: EditorState | null) => { setState(s); onState?.(s); }, [onState]);
   const load = useCallback(async () => {
     const docs = await api<{ id: string; kind: string }[]>('GET', `/api/papers/${paperId}/documents`);
@@ -42,8 +45,9 @@ export function ManuscriptTab({ paperId, outlineApproved = false, reloadKey = 0,
   return (
     <>
       <ManuscriptEditor key={`${doc.document.id}:${doc.head.id}`} paperId={paperId} info={doc} outlineApproved={outlineApproved} onState={track} />
-      <WriterPanel paperId={paperId} documentId={doc.document.id} headId={state?.headRevisionId ?? doc.head.id} clean={state?.clean ?? true}
+      <WriterPanel paperId={paperId} documentId={doc.document.id} headId={state?.headRevisionId ?? doc.head.id} clean={state?.clean ?? true} refreshKey={proposalsKey}
         onApplied={() => { load().catch((e) => setError(errorText(e))); }} />
+      <ReviewPanel paperId={paperId} documentId={doc.document.id} headId={state?.headRevisionId ?? doc.head.id} clean={state?.clean ?? true} onRepair={() => setProposalsKey((k) => k + 1)} />
     </>
   );
 }

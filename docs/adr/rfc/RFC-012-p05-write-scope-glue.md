@@ -61,3 +61,8 @@ User decision / reviewer:
   - `apps/worker/src/writer/index.ts`(제안마다 gate 실행: fail은 CHECK_FAILED, unknown은 표시만)
   - `apps/web/src/features/writer/WriterPanel.tsx`(gate finding 표시, 저장된 문단의 "과학 검사")
   - 리뷰 반영: `packages/search/src/retrieval/index.ts` `LOCAL` gate 모드(전송 허가를 보지 않는 로컬 검사용; PW-037 module)
+- PW-044
+  - 새 도메인 폴더 `packages/domain/src/scientific-review/**`(요청·보기·결정·한 번의 고쳐 쓰기), `packages/domain/src/writer/index.ts` `paragraphHash`
+  - 새 route 폴더 `apps/api/src/scientific-review/**`, `apps/api/src/server.ts`, `apps/worker/src/main.ts`(`review` handler, MOCK 검토자), `tests/e2e/manual-paper/harness.ts`
+  - `apps/worker/src/writer/index.ts`(MOCK writer가 지시의 채택된 대안을 적용)
+  - `apps/web/src/features/paper/ManuscriptTab.tsx`(검토 panel), `apps/web/src/features/writer/WriterPanel.tsx`(`refreshKey`)

@@ -1435,7 +1435,7 @@
       "id": "PW-044",
       "phase": "P05",
       "title": "문체·과학 검토와 human review",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-043"
       ],

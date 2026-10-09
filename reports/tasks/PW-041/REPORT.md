@@ -103,3 +103,6 @@ PW-042: Writer(문단 생성)
 - GREEN: 통합 9, unit 8, 브라우저 1.
 - mutation(`mutation.log` 하단): 11종 모두 탐지.
 - 회귀: `pnpm test` exit 0 — unit 290, integration 421, contracts 17, 브라우저 90 (`pnpm-test-review.log`).
+
+## 재리뷰 (8d17c0d): approve
+- 확인: MAJOR, MINOR 2개, NIT 전부 닫힘. 리뷰어 실행: 통합 9/9, unit 8/8, 브라우저 1/1. 대소문자·쉼표·대시를 바꾼 복사 문구도 걸러짐을 probe로 확인했다(probe는 지움).

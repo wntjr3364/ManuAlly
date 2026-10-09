@@ -1,0 +1,71 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-023/registry.test.ts (0 test)
+ ❯ tests/tasks/PW-023/events.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-023/events.test.ts [ tests/tasks/PW-023/events.test.ts ]
+Error: Cannot find module '../../../packages/providers/src/core/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-023/events.test.ts
+ ❯ tests/tasks/PW-023/events.test.ts:5:1
+      3| // and never interpreted. Every normalized event validates against the…
+      4| import { describe, expect, test } from 'vitest';
+      5| import { normalizeClaude, normalizeCodex } from '../../../packages/pro…
+       | ^
+      6| import { validateProviderEvent } from '../../../packages/contracts/src…
+      7|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-023/registry.test.ts [ tests/tasks/PW-023/registry.test.ts ]
+Error: Cannot find module '../../../packages/providers/src/core/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-023/registry.test.ts
+ ❯ tests/tasks/PW-023/registry.test.ts:5:1
+      3| // that is not verified can be used (TST-023A/B).
+      4| import { describe, expect, test } from 'vitest';
+      5| import { CapabilityUnavailable, FEATURES, capabilityMatrix, displaySta…
+       | ^
+      6|
+      7| const reg = loadRegistry();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  no tests
+   Start at  10:19:50
+   Duration  344ms (worker 97%, environment 3%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-023/capabilities.int.test.ts (1 test | 1 failed) 662ms
+   × GET /api/providers/capabilities lists the matrix for a logged-in owner only 93ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-023/capabilities.int.test.ts > GET /api/providers/capabilities lists the matrix for a logged-in owner only
+AssertionError: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ tests/tasks/PW-023/capabilities.int.test.ts:31:24
+     29|   const login = await app.inject({ method: 'POST', url: '/api/auth/log…
+     30|   const r = await app.inject({ method: 'GET', url: '/api/providers/cap…
+     31|   expect(r.statusCode).toBe(200);
+       |                        ^
+     32|   const body = r.json();
+     33|   expect(body.active).toMatchObject({ provider: 'mock', admission: 'ap…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  10:19:51
+   Duration  1.77s (transform 46%, tests 41%, import 13%)
+

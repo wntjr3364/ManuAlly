@@ -757,7 +757,7 @@
       "id": "PW-023",
       "phase": "P03",
       "title": "Provider registry·이벤트 정규화",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-022"
       ],

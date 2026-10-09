@@ -13,6 +13,7 @@ import { registerCommentRoutes } from './comments/index.ts';
 import { registerReferenceRoutes } from './references/index.ts';
 import { registerAiRoutes } from './events/index.ts';
 import { registerImportRoutes } from './imports/index.ts';
+import { registerProviderRoutes } from './providers/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -101,6 +102,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerCommentRoutes(app, db);
   registerReferenceRoutes(app, db);
   registerImportRoutes(app, db);
+  registerProviderRoutes(app, provider);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;
 }

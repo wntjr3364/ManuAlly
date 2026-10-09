@@ -16,7 +16,9 @@ import { migrate } from '../../../apps/api/src/db/migrate.ts';
 import { buildServer } from '../../../apps/api/src/server.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { appendJobEvent, claimJob, completeJob, enqueueJob } from '../../../packages/domain/src/jobs/index.ts';
-import { procStartTicks, processMatches, reconcileRunProcesses, startRunProcess, superviseRun, terminateRunGroup, type RunProcessRecord } from '../../../apps/worker/src/lifecycle/index.ts';
+import { callTool, issueRunToken } from '../../../packages/domain/src/tool-policy/index.ts';
+import { parseDocument, snapshotSelection } from '../../../packages/editor-core/src/index.ts';
+import { procStartTicks, processMatches, reconcileRunProcesses, startRunProcess, superviseRun, terminateRunGroup, watchJob, type RunProcessRecord } from '../../../apps/worker/src/lifecycle/index.ts';
 
 const ORIGIN = 'http://127.0.0.1:5173';
 const FAKE = path.resolve('tests/tasks/PW-028/fake-run.mjs');
@@ -163,6 +165,52 @@ describe('TST-028B: late answers change nothing; only the run\'s own processes a
     r.child.kill('SIGKILL');
   });
 
+  // review MAJOR: the tool gateway is part of the run: a cancelled or taken-over run's token is dead
+  test('after a cancel (or a takeover) the run\'s tool token creates nothing', async () => {
+    const P1 = '00000000-0000-4000-8000-0000000000a1';
+    const content = { type: 'doc', content: [{ type: 'paragraph', attrs: { id: P1 }, content: [{ type: 'text', text: 'It was very very clear.' }] }] };
+    const d = (await app.inject({ method: 'POST', url: `/api/papers/${paperId}/documents`, headers: H, payload: { kind: 'manuscript' } })).json();
+    const head = (await app.inject({ method: 'POST', url: `/api/papers/${paperId}/documents/${d.document.id}/saves`, headers: H, payload: { expected_head_revision_id: d.head.id, content_json: content, schema_version: 1, reason: 'manual' } })).json().id;
+    const sel = await snapshotSelection(parseDocument(content, 1), { blockId: P1, from: 7, to: 22 });
+    const handle = (await app.inject({ method: 'POST', url: `/api/papers/${paperId}/documents/${d.document.id}/selection-handles`, headers: H, payload: { base_revision_id: head, selection: sel } })).json();
+    const propose = (t: string) => callTool(pool, t, 'propose_manuscript_edit', { handle_id: handle.id, intent: 'concise', replacement: [{ type: 'text', text: 'clear' }] });
+    const tokenFor = (j: { jobId: string; fencingToken: number }) => issueRunToken(pool, { ownerId, paperId, documentId: d.document.id, handleIds: [handle.id], provider: 'codex', tools: ['propose_manuscript_edit'], ttlMs: 60_000, jobId: j.jobId, fencingToken: j.fencingToken });
+    const count = async () => (await pool.query('SELECT count(*)::int AS n FROM edit_proposals WHERE document_id = $1', [d.document.id])).rows[0].n as number;
+    const a = await runningJob();
+    const ta = await tokenFor(a);
+    expect((await propose(ta.token)).ok).toBe(true); // while the run is current
+    await cancel(a.jobId);
+    expect((await propose(ta.token)).error?.code).toBe('invalid_token');
+    // taken over after its lease expired: the old run's token is dead, the new run gets its own
+    const b = await runningJob();
+    const tb = await tokenFor(b);
+    await pool.query("UPDATE jobs SET lease_expires_at = clock_timestamp() - interval '1 second' WHERE id = $1", [b.jobId]);
+    await claimJob(pool, { jobId: b.jobId, workerId: 'w2', leaseMs: 60_000 });
+    expect((await propose(tb.token)).error?.code).toBe('invalid_token');
+    expect(await count()).toBe(1);
+    await expect(issueRunToken(pool, { ownerId, paperId, documentId: d.document.id, handleIds: [], provider: 'codex', tools: ['get_approved_outline'], ttlMs: 60_000, jobId: a.jobId, fencingToken: a.fencingToken })).rejects.toThrow(/not running/);
+  });
+
+  // review MINOR-2: a child that dropped the marker but stayed in the run's group is ended too
+  test('a child without the run marker left in the run\'s group is ended when the run exits or is stopped', async () => {
+    for (const flags of [['unmarked-child', 'exit-soon'], ['unmarked-child']]) {
+      const r = await start(flags);
+      const unmarked = Number(fs.readFileSync(fs.readdirSync(tmp).map((f) => path.join(tmp, f)).filter((f) => f.endsWith('.unmarked')).sort((x, y) => fs.statSync(y).mtimeMs - fs.statSync(x).mtimeMs)[0]!, 'utf8'));
+      expect(alive(unmarked)).toBe(true);
+      const sup = superviseRun(pool, { jobId: r.jobId, fencingToken: r.fencingToken, record: r.record, child: r.child, interrupt: interruptVia(r.child), pollMs: 30, interruptGraceMs: 2000, killGraceMs: 500 });
+      if (!flags.includes('exit-soon')) await cancel(r.jobId);
+      await sup;
+      expect(await waitFor(() => !alive(unmarked)), flags.join(',')).toBe(true);
+    }
+  });
+
+  test('a watcher that cannot read the database stops the run after repeated failures (not forever)', async () => {
+    const broken = { query: async () => { throw new Error('db down'); } } as unknown as pg.Pool;
+    const w = watchJob(broken, { jobId: randomUUID(), fencingToken: 1, pollMs: 10, maxFailures: 5 });
+    expect(await waitFor(() => w.signal.aborted, 2000)).toBe(true);
+    expect(w.signal.reason).toBe('db_unreachable');
+  });
+
   test('the worker never uses broad process termination', () => {
     const dir = path.resolve('apps/worker/src');
     const files = fs.readdirSync(dir, { recursive: true }).map(String).filter((f) => /\.(ts|mjs|js)$/.test(f));
@@ -190,7 +238,14 @@ describe('reconciliation after a worker restart', () => {
     // a run whose job is still running under a valid lease is not touched
     expect(alive(live.record.pid)).toBe(true);
     expect(await ended(live.record.id)).toBeNull();
-    await terminateRunGroup(pool, live.record, { graceMs: 100 });
+    // review MINOR-3: nor is another worker's run whose lease merely expired (a late heartbeat): its
+    // job is still RUNNING under the same token, and it is not this worker's run
+    await pool.query("UPDATE jobs SET lease_expires_at = clock_timestamp() - interval '1 second' WHERE id = $1", [live.jobId]);
+    expect(await reconcileRunProcesses(pool, { host: os.hostname(), workerId: 'w-restarted', graceMs: 300 })).toMatchObject({ ended: 0, kept: 1 });
+    expect(alive(live.record.pid)).toBe(true);
+    // the same worker restarting does end its own run with an expired lease
+    expect(await reconcileRunProcesses(pool, { host: os.hostname(), workerId: 'w1', graceMs: 300 })).toMatchObject({ ended: 1 });
+    expect(await waitFor(() => !alive(live.record.pid))).toBe(true);
   });
 
   test('process records can only be ended once; nothing else about them changes', async () => {

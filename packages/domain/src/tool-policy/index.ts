@@ -148,7 +148,9 @@ const MAX_ARGS_BYTES = 64 * 1024;
 export const MAX_CALLS_PER_TOKEN = 500;
 
 export async function issueRunToken(pool: TxPool, a: {
-  ownerId: string; paperId: string; documentId: string | null; handleIds: string[]; provider: GatewayProvider; tools: readonly string[]; ttlMs: number; jobId?: string | null;
+  ownerId: string; paperId: string; documentId: string | null; handleIds: string[]; provider: GatewayProvider; tools: readonly string[]; ttlMs: number;
+  // the run this token belongs to: the job and the fencing token the run holds (PW-028 review)
+  jobId?: string | null; fencingToken?: number | null;
 }): Promise<{ id: string; token: string; expires_at: string }> {
   if (!PROVIDERS.includes(a.provider)) throw new DomainError('INVALID', 'unknown provider');
   if (!Number.isInteger(a.ttlMs) || a.ttlMs < 1 || a.ttlMs > MAX_TTL_MS) throw new DomainError('INVALID', 'ttl must be between 1 ms and 24 h');
@@ -161,11 +163,16 @@ export async function issueRunToken(pool: TxPool, a: {
     const row = UUID_RE.test(h) ? await getSelectionHandle(pool, a.paperId, h) : null;
     if (!row || row.document_id !== a.documentId) throw new DomainError('INVALID', 'a selection handle is not in this paper and document');
   }
+  if ((a.jobId == null) !== (a.fencingToken == null)) throw new DomainError('INVALID', 'a job run token needs both the job and its fencing token');
+  if (a.jobId != null) {
+    const j = (await pool.query<{ status: string; fencing_token: string }>('SELECT status, fencing_token::text AS fencing_token FROM jobs WHERE id = $1 AND paper_id = $2', [a.jobId, a.paperId])).rows[0];
+    if (!j || j.status !== 'RUNNING' || j.fencing_token !== String(a.fencingToken)) throw new DomainError('CONFLICT', 'the job is not running under that fencing token');
+  }
   const token = randomBytes(32).toString('base64url');
   const { rows } = await pool.query<{ id: string; expires_at: string }>(
-    `INSERT INTO agent_run_tokens (token_hash, owner_id, paper_id, document_id, handle_ids, tools, provider, job_id, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, clock_timestamp() + make_interval(secs => $9::double precision / 1000)) RETURNING id, expires_at`,
-    [sha256(token), a.ownerId, a.paperId, a.documentId, handles, [...new Set(a.tools)], a.provider, a.jobId ?? null, a.ttlMs]);
+    `INSERT INTO agent_run_tokens (token_hash, owner_id, paper_id, document_id, handle_ids, tools, provider, job_id, job_fencing_token, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, clock_timestamp() + make_interval(secs => $10::double precision / 1000)) RETURNING id, expires_at`,
+    [sha256(token), a.ownerId, a.paperId, a.documentId, handles, [...new Set(a.tools)], a.provider, a.jobId ?? null, a.fencingToken ?? null, a.ttlMs]);
   return { id: rows[0]!.id, token, expires_at: rows[0]!.expires_at };
 }
 
@@ -178,7 +185,10 @@ async function scopeOf(db: Queryable, token: unknown): Promise<(Scope & { tools:
   const { rows } = await db.query<{ id: string; owner_id: string; paper_id: string; document_id: string | null; handle_ids: string[]; tools: string[]; provider: GatewayProvider }>(
     `SELECT t.id, t.owner_id, t.paper_id, t.document_id, t.handle_ids, t.tools, t.provider FROM agent_run_tokens t
      JOIN paper_projects p ON p.id = t.paper_id AND p.owner_id = t.owner_id
-     WHERE t.token_hash = $1 AND t.revoked_at IS NULL AND t.expires_at > clock_timestamp()`, [sha256(token)]);
+     LEFT JOIN jobs j ON j.id = t.job_id
+     WHERE t.token_hash = $1 AND t.revoked_at IS NULL AND t.expires_at > clock_timestamp()
+       -- a job's run token lives only while that run is the job's current run (cancel, takeover end it)
+       AND (t.job_id IS NULL OR (j.status = 'RUNNING' AND j.fencing_token = t.job_fencing_token))`, [sha256(token)]);
   const r = rows[0];
   return r ? { tokenId: r.id, ownerId: r.owner_id, paperId: r.paper_id, documentId: r.document_id, handleIds: r.handle_ids, tools: r.tools, provider: r.provider } : null;
 }

@@ -78,7 +78,7 @@
   - 두 번째 전체 실행 `pnpm test` exit 0(`pnpm-test.log`): unit 271, integration 220, contracts 17, e2e 79, spikes·evals·pack-check 통과.
 
 ## 보안·과학적 실패 경로
-- **늦은 답은 정본에 닿지 않는다.** 이벤트·완료·proposal 쓰기가 모두 job fencing token을 거친다. 취소나 넘겨받기 뒤에는 거부된다.
+- **늦은 답은 정본에 닿지 않는다.** 이벤트·완료는 job fencing token을 거친다. tool gateway로 만드는 proposal도 리뷰 반영 뒤에는 run token이 그 fencing token에 묶인다. 취소나 넘겨받기 뒤에는 모두 거부된다.
 - **다른 세션의 프로세스를 끝내지 않는다.** 대상은 기록된 group이고, 그 안에서도 marker를 가진 프로세스가 살아 있을 때뿐이다. 신호마다 다시 확인한다.
 - **재사용된 pid를 쫓지 않는다.** `processMatches`는 시작 시각과 marker를 함께 본다. group 신호는 marker가 있는 구성원이 있을 때만 보낸다.
 
@@ -90,10 +90,34 @@
 - **sandbox 안 프로세스에는 marker가 없다**(`env -i`). 그래서 끝내는 대상은 바깥 `unshare`/`bwrap` 프로세스다.
   - unshare backend: `--kill-child`와 pid namespace로 안쪽이 함께 끝난다.
   - bubblewrap: `--new-session`으로 다른 session이 되므로, 바깥 bwrap을 끝냈을 때 안쪽이 함께 끝나는지 PW-030에서 확인해야 한다(미설치로 미확인).
-- **marker를 지운 자식은 정리 대상에서 빠진다.** run의 손자가 환경 변수를 비우고 새 session을 만들면 group·marker 검사로 찾지 못한다. 이 경우는 sandbox pid namespace가 막는다. sandbox 밖에서는 남을 수 있다.
+- **marker를 지운 자식**: 같은 group에 남아 있으면 supervisor가 끝낸다(리뷰 반영). 다만 재시작 정리(reconcile)는 marker가 있는 프로세스만 대상으로 한다. 새 session을 만든 자손은 group 밖이라 찾지 못한다. 이 경우는 sandbox pid namespace가 막고, sandbox 밖에서는 남을 수 있다.
+- **spawn과 기록 사이에서 worker가 죽으면** 기록 없는 프로세스가 남을 수 있다(기록 실패만 바로 끝냄). sandbox의 `--kill-child`와 worker의 process group이 줄이지만, 막지는 못한다.
+- **DB가 계속 닿지 않으면**(기본 20회 연속 실패, 약 10초) run을 멈춘다(`db_unreachable`).
 - **취소 감지는 polling이다**(기본 500 ms). LISTEN/NOTIFY는 쓰지 않았다.
 - **원고 화면의 진행 표시(JobStreams)는 새로고침 뒤 다시 나타나지 않는다.** 대신 "AI 실행" 탭이 저장된 상태를 보여 준다. 원고 화면에 다시 붙이는 일은 P06 PW-054(Run 상태 UI)에서 한다.
 - PW-015 시험의 1회 실패(위). 원인 미확인.
+
+## 독립 리뷰 반영 (2026-10-09)
+리뷰 결론: 변경 요청. MAJOR 1·MINOR 2·nit 5.
+- MAJOR: 취소된 run이 tool gateway로 proposal을 계속 만들 수 있었다. 리뷰어 probe로 확인했다(취소 뒤 `propose_manuscript_edit` → PENDING proposal). 보고서의 "proposal 쓰기는 모두 fencing을 거친다"는 틀린 말이었다.
+  - 고침
+    - run token에 job과 그 run의 fencing token을 함께 저장한다(`pw_028_0002`, 범위 밖 `tool-policy` 수정은 RFC-009 부록).
+    - gateway는 job이 그 token으로 RUNNING일 때만 token을 받는다. 취소와 넘겨받기 모두 그 순간 token이 죽는다.
+    - 발급할 때도 RUNNING과 fencing token을 확인한다.
+  - 시험: 취소 뒤, 넘겨받은 뒤에 같은 token으로 제안하면 `invalid_token`이고, proposal 수는 그대로다.
+- MINOR-2: marker를 지운 자식이 같은 group에 남으면 끝내지 못했다(leader가 정상 종료한 경우 포함). 보고서의 "env를 비우고 새 session까지 만들어야"도 틀렸다.
+  - 고침: supervisor는 leader를 지켜본 그 run에 한해, 같은 group에서 leader 이후에 시작한 프로세스도 run의 자손으로 끝낸다. group id는 구성원이 살아 있는 동안 재사용되지 않는다. 재시작 정리는 그대로 marker만 본다.
+- MINOR-3: 재시작 정리가 lease만 만료된 다른 worker의 살아 있는 run을 죽일 수 있었다.
+  - 고침: 끝내는 경우는 job이 넘어갔을 때(다른 상태나 다른 fencing token), 또는 이 worker 자신의 run이고 lease가 만료됐을 때뿐이다.
+- nit
+  - fencing token과 시작 시각을 `::text`로 읽는다(int 넘침 방지).
+  - 시작 시각을 읽지 못하면 run을 시작하지 않는다.
+  - DB 연속 실패에 상한을 두었다.
+  - 기록 없는 고아 프로세스 가능성을 남은 위험에 적었다.
+- 증거
+  - `red.log` 아래쪽: 옛 구현에서 4개가 실패했다.
+  - `mutation.log` 아래쪽: 6종 모두 탐지.
+  - 통합 12(PW-027과 함께 25).
 
 ## 다음
 PW-029: Usage·quota 관측 기본

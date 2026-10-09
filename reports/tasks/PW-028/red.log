@@ -10,3 +10,10 @@ Error: Cannot find module '../../../apps/web/src/features/runs/run-state.ts' imp
   ✘  2 tests/tasks/PW-028/runs.e2e.ts:69:1 › TST-028A: while offline the tab says so; when the network returns it shows what the database holds (1.0m)
     Error: locator.click: Test timeout of 60000ms exceeded.
     Error: locator.click: Test timeout of 60000ms exceeded.
+# review RED (lifecycle and gateway before the review fixes)
+     × after a cancel (or a takeover) the run's tool token creates nothing 77ms
+     × a child without the run marker left in the run's group is ended when the run exits or is stopped 6651ms
+     × a watcher that cannot read the database stops the run after repeated failures (not forever) 2009ms
+     × a run left behind by a crashed worker is ended if (and only if) it is still that run 3938ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  4 failed | 8 passed (12)

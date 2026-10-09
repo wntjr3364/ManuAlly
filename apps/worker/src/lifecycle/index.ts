@@ -47,13 +47,17 @@ export function processMatches(r: RunProcessRecord): boolean {
   return r.host === os.hostname() && isLive(r.pid) && procStartTicks(r.pid) === Number(r.proc_start_ticks) && procGroup(r.pid) === r.pgid && hasMarker(r.pid, r.marker);
 }
 
-// Members of the recorded group that carry the run's marker (the leader may already be gone)
-function groupMembers(r: RunProcessRecord): number[] {
+// Members of the recorded group (the leader may already be gone): processes carrying the run's marker,
+// and — while the supervisor that watched the leader is still here (descendants: true) — also those
+// that dropped the marker but started after the leader in its group (review MINOR-2). A group id is not
+// reused while any member lives, so such a process descends from the run.
+function groupMembers(r: RunProcessRecord, opts: { descendants?: boolean } = {}): number[] {
   const out: number[] = [];
   for (const n of fs.readdirSync('/proc')) {
     if (!/^\d+$/.test(n)) continue;
     const pid = Number(n);
-    if (procGroup(pid) === r.pgid && isLive(pid) && hasMarker(pid, r.marker)) out.push(pid);
+    if (procGroup(pid) !== r.pgid || !isLive(pid)) continue;
+    if (hasMarker(pid, r.marker) || (opts.descendants && (procStartTicks(pid) ?? -1) >= Number(r.proc_start_ticks))) out.push(pid);
   }
   return out;
 }
@@ -68,11 +72,13 @@ export async function startRunProcess(pool: TxPool, a: { jobId: string; fencingT
   let ticks: number | null = null;
   for (let i = 0; i < 50 && ticks === null; i++) { ticks = procStartTicks(child.pid); if (ticks === null) await new Promise((r) => setTimeout(r, 5)); }
   try {
-    const { rows } = await pool.query<RunProcessRecord>(
+    // without its start time the run could never be recognised again: do not run it (review nit)
+    if (ticks === null) throw new Error('could not read the start time of the run process');
+    const { rows } = await pool.query<RunProcessRecord & { fencing_token: string; proc_start_ticks: string }>(
       `INSERT INTO run_processes (job_id, fencing_token, worker_id, host, pid, pgid, proc_start_ticks, marker) VALUES ($1, $2, $3, $4, $5, $5, $6, $7)
-       RETURNING id, job_id, fencing_token::int AS fencing_token, host, pid, pgid, proc_start_ticks::float8 AS proc_start_ticks, marker`,
-      [a.jobId, a.fencingToken, a.workerId, os.hostname(), child.pid, ticks ?? 0, marker]);
-    return { child, record: { ...rows[0]!, proc_start_ticks: Number(rows[0]!.proc_start_ticks) } };
+       RETURNING id, job_id, fencing_token::text AS fencing_token, host, pid, pgid, proc_start_ticks::text AS proc_start_ticks, marker`,
+      [a.jobId, a.fencingToken, a.workerId, os.hostname(), child.pid, ticks, marker]);
+    return { child, record: { ...rows[0]!, fencing_token: Number(rows[0]!.fencing_token), proc_start_ticks: Number(rows[0]!.proc_start_ticks) } };
   } catch (e) {
     try { process.kill(-child.pid, 'SIGKILL'); } catch { /* gone */ } // unrecorded: never leave it running
     throw e;
@@ -84,20 +90,21 @@ async function markEnded(pool: TxPool, id: string, reason: EndReason): Promise<v
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function waitGone(r: RunProcessRecord, ms: number): Promise<boolean> {
+async function waitGone(r: RunProcessRecord, ms: number, descendants: boolean): Promise<boolean> {
   const t0 = Date.now();
   while (Date.now() - t0 < ms) {
-    if (!groupMembers(r).length) return true;
+    if (!groupMembers(r, { descendants }).length) return true;
     await sleep(20);
   }
-  return !groupMembers(r).length;
+  return !groupMembers(r, { descendants }).length;
 }
 
 // Ends the run's process group: SIGTERM, a grace period, then SIGKILL — only while it is still the run.
-export async function terminateRunGroup(pool: TxPool, r: RunProcessRecord, opts: { graceMs: number; reason?: (e: 'terminated' | 'killed') => EndReason }): Promise<EndReason> {
+export async function terminateRunGroup(pool: TxPool, r: RunProcessRecord, opts: { graceMs: number; reason?: (e: 'terminated' | 'killed') => EndReason; descendants?: boolean }): Promise<EndReason> {
+  const descendants = opts.descendants ?? false;
   const signalGroup = (sig: NodeJS.Signals): boolean => {
     // the identity check is repeated right before every signal
-    if (r.host !== os.hostname() || !groupMembers(r).length) return false;
+    if (r.host !== os.hostname() || !groupMembers(r, { descendants }).length) return false;
     try { process.kill(-r.pgid, sig); return true; } catch { return false; }
   };
   if (!signalGroup('SIGTERM')) {
@@ -105,35 +112,41 @@ export async function terminateRunGroup(pool: TxPool, r: RunProcessRecord, opts:
     return 'gone';
   }
   let end: 'terminated' | 'killed' = 'terminated';
-  if (!(await waitGone(r, opts.graceMs))) {
+  if (!(await waitGone(r, opts.graceMs, descendants))) {
     end = 'killed';
     signalGroup('SIGKILL');
-    await waitGone(r, 2000);
+    await waitGone(r, 2000, descendants);
   }
   const reason = opts.reason?.(end) ?? end;
   await markEnded(pool, r.id, reason);
   return reason;
 }
 
-// Watches the job row: aborts when the run's fencing token is no longer the running one.
-export function watchJob(pool: TxPool, a: { jobId: string; fencingToken: number; pollMs: number }): { signal: AbortSignal; stop(): void } {
+// Watches the job row: aborts when the run's fencing token is no longer the running one. A database
+// that stays unreachable (maxFailures reads in a row) also stops the run: a cancel could not be seen.
+export function watchJob(pool: TxPool, a: { jobId: string; fencingToken: number; pollMs: number; maxFailures?: number }): { signal: AbortSignal; stop(): void } {
   const ac = new AbortController();
   let stopped = false;
+  let failures = 0;
   const tick = async () => {
     if (stopped) return;
     try {
-      const { rows } = await pool.query<{ status: string; fencing_token: string }>('SELECT status, fencing_token FROM jobs WHERE id = $1', [a.jobId]);
+      const { rows } = await pool.query<{ status: string; fencing_token: string }>('SELECT status, fencing_token::text AS fencing_token FROM jobs WHERE id = $1', [a.jobId]);
+      failures = 0;
       const j = rows[0];
       if (!j || j.status === 'CANCELLED') ac.abort('cancelled');
-      else if (j.status !== 'RUNNING' || Number(j.fencing_token) !== a.fencingToken) ac.abort('lease_lost');
-    } catch { /* a database hiccup is not a cancel; try again */ }
+      else if (j.status !== 'RUNNING' || j.fencing_token !== String(a.fencingToken)) ac.abort('lease_lost');
+    } catch {
+      // a database hiccup is not a cancel; a long outage is not a reason to run unsupervised
+      if (++failures >= (a.maxFailures ?? 20)) ac.abort('db_unreachable');
+    }
     if (!ac.signal.aborted && !stopped) timer = setTimeout(tick, a.pollMs);
   };
   let timer = setTimeout(tick, a.pollMs);
   return { signal: ac.signal, stop() { stopped = true; clearTimeout(timer); } };
 }
 
-export interface SuperviseResult { reason: 'exited' | 'cancelled' | 'lease_lost'; end: EndReason }
+export interface SuperviseResult { reason: 'exited' | 'cancelled' | 'lease_lost' | 'db_unreachable'; end: EndReason }
 
 // Runs until the process exits or the job says stop. Stop: provider interrupt → grace → group end.
 export async function superviseRun(pool: TxPool, a: {
@@ -150,35 +163,39 @@ export async function superviseRun(pool: TxPool, a: {
   watch.stop();
   if (!watch.signal.aborted) {
     // the run ended by itself: whatever it left in its group (with its marker) is ended too
-    const rest = groupMembers(a.record).length ? await terminateRunGroup(pool, a.record, { graceMs: a.killGraceMs ?? 2000, reason: () => 'exited' }) : null;
+    const rest = groupMembers(a.record, { descendants: true }).length ? await terminateRunGroup(pool, a.record, { graceMs: a.killGraceMs ?? 2000, reason: () => 'exited', descendants: true }) : null;
     if (!rest) await markEnded(pool, a.record.id, 'exited');
     return { reason: 'exited', end: 'exited' };
   }
-  const reason = watch.signal.reason as 'cancelled' | 'lease_lost';
+  const reason = watch.signal.reason as 'cancelled' | 'lease_lost' | 'db_unreachable';
   // 1. ask the provider to stop (Codex turn/interrupt, Claude cancel …), bounded
   try { await Promise.race([Promise.resolve(a.interrupt?.()), sleep(a.interruptGraceMs ?? 5000)]); } catch { /* the group end follows */ }
   const settled = await Promise.race([exited.then(() => true), sleep(a.interruptGraceMs ?? 5000).then(() => false)]);
   if (settled) {
-    const rest = groupMembers(a.record).length ? await terminateRunGroup(pool, a.record, { graceMs: a.killGraceMs ?? 2000, reason: () => 'interrupted' }) : null;
+    const rest = groupMembers(a.record, { descendants: true }).length ? await terminateRunGroup(pool, a.record, { graceMs: a.killGraceMs ?? 2000, reason: () => 'interrupted', descendants: true }) : null;
     if (!rest) await markEnded(pool, a.record.id, 'interrupted');
     return { reason, end: 'interrupted' };
   }
   // 2. the provider did not stop: end the run's own group
-  const end = await terminateRunGroup(pool, a.record, { graceMs: a.killGraceMs ?? 2000 });
+  const end = await terminateRunGroup(pool, a.record, { graceMs: a.killGraceMs ?? 2000, descendants: true });
   return { reason, end };
 }
 
 // After a restart: ends open run processes on this host whose job no longer runs under that token
-// (cancelled, finished, re-queued or taken over). A process that is no longer the run is only marked.
-export async function reconcileRunProcesses(pool: TxPool, a: { host?: string; graceMs?: number } = {}): Promise<{ ended: number; gone: number; kept: number }> {
+// (cancelled, finished, re-queued or taken over), and this worker's own runs whose lease expired. Another
+// worker's run whose lease merely expired (a late heartbeat) is left alone (review MINOR-3). A process
+// that is no longer the run is only marked.
+export async function reconcileRunProcesses(pool: TxPool, a: { host?: string; workerId?: string; graceMs?: number } = {}): Promise<{ ended: number; gone: number; kept: number }> {
   const host = a.host ?? os.hostname();
-  const { rows } = await pool.query<RunProcessRecord & { status: string; current_token: string; lease_live: boolean }>(
-    `SELECT r.id, r.job_id, r.fencing_token::int AS fencing_token, r.host, r.pid, r.pgid, r.proc_start_ticks::float8 AS proc_start_ticks, r.marker,
-            j.status, j.fencing_token AS current_token, (j.lease_expires_at > clock_timestamp()) AS lease_live
+  const { rows } = await pool.query<Omit<RunProcessRecord, 'fencing_token' | 'proc_start_ticks'> & { fencing_token: string; proc_start_ticks: string; worker_id: string; status: string; current_token: string; lease_live: boolean }>(
+    `SELECT r.id, r.job_id, r.fencing_token::text AS fencing_token, r.worker_id, r.host, r.pid, r.pgid, r.proc_start_ticks::text AS proc_start_ticks, r.marker,
+            j.status, j.fencing_token::text AS current_token, (j.lease_expires_at > clock_timestamp()) AS lease_live
      FROM run_processes r JOIN jobs j ON j.id = r.job_id WHERE r.ended_at IS NULL AND r.host = $1 ORDER BY r.started_at`, [host]);
   const out = { ended: 0, gone: 0, kept: 0 };
-  for (const r of rows) {
-    const stillRunning = r.status === 'RUNNING' && Number(r.current_token) === r.fencing_token && r.lease_live === true;
+  for (const row of rows) {
+    const r: RunProcessRecord = { ...row, fencing_token: Number(row.fencing_token), proc_start_ticks: Number(row.proc_start_ticks) };
+    const current = row.status === 'RUNNING' && row.current_token === row.fencing_token;
+    const stillRunning = current && (row.lease_live === true || row.worker_id !== a.workerId);
     if (stillRunning && processMatches(r)) { out.kept++; continue; }
     if (!processMatches(r) && !groupMembers(r).length) { await markEnded(pool, r.id, 'gone'); out.gone++; continue; }
     const end = await terminateRunGroup(pool, r, { graceMs: a.graceMs ?? 2000, reason: () => 'reconciled' });

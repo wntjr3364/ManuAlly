@@ -1,0 +1,23 @@
+# PW-036 mutations (Fri Oct  9 17:10:55 UTC 2026) — behaviour-level RED: each line breaks one rule
+KILLED unit_change
+KILLED group_change
+KILLED new_file
+KILLED caption
+KILLED panel_added
+KILLED panel_removed
+KILLED paragraph_flags
+KILLED only_mentioning
+KILLED claim_flags
+KILLED fact_unit
+KILLED unchanged
+KILLED different_file
+KILLED unknown_panel
+KILLED outdated
+SURVIVED unit_matches
+KILLED png_magic
+KILLED csv_text
+KILLED anchor_quote
+SURVIVED upload_figure_scope
+# after closing the two survivors:
+KILLED unit_matches
+KILLED upload_figure_scope

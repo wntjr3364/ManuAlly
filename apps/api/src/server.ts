@@ -18,6 +18,7 @@ import { registerUsageRoutes } from './usage/index.ts';
 import { registerCurationRoutes } from './curation/index.ts';
 import { registerAssetRoutes, type AssetConfig } from './assets/index.ts';
 import { registerPdfRoutes } from './pdf/index.ts';
+import { registerFigureVersionRoutes } from './figure-versions/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -113,6 +114,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerCurationRoutes(app, db);
   registerAssetRoutes(app, db, opts.assets);
   registerPdfRoutes(app, db);
+  registerFigureVersionRoutes(app, db, opts.assets);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;
 }

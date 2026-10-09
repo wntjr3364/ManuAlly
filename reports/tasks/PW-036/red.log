@@ -1,0 +1,4 @@
+# PW-036 RED: implementation removed (migration, domain figures, API routes, evidence anchor locator), tests as written (Fri Oct  9 17:10:35 UTC 2026)
+ FAIL  tests/tasks/PW-036/figures.int.test.ts [ tests/tasks/PW-036/figures.int.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/figures/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-036/figures.int.test.ts
+      Tests  no tests

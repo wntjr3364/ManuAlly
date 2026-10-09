@@ -1177,7 +1177,7 @@
       "id": "PW-036",
       "phase": "P04",
       "title": "Figure/Table/Fact 출처 연결",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-035"
       ],

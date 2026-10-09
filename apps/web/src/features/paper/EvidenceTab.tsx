@@ -1,6 +1,7 @@
 // Evidence records and facts. Everything starts as a candidate; verification is a separate explicit
 // click that sends the content hash of what is shown. The number is entered exactly as in the source.
 import { useEffect, useState } from 'react';
+import { TracePanel } from '../evidence/TracePanel.tsx';
 import { api, errorText } from '../../app/api.ts';
 import { setUnsaved } from '../../app/unsaved.ts';
 
@@ -104,6 +105,7 @@ export function EvidenceTab({ paperId, visible }: { paperId: string; visible: bo
           ))}
         </ul>
       </section>
+      <TracePanel paperId={paperId} visible={visible} />
     </>
   );
 }

@@ -87,7 +87,7 @@ const owner = (tx: Queryable, paperId: string) => tx.query('SELECT 1 FROM paper_
 const LOCATOR_KEYS: Record<(typeof EVIDENCE_KINDS)[number], { required: string[]; optional: string[] }> = {
   table_cell: { required: ['table', 'row', 'column'], optional: ['sheet'] },
   figure_panel: { required: ['panel'], optional: ['figure'] },
-  literature_excerpt: { required: ['quote'], optional: ['page_index', 'section'] },
+  literature_excerpt: { required: ['quote'], optional: ['page_index', 'section', 'anchor_id'] },
   experiment: { required: ['note'], optional: ['protocol', 'run'] },
   method_record: { required: ['note'], optional: ['protocol', 'step'] },
 };
@@ -146,6 +146,14 @@ export async function createEvidence(pool: TxPool, a: { paperId: string; ownerId
     }
     if (content.reference_id && !(await tx.query('SELECT 1 FROM project_references WHERE reference_id = $1 AND paper_id = $2 AND removed_at IS NULL', [content.reference_id, a.paperId])).rows[0]) {
       throw new DomainError('NOT_FOUND', 'reference not found in this paper', 'reference_id');
+    }
+    // a quote tied to a confirmed PDF location (PW-035) must be that location's text
+    if (loc.anchor_id !== undefined) {
+      if (!isUuid(loc.anchor_id)) throw invalid('locator.anchor_id must be a confirmed PDF location id', 'locator.anchor_id');
+      const an = (await tx.query<{ exact: string; page_index: number }>('SELECT exact, page_index FROM pdf_anchors WHERE paper_id = $1 AND id = $2', [a.paperId, String(loc.anchor_id).toLowerCase()])).rows[0];
+      if (!an) throw new DomainError('NOT_FOUND', 'PDF location not found in this paper', 'locator.anchor_id');
+      if (an.exact !== loc.quote) throw invalid('locator.quote must be the text of the confirmed PDF location', 'locator.quote');
+      if (loc.page_index !== undefined && loc.page_index !== an.page_index) throw invalid('locator.page_index must be the page of the confirmed PDF location', 'locator.page_index');
     }
     const { rows } = await tx.query<EvidenceRecord>(
       `INSERT INTO evidence_records (id, paper_id, kind, source_asset_revision_id, reference_id, locator, label, content_hash, origin, created_by)

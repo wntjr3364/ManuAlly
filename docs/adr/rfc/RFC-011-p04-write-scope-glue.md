@@ -58,3 +58,8 @@ User decision / reviewer:
   - `packages/domain/src/pdf/**`(새 모듈), `apps/api/src/pdf/**`(새 route 폴더), `apps/api/src/server.ts`(등록), `apps/worker/src/main.ts`(handler 등록)
   - `apps/web/src/app/api.ts`(`apiRaw`), `apps/web/src/features/paper/PaperPage.tsx`("원문" tab), `tests/e2e/manual-paper/harness.ts`(임시 저장 폴더, handler)
   - 의존성: `pdfjs-dist@6.4.299`(P00 결정 기록 §4에 고정, Apache-2.0)를 `apps/worker`·`apps/web`에 정확한 버전으로 추가. root `package.json`의 `pnpm.overrides`에서 선택 native 의존성 `@napi-rs/canvas`를 제거. `pnpm-lock.yaml` 갱신
+- PW-036
+  - 공유 schema: `asset_sources.kind`에 `figure_file` 추가(`pw_036_0001`)
+  - `apps/api/src/figure-versions/**`(새 route 폴더), `apps/api/src/server.ts`(등록)
+  - `packages/domain/src/evidence/index.ts`(PW-011): 문헌 인용 locator의 선택 항목 `anchor_id`(확인한 PDF 위치와 인용 텍스트·쪽이 같아야 함)
+  - `apps/web/src/features/paper/EvidenceTab.tsx`(TracePanel 붙임)

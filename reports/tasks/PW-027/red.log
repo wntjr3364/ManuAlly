@@ -1,0 +1,8 @@
+ FAIL  tests/tasks/PW-027/gateway.int.test.ts [ tests/tasks/PW-027/gateway.int.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/tool-policy/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-027/gateway.int.test.ts
+ Test Files  1 failed (1)
+      Tests  no tests
+ FAIL  tests/tasks/PW-027/schemas.contract.test.ts [ tests/tasks/PW-027/schemas.contract.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/tool-policy/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-027/schemas.contract.test.ts
+ Test Files  1 failed (1)
+      Tests  no tests

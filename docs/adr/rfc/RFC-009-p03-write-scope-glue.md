@@ -36,3 +36,4 @@ User decision / reviewer:
 - PW-025 리뷰 반영: `packages/providers/src/core/admission.ts`(`checkDecision`: turn을 쓰지 않고 결정만 검사. `--version` 실행 전에 부른다), `packages/providers/src/claude/turn.ts`(PW-024 nit: 같은 검사를 먼저)
 - PW-026
   - `packages/providers/src/core/admission.ts`(OuterSandbox kind에 `userns` 추가: sudo 없는 unshare backend의 검증 결과를 Codex gate가 받을 수 있게)
+- PW-027: 범위 밖 파일 없음(다른 domain 모듈은 import만 함)

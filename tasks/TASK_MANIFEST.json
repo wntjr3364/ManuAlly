@@ -886,7 +886,7 @@
       "id": "PW-027",
       "phase": "P03",
       "title": "Typed tool gateway·scope",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-026"
       ],

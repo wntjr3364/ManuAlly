@@ -1,8 +1,13 @@
-// Runs the PDF extractor child (extract-child.mjs) with a memory cap, a time limit and an output cap,
-// an empty environment (no secrets inherited) and its own process group (killed whole on timeout).
-// Pages get reading-order flags; nothing is guessed: a failure is a failure, an image-only page has
-// no text.
+// Runs the PDF extractor child (extract-child.mjs) under a real memory limit (RLIMIT_DATA through
+// prlimit: decoded PDF streams live outside the V8 heap, so --max-old-space-size alone is not a limit),
+// a time limit and an output cap, with an empty environment (no secrets inherited) and its own process
+// group (killed whole on every finish). Pages get reading-order flags; nothing is guessed: a failure is
+// a failure, an image-only page has no text.
+// A failure that depends on the file (a parse error, too much memory or output) is final for this
+// extractor version; one that may depend on the moment (time limit, start failure, a kill by signal)
+// is "transient": the job fails and may be asked again, nothing is stored.
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,52 +16,77 @@ const CHILD = path.join(path.dirname(fileURLToPath(import.meta.url)), 'extract-c
 
 export interface Run { o: number; n: number; t: number[]; w: number; h: number }
 export interface ExtractedPage { view_box: number[]; rotate: number; text: string; runs: Run[]; flags: string[] }
-export type Extraction = { status: 'ok' | 'no_text'; pages: ExtractedPage[] } | { status: 'failed'; reason: string };
+export type Extraction = { status: 'ok' | 'no_text'; pages: ExtractedPage[] } | { status: 'failed'; reason: string; transient: boolean };
 
-export interface ExtractLimits { timeoutMs?: number; maxOldSpaceMb?: number; maxOutputBytes?: number }
+// childPath: tests only (a stand-in extractor); production always runs extract-child.mjs
+export interface ExtractLimits { timeoutMs?: number; memoryMb?: number; maxOutputBytes?: number; childPath?: string }
+const PRLIMIT = ['/usr/bin/prlimit', '/bin/prlimit'].find((p) => fs.existsSync(p)) ?? null;
 
 export async function extractPdf(bytes: Buffer, limits: ExtractLimits = {}): Promise<Extraction> {
   const timeoutMs = limits.timeoutMs ?? 120_000;
   const maxOut = limits.maxOutputBytes ?? 200 * 1024 * 1024;
-  const out = await new Promise<{ ok: true; text: string } | { ok: false; reason: string }>((resolve) => {
-    const child = spawn(process.execPath, [`--max-old-space-size=${limits.maxOldSpaceMb ?? 768}`, CHILD], {
+  const memoryMb = limits.memoryMb ?? 1024;
+  // no memory limit, no parsing (the limit is what keeps one file from exhausting the host)
+  if (!PRLIMIT) return { status: 'failed', reason: 'no memory limit is available on this host (prlimit not found)', transient: true };
+  type Out = { ok: true; text: string } | { ok: false; reason: string; transient: boolean };
+  const out = await new Promise<Out>((resolve) => {
+    const child = spawn(PRLIMIT, [`--data=${memoryMb * 1024 * 1024}`, '--', process.execPath, `--max-old-space-size=${Math.max(64, Math.floor(memoryMb / 2))}`, limits.childPath ?? CHILD], {
       env: {}, stdio: ['pipe', 'pipe', 'ignore'], detached: true,
     });
     const chunks: Buffer[] = [];
     let size = 0;
     let done = false;
-    const finish = (r: { ok: true; text: string } | { ok: false; reason: string }) => {
+    const finish = (r: Out) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
       try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* already gone */ }
       resolve(r);
     };
-    const timer = setTimeout(() => finish({ ok: false, reason: `extraction took longer than ${timeoutMs} ms` }), timeoutMs);
+    const timer = setTimeout(() => finish({ ok: false, reason: `extraction took longer than ${timeoutMs} ms`, transient: true }), timeoutMs);
     child.stdout.on('data', (c: Buffer) => {
       size += c.length;
-      if (size > maxOut) return finish({ ok: false, reason: 'extraction output is too large' });
+      if (size > maxOut) return finish({ ok: false, reason: 'extraction output is too large', transient: false });
       chunks.push(c);
     });
-    child.on('error', () => finish({ ok: false, reason: 'the extractor could not start' }));
+    child.on('error', () => finish({ ok: false, reason: 'the extractor could not start', transient: true }));
     child.on('close', (code, signal) => {
       if (done) return;
-      if (signal || code !== 0) return finish({ ok: false, reason: `the extractor stopped (${signal ?? `exit ${code}`}; memory limit?)` });
+      // V8 ends a process that hits the memory limit with a fatal trap/abort: a property of the file
+      if (signal === 'SIGTRAP' || signal === 'SIGABRT' || code === 133 || code === 134) return finish({ ok: false, reason: 'the PDF needs more memory than the parser is allowed', transient: false });
+      if (signal || code !== 0) return finish({ ok: false, reason: `the extractor stopped (${signal ?? `exit ${code}`})`, transient: true });
       finish({ ok: true, text: Buffer.concat(chunks).toString('utf8') });
     });
     child.stdin.on('error', () => { /* the child may exit before reading everything */ });
     child.stdin.end(bytes);
   });
-  if (!out.ok) return { status: 'failed', reason: out.reason };
+  if (!out.ok) return { status: 'failed', reason: out.reason, transient: out.transient };
   let parsed: { pages?: Omit<ExtractedPage, 'flags'>[]; error?: string };
   try {
     parsed = JSON.parse(out.text);
   } catch {
-    return { status: 'failed', reason: 'the extractor gave no readable answer' };
+    return { status: 'failed', reason: 'the extractor gave no readable answer', transient: true };
   }
-  if (parsed.error || !Array.isArray(parsed.pages)) return { status: 'failed', reason: `the PDF could not be parsed (${String(parsed.error ?? 'no pages').slice(0, 300)})` };
+  if (parsed.error || !Array.isArray(parsed.pages)) {
+    const e = String(parsed.error ?? 'no pages');
+    // memory exhausted under the limit: a property of the file at this limit, stated as such
+    const memory = /allocation failed|out of memory|invalid array length/i.test(e);
+    return { status: 'failed', reason: memory ? 'the PDF needs more memory than the parser is allowed' : `the PDF could not be parsed (${e.slice(0, 300)})`, transient: false };
+  }
+  if (!extractorPagesValid(parsed.pages)) return { status: 'failed', reason: 'the extractor gave positions that are not numbers', transient: false };
   const pages = parsed.pages.map((p) => ({ ...p, flags: pageFlags(p) }));
   return { status: pages.some((p) => p.text.trim()) ? 'ok' : 'no_text', pages };
+}
+
+// The child's answer is data from a process that read untrusted input: every number must be a finite
+// number (a JSON NaN/Infinity arrives as null) and every run must lie inside its page text.
+export function extractorPagesValid(pages: unknown[]): boolean {
+  const finite = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+  return pages.every((x) => {
+    const p = x as Omit<ExtractedPage, 'flags'>;
+    return !!p && Array.isArray(p.view_box) && p.view_box.length === 4 && p.view_box.every(finite) && [0, 90, 180, 270].includes(p.rotate) && typeof p.text === 'string'
+      && Array.isArray(p.runs) && p.runs.every((r) => !!r && Number.isInteger(r.o) && Number.isInteger(r.n) && r.n > 0 && r.o >= 0 && r.o + r.n <= p.text.length && Array.isArray(r.t) && r.t.length === 6 && r.t.every(finite) && finite(r.w) && finite(r.h));
+  });
 }
 
 // Reading-order and quality risks the owner should see (spec 05: flag, do not fix silently).

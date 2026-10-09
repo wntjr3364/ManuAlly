@@ -16,7 +16,8 @@ import { processDelivery } from '../../../apps/worker/src/queue/index.ts';
 import { pdfHandlers } from '../../../apps/worker/src/pdf/index.ts';
 import { blobPath } from '../../../packages/domain/src/asset-policy/store.ts';
 import { quadsFor } from '../../../packages/domain/src/pdf/index.ts';
-import { PAPER_V1, PAPER_V2, SENTENCE, makePdf } from './fixtures.ts';
+import { PAPER_V1, PAPER_V2, SENTENCE, bombPdf, makePdf } from './fixtures.ts';
+import { extractPdf, extractorPagesValid } from '../../../apps/worker/src/pdf/extract.ts';
 
 const ORIGIN = 'http://127.0.0.1:5173';
 let db: { url: string; drop: () => Promise<void> };
@@ -54,7 +55,7 @@ const upload = async (paperId: string, bytes: Buffer) => {
   expect(r.statusCode, r.body).toBeLessThan(300);
   return r.json() as { id: string; sha256: string };
 };
-async function extract(paperId: string, assetId: string, limits?: { timeoutMs?: number }) {
+async function extract(paperId: string, assetId: string, limits?: { timeoutMs?: number; memoryMb?: number }) {
   const r = await call('alice', 'POST', `/api/papers/${paperId}/assets/${assetId}/extract`, { idempotency_key: randomUUID() });
   expect(r.statusCode, r.body).toBeLessThan(300);
   const job = r.json().job;
@@ -157,7 +158,7 @@ describe('TST-035B: failures, rotation and new revisions never produce a guessed
     expect((await anchor(p, a.id, { page_index: 0, exact: 'anything' })).json()).toMatchObject({ reason: 'no_text' });
   });
 
-  test('a PDF that cannot be parsed is "failed" with no pages; a timeout is a failure too', async () => {
+  test('a PDF that cannot be parsed is "failed" with no pages; a timeout fails the job but is not the file\'s result (it can be asked again)', async () => {
     const p = await newPaper();
     const broken = await upload(p, makePdf([{ lines: [[72, 720, 'x']] }], { brokenCatalog: true }));
     const { view } = await extract(p, broken.id);
@@ -167,8 +168,11 @@ describe('TST-035B: failures, rotation and new revisions never produce a guessed
     expect((await anchor(p, broken.id, { page_index: 0, exact: 'x' })).json()).toMatchObject({ reason: 'failed' });
     const slow = await upload(p, makePdf([{ lines: [[72, 720, 'slow']] }]));
     const t = await extract(p, slow.id, { timeoutMs: 1 });
-    expect(t.view.extraction).toMatchObject({ status: 'failed' });
-    expect(t.view.extraction.failure_reason).toMatch(/longer than/);
+    expect(t.job.status).toBe('FAILED');
+    expect(t.job.last_error).toMatch(/longer than/);
+    expect(t.view.extraction).toBeNull();
+    // asked again (e.g. when the host is less busy): it extracts
+    expect((await extract(p, slow.id)).view.extraction).toMatchObject({ status: 'ok' });
   });
 
   test('rotated text runs are flagged on the page (reading order may differ from what is shown)', async () => {
@@ -241,5 +245,70 @@ describe('closing gaps found by mutation', () => {
       await pool.query('ALTER TABLE pdf_anchors ENABLE TRIGGER pdf_anchors_immutable_row');
     }
     expect((await call('alice', 'GET', `/api/papers/${p}/anchors/${an.id}`)).json()).toMatchObject({ status: 'stale' });
+  });
+});
+
+// review (PW-035)
+describe('review fixes', () => {
+  test('MINOR 1: the parser runs under a real memory limit — a small decompression bomb stops it quickly, and that is recorded as the file\'s result', async () => {
+    const bomb = bombPdf(400 * 1024 * 1024);
+    expect(bomb.length).toBeLessThan(1_000_000);
+    const t0 = Date.now();
+    const x = await extractPdf(bomb, { memoryMb: 192, timeoutMs: 60_000 });
+    expect(x).toMatchObject({ status: 'failed', transient: false });
+    expect((x as { reason: string }).reason).toMatch(/more memory/);
+    expect(Date.now() - t0).toBeLessThan(20_000);
+    // through the job: stored as failed for this extractor (the same file would fail the same way)
+    const p = await newPaper();
+    const a = await upload(p, bomb);
+    const { view } = await extract(p, a.id, { memoryMb: 192 });
+    expect(view.extraction).toMatchObject({ status: 'failed' });
+  });
+
+  test('nit: the keep right is checked again when the job runs and whenever the extracted text is used', async () => {
+    const p = await newPaper();
+    const a = await upload(p, PAPER_V1());
+    const r = await call('alice', 'POST', `/api/papers/${p}/assets/${a.id}/extract`, { idempotency_key: randomUUID() });
+    // the owner withdraws the basis before the worker runs
+    await call('alice', 'POST', `/api/papers/${p}/assets/${a.id}/policy`, { keep_right: 'unknown' });
+    await processDelivery(pool, { job_id: r.json().job.id, paper_id: p, intent: 'parse_source' }, { workerId: 'w', leaseMs: 60_000, handlers: pdfHandlers(pool, { assetDir: dir }) });
+    expect((await pool.query('SELECT status, last_error FROM jobs WHERE id = $1', [r.json().job.id])).rows[0]).toMatchObject({ status: 'FAILED', last_error: expect.stringMatching(/keeping/) });
+    // once extracted, withdrawing the basis also hides the text and stops new locations
+    await call('alice', 'POST', `/api/papers/${p}/assets/${a.id}/policy`, { keep_right: 'user_supplied' });
+    await extract(p, a.id);
+    await call('alice', 'POST', `/api/papers/${p}/assets/${a.id}/policy`, { keep_right: 'unknown' });
+    expect((await call('alice', 'GET', `/api/papers/${p}/assets/${a.id}/extraction`)).json()).toMatchObject({ reason: 'keep_right_unknown' });
+    expect((await anchor(p, a.id, { page_index: 0, exact: 'Roots' })).json()).toMatchObject({ reason: 'keep_right_unknown' });
+  });
+
+  test('nit: an anchor cannot name an asset other than the one its extraction was made from (database constraint)', async () => {
+    const p = await newPaper();
+    const a = await upload(p, PAPER_V1());
+    const b = await upload(p, PAPER_V2());
+    await extract(p, a.id);
+    const an = (await anchor(p, a.id, { page_index: 0, exact: 'Roots were sampled' })).json();
+    const row = (await pool.query('SELECT extraction_id FROM pdf_anchors WHERE id = $1', [an.id])).rows[0];
+    await expect(pool.query(
+      `INSERT INTO pdf_anchors (paper_id, asset_revision_id, sha256, extraction_id, extractor, page_index, start_offset, end_offset, exact, quadpoints, precision, created_by)
+       VALUES ($1, $2, $3, $4, 'x', 0, 0, 5, 'Roots', '[]', 'run_interpolated', $5)`, [p, b.id, b.sha256, row.extraction_id, ids.alice])).rejects.toThrow(/foreign key/);
+  });
+});
+
+describe('review nit: the extractor\'s numbers are checked', () => {
+  test('non-finite positions (NaN/Infinity arrive as null) or runs outside the text are refused', () => {
+    const page = { view_box: [0, 0, 612, 792], rotate: 0, text: 'abc', runs: [{ o: 0, n: 3, t: [12, 0, 0, 12, 72, 720], w: 20, h: 12 }] };
+    expect(extractorPagesValid([page])).toBe(true);
+    expect(extractorPagesValid([{ ...page, view_box: [0, 0, null, 792] }])).toBe(false);
+    expect(extractorPagesValid([{ ...page, runs: [{ ...page.runs[0], t: [12, 0, 0, 12, null, 720] }] }])).toBe(false);
+    expect(extractorPagesValid([{ ...page, runs: [{ ...page.runs[0], w: null }] }])).toBe(false);
+    expect(extractorPagesValid([{ ...page, runs: [{ ...page.runs[0], n: 9 }] }])).toBe(false);
+    expect(extractorPagesValid([{ ...page, rotate: 45 }])).toBe(false);
+  });
+
+  test('an extractor answer with a non-number position fails the extraction', async () => {
+    const fake = path.join(dir, 'fake-child.mjs');
+    fs.writeFileSync(fake, `process.stdout.write(JSON.stringify({ pages: [{ view_box: [0, 0, 612, 792], rotate: 0, text: 'abc', runs: [{ o: 0, n: 3, t: [12, 0, 0, 12, NaN, 720], w: 20, h: 12 }] }] }) + '\\n');`);
+    const x = await extractPdf(PAPER_V1(), { childPath: fake });
+    expect(x).toMatchObject({ status: 'failed', transient: false, reason: expect.stringMatching(/not numbers/) });
   });
 });

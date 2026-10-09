@@ -95,3 +95,27 @@
 
 ## 다음
 PW-036: Figure/Table/Fact 출처 연결
+
+## 리뷰 반영 (2026-10-09, 리뷰: changes requested — MINOR 2, NIT 4. PW-034 재리뷰 반영 확인)
+- MINOR 1: 메모리 상한이 실제로 걸리지 않았다
+  - 원인: `--max-old-space-size`는 V8 heap만 묶는다. pdf.js의 풀린 stream은 typed array라서 그 밖이다.
+  - 이제 `prlimit --data`(RLIMIT_DATA, 기본 1 GiB)로 child를 실행한다. `prlimit`이 없으면 파싱하지 않는다(재시도 가능한 실패).
+  - 시험: 408 KB 파일이 400 MB로 풀리는 폭탄 PDF를 상한 192 MB에서 돌린다. V8이 메모리 한도에서 SIGTRAP/SIGABRT로 끝나므로 1초 안팎에 멈춘다.
+  - 이는 파일의 성질이다. "필요한 메모리가 허용보다 큼"으로 실패를 저장한다.
+  - 업로드 검사에서 모든 Flate stream을 풀어 크기를 재지는 않았다. 그림이 많은 정상 논문은 수백 MB로 풀릴 수 있어 오거부가 생기고, API process 메모리도 쓰기 때문이다. 폭탄은 파서의 상한이 막는다.
+- MINOR 2: 일시적 실패가 영구 결과로 남았다
+  - 파일에 달린 실패(파싱 오류, 메모리, 출력 과다, 숫자 아닌 위치)만 이 추출기 버전의 결과로 저장한다.
+  - 시간 초과, 시작 실패, 그 밖의 signal 종료는 job만 실패하고 아무것도 저장하지 않는다. 다시 요청할 수 있다(시험: 시간 초과 뒤 재요청이 성공).
+- nit
+  - 보관 권리를 쓸 때마다 다시 본다: worker가 실행할 때, 추출 텍스트 보기, 위치 확인, 다른 revision 후보.
+    - 소유자가 근거를 철회하면 텍스트가 보이지 않고 새 위치도 만들 수 없다.
+    - 이미 확인한 위치 목록(짧은 인용)은 소유자 기록이라 계속 보인다.
+  - `pdf_anchors(extraction_id, asset_revision_id)` → `pdf_extractions(id, asset_revision_id)` 복합 FK(`pw_035_0002`)
+  - child 출력 검사(`extractorPagesValid`): 숫자가 아닌 위치나 텍스트 밖의 run이 있으면 추출 실패다. 대역 child로 시험했다(`childPath`는 시험 전용 옵션).
+  - child stderr의 `@napi-rs/canvas` 경고는 무시해도 된다. stderr를 모으게 되면 log에 보일 수 있다(기록만).
+- 남은 위험 갱신
+  - 파서의 메모리 상한은 이제 실제로 걸린다(RLIMIT_DATA).
+  - network와 파일시스템 격리는 아직 RFC-010(sandbox) 몫이다.
+  - 브라우저의 pdf.js 렌더링은 사용자 기기 메모리를 쓴다(소유자 자신의 파일).
+- 시험: 통합 18(+5). RED는 `review-red.log`. mutation은 `mutation.log` 끝에 있고 모두 탐지했다.
+- 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 333, contracts 17, 브라우저 83(`pnpm-test-review.log`).

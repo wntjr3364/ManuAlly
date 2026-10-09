@@ -15,9 +15,12 @@ export function pdfHandlers(pool: TxPool, opts: { assetDir: string; limits?: Ext
     if (p.kind !== 'parse_pdf' || typeof p.asset_id !== 'string' || !UUID_RE.test(p.asset_id) || Object.keys(p).some((k) => !['kind', 'asset_id'].includes(k))) {
       throw new JobOutcomeError('parse_source payload must be { kind: "parse_pdf", asset_id }', 'FAILED');
     }
-    const asset = (await pool.query<{ id: string; sha256: string }>(
-      "SELECT a.id, a.sha256 FROM asset_revisions a JOIN asset_sources s ON s.asset_revision_id = a.id WHERE a.paper_id = $1 AND a.id = $2 AND s.kind = 'source_pdf'", [job.paper_id, p.asset_id])).rows[0];
+    const asset = (await pool.query<{ id: string; sha256: string; keep_right: string }>(
+      `SELECT a.id, a.sha256, (SELECT q.keep_right FROM asset_policy_revisions q WHERE q.asset_revision_id = a.id ORDER BY q.created_at DESC, q.id DESC LIMIT 1) AS keep_right
+       FROM asset_revisions a JOIN asset_sources s ON s.asset_revision_id = a.id WHERE a.paper_id = $1 AND a.id = $2 AND s.kind = 'source_pdf'`, [job.paper_id, p.asset_id])).rows[0];
     if (!asset) throw new JobOutcomeError('the source document is not in this paper', 'FAILED');
+    // checked again when the job runs: the owner may have withdrawn the basis for keeping it
+    if (asset.keep_right === 'unknown') throw new JobOutcomeError('the basis for keeping this original is unknown; it is not parsed', 'FAILED');
     const existing = (await pool.query<{ id: string; status: string }>('SELECT id, status FROM pdf_extractions WHERE asset_revision_id = $1 AND extractor = $2', [asset.id, EXTRACTOR])).rows[0];
     if (existing) return { result: { kind: 'pdf_extraction', extraction_id: existing.id, status: existing.status, already: true } };
     let bytes: Buffer;
@@ -28,6 +31,8 @@ export function pdfHandlers(pool: TxPool, opts: { assetDir: string; limits?: Ext
       throw e;
     }
     const x = await extractPdf(bytes, opts.limits);
+    // a failure that may depend on the moment is not recorded as the file's result: it can be asked again
+    if (x.status === 'failed' && x.transient) throw new JobOutcomeError(`extraction did not finish: ${x.reason}`, 'FAILED');
     const result: Record<string, unknown> = { kind: 'pdf_extraction', status: x.status, pages: x.status === 'failed' ? 0 : x.pages.length };
     return {
       result,

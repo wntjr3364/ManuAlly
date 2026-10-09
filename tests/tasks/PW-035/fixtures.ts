@@ -1,3 +1,4 @@
+import zlib from 'node:zlib';
 // Synthetic PDFs for PW-035 (no real papers): text lines placed with Td (or a full Tm matrix for
 // rotated text), optional /Rotate, a valid xref table.
 export interface PageSrc { lines?: [number, number, string][]; raw?: string; rotate?: 0 | 90 | 180 | 270 }
@@ -29,3 +30,13 @@ export const PAPER_V2 = () => makePdf([
   { lines: [[72, 720, 'Corrected version.'], [72, 700, 'Roots were sampled at day 7.']] },
   { lines: [[72, 600, SENTENCE]] },
 ]);
+
+// a small file whose one content stream inflates to `inflatedBytes` (a decompression bomb for the parser)
+export function bombPdf(inflatedBytes: number): Buffer {
+  const content = Buffer.concat([Buffer.from('BT /F1 12 Tf 72 720 Td (bomb) Tj ET\n', 'latin1'), Buffer.alloc(inflatedBytes, 32)]);
+  const data = zlib.deflateSync(content, { level: 9 });
+  const head = '%PDF-1.7\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\nendobj\n';
+  const s4 = `4 0 obj\n<< /Length ${data.length} /Filter /FlateDecode >>\nstream\n`;
+  const tail = '\nendstream\nendobj\n5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\ntrailer << /Root 1 0 R >>\n%%EOF\n';
+  return Buffer.concat([Buffer.from(head + s4, 'latin1'), data, Buffer.from(tail, 'latin1')]);
+}

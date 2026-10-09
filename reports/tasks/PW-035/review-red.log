@@ -1,0 +1,7 @@
+# PW-035 review fixes — RED (2ad56fd implementation, new tests) Fri Oct  9 16:54:08 UTC 2026
+     × a PDF that cannot be parsed is "failed" with no pages; a timeout fails the job but is not the file's result (it can be asked again) 347ms
+     × MINOR 1: the parser runs under a real memory limit — a small decompression bomb stops it quickly, and that is recorded as the file's result 10942ms
+     × nit: the keep right is checked again when the job runs and whenever the extracted text is used 360ms
+     × nit: an anchor cannot name an asset other than the one its extraction was made from (database constraint) 457ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  4 failed | 12 passed (16)

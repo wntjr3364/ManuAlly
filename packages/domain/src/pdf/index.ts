@@ -25,8 +25,17 @@ export async function requestExtraction(pool: TxPool, a: { paperId: string; owne
   return enqueueJob(pool, { paperId: a.paperId, ownerId: a.ownerId, intent: 'parse_source', idempotencyKey: a.idempotencyKey, payload: { kind: 'parse_pdf', asset_id: asset.id } });
 }
 
+// The extracted text is a copy of the original: shown only while the basis for keeping it is known.
+const keepKnown = async (db: Queryable, paperId: string, assetId: string) => {
+  const asset = await getSourceAsset(db, paperId, assetId);
+  if (!asset) throw new DomainError('NOT_FOUND', 'asset not found');
+  if (asset.policy.keep_right === 'unknown') throw new DomainError('FORBIDDEN', 'state on what basis this original is kept (keep_right) before its text is used', 'keep_right', { details: { reason: 'keep_right_unknown' } });
+  return asset;
+};
+
 export async function extractionView(db: Queryable, paperId: string, assetId: string): Promise<{ extraction: ExtractionView | null; pages: PageView[] }> {
   if (!UUID_RE.test(assetId)) throw new DomainError('NOT_FOUND', 'asset not found');
+  await keepKnown(db, paperId, assetId);
   const x = (await db.query<ExtractionView>(
     'SELECT id, status, failure_reason, page_count, extractor, created_at FROM pdf_extractions WHERE paper_id = $1 AND asset_revision_id = $2 AND extractor = $3', [paperId, assetId, CURRENT_EXTRACTOR])).rows[0];
   if (!x) return { extraction: null, pages: [] };
@@ -85,8 +94,8 @@ export async function createAnchor(pool: TxPool, a: { paperId: string; ownerId: 
   if (typeof b.exact !== 'string' || !b.exact.trim() || b.exact.length > 2000) throw new DomainError('INVALID', 'exact must be the selected text (1–2000 characters)', 'exact');
   const prefix = typeof b.prefix === 'string' ? b.prefix.slice(-CONTEXT * 4) : '';
   const suffix = typeof b.suffix === 'string' ? b.suffix.slice(0, CONTEXT * 4) : '';
-  const asset = await getSourceAsset(pool, a.paperId, a.assetId);
-  if (!asset) throw new DomainError('NOT_FOUND', 'asset not found');
+  if (!UUID_RE.test(a.assetId)) throw new DomainError('NOT_FOUND', 'asset not found');
+  const asset = await keepKnown(pool, a.paperId, a.assetId);
   const x = (await pool.query<{ id: string; status: string; extractor: string; sha256: string }>(
     'SELECT id, status, extractor, sha256 FROM pdf_extractions WHERE paper_id = $1 AND asset_revision_id = $2 AND extractor = $3', [a.paperId, asset.id, CURRENT_EXTRACTOR])).rows[0];
   if (!x) throw new DomainError('CONFLICT', 'the text of this PDF has not been extracted yet', undefined, { details: { reason: 'not_extracted' } });

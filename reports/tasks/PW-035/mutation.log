@@ -24,3 +24,17 @@ KILLED stale_check
 KILLED idempotent
 SURVIVED parse_error (equivalent: a child error always comes without pages, and the message keeps the error text either way)
 KILLED stop_at_errors
+# review fixes (Fri Oct  9 16:54:49 UTC 2026)
+KILLED no_rlimit
+KILLED oom_final
+KILLED transient_not_stored
+KILLED worker_keep_right
+KILLED view_keep_right
+KILLED anchor_keep_right
+KILLED anchor_fk
+SURVIVED finite_check
+# after making the output check testable (extractorPagesValid):
+KILLED finite_transform
+SURVIVED finite_check_used
+# after the stand-in extractor test:
+KILLED finite_check_used

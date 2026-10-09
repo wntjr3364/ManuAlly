@@ -21,6 +21,7 @@ import { registerPdfRoutes } from './pdf/index.ts';
 import { registerFigureVersionRoutes } from './figure-versions/index.ts';
 import { registerReferenceImportRoutes } from './reference-import/index.ts';
 import { registerStoryAiRoutes } from './story-ai/index.ts';
+import { registerWritingProfileRoutes } from './writing-profile/index.ts';
 import { registerOutlineImpactRoutes } from './outline-impact/index.ts';
 import type { ZoteroConfig } from '@pw/search/zotero/index.ts';
 import { selectProvider } from '@pw/providers';
@@ -123,6 +124,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerFigureVersionRoutes(app, db, opts.assets);
   registerReferenceImportRoutes(app, db, { zotero: opts.zotero });
   registerStoryAiRoutes(app, db);
+  registerWritingProfileRoutes(app, db);
   registerOutlineImpactRoutes(app, db);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;

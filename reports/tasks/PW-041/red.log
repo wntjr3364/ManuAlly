@@ -1,0 +1,210 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-041/profile.int.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts [ tests/tasks/PW-041/profile.int.test.ts ]
+Error: Cannot find module '../../../apps/worker/src/writing-profile/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-041/profile.int.test.ts
+ ❯ tests/tasks/PW-041/profile.int.test.ts:18:1
+     16| import { createReference } from '../../../packages/domain/src/referenc…
+     17| import { processDelivery } from '../../../apps/worker/src/queue/index.…
+     18| import { profileHandlers, createMockProfileGenerator, type ProfileGene…
+       | ^
+     19|
+     20| const ORIGIN = 'http://127.0.0.1:5173';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:12:29
+   Duration  1.73s (worker 96%, environment 4%)
+
+exit 1
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-041/profile.int.test.ts (8 tests | 8 failed) 1466ms
+   ❯ TST-041A: rules with their sources, counterexamples and an approval state (3)
+     × the generator sees which sections of each source were read; a run gives a DRAFT whose every rule names its reference and section 58ms
+     × approving needs the intent and the exact version; a later approval supersedes the earlier one; the user can add a journal rule snapshot 30ms
+     × a user's feedback is kept as a candidate for the next proposal; it never changes the profile by itself 25ms
+   ❯ TST-041B: no style from unread text; no copied wording (5)
+     × rules for a section that was not read are removed with the reason (abstract-only gives no Discussion style) 25ms
+     × a rule, pattern or example that copies a run of words from a source is not stored 27ms
+     × the answer cannot set the journal rule, extra fields or sources outside the request; references must be this paper's 18ms
+     × only text the system may use is read: an original kept on an unknown basis, or one a real provider may not receive, gives no sections 33ms
+     × the owner's own edit: based on the latest version, sources only from sections that were read, and no copied wording 27ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041A: rules with their sources, counterexamples and an approval state > the generator sees which sections of each source were read; a run gives a DRAFT whose every rule names its reference and section
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-041/profile.int.test.ts:77:24
+     75| async function run(w: W, gen: ProfileGenerator = createMockProfileGene…
+     76|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/writ…
+     77|   expect(r.statusCode).toBe(201);
+       |                        ^
+     78|   return deliver(w, r.json().job.id as string, gen);
+     79| }
+ ❯ tests/tasks/PW-041/profile.int.test.ts:93:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041A: rules with their sources, counterexamples and an approval state > approving needs the intent and the exact version; a later approval supersedes the earlier one; the user can add a journal rule snapshot
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-041/profile.int.test.ts:77:24
+     75| async function run(w: W, gen: ProfileGenerator = createMockProfileGene…
+     76|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/writ…
+     77|   expect(r.statusCode).toBe(201);
+       |                        ^
+     78|   return deliver(w, r.json().job.id as string, gen);
+     79| }
+ ❯ tests/tasks/PW-041/profile.int.test.ts:110:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041A: rules with their sources, counterexamples and an approval state > a user's feedback is kept as a candidate for the next proposal; it never changes the profile by itself
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-041/profile.int.test.ts:77:24
+     75| async function run(w: W, gen: ProfileGenerator = createMockProfileGene…
+     76|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/writ…
+     77|   expect(r.statusCode).toBe(201);
+       |                        ^
+     78|   return deliver(w, r.json().job.id as string, gen);
+     79| }
+ ❯ tests/tasks/PW-041/profile.int.test.ts:130:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041B: no style from unread text; no copied wording > rules for a section that was not read are removed with the reason (abstract-only gives no Discussion style)
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-041/profile.int.test.ts:77:24
+     75| async function run(w: W, gen: ProfileGenerator = createMockProfileGene…
+     76|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/writ…
+     77|   expect(r.statusCode).toBe(201);
+       |                        ^
+     78|   return deliver(w, r.json().job.id as string, gen);
+     79| }
+ ❯ tests/tasks/PW-041/profile.int.test.ts:145:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041B: no style from unread text; no copied wording > a rule, pattern or example that copies a run of words from a source is not stored
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-041/profile.int.test.ts:77:24
+     75| async function run(w: W, gen: ProfileGenerator = createMockProfileGene…
+     76|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/writ…
+     77|   expect(r.statusCode).toBe(201);
+       |                        ^
+     78|   return deliver(w, r.json().job.id as string, gen);
+     79| }
+ ❯ tests/tasks/PW-041/profile.int.test.ts:171:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041B: no style from unread text; no copied wording > the answer cannot set the journal rule, extra fields or sources outside the request; references must be this paper's
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-041/profile.int.test.ts:77:24
+     75| async function run(w: W, gen: ProfileGenerator = createMockProfileGene…
+     76|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/writ…
+     77|   expect(r.statusCode).toBe(201);
+       |                        ^
+     78|   return deliver(w, r.json().job.id as string, gen);
+     79| }
+ ❯ tests/tasks/PW-041/profile.int.test.ts:197:31
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041B: no style from unread text; no copied wording > only text the system may use is read: an original kept on an unknown basis, or one a real provider may not receive, gives no sections
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-041/profile.int.test.ts:77:24
+     75| async function run(w: W, gen: ProfileGenerator = createMockProfileGene…
+     76|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/writ…
+     77|   expect(r.statusCode).toBe(201);
+       |                        ^
+     78|   return deliver(w, r.json().job.id as string, gen);
+     79| }
+ ❯ tests/tasks/PW-041/profile.int.test.ts:209:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041B: no style from unread text; no copied wording > the owner's own edit: based on the latest version, sources only from sections that were read, and no copied wording
+AssertionError: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-041/profile.int.test.ts:77:24
+     75| async function run(w: W, gen: ProfileGenerator = createMockProfileGene…
+     76|   const r = await call('alice', 'POST', `/api/papers/${w.paperId}/writ…
+     77|   expect(r.statusCode).toBe(201);
+       |                        ^
+     78|   return deliver(w, r.json().job.id as string, gen);
+     79| }
+ ❯ tests/tasks/PW-041/profile.int.test.ts:237:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed (8)
+   Start at  21:12:40
+   Duration  3.25s (tests 47%, transform 41%, import 12%)
+
+exit 1

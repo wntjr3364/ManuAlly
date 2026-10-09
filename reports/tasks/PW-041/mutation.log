@@ -1,0 +1,22 @@
+# PW-041 mutations (each applied alone, then restored)
+KILLED R&D serves both roles removed
+KILLED numbered heading prefix not stripped
+KILLED COPY_RUN 8 -> 12
+KILLED role-section check dropped
+KILLED unread section accepted
+KILLED no_source not enforced
+KILLED rule copy check dropped
+KILLED example copy check dropped
+KILLED source outside request tolerated
+KILLED generator may set journal rule
+KILLED keep_right unknown still read
+KILLED per-asset send gate dropped
+KILLED approve ignores content hash
+KILLED approve needs no intent
+KILLED previous approval not superseded
+KILLED owner edit on stale base
+KILLED owner edit unchecked
+KILLED paper policy gate dropped
+KILLED journal rule not carried over
+KILLED feedback not given to generator
+KILLED extra top-level answer keys tolerated

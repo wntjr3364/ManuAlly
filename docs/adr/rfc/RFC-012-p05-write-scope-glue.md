@@ -42,3 +42,9 @@ User decision / reviewer:
   - `apps/api/src/routes/evidence/index.ts`(철회 route), 새 route 폴더 `apps/api/src/outline-impact/**`, `apps/api/src/server.ts`
   - `apps/web/src/features/paper/EvidenceTab.tsx`, `apps/web/src/features/evidence/TracePanel.tsx`(철회 버튼), `apps/web/src/features/paper/StoryOutlineTab.tsx`(영향 panel)
 - PW-040 리뷰 반영: `packages/search/src/retrieval/index.ts`(지지 근거 없는 관찰 주장 보류 `claim_unsupported`, `RETRIEVAL_VERSION` pw-retrieval-3, `settledMaterial.excerptIds`), `apps/api/src/outline-impact/index.ts`(scope에 settledMaterial)
+- PW-041
+  - 새 route 폴더 `apps/api/src/writing-profile/**`, `apps/api/src/server.ts`(등록)
+  - `apps/worker/src/main.ts`(`propose_profile` handler 등록, MOCK 생성기)
+  - 새 화면 폴더 `apps/web/src/features/writing-profile/**`, `apps/web/src/features/paper/PaperPage.tsx`("글쓰기 프로필" tab)
+  - `packages/domain/src/jobs/index.ts`(`JOB_INTENTS`에 `propose_profile`; migration의 `jobs_intent_check`와 짝)
+  - `tests/e2e/manual-paper/harness.ts`(시험용 worker에 handler 등록)

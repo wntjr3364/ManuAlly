@@ -1339,7 +1339,7 @@
       "id": "PW-041",
       "phase": "P05",
       "title": "WritingProfile 생성·승인",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-040"
       ],

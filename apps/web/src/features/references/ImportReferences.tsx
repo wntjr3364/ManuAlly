@@ -15,7 +15,8 @@ const STATUS_LABEL: Record<string, string> = {
   unknown_doi: '가져오지 않음(서재에 없는 DOI, 정보 없음)',
 };
 const REASON_LABEL: Record<string, string> = { duplicate_key_in_file: '파일 안에서 같은 키가 반복됨', no_title: '제목 없음' };
-interface Result { key: string; status: string; reference_id: string | null; title: string | null; warnings: string[]; reason?: string }
+const WARNING_LABEL: Record<string, string> = { source_key_seen_with_other_metadata: '같은 키가 전에 다른 문헌에 쓰였음 — 새 문헌으로 추가', doi_not_understood: 'DOI를 읽지 못함' };
+interface Result { key: string; status: string; reference_id: string | null; title: string | null; library_title?: string | null; warnings: string[]; reason?: string }
 interface Capabilities { read: boolean; write: boolean; sync: string; note: string }
 
 function guessFormat(name: string): Format | null {
@@ -67,6 +68,7 @@ export function ImportReferences({ paperId, onImported }: { paperId: string; onI
   return (
     <div data-testid="reference-import">
       <h3>문헌 가져오기</h3>
+      <p className="muted" data-testid="import-identity-note">DOI가 있으면 서재의 같은 DOI 문헌으로 이어집니다. DOI가 없는 항목은 같은 형식(또는 같은 Zotero 라이브러리)에서 키와 내용이 모두 같을 때만 같은 문헌으로 이어지고, 그 밖에는 새 문헌이 됩니다(다른 형식으로 가져오면 새 문헌).</p>
       <form onSubmit={submitFile} aria-label="참고문헌 파일에서 가져오기">
         <div className="toolbar">
           <label className="inline">파일 형식
@@ -118,8 +120,9 @@ export function ImportReferences({ paperId, onImported }: { paperId: string; onI
             {results.items.map((r, i) => (
               <li key={`${r.key}-${i}`} data-testid="import-item" data-status={r.status}>
                 <strong>{STATUS_LABEL[r.status] ?? r.status}</strong>: {r.title ?? r.key}
+                {r.library_title != null && r.library_title !== r.title && <> → 이 논문에 들어간 서재 문헌: <em data-testid="import-library-title">{r.library_title}</em></>}
                 {r.reason && <> — {REASON_LABEL[r.reason] ?? r.reason}</>}
-                {r.warnings.length > 0 && <> (주의: {r.warnings.join(', ')})</>}
+                {r.warnings.length > 0 && <> (주의: {r.warnings.map((w) => WARNING_LABEL[w] ?? w).join(', ')})</>}
               </li>
             ))}
           </ul>

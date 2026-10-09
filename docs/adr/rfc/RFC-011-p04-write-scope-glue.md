@@ -69,3 +69,4 @@ User decision / reviewer:
   - `apps/api/package.json`(`@pw/search` workspace 의존성. 새 외부 의존성 없음), `pnpm-lock.yaml`
   - `apps/web/src/features/references/ImportReferences.tsx`(새 화면), `ReferencesPanel.tsx`(붙임)
   - `tests/e2e/manual-paper/harness.ts`(시험용 `zotero` 옵션 전달)
+- PW-038 리뷰 반영: 범위 밖 새 파일 없음. `apps/api/src/reference-import/index.ts`(Zotero 범위 전달), `ImportReferences.tsx`(서재 제목, 안내문)

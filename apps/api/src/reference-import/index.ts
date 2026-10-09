@@ -32,7 +32,7 @@ export function registerReferenceImportRoutes(app: FastifyInstance, pool: TxPool
     const { items, total } = await readZoteroItems({
       ...opts.zotero, libraryType: b.library_type as 'user' | 'group', libraryId: String(b.library_id ?? ''), ...(typeof b.api_key === 'string' && b.api_key ? { apiKey: b.api_key } : {}),
     }, { start: Number(b.start ?? 0), limit: Number(b.limit ?? 50) });
-    const out = await importReferences(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, format: 'csl-json', text: JSON.stringify(items), source: 'zotero' });
+    const out = await importReferences(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, format: 'csl-json', text: JSON.stringify(items), source: 'zotero', scope: `zotero:${String(b.library_type)}:${String(b.library_id)}` });
     return { ...out, zotero_total: total, capabilities: ZOTERO_CAPABILITIES };
   }, 201));
 }

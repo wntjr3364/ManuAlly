@@ -241,3 +241,57 @@ describe('limits (mutation follow-up)', () => {
     expect(zotSeen.length).toBe(before);
   });
 });
+
+// review (PW-038)
+describe('review: a work without a DOI is reused only for the same source, key and content', () => {
+  const refsOf = async (p: string) => (await pool.query("SELECT b.csl_json->>'title' AS t FROM project_references r JOIN LATERAL (SELECT csl_json FROM bibliographic_revisions WHERE reference_id = r.reference_id ORDER BY created_at DESC, id DESC LIMIT 1) b ON true WHERE r.paper_id = $1 ORDER BY 1", [p])).rows.map((x) => x.t);
+  test('MAJOR: two RIS files without IDs (both "#1") never share a work', async () => {
+    const p1 = await newPaper();
+    const p2 = await newPaper();
+    const a = (await call('alice', 'POST', `/api/papers/${p1}/references/import`, { format: 'ris', text: 'TY  - JOUR\nTI  - Alpha paper about roots\nER  - \n' }, 201)).json();
+    const b = (await call('alice', 'POST', `/api/papers/${p2}/references/import`, { format: 'ris', text: 'TY  - JOUR\nTI  - Beta paper about leaves\nER  - \n' }, 201)).json();
+    expect(a.results[0].status).toBe('created');
+    expect(b.results[0]).toMatchObject({ status: 'created' });
+    expect(b.results[0].reference_id).not.toBe(a.results[0].reference_id);
+    expect(await refsOf(p2)).toEqual(['Beta paper about leaves']);
+    // the very same entry again: the same work (same source, same content)
+    const a2 = (await call('alice', 'POST', `/api/papers/${p2}/references/import`, { format: 'ris', text: 'TY  - JOUR\nTI  - Alpha paper about roots\nER  - \n' }, 201)).json();
+    expect(a2.results[0]).toMatchObject({ status: 'linked_existing', reference_id: a.results[0].reference_id });
+    // a position is not a key: the same entry second in another file is still the same work
+    const a3 = (await call('alice', 'POST', `/api/papers/${p1}/references/import`, { format: 'ris', text: 'TY  - JOUR\nTI  - Something first\nER  - \nTY  - JOUR\nTI  - Alpha paper about roots\nER  - \n' }, 201)).json();
+    expect(a3.results[1]).toMatchObject({ status: 'already_in_paper', reference_id: a.results[0].reference_id });
+  });
+  test('MAJOR: a citekey reused for another work gives a new work and says so; the first stays stable', async () => {
+    const p1 = await newPaper();
+    const p2 = await newPaper();
+    const g = (await call('alice', 'POST', `/api/papers/${p1}/references/import`, { format: 'bibtex', text: '@article{smith2020, title={Gamma drought study}}' }, 201)).json();
+    const d = (await call('alice', 'POST', `/api/papers/${p2}/references/import`, { format: 'bibtex', text: '@article{smith2020, title={Delta unrelated chemistry}}' }, 201)).json();
+    expect(d.results[0]).toMatchObject({ status: 'created' });
+    expect(d.results[0].warnings).toContain('source_key_seen_with_other_metadata');
+    expect(d.results[0].reference_id).not.toBe(g.results[0].reference_id);
+    expect(await refsOf(p2)).toEqual(['Delta unrelated chemistry']);
+    const g2 = (await call('alice', 'POST', `/api/papers/${p2}/references/import`, { format: 'bibtex', text: '@article{smith2020, title={Gamma drought study}}' }, 201)).json();
+    expect(g2.results[0]).toMatchObject({ status: 'linked_existing', reference_id: g.results[0].reference_id });
+    // and Delta again links Delta, not Gamma
+    const d2 = (await call('alice', 'POST', `/api/papers/${p1}/references/import`, { format: 'bibtex', text: '@article{smith2020, title={Delta unrelated chemistry}}' }, 201)).json();
+    expect(d2.results[0]).toMatchObject({ status: 'linked_existing', reference_id: d.results[0].reference_id });
+  });
+  test('nit: Zotero items and hand-made CSL-JSON do not share keys; one Zotero library does not share with another', async () => {
+    const p = await newPaper();
+    const f = (await call('alice', 'POST', `/api/papers/${p}/references/import`, { format: 'csl-json', text: JSON.stringify([{ id: 'SAMEKEY', title: 'Hand made entry' }]) }, 201)).json();
+    zotItems = [{ id: 'SAMEKEY', title: 'Hand made entry' }];
+    const z1 = (await call('alice', 'POST', `/api/papers/${p}/references/zotero/import`, { library_type: 'user', library_id: '12345' }, 201)).json();
+    const z2 = (await call('alice', 'POST', `/api/papers/${p}/references/zotero/import`, { library_type: 'group', library_id: '777' }, 201)).json();
+    const z1again = (await call('alice', 'POST', `/api/papers/${p}/references/zotero/import`, { library_type: 'user', library_id: '12345' }, 201)).json();
+    const ids = [f, z1, z2].map((r) => r.results[0].reference_id);
+    expect(new Set(ids).size).toBe(3);
+    expect(z1again.results[0]).toMatchObject({ status: 'already_in_paper', reference_id: z1.results[0].reference_id });
+  });
+  test('nit: the result shows the library\'s title next to the file\'s when the paper gets the library\'s work', async () => {
+    const p = await newPaper();
+    await call('alice', 'POST', `/api/papers/${p}/references/import`, { format: 'csl-json', text: JSON.stringify([{ id: 'k', title: 'The library title', DOI: '10.5555/libtitle' }]) }, 201);
+    const q = await newPaper();
+    const r = (await call('alice', 'POST', `/api/papers/${q}/references/import`, { format: 'csl-json', text: JSON.stringify([{ id: 'k', title: 'A mistyped DOI entry', DOI: '10.5555/libtitle' }]) }, 201)).json();
+    expect(r.results[0]).toMatchObject({ status: 'kept_library_metadata', title: 'A mistyped DOI entry', library_title: 'The library title' });
+  });
+});

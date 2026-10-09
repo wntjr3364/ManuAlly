@@ -97,6 +97,19 @@ test('TST-038A/B: import shows each outcome, cites by stable id, re-import links
   expect((await h.pool.query('SELECT count(*)::int AS n FROM project_references WHERE paper_id = $1', [paperId])).rows[0].n).toBe(2);
   expect((await h.pool.query("SELECT reference_id FROM reference_identifiers WHERE value = '10.5555/pw038.e2e.1'")).rows).toEqual([{ reference_id: refId }]);
 
+  // the same DOI with other details: the paper gets the library's work, and the screen says which
+  await fileForm.getByLabel('참고문헌 파일 형식').selectOption('csl-json');
+  await fileForm.getByLabel('참고문헌 붙여넣기').fill(JSON.stringify([{ id: 'typo', title: 'ABC1 inductoin (typo)', DOI: '10.5555/PW038.E2E.1' }]));
+  await fileForm.getByRole('button', { name: '가져오기' }).click();
+  await expect(results.locator('[data-status="already_in_paper"]').getByTestId('import-library-title')).toHaveText('ABC1 induction in drought-stressed roots');
+  await expect(imp(page).getByTestId('import-identity-note')).toContainText('키와 내용이 모두 같을 때만');
+  // a citekey reused for another work: a new work, with the reason shown
+  await fileForm.getByLabel('참고문헌 파일 형식').selectOption('bibtex');
+  await fileForm.getByLabel('참고문헌 붙여넣기').fill('@article{lee2018, title = {An unrelated work under a reused key}, year = {2019}}');
+  await fileForm.getByRole('button', { name: '가져오기' }).click();
+  await expect(results.locator('[data-status="created"]')).toContainText('같은 키가 전에 다른 문헌에 쓰였음');
+  await expect(list).toContainText('An unrelated work under a reused key');
+  await expect(list).toContainText('Root hydraulics without a DOI');
   // an RIS file: the format follows the file name
   await fileForm.getByLabel('참고문헌 파일', { exact: true }).setInputFiles({ name: 'refs.ris', mimeType: 'application/x-research-info-systems', buffer: Buffer.from(RIS) });
   await expect(fileForm.getByLabel('참고문헌 파일 형식')).toHaveValue('ris');
@@ -109,7 +122,7 @@ test('TST-038A/B: import shows each outcome, cites by stable id, re-import links
   await fileForm.getByLabel('참고문헌 붙여넣기').fill('10.5555/pw038.unknown');
   await fileForm.getByRole('button', { name: '가져오기' }).click();
   await expect(results.locator('[data-status="unknown_doi"]')).toHaveCount(1);
-  await expect(list.locator('li')).toHaveCount(3);
+  await expect(list.locator('li')).toHaveCount(4);
 
   // Zotero: says read-only, no writing, no sync; there is no control that claims otherwise
   await imp(page).getByText('Zotero에서 읽기(읽기 전용)').click();
@@ -123,7 +136,7 @@ test('TST-038A/B: import shows each outcome, cites by stable id, re-import links
   await zf.getByLabel('Zotero 라이브러리 번호').fill('999');
   await zf.getByRole('button', { name: 'Zotero에서 가져오기' }).click();
   await expect(imp(page).getByRole('alert')).toBeVisible();
-  await expect(list.locator('li')).toHaveCount(3);
+  await expect(list.locator('li')).toHaveCount(4);
   // a readable one, with a key
   await zf.getByLabel('Zotero 라이브러리 번호').fill('12345');
   await zf.getByLabel('Zotero API 키(선택, 저장하지 않음)').fill(KEY);

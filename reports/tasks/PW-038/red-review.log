@@ -1,0 +1,10 @@
+     × MAJOR: two RIS files without IDs (both "#1") never share a work 41ms
+     × MAJOR: a citekey reused for another work gives a new work and says so; the first stays stable 26ms
+     × nit: Zotero items and hand-made CSL-JSON do not share keys; one Zotero library does not share with another 43ms
+     × nit: the result shows the library's title next to the file's when the paper gets the library's work 18ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected { key: '#1', …(4) } to match object { status: 'created' }
+AssertionError: expected { key: 'smith2020', …(4) } to match object { status: 'created' }
+AssertionError: expected 1 to be 3 // Object.is equality
+AssertionError: expected { key: 'k', …(4) } to match object { …(3) }
+      Tests  4 failed | 11 passed (15)

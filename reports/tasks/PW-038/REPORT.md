@@ -5,7 +5,7 @@
 - `db/migrations/pw_038_0001_reference_imports.sql`
   - `reference_imports`: 가져오기 한 번(논문, 소유자, 형식, 원천 `import`/`zotero`, 읽은 내용의 sha256, 항목 수)
   - `reference_import_items`: 항목마다 결과(`created`, `linked_existing`, `kept_library_metadata`, `already_in_paper`, `invalid`, `unknown_doi`), 참고문헌 id, 경고. 가져오지 않은 항목만 id가 없다(CHECK)
-  - `reference_import_keys`: DOI 없는 항목의 안정 id. (소유자, 형식, 원천 키) → 참고문헌. 다시 가져오면 같은 참고문헌이다
+  - (리뷰 반영으로 `reference_import_keys`는 `pw_038_0002`에서 `reference_import_identities`로 바뀌었다. 아래 "리뷰 반영")
   - 세 표 모두 바꿀 수 없다
 - `packages/domain/src/imports/references/parse.ts`
   - BibTeX(중괄호·따옴표 값, LaTeX 악센트, `@string` 매크로는 값으로 쓰지 않고 경고), RIS, CSL-JSON, DOI 목록
@@ -15,7 +15,7 @@
   - 한 트랜잭션, 서재 잠금(`lockLibrary`). 항목마다:
     - 파일 안 같은 키 반복 → `invalid`(duplicate_key_in_file)
     - DOI(정규화)가 서재에 있으면 그 참고문헌. 내용이 같으면 `linked_existing`, 다르면 `kept_library_metadata`(서재 정보를 바꾸지 않음)
-    - DOI가 없으면 원천 키로 찾는다
+    - DOI가 없으면 같은 원천·같은 키·같은 내용일 때만 같은 문헌이다(리뷰 반영)
     - 서재에 없는 DOI에 정보가 없으면(DOI 목록) `unknown_doi`. 찾아보거나 지어내지 않는다
     - 제목 없음·해석 실패 → `invalid`
     - 새 문헌은 `bibliographic_revisions`에 원천(`import`/`zotero`)과 함께 기록, 미결 관계 연결(`linkPendingRelations`)
@@ -74,3 +74,18 @@
 
 ## 다음
 P04 gate 보고(`reports/phases/P04_GATE.md`), 그다음 RFC-010 구현(P05 전).
+
+## 리뷰 반영 (1차, changes requested — MAJOR 1, NIT 4)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR: DOI 없는 항목이 원천 키만 같으면 다른 문헌에 붙음(ID 없는 RIS·CSL의 `#1`, 다른 파일의 같은 citekey) | `pw_038_0002_import_identities.sql`: 키 표를 `reference_import_identities`(소유자, 범위, 원천 키, 내용 hash)로 바꿨다. DOI 없는 항목은 같은 범위(파일 형식, 또는 Zotero 라이브러리 하나), 같은 원천 키, 같은 내용일 때만 같은 문헌이다. 위치(`#n`)는 키가 아니다(파서가 `ownKey: false`로 표시). 같은 키가 다른 내용으로 오면 새 문헌을 만들고 `source_key_seen_with_other_metadata` 경고를 준다 | `MAJOR: two RIS files without IDs`, `MAJOR: a citekey reused`(리뷰어의 두 probe), 위치가 달라도 같은 내용이면 같은 문헌 |
+| NIT: 결과가 파일의 제목만 보여 줌 | 이미 있던 문헌이면 `library_title`을 함께 돌려주고, 다르면 화면에 "이 논문에 들어간 서재 문헌: …"으로 보여 준다 | 통합 `nit: the result shows the library's title`, 브라우저(잘못 친 DOI 항목) |
+| NIT: 형식별 안정 id | 의도한 안전 방향(잘못 합치지 않음). 화면 안내문과 이 보고에 적었다: 다른 형식으로 가져오면 새 문헌이 된다 | 브라우저 안내문 |
+| NIT: Zotero와 손으로 만든 CSL-JSON이 같은 키 공간 | 범위로 나눴다(`file:csl-json`, `zotero:user:12345`). 범위는 `reference_imports.scope`에도 기록한다 | 통합 `nit: Zotero items and hand-made CSL-JSON` |
+| NIT: 바뀐 Zotero 항목을 채택할 수 없음 | 그대로 남은 위험으로 둔다. P04 gate 보고에도 적었다 | — |
+
+- RED(`red-review.log`): 리뷰 시험 4개가 이전 구현에서 실패(두 probe는 `kept_library_metadata`로 잘못 연결, 범위 공유, `library_title` 없음).
+- GREEN: 통합 15, 브라우저 1.
+- mutation(`mutation.log` 하단): 7종 모두 탐지(키만으로 찾기, 위치를 키로 쓰기, Zotero 범위 빼기, 경고 빼기, `library_title` 빼기, 화면의 서재 제목, 화면의 경고 문구).
+- 회귀: `pnpm test` exit 0 — unit 278, integration 373, contracts 17, 브라우저 85 (`pnpm-test-review.log`).
+- 남은 위험: DOI 없는 항목을 고쳐서(오타 수정) 다시 가져오면 새 문헌이 된다. 잘못 합치는 것보다 안전한 쪽이다. 같은 문헌 둘은 PW-032의 서재 화면에서 사용자가 정리한다.

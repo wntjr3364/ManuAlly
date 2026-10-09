@@ -23,3 +23,11 @@ KILLED https_only
 KILLED ui_status_label
 # self-review: a RIS ID longer than 200 characters gave a database error (500); the key is now cut like the others
 KILLED ris_key_length (without the cut the long-key test fails: 500)
+# review fixes (Fri Oct  9 18:47:50 UTC 2026)
+KILLED identity_by_key_alone
+KILLED position_as_key
+KILLED zotero_scope
+KILLED key_reuse_warning
+KILLED library_title
+KILLED ui_library_title
+KILLED ui_warning_label

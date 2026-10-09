@@ -6,7 +6,9 @@ export const IMPORT_FORMATS: readonly ImportFormat[] = ['csl-json', 'bibtex', 'r
 
 export interface Author { family: string; given?: string }
 export interface ParsedEntry {
-  key: string; // the source's own key (citekey, RIS ID, CSL id) or a position
+  key: string; // the source's own key (citekey, RIS ID, CSL id) or a position (#n)
+  // false: the key is only a position in the file and identifies nothing
+  ownKey: boolean;
   csl: { type: string; title?: string; author: Author[]; issued?: { 'date-parts': number[][] }; 'container-title'?: string; DOI?: string };
   warnings: string[];
   error?: string;
@@ -50,7 +52,7 @@ export function parseCslJson(text: string): ParsedEntry[] {
     const container = Array.isArray(o['container-title']) ? o['container-title'][0] : o['container-title'];
     const title = typeof o.title === 'string' ? clean(o.title) : undefined;
     return {
-      key: typeof o.id === 'string' || typeof o.id === 'number' ? String(o.id).slice(0, 200) : `#${i + 1}`,
+      ...((typeof o.id === 'string' && o.id.trim()) || typeof o.id === 'number' ? { key: String(o.id).slice(0, 200), ownKey: true } : { key: `#${i + 1}`, ownKey: false }),
       csl: { type: typeof o.type === 'string' ? o.type.slice(0, 50) : 'article', ...(title ? { title } : {}), author, ...(year ? { issued: { 'date-parts': [[year]] } } : {}), ...(typeof container === 'string' && container.trim() ? { 'container-title': clean(container) } : {}), ...(typeof o.DOI === 'string' ? { DOI: o.DOI } : {}) },
       warnings,
       ...(title ? {} : { error: 'no_title' }),
@@ -99,7 +101,7 @@ export function parseBibtex(text: string): ParsedEntry[] {
     let i = m.index + m[0].length;
     const keyM = /^\s*([^,\s]+)\s*,/.exec(text.slice(i));
     const warnings: string[] = [];
-    if (!keyM) { out.push({ key: `#${out.length + 1}`, csl: { type: 'article', author: [] }, warnings, error: 'no_citekey' }); continue; }
+    if (!keyM) { out.push({ key: `#${out.length + 1}`, ownKey: false, csl: { type: 'article', author: [] }, warnings, error: 'no_citekey' }); continue; }
     const key = keyM[1]!.slice(0, 200);
     i += keyM[0].length;
     const fields: Record<string, string> = {};
@@ -116,7 +118,7 @@ export function parseBibtex(text: string): ParsedEntry[] {
         i += sep[0].length;
       }
     } catch (e) {
-      out.push({ key, csl: { type: 'article', author: [] }, warnings, error: `unreadable: ${(e as Error).message}` });
+      out.push({ key, ownKey: true, csl: { type: 'article', author: [] }, warnings, error: `unreadable: ${(e as Error).message}` });
       continue;
     }
     re.lastIndex = i;
@@ -127,6 +129,7 @@ export function parseBibtex(text: string): ParsedEntry[] {
     const TYPE: Record<string, string> = { article: 'article-journal', inproceedings: 'paper-conference', book: 'book', incollection: 'chapter', phdthesis: 'thesis', misc: 'article', techreport: 'report' };
     out.push({
       key,
+      ownKey: true,
       csl: { type: TYPE[type] ?? 'article', ...(title ? { title } : {}), author, ...(year ? { issued: { 'date-parts': [[year]] } } : {}), ...(container ? { 'container-title': delatex(container, warnings) } : {}), ...(fields.doi ? { DOI: clean(fields.doi) } : {}) },
       warnings: [...new Set(warnings)],
       ...(title ? {} : { error: 'no_title' }),
@@ -149,7 +152,7 @@ export function parseRis(text: string): ParsedEntry[] {
     const container = (f.JO ?? f.JF ?? f.T2 ?? f.JA ?? [])[0];
     const TYPE: Record<string, string> = { JOUR: 'article-journal', CONF: 'paper-conference', CPAPER: 'paper-conference', BOOK: 'book', CHAP: 'chapter', THES: 'thesis', RPRT: 'report' };
     out.push({
-      key: clean((f.ID ?? [])[0] ?? '').slice(0, 200) || `#${out.length + 1}`,
+      ...(clean((f.ID ?? [])[0] ?? '') ? { key: clean(f.ID![0]!).slice(0, 200), ownKey: true } : { key: `#${out.length + 1}`, ownKey: false }),
       csl: { type: TYPE[(f.TY ?? [''])[0]!] ?? 'article', ...(title ? { title } : {}), author, ...(year ? { issued: { 'date-parts': [[year]] } } : {}), ...(container ? { 'container-title': clean(container) } : {}), ...((f.DO ?? [])[0] ? { DOI: clean(f.DO![0]!) } : {}) },
       warnings,
       ...(title ? {} : { error: 'no_title' }),
@@ -173,7 +176,7 @@ export function parseRis(text: string): ParsedEntry[] {
 // Only identifiers: the metadata is not looked up here (a known DOI links the library's work; an unknown
 // one is reported as needing metadata, never filled in).
 export function parseDoiList(text: string): ParsedEntry[] {
-  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l, i) => ({ key: `#${i + 1}`, csl: { type: 'article', author: [], DOI: l }, warnings: [] }));
+  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l, i) => ({ key: `#${i + 1}`, ownKey: false, csl: { type: 'article', author: [], DOI: l }, warnings: [] }));
 }
 
 export function parseReferences(format: ImportFormat, text: string): ParsedEntry[] {

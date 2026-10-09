@@ -52,3 +52,4 @@ User decision / reviewer:
 - PW-034
   - `apps/api/src/server.ts`(`assets` 옵션, `registerAssetRoutes` 등록)
   - `apps/api/src/index.ts`(원본 저장 폴더: `PW_ASSET_DIR`, 기본 `$XDG_DATA_HOME` 또는 `~/.local/share` 아래 `paper-workspace/assets`. 실행 사용자 자신의 폴더)
+- PW-034 리뷰 반영: `apps/api/src/index.ts`(기본 저장 폴더를 `defaultAssetDir()`로). 저장 모듈은 `packages/domain/src/asset-policy/store.ts`로 옮겼다(PW-034 범위의 domain 모듈, worker도 씀).

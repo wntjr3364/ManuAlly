@@ -17,7 +17,7 @@ import { createTempDatabase } from '../../../packages/config/src/test-db.ts';
 import { migrate } from '../../../apps/api/src/db/migrate.ts';
 import { buildServer } from '../../../apps/api/src/server.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
-import { checkFetchUrl, externalSendDecision, inspectPdf, isInternalAddress, recordSourceAsset, safeFileName } from '../../../packages/domain/src/asset-policy/index.ts';
+import { checkFetchUrl, contentDisposition, externalSendDecision, inspectPdf, isInternalAddress, recordSourceAsset, safeFileName } from '../../../packages/domain/src/asset-policy/index.ts';
 
 const ORIGIN = 'http://127.0.0.1:5173';
 let db: { url: string; drop: () => Promise<void> };
@@ -55,7 +55,7 @@ beforeAll(async () => {
     },
   });
   await app.ready();
-  for (const u of ['alice', 'bob']) {
+  for (const u of ['alice', 'bob', 'carol', 'dave']) {
     ids[u] = (await createOwner(pool, { username: u, password: 'correct horse battery' })).id;
     const r = await app.inject({ method: 'POST', url: '/api/auth/login', headers: { origin: ORIGIN }, payload: { username: u, password: 'correct horse battery' } });
     H[u] = { cookie: String(r.headers['set-cookie']).split(';')[0]!, 'x-pw-csrf': r.json().csrfToken, origin: ORIGIN };
@@ -258,7 +258,16 @@ describe('TST-034B: malicious files, SSRF, crawling, paywalls and unapproved sen
     expect(r.statusCode, r.body).toBe(201);
     expect(r.json()).toMatchObject({ sha256: sha(ok), source: 'open_access_fetch', source_url: 'https://oa.test/open.pdf', policy: { license: 'unknown', keep_right: 'unknown', external_send: 'unknown' } });
     const log = (await pool.query('SELECT outcome FROM asset_fetches WHERE paper_id = $1 ORDER BY attempted_at', [p])).rows.map((x) => x.outcome);
-    expect(log).toEqual(['internal_address', 'host_not_allowed', 'redirect', 'not_pdf', 'rejected_file', 'stored']);
+    expect(log.filter((o) => o !== 'attempted')).toEqual(['internal_address', 'host_not_allowed', 'redirect', 'not_pdf', 'rejected_file', 'stored']);
+    // every attempt was reserved before it went out
+    expect(log.filter((o) => o === 'attempted')).toHaveLength(6);
+    // fetched: the basis for keeping it is unknown, so it is not handed out until the owner states it
+    const fetched = r.json();
+    expect((await call('alice', 'GET', `/api/papers/${p}/assets/${fetched.id}/content`)).json()).toMatchObject({ reason: 'keep_right_unknown' });
+    await call('alice', 'POST', `/api/papers/${p}/assets/${fetched.id}/policy`, { keep_right: 'open_license', license: 'cc-by' });
+    const opened = await call('alice', 'GET', `/api/papers/${p}/assets/${fetched.id}/content`);
+    expect(opened.statusCode).toBe(200);
+    expect(opened.rawPayload.equals(ok)).toBe(true);
   });
 
   test('crawling is capped: after the daily number of attempts per owner, fetches are refused before any request', async () => {
@@ -276,5 +285,66 @@ describe('TST-034B: malicious files, SSRF, crawling, paywalls and unapproved sen
     // bob's cap is his own
     const q = await newPaper('bob');
     expect((await call('bob', 'POST', `/api/papers/${q}/assets/fetch`, { url: 'https://oa.test/missing.pdf' })).json()).toMatchObject({ reason: 'http_error' });
+  });
+});
+
+// review (PW-034)
+describe('review fixes', () => {
+  const objStmWithDict = (dict: string, content: string) => {
+    const data = zlib.deflateSync(Buffer.from(content, 'latin1'));
+    return Buffer.concat([Buffer.from(`90 0 obj ${dict}\nstream\n`, 'latin1'), data, Buffer.from('\nendstream\nendobj\n', 'latin1')]);
+  };
+  test('MINOR 1: padded object-stream dictionaries, attachments without /EmbeddedFile, remote go-to and media are refused', () => {
+    const pad = `<< /Type /ObjStm /N 1 /First 5 /Filter /FlateDecode /Pad (${'x'.repeat(5000)}) >>`;
+    expect(inspectPdf(pdf('/OpenAction 10 0 R', 1, objStmWithDict(pad, '<< /S /JavaScript /JS (x) >>')))).toMatchObject({ ok: false, reason: 'active_content' });
+    const loneCr = Buffer.from(objStmWithDict('<< /Type /ObjStm /N 1 /First 5 /Filter /FlateDecode >>', '<< /S /JavaScript /JS (x) >>').toString('latin1').replace('stream\n', 'stream\r'), 'latin1');
+    expect(inspectPdf(pdf('', 1, loneCr))).toMatchObject({ ok: false, reason: 'active_content' });
+    for (const extra of ['/Annots [<< /Subtype /FileAttachment /FS << /EF << /F 8 0 R >> >> >>]', '/OpenAction << /S /GoToR /F (other.pdf) >>', '/OpenAction << /S /Rendition >>', '/Annots [<< /Subtype /Sound >>]', '/Annots [<< /Subtype /Movie >>]']) {
+      expect(inspectPdf(pdf(extra)), extra).toMatchObject({ ok: false, reason: 'active_content' });
+    }
+    // an object stream that cannot be located for inspection is not passed unseen
+    expect(inspectPdf(pdf('/Extra << /Type /ObjStm >>'))).toMatchObject({ ok: false, reason: 'malformed' });
+    // ordinary DOI links stay allowed
+    expect(inspectPdf(pdf('/Annots [<< /Subtype /Link /A << /S /URI /URI (https://doi.org/10.1/x) >> >>]'))).toMatchObject({ ok: true });
+  });
+
+  test('MINOR 2: concurrent fetches cannot pass the daily cap; each leaves at most one request', async () => {
+    const p = await newPaper('carol');
+    let hits = 0;
+    oaBehave = (_q, res) => { hits++; res.writeHead(404); res.end(); };
+    const rs = await Promise.all(Array.from({ length: 12 }, () => call('carol', 'POST', `/api/papers/${p}/assets/fetch`, { url: `https://oa.test/${randomUUID()}.pdf` })));
+    const reasons = rs.map((r) => r.json().reason);
+    expect(reasons.filter((x) => x === 'daily_cap')).toHaveLength(6);
+    expect(reasons.filter((x) => x === 'http_error')).toHaveLength(6);
+    expect(hits).toBe(6);
+  });
+
+  test('nit: the time limit is a deadline, not an idle timeout (a slow drip is cut off)', async () => {
+    const p = await newPaper('dave');
+    oaBehave = (_q, res) => {
+      res.writeHead(200, { 'content-type': 'application/pdf' });
+      res.write('%PDF-1.7\n');
+      const t = setInterval(() => res.write('x'), 200);
+      res.on('close', () => clearInterval(t));
+    };
+    const t0 = Date.now();
+    expect((await call('dave', 'POST', `/api/papers/${p}/assets/fetch`, { url: 'https://oa.test/drip.pdf' })).json()).toMatchObject({ reason: 'timeout' });
+    expect(Date.now() - t0).toBeLessThan(4000);
+  });
+
+  test('nits: more internal address forms; download names are strictly encoded and stripped of direction marks', () => {
+    for (const ip of ['::ffff:0:7f00:1', '::ffff:0:127.0.0.1', '64:ff9b:1::7f00:1']) expect(isInternalAddress(ip), ip).toBe(true);
+    expect(safeFileName('a‎b‏c؜d.pdf')).toBe('abcd.pdf');
+    expect(contentDisposition("a'b(c).pdf")).toBe(`attachment; filename="a'b(c).pdf"; filename*=UTF-8''a%27b%28c%29.pdf`);
+  });
+
+  test('nits: the same bytes again say so (settings unchanged); unknown upload settings are refused', async () => {
+    const p = await newPaper('alice');
+    const bytes = pdf('/Lang (nl)');
+    await upload('alice', p, bytes);
+    const again = await upload('alice', p, bytes, { external_send: 'allowed' });
+    expect(again.statusCode).toBe(200);
+    expect(again.json()).toMatchObject({ already_stored: true, settings_ignored: true, policy: { external_send: 'unknown' } });
+    expect((await upload('alice', p, pdf('/Lang (pl)'), { externalsend: 'allowed' })).statusCode).toBe(422);
   });
 });

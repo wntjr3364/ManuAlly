@@ -64,8 +64,12 @@ export async function fetchSourcePdf(cfg: FetchConfig, url: URL, maxBytes: numbe
         chunks.push(c);
       });
       res.on('end', () => resolve(Buffer.concat(chunks)));
-      res.on('error', () => reject(new FetchRefused('network', 'the answer was cut off')));
+      res.on('error', (e) => reject(e instanceof FetchRefused ? e : new FetchRefused('network', 'the answer was cut off')));
+      res.on('aborted', () => reject(new FetchRefused('timeout', `no complete answer within ${timeoutMs} ms`)));
     });
+    // an overall deadline (a slow drip does not keep the request alive) and an idle timeout
+    const deadline = setTimeout(() => req.destroy(new FetchRefused('timeout', `no complete answer within ${timeoutMs} ms`)), timeoutMs);
+    req.on('close', () => clearTimeout(deadline));
     req.setTimeout(timeoutMs, () => req.destroy(new FetchRefused('timeout', `no answer within ${timeoutMs} ms`)));
     req.on('error', (e) => reject(e instanceof FetchRefused ? e : new FetchRefused('network', 'the source could not be reached')));
     req.end();

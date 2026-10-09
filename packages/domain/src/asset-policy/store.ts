@@ -1,6 +1,7 @@
 // Content-addressed store for immutable originals (PW-034): <dir>/sha256/<2 hex>/<sha256>, written
 // once (temporary file, fsync, read-only, rename) and verified against its name whenever it is read.
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { createHash, randomBytes } from 'node:crypto';
 
@@ -29,6 +30,9 @@ export async function putBlob(dir: string, bytes: Buffer): Promise<string> {
   }
   await fs.chmod(tmp, 0o444);
   await fs.rename(tmp, target);
+  // the rename itself survives a crash only once the directory is on disk
+  const d = await fs.open(path.dirname(target), 'r');
+  try { await d.sync(); } finally { await d.close(); }
   return hash;
 }
 
@@ -42,4 +46,9 @@ export async function readVerified(dir: string, hash: string): Promise<Buffer> {
   }
   if (sha256(bytes) !== hash) throw new IntegrityError('the stored original does not match its hash');
   return bytes;
+}
+
+// Where originals live unless configured: the runtime user's own data folder (API and worker agree).
+export function defaultAssetDir(env: NodeJS.ProcessEnv = process.env): string {
+  return env.PW_ASSET_DIR ?? path.join(env.XDG_DATA_HOME ?? path.join(os.homedir(), '.local/share'), 'paper-workspace/assets');
 }

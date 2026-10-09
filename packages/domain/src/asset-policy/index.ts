@@ -4,8 +4,10 @@
 //   count, no encryption, no active content (JavaScript, launch actions, embedded files, rich media,
 //   XFA forms, form submission). Compressed object streams are inflated (with an output limit) so that
 //   dictionaries hidden in them are inspected too.
-// - The original is immutable and content-addressed (sha256). Its source, licence and the right to send
-//   it to an external AI are stored with it; unknown means unknown and is never treated as allowed.
+// - The original is immutable and content-addressed (sha256). Its source, licence, the right to keep it
+//   and the right to send it to an external AI are stored with it; unknown means unknown and is never
+//   treated as allowed: an original whose keep right is unknown (e.g. fetched) is not served or parsed
+//   until the owner says on what basis it is kept.
 // - The right to keep/download and the right to send to an external provider are separate fields. A
 //   new decision adds a policy revision; earlier ones stay.
 // - URL fetches are limited to fixed open-access hosts over https:443, with every resolved address
@@ -25,7 +27,10 @@ export type PdfRejection = 'empty' | 'too_large' | 'not_pdf' | 'truncated' | 'en
 
 // PDF names may hide letters as #xx escapes (/J#61vaScript); undo them before looking
 const unescapeNames = (s: string) => s.replace(/#([0-9A-Fa-f]{2})/g, (_m, h: string) => String.fromCharCode(parseInt(h, 16)));
-const ACTIVE = /\/(JavaScript|JS|Launch|EmbeddedFiles?|RichMedia|XFA|SubmitForm|ImportData|GoToE)\b/;
+// actions and attachments that run, open or carry other content (link URIs are allowed: papers are full
+// of DOI links, and viewers ask before following one)
+const ACTIVE = /\/(JavaScript|JS|Launch|EmbeddedFiles?|EF|FileAttachment|RichMedia|XFA|SubmitForm|ImportData|GoToE|GoToR|Rendition|Sound|Movie)\b/;
+const MAX_DICT = 1024 * 1024;
 
 export function inspectPdf(buf: Buffer, limits: { maxBytes?: number; maxPages?: number; maxInflated?: number } = {}): PdfVerdict {
   const maxBytes = limits.maxBytes ?? MAX_PDF_BYTES;
@@ -38,10 +43,17 @@ export function inspectPdf(buf: Buffer, limits: { maxBytes?: number; maxPages?: 
   // inflate object streams (dictionaries can live there) within an output budget
   let inflated = 0;
   const maxInflated = limits.maxInflated ?? MAX_INFLATED_BYTES;
-  const re = /<<((?:(?!>>\s*stream)[\s\S]){0,4000})>>\s*stream\r?\n/g;
+  // every stream: its dictionary is the text from the object's "obj" keyword to "stream" (no length
+  // guess that padding could defeat; an implausibly long dictionary is refused)
+  let objStms = 0;
+  const re = /(?<!end)stream(?:\r\n|\n|\r)/g;
   for (let m = re.exec(raw); m; m = re.exec(raw)) {
-    const dict = unescapeNames(m[1]!);
+    const objAt = raw.lastIndexOf('obj', m.index);
+    if (objAt < 0) continue;
+    if (m.index - objAt > MAX_DICT) return { ok: false, reason: 'malformed', detail: 'a stream dictionary is implausibly long' };
+    const dict = unescapeNames(raw.slice(objAt, m.index));
     if (!/\/Type\s*\/ObjStm\b/.test(dict)) continue;
+    objStms++;
     const start = m.index + m[0].length;
     const end = raw.indexOf('endstream', start);
     if (end < 0) return { ok: false, reason: 'malformed', detail: 'an object stream has no end' };
@@ -56,6 +68,8 @@ export function inspectPdf(buf: Buffer, limits: { maxBytes?: number; maxPages?: 
     inflated += out.length; // (zlib stops at the remaining budget: maxOutputLength above)
     texts.push(unescapeNames(out.toString('latin1')));
   }
+  // an object stream the walk above did not inflate is a place nothing was inspected: refuse
+  if ((texts[0]!.match(/\/Type\s*\/ObjStm\b/g) ?? []).length > objStms) return { ok: false, reason: 'malformed', detail: 'an object stream could not be located for inspection' };
   const all = texts.join('\n');
   if (/\/Encrypt\b/.test(all)) return { ok: false, reason: 'encrypted', detail: 'encrypted PDFs are not accepted (they cannot be inspected or parsed)' };
   const active = ACTIVE.exec(all);
@@ -70,14 +84,16 @@ export function inspectPdf(buf: Buffer, limits: { maxBytes?: number; maxPages?: 
 export function safeFileName(raw: unknown): string {
   const base = typeof raw === 'string' ? raw.split(/[\\/]/).pop()! : '';
   // eslint-disable-next-line no-control-regex
-  let n = base.normalize('NFC').replace(/[\u0000-\u001f\u007f-\u009f"<>:|?*\u202a-\u202e\u2066-\u2069]/g, '').replace(/^[.\s]+/, '').trim().slice(0, 150);
+  let n = base.normalize('NFC').replace(/[\u0000-\u001f\u007f-\u009f"<>:|?*\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/^[.\s]+/, '').trim().slice(0, 150);
   if (!n) n = 'document';
   if (!/\.pdf$/i.test(n)) n += '.pdf';
   return n;
 }
 export function contentDisposition(name: string): string {
   const ascii = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+  // RFC 5987 attr-char: encodeURIComponent leaves ' ( ) * as they are, which the grammar does not allow
+  const ext = encodeURIComponent(name).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${ext}`;
 }
 
 // ---- rights -------------------------------------------------------------------------------
@@ -209,7 +225,7 @@ export function checkFetchUrl(raw: unknown, allowHosts: readonly string[] = OPEN
 
 const blocked = new net.BlockList();
 for (const [a, p] of [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.0.2.0', 24], ['192.88.99.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24], ['224.0.0.0', 4], ['240.0.0.0', 4]] as const) blocked.addSubnet(a, p, 'ipv4');
-for (const [a, p] of [['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10], ['fec0::', 10], ['ff00::', 8], ['2001:db8::', 32], ['100::', 64], ['2001::', 32], ['2002::', 16]] as const) blocked.addSubnet(a, p, 'ipv6');
+for (const [a, p] of [['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10], ['fec0::', 10], ['ff00::', 8], ['2001:db8::', 32], ['100::', 64], ['2001::', 32], ['2002::', 16], ['::ffff:0:0:0', 96], ['64:ff9b:1::', 48]] as const) blocked.addSubnet(a, p, 'ipv6');
 // is this address one a general URL fetch must never reach? (IPv4 embedded in IPv6 is unwrapped)
 export function isInternalAddress(addr: string): boolean {
   const ip = addr.replace(/^\[|\]$/g, '').replace(/%.*$/, '');
@@ -217,9 +233,9 @@ export function isInternalAddress(addr: string): boolean {
   if (v === 4) return blocked.check(ip, 'ipv4');
   if (v !== 6) return true;
   const lower = ip.toLowerCase();
-  const embedded = /^(?:::ffff:|::|64:ff9b::)(\d+\.\d+\.\d+\.\d+)$/.exec(lower)?.[1];
+  const embedded = /^(?:::ffff:|::ffff:0:|::|64:ff9b::)(\d+\.\d+\.\d+\.\d+)$/.exec(lower)?.[1];
   if (embedded) return blocked.check(embedded, 'ipv4');
-  const hex = /^(?:::ffff:|64:ff9b::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(lower);
+  const hex = /^(?:::ffff:|::ffff:0:|64:ff9b::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(lower);
   if (hex) {
     const n = (parseInt(hex[1]!, 16) << 16) | parseInt(hex[2]!, 16);
     return blocked.check([n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.'), 'ipv4');
@@ -227,10 +243,17 @@ export function isInternalAddress(addr: string): boolean {
   return blocked.check(ip, 'ipv6');
 }
 
-// per-owner daily cap on fetches (every attempt counts, refused or not)
-export async function checkFetchQuota(db: Queryable, ownerId: string, cap = FETCH_DAILY_CAP): Promise<void> {
-  const n = (await db.query<{ n: number }>("SELECT count(*)::int AS n FROM asset_fetches WHERE owner_id = $1 AND attempted_at > clock_timestamp() - interval '24 hours'", [ownerId])).rows[0]!.n;
-  if (n >= cap) throw new FetchRefused('daily_cap', `at most ${cap} source fetches per day`);
+// Per-owner daily cap on fetches. An attempt is reserved (and counted) under a per-owner lock before
+// any request leaves the server, so concurrent requests cannot all pass the check.
+export async function reserveFetchAttempt(pool: TxPool, a: { paperId: string; ownerId: string; url: string; host: string | null; cap?: number }): Promise<void> {
+  const cap = a.cap ?? FETCH_DAILY_CAP;
+  const refused = await inTransaction(pool, async (tx) => {
+    await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`fetch-cap:${a.ownerId}`]);
+    const n = (await tx.query<{ n: number }>("SELECT count(*)::int AS n FROM asset_fetches WHERE owner_id = $1 AND outcome = 'attempted' AND attempted_at > clock_timestamp() - interval '24 hours'", [a.ownerId])).rows[0]!.n;
+    await logFetch(tx, { ...a, outcome: n >= cap ? 'daily_cap' : 'attempted', assetId: null });
+    return n >= cap;
+  });
+  if (refused) throw new FetchRefused('daily_cap', `at most ${cap} source fetches per day`);
 }
 export async function logFetch(db: Queryable, a: { paperId: string; ownerId: string; url: string; host: string | null; outcome: string; assetId: string | null }) {
   await db.query('INSERT INTO asset_fetches (paper_id, owner_id, url, host, outcome, asset_revision_id) VALUES ($1, $2, $3, $4, $5, $6)',

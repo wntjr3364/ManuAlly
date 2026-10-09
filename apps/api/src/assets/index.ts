@@ -5,11 +5,11 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { TxPool } from '@pw/domain/revisions/index.ts';
 import { DomainError } from '@pw/domain/shared/db.ts';
 import {
-  FETCH_DAILY_CAP, FetchRefused, MAX_PDF_BYTES, OPEN_ACCESS_HOSTS, checkFetchQuota, checkFetchUrl, contentDisposition, decideAssetPolicy, externalSendDecision,
+  FetchRefused, MAX_PDF_BYTES, OPEN_ACCESS_HOSTS, checkFetchUrl, reserveFetchAttempt, contentDisposition, decideAssetPolicy, externalSendDecision,
   getSourceAsset, inspectPdf, listSourceAssets, logFetch, policyInput, recordSourceAsset, safeFileName,
 } from '@pw/domain/asset-policy/index.ts';
 import { sendDomainError } from '../auth/plugin.ts';
-import { IntegrityError, putBlob, readVerified } from './store.ts';
+import { IntegrityError, putBlob, readVerified } from '@pw/domain/asset-policy/store.ts';
 import { fetchSourcePdf, type FetchConfig } from './fetch.ts';
 
 export interface AssetConfig { dir: string; maxBytes?: number; fetch?: FetchConfig }
@@ -48,6 +48,8 @@ export function registerAssetRoutes(app: FastifyInstance, pool: TxPool, cfg: Ass
       const dir = store();
       if (!Buffer.isBuffer(req.body)) return reply.code(415).send({ error: 'unsupported_media_type', message: 'send the PDF itself (content-type application/pdf)' });
       const q = req.query as Record<string, unknown>;
+      const extra = Object.keys(q).filter((k) => !['license', 'keep_right', 'external_send', 'reference_id', 'name'].includes(k));
+      if (extra.length) throw new DomainError('INVALID', `unknown settings: ${extra.join(', ').slice(0, 100)}`, extra[0]);
       const policy = policyInput(q, { keep_right: 'user_supplied' });
       const v = inspectPdf(req.body, { maxBytes });
       if (!v.ok) return refusedFile(reply, v.reason, v.detail);
@@ -57,7 +59,9 @@ export function registerAssetRoutes(app: FastifyInstance, pool: TxPool, cfg: Ass
         paperId: req.paper!.id, ownerId: req.session!.ownerId, sha256: sha, byteSize: req.body.length, pages: v.pages, originalName: safeFileName(q.name),
         source: 'user_upload', sourceUrl: null, referenceId: q.reference_id, policy,
       });
-      return reply.code(out.created ? 201 : 200).send(out.asset);
+      // the same bytes again: the stored asset, unchanged (settings are changed with the policy route)
+      if (!out.created) return reply.code(200).send({ ...out.asset, already_stored: true, ...(['license', 'keep_right', 'external_send', 'reference_id'].some((k) => q[k] !== undefined) ? { settings_ignored: true } : {}) });
+      return reply.code(201).send(out.asset);
     }));
 
     scope.post('/api/papers/:paperId/assets/fetch', scoped, async (req, reply) => run(reply, async () => {
@@ -74,13 +78,19 @@ export function registerAssetRoutes(app: FastifyInstance, pool: TxPool, cfg: Ass
         await logFetch(pool, { paperId, ownerId, url: raw || '(none)', host, outcome: reason, assetId: null });
         return reply.code(422).send({ error: 'invalid', reason, message });
       };
+      // fetched from an open-access host, the basis for keeping the file is still the owner's to state
       const policy = policyInput({ license: b.license }, { keep_right: 'unknown' });
       await referenceInPaper(paperId, b.reference_id);
       let bytes: Buffer;
       let url: URL;
       try {
-        // the cap is checked first: once reached, no request leaves the server
-        await checkFetchQuota(pool, ownerId, cfg?.fetch?.dailyCap ?? FETCH_DAILY_CAP);
+        // the attempt is reserved (and counted) first: once the cap is reached, no request leaves the server
+        await reserveFetchAttempt(pool, { paperId, ownerId, url: raw || '(none)', host, cap: cfg?.fetch?.dailyCap });
+      } catch (e) {
+        if (e instanceof FetchRefused) return reply.code(422).send({ error: 'invalid', reason: e.reason, message: e.message });
+        throw e;
+      }
+      try {
         url = checkFetchUrl(raw, cfg?.fetch?.allowHosts ?? OPEN_ACCESS_HOSTS);
         bytes = await fetchSourcePdf(cfg?.fetch ?? {}, url, maxBytes);
       } catch (e) {
@@ -89,11 +99,18 @@ export function registerAssetRoutes(app: FastifyInstance, pool: TxPool, cfg: Ass
       }
       const v = inspectPdf(bytes, { maxBytes });
       if (!v.ok) return refuse('rejected_file', `${v.reason}: ${v.detail}`);
-      const sha = await putBlob(dir, bytes);
-      const out = await recordSourceAsset(pool, {
-        paperId, ownerId, sha256: sha, byteSize: bytes.length, pages: v.pages, originalName: safeFileName(url.pathname.split('/').pop()),
-        source: 'open_access_fetch', sourceUrl: url.toString(), referenceId: b.reference_id, policy,
-      });
+      let out: Awaited<ReturnType<typeof recordSourceAsset>>;
+      try {
+        const sha = await putBlob(dir, bytes);
+        out = await recordSourceAsset(pool, {
+          paperId, ownerId, sha256: sha, byteSize: bytes.length, pages: v.pages, originalName: safeFileName(url.pathname.split('/').pop()),
+          source: 'open_access_fetch', sourceUrl: url.toString(), referenceId: b.reference_id, policy,
+        });
+      } catch (e) {
+        // the request left the server: its outcome is recorded even when storing fails
+        await logFetch(pool, { paperId, ownerId, url: raw, host, outcome: 'store_failed', assetId: null }).catch(() => undefined);
+        throw e;
+      }
       await logFetch(pool, { paperId, ownerId, url: raw, host, outcome: 'stored', assetId: out.asset.id });
       return reply.code(out.created ? 201 : 200).send(out.asset);
     }));
@@ -112,6 +129,8 @@ export function registerAssetRoutes(app: FastifyInstance, pool: TxPool, cfg: Ass
       const dir = store();
       const a = await getSourceAsset(pool, req.paper!.id, (req.params as { assetId: string }).assetId);
       if (!a) throw new DomainError('NOT_FOUND', 'asset not found');
+      // an unknown keep right is not a permission to hand the file out
+      if (a.policy.keep_right === 'unknown') return reply.code(403).send({ error: 'forbidden', reason: 'keep_right_unknown', message: 'state on what basis this original is kept (keep_right) before opening it' });
       let bytes: Buffer;
       try {
         bytes = await readVerified(dir, a.sha256);

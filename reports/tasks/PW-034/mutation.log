@@ -39,3 +39,17 @@ KILLED embedded_v4
 KILLED domain_ref_check
 KILLED quota_first
 KILLED inflate_budget
+# review fixes (Fri Oct  9 16:18:10 UTC 2026)
+KILLED lone_cr
+KILLED unlocated_objstm
+KILLED ef_fileattachment
+KILLED goto_media
+SURVIVED translated (equivalent: the unwrapping regex already maps ::ffff:0:x:y to IPv4; the subnet entry is defence in depth)
+KILLED nat64_local
+KILLED dir_marks
+KILLED rfc5987
+KILLED cap_lock
+KILLED keep_right_gate
+KILLED unknown_settings
+KILLED already_stored
+KILLED deadline

@@ -1,0 +1,9 @@
+# PW-034 review fixes — RED (a1955c9 implementation, new tests) Fri Oct  9 16:17:19 UTC 2026
+     × fetching: an allowed host that resolves to an internal address is refused (DNS rebinding / SSRF); redirects, HTML login pages and bad files are refused; every attempt is logged 83ms
+     × MINOR 1: padded object-stream dictionaries, attachments without /EmbeddedFile, remote go-to and media are refused 5ms
+     × MINOR 2: concurrent fetches cannot pass the daily cap; each leaves at most one request 61ms
+     × nit: the time limit is a deadline, not an idle timeout (a slow drip is cut off) 30003ms
+     × nits: more internal address forms; download names are strictly encoded and stripped of direction marks 2ms
+     × nits: the same bytes again say so (settings unchanged); unknown upload settings are refused 36ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  6 failed | 9 passed (15)

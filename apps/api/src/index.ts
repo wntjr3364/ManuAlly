@@ -1,9 +1,9 @@
 import pg from 'pg';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildServer } from './server.ts';
 import { migrate } from './db/migrate.ts';
+import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
 
 // Local development entry: loopback only (no remote exposure by default).
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -15,8 +15,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   client.release();
   const origin = process.env.PW_WEB_ORIGIN ?? 'http://127.0.0.1:5173';
   // source documents live in the runtime user's own data folder unless PW_ASSET_DIR says otherwise
-  const assetDir = process.env.PW_ASSET_DIR ?? path.join(process.env.XDG_DATA_HOME ?? path.join(os.homedir(), '.local/share'), 'paper-workspace/assets');
-  const app = buildServer({ pool, allowedOrigins: [origin], logger: true, assets: { dir: assetDir } });
+  const app = buildServer({ pool, allowedOrigins: [origin], logger: true, assets: { dir: defaultAssetDir() } });
   await app.listen({ host: '127.0.0.1', port: Number(process.env.PW_API_PORT ?? 8787) });
 }
 export { buildServer };

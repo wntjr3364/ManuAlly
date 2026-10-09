@@ -84,3 +84,29 @@
 
 ## 다음
 PW-035: PDF 파싱·anchor
+
+## 리뷰 반영 (2026-10-09, 리뷰: changes requested — MINOR 3, NIT 7. PW-033 최종 nit 확인)
+- MINOR 1(바이트 검사 우회)
+  - stream dictionary를 "obj"부터 "stream"까지 길이 추측 없이 찾는다. 1 MiB를 넘으면 malformed다. 그래서 4000자 패딩 우회가 막힌다.
+  - `stream` 뒤의 CR 단독도 받는다.
+  - 찾지 못한(검사하지 못한) `/ObjStm`이 있으면 거부한다.
+  - `ACTIVE`에 `/EF`, `/FileAttachment`, `/GoToR`, `/Rendition`, `/Sound`, `/Movie`를 추가했다.
+  - 링크 `/URI`는 허용한다(논문의 DOI 링크, 뷰어가 묻고 연다).
+- MINOR 2(동시 요청이 상한을 넘음)
+  - 요청을 내보내기 전에 소유자별 advisory lock 안에서 세고, `attempted` 행을 예약한다(migration `pw_034_0002`).
+  - 상한은 `attempted`만 센다. 동시 12개에 상한 6이면 요청은 6개만 나간다(시험).
+  - fetch 뒤 저장이 실패해도 `store_failed`로 기록한다.
+- MINOR 3(보관 권리 unknown): fetch한 원본의 `keep_right`는 `unknown`이다. 소유자가 보관 근거를 밝히기 전에는 내려받기(403 `keep_right_unknown`)와 파싱(PW-035)을 하지 않는다. 주석을 고쳤다.
+- nit
+  - 내부 주소: `::ffff:0:0:0/96`(IPv4-translated, 풀어서 검사)과 `64:ff9b:1::/48`을 막는다.
+  - fetch 시간 제한은 전체 마감이다(느린 drip을 끊음). idle timeout도 함께 둔다.
+  - 파일 이름: RFC 5987에 맞게 `'()*`를 encode하고, 방향 표시 U+200E, U+200F, U+061C를 제거한다.
+  - 저장: rename 뒤 디렉터리를 fsync한다. blob은 소유자·논문 사이에 공유되므로, 나중에 정리 작업을 만들면 참조 수를 세야 한다(기록만).
+  - 같은 바이트를 다시 올리면 `already_stored: true`이고, 설정을 주었다면 `settings_ignored: true`다. 설정은 policy route로 바꾼다.
+  - 업로드 설정에 모르는 key가 있으면 422다.
+- 저장 모듈은 `packages/domain/src/asset-policy/store.ts`로 옮겼다(worker의 PDF 파싱도 쓴다). 기본 저장 폴더는 `defaultAssetDir()` 하나로 API와 worker가 공유한다.
+- 남은 위험 추가
+  - Europe PMC·PMC의 PDF 링크는 흔히 redirect한다. 실제로는 fetch가 대부분 `redirect`로 끝날 수 있다(live not_run). 이때는 사용자가 내려받아 올린다.
+  - parser sandbox(PW-035)로 미룬 바이트 검사의 한계: 다른 필터(LZW 등) 안의 dictionary, 깨진 PDF의 뷰어별 해석 차이, `/URI` 링크
+- 시험: 통합 15(+5). RED는 `review-red.log`. mutation은 `mutation.log` 끝에 13종 있고, 12종을 탐지했다. 나머지 1종은 동치다.
+- 회귀(리뷰 반영 후): `pnpm test` exit 0 — unit 278, integration 313, contracts 17, 브라우저 82(`pnpm-test-review.log`).

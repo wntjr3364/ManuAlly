@@ -7,7 +7,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import { spawn, spawnSync } from 'node:child_process';
 import type { ProviderEvent } from '../../../contracts/src/provider/index.ts';
 import { normalizeClaude } from '../core/events.ts';
 import { Refused, assertSafeClaudeArgs, buildClaudeArgs, type EFFORTS, type SessionChoice } from './args.ts';
@@ -15,10 +14,12 @@ import { assertNoAgentConfigAbove, buildClaudeEnv, type ClaudeRun } from './env.
 import { type ClaudeDecision } from './admission.ts';
 import { addCost, checkDecision, spendTurn } from '../core/admission.ts';
 import { assertPrivateRunFolder } from './run-folder.ts';
+import { assertLauncher, type Launcher } from '../core/launch.ts';
 
 // the CLI version as `claude --version` prints it ("2.1.294 (Claude Code)"), in registry form
-export function claudeCliVersion(cmd: string, env: Record<string, string>, cwd: string): string {
-  const r = spawnSync(cmd, ['--version'], { env, cwd, encoding: 'utf8', timeout: 15_000 });
+// (run by the launcher: inside the same sandbox as the turn)
+export function claudeCliVersion(launcher: Launcher, cmd: string, env: Record<string, string>, cwd: string): string {
+  const r = launcher.version(cmd, ['--version'], { env, cwd, timeoutMs: 15_000 });
   const v = /^(\d+\.\d+\.\d+)\b/.exec((r.stdout ?? '').trim());
   if (r.status !== 0 || !v) throw new Refused(`could not read the version of ${cmd}`);
   return `claude-code ${v[1]}`;
@@ -45,8 +46,11 @@ const MAX_PROMPT = 200_000;
 export function startClaudeTurn(a: {
   decision: ClaudeDecision; cmd: string; run: ClaudeRun; profileDir: string; prompt: string; session: SessionChoice;
   effort?: (typeof EFFORTS)[number] | null; model?: string | null; parentEnv?: Record<string, string | undefined>; homes?: string[]; ownerUid?: number | null;
+  // starts the CLI: inside the sandbox (RFC-010); the adapter itself never spawns
+  launcher: Launcher;
 }): ClaudeTurn {
-  checkDecision(a.decision, 'claude_agent'); // before anything runs, even --version
+  const decisionChecked = checkDecision(a.decision, 'claude_agent'); // before anything runs, even --version
+  const launcher = assertLauncher(a.launcher, decisionChecked);
   if (typeof a.prompt !== 'string' || !a.prompt.trim() || a.prompt.length > MAX_PROMPT) throw new Refused('the prompt must be non-empty text');
   assertPrivateRunFolder(a.run, a.ownerUid === undefined ? (process.getuid?.() ?? null) : a.ownerUid);
   assertNoAgentConfigAbove(a.run.cwd);
@@ -54,12 +58,12 @@ export function startClaudeTurn(a: {
   assertSafeClaudeArgs(args, { runDir: a.run.dir });
   const env = buildClaudeEnv({ profileDir: a.profileDir, run: a.run, parentEnv: a.parentEnv, homes: a.homes, ownerUid: a.ownerUid });
   const cmd = assertBinary(a.cmd);
-  const version = claudeCliVersion(cmd, env, a.run.cwd);
+  const version = claudeCliVersion(launcher, cmd, env, a.run.cwd);
   if (version !== a.decision?.key?.version) throw new Refused(`${a.cmd} is ${version}, but the admission is for ${String(a.decision?.key?.version)}`);
   const decision = spendTurn(a.decision, 'claude_agent'); // last: an invalid call never spends a turn
   const expected = 'new' in a.session ? a.session.new : a.session.resume;
 
-  const child = spawn(cmd, args, { env, cwd: a.run.cwd, detached: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = launcher.spawn(cmd, args, { env, cwd: a.run.cwd });
   let leaderExited = false;
   let stderr = '';
   child.stderr?.on('data', (d) => { stderr = (stderr + String(d)).slice(-2000); });

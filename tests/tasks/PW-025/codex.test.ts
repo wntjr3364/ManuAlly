@@ -10,6 +10,7 @@ import path from 'node:path';
 import { buildCodexArgs, decideCodexCall, guardClientRequest, startCodexServer, serverRequestAnswer, type CodexRun, type CodexSentinel, type OuterSandbox } from '../../../packages/providers/src/codex/index.ts';
 import { FEATURES, loadRegistry, type Registry } from '../../../packages/providers/src/core/index.ts';
 import { validateProviderEvent } from '../../../packages/contracts/src/provider/index.ts';
+import { directLauncherForTests } from '../../../packages/providers/src/core/launch.ts';
 
 const FAKE = path.resolve('tests/tasks/PW-025/fake-codex.mjs');
 const host = os.hostname();
@@ -42,7 +43,7 @@ beforeAll(() => {
 afterAll(() => { fs.rmSync(root, { recursive: true, force: true }); });
 
 async function server(run = newRun(), profileDir = profile, onToolCall?: (name: string, args: unknown) => Promise<unknown>) {
-  return { run, s: await startCodexServer({ decision: decision(), cmd: FAKE, run, profileDir, homes: [os.homedir()], parentEnv: { PATH: process.env.PATH!, OPENAI_API_KEY: 'sk-not-real' }, onToolCall }) };
+  return { run, s: await startCodexServer({ launcher: directLauncherForTests, decision: decision(), cmd: FAKE, run, profileDir, homes: [os.homedir()], parentEnv: { PATH: process.env.PATH!, OPENAI_API_KEY: 'sk-not-real' }, onToolCall }) };
 }
 
 describe('TST-025A: initialize → thread → turn, normalized events', () => {
@@ -150,8 +151,8 @@ describe('TST-025B: private stdio, allowlisted methods, declined server requests
   test('a different CLI version or a non-absolute command is refused (the RPC policy is pinned to 0.161.0)', async () => {
     const other = path.join(root, 'codex-other');
     fs.writeFileSync(other, '#!/bin/sh\necho "codex-cli 0.170.0"\n', { mode: 0o755 });
-    await expect(startCodexServer({ decision: decision(), cmd: other, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } })).rejects.toThrow(/0\.170\.0, but the admission is for codex-cli 0\.161\.0/);
-    await expect(startCodexServer({ decision: decision(), cmd: 'codex', run: newRun(), profileDir: profile })).rejects.toThrow(/absolute path/);
+    await expect(startCodexServer({ launcher: directLauncherForTests, decision: decision(), cmd: other, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } })).rejects.toThrow(/0\.170\.0, but the admission is for codex-cli 0\.161\.0/);
+    await expect(startCodexServer({ launcher: directLauncherForTests, decision: decision(), cmd: 'codex', run: newRun(), profileDir: profile })).rejects.toThrow(/absolute path/);
   });
   test('review MAJOR-2: a second turn while one is running is refused (events cannot cross turns)', async () => {
     const slow = path.join(root, 'profile-slow2');
@@ -178,7 +179,7 @@ describe('TST-025B: private stdio, allowlisted methods, declined server requests
     fs.mkdirSync(late, { mode: 0o700 });
     fs.writeFileSync(path.join(late, 'late'), '');
     const run = newRun();
-    const s = await startCodexServer({ decision: decision(), cmd: FAKE, run, profileDir: late, parentEnv: { PATH: process.env.PATH! } });
+    const s = await startCodexServer({ launcher: directLauncherForTests, decision: decision(), cmd: FAKE, run, profileDir: late, parentEnv: { PATH: process.env.PATH! } });
     const t = await s.startThread();
     for await (const e of s.runTurn(t, 'one')) { void e; break; } // walks away after the first event
     const events = [];
@@ -196,7 +197,7 @@ describe('TST-025B: private stdio, allowlisted methods, declined server requests
     fs.mkdirSync(p, { mode: 0o700 });
     fs.writeFileSync(path.join(p, 'slow'), '');
     fs.writeFileSync(path.join(p, 'ignore-interrupt'), '');
-    const s = await startCodexServer({ decision: decision(), cmd: FAKE, run: newRun(), profileDir: p, parentEnv: { PATH: process.env.PATH! }, settleMs: 200 });
+    const s = await startCodexServer({ launcher: directLauncherForTests, decision: decision(), cmd: FAKE, run: newRun(), profileDir: p, parentEnv: { PATH: process.env.PATH! }, settleMs: 200 });
     const t = await s.startThread();
     for await (const e of s.runTurn(t, 'one')) { void e; break; }
     await expect(s.runTurn(t, 'two').next()).rejects.toThrow(/did not stop/);
@@ -208,7 +209,7 @@ describe('TST-025B: private stdio, allowlisted methods, declined server requests
     fs.mkdirSync(slow, { mode: 0o700 });
     fs.writeFileSync(path.join(slow, 'slow'), '');
     const run = newRun();
-    const s = await startCodexServer({ decision: decision(), cmd: FAKE, run, profileDir: slow, parentEnv: { PATH: process.env.PATH! }, turnTimeoutMs: 300 });
+    const s = await startCodexServer({ launcher: directLauncherForTests, decision: decision(), cmd: FAKE, run, profileDir: slow, parentEnv: { PATH: process.env.PATH! }, turnTimeoutMs: 300 });
     const events = [];
     for await (const e of s.runTurn(await s.startThread(), 'x')) events.push(e);
     await s.close();
@@ -259,18 +260,18 @@ describe('TST-025B: private stdio, allowlisted methods, declined server requests
     const spy = path.join(root, 'codex-spy');
     fs.writeFileSync(spy, `#!/bin/sh\ntouch '${marker}'\necho "codex-cli 0.161.0"\n`, { mode: 0o755 });
     const one = decision({ approval: { approved: true, max_turns: 1, budget_usd: 1 } });
-    const s = await startCodexServer({ decision: one, cmd: FAKE, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } });
+    const s = await startCodexServer({ launcher: directLauncherForTests, decision: one, cmd: FAKE, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } });
     for await (const e of s.runTurn(await s.startThread(), 'x')) void e;
     await s.close();
     for (const d of [decision({ sandbox: null }), { ...decision() }, one]) {
-      await expect(startCodexServer({ decision: d as never, cmd: spy, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } })).rejects.toThrow(/refused|not issued|outer filesystem sandbox/);
+      await expect(startCodexServer({ launcher: directLauncherForTests, decision: d as never, cmd: spy, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } })).rejects.toThrow(/refused|not issued|outer filesystem sandbox/);
     }
     expect(fs.existsSync(marker)).toBe(false);
   });
 
   test('each turn spends one approved turn', async () => {
     const d = decision({ approval: { approved: true, max_turns: 1, budget_usd: 1 } });
-    const s = await startCodexServer({ decision: d, cmd: FAKE, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } });
+    const s = await startCodexServer({ launcher: directLauncherForTests, decision: d, cmd: FAKE, run: newRun(), profileDir: profile, parentEnv: { PATH: process.env.PATH! } });
     const t = await s.startThread();
     for await (const e of s.runTurn(t, 'one')) void e;
     await expect((async () => { for await (const e of s.runTurn(t, 'two')) void e; })()).rejects.toThrow(/used up/);
@@ -296,7 +297,7 @@ describe('admission: Codex needs a verified outer sandbox on top of everything C
     expect(d.reason).toMatch(why);
   });
   test('a refused or forged decision cannot start the server', async () => {
-    await expect(startCodexServer({ decision: decision({ sandbox: null }), cmd: FAKE, run: newRun(), profileDir: profile })).rejects.toThrow(/outer filesystem sandbox/);
-    await expect(startCodexServer({ decision: { ...decision() }, cmd: FAKE, run: newRun(), profileDir: profile })).rejects.toThrow(/not issued/);
+    await expect(startCodexServer({ launcher: directLauncherForTests, decision: decision({ sandbox: null }), cmd: FAKE, run: newRun(), profileDir: profile })).rejects.toThrow(/outer filesystem sandbox/);
+    await expect(startCodexServer({ launcher: directLauncherForTests, decision: { ...decision() }, cmd: FAKE, run: newRun(), profileDir: profile })).rejects.toThrow(/not issued/);
   });
 });

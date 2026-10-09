@@ -18,12 +18,12 @@ import { buildServer } from '../../../apps/api/src/server.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { parseDocument, snapshotSelection } from '../../../packages/editor-core/src/index.ts';
 import { FORBIDDEN_TOOLS, MAX_CALLS_PER_TOKEN, TOOL_NAMES, callTool, issueRunToken, revokeRunToken, toolDefinitions } from '../../../packages/domain/src/tool-policy/index.ts';
-import { serveToolSocket } from '../../../apps/api/src/agent-tools/index.ts';
+import { serveToolSocket } from '../../../apps/worker/src/provider-runs/tool-socket.ts';
 
 const ORIGIN = 'http://127.0.0.1:5173';
 const P1 = '00000000-0000-4000-8000-0000000000a1';
 const P2 = '00000000-0000-4000-8000-0000000000a2';
-const BRIDGE = path.resolve('apps/api/src/agent-tools/mcp-bridge.mjs');
+const BRIDGE = path.resolve('apps/worker/src/provider-runs/mcp-bridge.mjs');
 let db: { url: string; drop: () => Promise<void> };
 let pool: pg.Pool;
 let app: FastifyInstance;

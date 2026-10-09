@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P03 완료(사용자 위임), P04 진행**. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). 진행 중: RFC-010 구현(P05 전).
+- 현재 단계: **P04 완료(사용자 위임), RFC-010 in_review**. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 in_review(`reports/rfc/RFC-010/REPORT.md`). 다음: P05.
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).
@@ -85,3 +85,5 @@ Phase 승급은 Gate 보고서와 사용자 승인 후 기록한다. pack valida
 
 ## Open items
 - **브라우저 일회성 실패(flakiness)**: PW-015 시험 하나("final check nit 2", 다른 탭 로그아웃 뒤 복구본이 남음; PW-028 전체 실행에서 1회)와 PW-016 시험 하나(인용만 선택 → Esc → Shift+Home 뒤 도구막대 5초 안에 안 나타남; PW-037 전체 실행에서 1회)가 각각 한 번 실패했다. 다시 돌리면 통과(PW-016은 단독 11회, 6회는 CPU 부하). 원인 미확인. 재현되면 시험 대기 조건과 selection 이벤트 순서를 먼저 본다. 시험을 끄거나 건너뛰지 않는다.
+  - PW-016 건: 원인을 찾아 고쳤다(RFC-010 회귀 중 두 번째 발생). 팝업이 입력칸에 focus를 주기 전의 Esc가 사라졌다. 이제 Esc는 focus가 어디에 있든 팝업을 닫는다. 시험에는 대기 조건을 넣었다(`reports/rfc/RFC-010/REPORT.md`).
+  - PW-015 건은 원인을 아직 찾지 못했다. 열린 채로 둔다.

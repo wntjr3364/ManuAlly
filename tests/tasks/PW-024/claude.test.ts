@@ -12,6 +12,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { buildClaudeArgs, buildClaudeEnv, decideClaudeCall, isIssuedDecision, startClaudeTurn, type ClaudeRun, type Sentinel } from '../../../packages/providers/src/claude/index.ts';
 import { FEATURES, loadRegistry, spentSoFar, type Registry } from '../../../packages/providers/src/core/index.ts';
+import { directLauncherForTests } from '../../../packages/providers/src/core/launch.ts';
 
 const FAKE = path.resolve('tests/tasks/PW-024/fake-claude.mjs');
 const VERSION = 'claude-code 2.1.294';
@@ -51,7 +52,7 @@ beforeAll(() => {
 afterAll(() => { fs.rmSync(root, { recursive: true, force: true }); });
 
 const decision = (over: Record<string, unknown> = {}, reg = APPROVED) => decideClaudeCall(reg, { key: KEY, purpose: 'paper_work', approval, sentinel: sentinel(), now, host, ...over });
-const start = (o: Partial<Parameters<typeof startClaudeTurn>[0]> = {}) => startClaudeTurn({ decision: decision(), cmd: FAKE, run: newRun(), profileDir: profile, prompt: 'x', session: { new: randomUUID() }, parentEnv: { PATH: process.env.PATH! }, homes: [os.homedir()], ...o });
+const start = (o: Partial<Parameters<typeof startClaudeTurn>[0]> = {}) => startClaudeTurn({ launcher: directLauncherForTests, decision: decision(), cmd: FAKE, run: newRun(), profileDir: profile, prompt: 'x', session: { new: randomUUID() }, parentEnv: { PATH: process.env.PATH! }, homes: [os.homedir()], ...o });
 async function turn(run: ClaudeRun, prompt: string, session: { new: string } | { resume: string }, env: Record<string, string> = {}, profileDir = profile, d = decision()) {
   const t = start({ decision: d, run, prompt, session, profileDir, parentEnv: { PATH: process.env.PATH!, ...env } });
   const events = [];

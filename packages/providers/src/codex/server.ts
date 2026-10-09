@@ -4,7 +4,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import { spawn, spawnSync } from 'node:child_process';
 import type { ProviderEvent } from '../../../contracts/src/provider/index.ts';
 import { normalizeCodex } from '../core/events.ts';
 import { Refused } from '../claude/args.ts';
@@ -14,10 +13,12 @@ import { PINNED_CODEX_VERSION, THREAD_DEFAULTS, guardClientNotification, guardCl
 import { type CodexDecision } from './admission.ts';
 import { checkDecision, spendTurn } from '../core/admission.ts';
 import { assertPrivateRunFolder } from '../claude/run-folder.ts';
+import { assertLauncher, type Launcher } from '../core/launch.ts';
 
 // `codex --version` → "codex-cli 0.161.0" (registry form)
-export function codexCliVersion(cmd: string, env: Record<string, string>, cwd: string): string {
-  const r = spawnSync(cmd, ['--version'], { env, cwd, encoding: 'utf8', timeout: 15_000 });
+// (run by the launcher: inside the same sandbox as the server)
+export function codexCliVersion(launcher: Launcher, cmd: string, env: Record<string, string>, cwd: string): string {
+  const r = launcher.version(cmd, ['--version'], { env, cwd, timeoutMs: 15_000 });
   const v = /(\d+\.\d+\.\d+)/.exec((r.stdout ?? '').trim());
   if (r.status !== 0 || !v) throw new Refused(`could not read the version of ${cmd}`);
   return `codex-cli ${v[1]}`;
@@ -44,10 +45,13 @@ export async function startCodexServer(a: {
   decision: CodexDecision; cmd: string; run: CodexRun; profileDir: string;
   parentEnv?: Record<string, string | undefined>; homes?: string[]; ownerUid?: number | null;
   onToolCall?: (name: string, args: unknown) => Promise<unknown>; timeoutMs?: number; turnTimeoutMs?: number; settleMs?: number;
+  // starts the app-server: inside the sandbox the admission verified (RFC-010)
+  launcher: Launcher;
 }) {
   const d = a.decision;
   // the decision must be issued, allowed, unexpired and for Codex (checked again for every turn)
   checkDecision(d, 'codex'); // before anything runs, even --version
+  const launcher = assertLauncher(a.launcher, d);
   assertPrivateRunFolder(a.run, a.ownerUid === undefined ? (process.getuid?.() ?? null) : a.ownerUid);
   assertNoAgentConfigAbove(a.run.cwd);
   const env = buildCodexEnv(a);
@@ -55,12 +59,12 @@ export async function startCodexServer(a: {
   const cmd = fs.realpathSync(a.cmd);
   const st = fs.statSync(cmd);
   if (!st.isFile() || !(st.mode & 0o111) || st.mode & 0o022) throw new Refused(`${a.cmd} is not an executable file the user controls`);
-  const version = codexCliVersion(cmd, env, a.run.cwd);
+  const version = codexCliVersion(launcher, cmd, env, a.run.cwd);
   if (version !== d.key.version) throw new Refused(`${a.cmd} is ${version}, but the admission is for ${d.key.version}`);
   if (version !== `codex-cli ${PINNED_CODEX_VERSION}`) throw new Refused(`codex ${version} is not the pinned ${PINNED_CODEX_VERSION} (regenerate the schema inventory and RPC policy first)`);
   const timeoutMs = a.timeoutMs ?? 30_000;
 
-  const child = spawn(cmd, buildCodexArgs(), { env, cwd: a.run.cwd, detached: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = launcher.spawn(cmd, buildCodexArgs(), { env, cwd: a.run.cwd });
   child.stderr?.resume();
   child.stdin?.on('error', () => {});
   let exited = false;

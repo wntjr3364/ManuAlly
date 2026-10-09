@@ -1,0 +1,4 @@
+ FAIL  tests/rfc/RFC-010/provider-runs.int.test.ts [ tests/rfc/RFC-010/provider-runs.int.test.ts ]
+Error: Cannot find module '../../../packages/providers/src/core/launch.ts' imported from /home/user/ManuAlly/tests/rfc/RFC-010/provider-runs.int.test.ts
+     28| import { directLauncherForTests, type Launcher } from '../../../packag…
+      Tests  no tests

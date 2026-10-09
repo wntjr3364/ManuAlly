@@ -13,9 +13,9 @@
 // It first verifies that the outer sandbox works on this host (no model call), then runs: initialize,
 // one thread, one turn ("Reply with the word READY."), and records: CLI version, host, time, the event
 // kinds seen, whether READY came back, and usage. No tokens, no secrets.
-// NOTE: until RFC-010 is implemented the app-server itself runs OUTSIDE the sandbox (as does the
-// `--version` read below). The evidence says so (ran_inside_sandbox: false), and the registry refuses
-// to approve Codex on such evidence.
+// RFC-010: the app-server (and its `--version` check) runs INSIDE the sandbox, as the worker runs it,
+// with network only to the Codex hosts through the run's egress proxy (the evidence lists what it
+// contacted); so the evidence says ran_inside_sandbox: true. Optional: --cli-root <install folder>.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -23,7 +23,8 @@ import { spawnSync } from 'node:child_process';
 import { decideCodexCall, startCodexServer, type CodexSentinel } from '../../../packages/providers/src/codex/index.ts';
 import { loadRegistry } from '../../../packages/providers/src/core/index.ts';
 import { verifyOuterSandbox } from '../../../infra/sandbox/sandbox.ts';
-import { defaultRunsRoot, prepareRun, removeRun } from '../../../apps/worker/src/runner/index.ts';
+import { defaultRunsRoot } from '../../../apps/worker/src/runner/index.ts';
+import { smokeBackend, withSandboxedRun } from './sandboxed-smoke.manual-helper.ts';
 
 const argv = process.argv.slice(2);
 const opt = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -38,31 +39,32 @@ if (!argv.includes('--approve-live-smoke') || !profile || !sentinelFile || !out 
 }
 const version = /(\d+\.\d+\.\d+)/.exec(spawnSync(codex, ['--version'], { encoding: 'utf8', env: { PATH: process.env.PATH } }).stdout ?? '')?.[1];
 const runsRoot = defaultRunsRoot();
-const sandbox = await verifyOuterSandbox({ backend: spawnSync('bwrap', ['--version']).status === 0 ? 'bwrap' : 'unshare', runsRoot, nodeRoot: path.dirname(path.dirname(process.execPath)) });
+const backend = smokeBackend();
+const sandbox = await verifyOuterSandbox({ backend, runsRoot, nodeRoot: path.dirname(path.dirname(process.execPath)) });
 if (!sandbox.verified) { console.error(`not run: the outer sandbox failed its checks: ${sandbox.failures.join(', ')}`); process.exit(2); }
 const all = JSON.parse(fs.readFileSync(sentinelFile, 'utf8')) as { codex?: CodexSentinel };
 const sentinel = all.codex ? { ...all.codex, provider: 'codex' } as CodexSentinel : null;
 const decision = decideCodexCall(loadRegistry(), { key: { version: `codex-cli ${version}`, auth_mode: 'chatgpt_login', deployment_profile: 'PERSONAL_LOCAL' }, purpose: 'live_smoke', approval: { approved: true, max_turns: 1, budget_usd: 0.1 }, sentinel, sandbox });
 if (!decision.allowed) { console.error(`not run: ${decision.reason}`); process.exit(2); }
 
-const run = prepareRun({ runsRoot, runId: crypto.randomUUID() });
-const evidence: Record<string, unknown> = { checked_at: new Date().toISOString(), host: os.hostname(), cli_version: `codex-cli ${version}`, host_sandbox_checked: { kind: sandbox.kind, verified: sandbox.verified }, ran_inside_sandbox: false, tests: ['PW-030 codex live smoke'] };
+const evidence: Record<string, unknown> = { checked_at: new Date().toISOString(), host: os.hostname(), cli_version: `codex-cli ${version}`, host_sandbox_checked: { kind: sandbox.kind, verified: sandbox.verified }, ran_inside_sandbox: true, tests: ['PW-030 codex live smoke (RFC-010: inside the sandbox)'] };
 try {
-  const server = await startCodexServer({ decision, cmd: codex, run, profileDir: profile });
-  const thread = await server.startThread();
-  const kinds: string[] = [];
-  let text = '';
-  for await (const e of server.runTurn(thread, 'Reply with the word READY.')) {
-    kinds.push(e.kind);
-    if (e.kind === 'text_delta' || e.kind === 'message_completed') text += (e.data as { text: string }).text;
-    if (e.kind === 'usage') evidence.usage = e.data;
-  }
-  await server.close();
-  Object.assign(evidence, { event_kinds: [...new Set(kinds)], ready: /READY/.test(text), passed: /READY/.test(text) && kinds.includes('turn_completed') });
+  const r = await withSandboxedRun({ provider: 'codex', cli: codex!, cliRoot: expand(opt('--cli-root')), profile: profile!, backend }, async ({ run, launcher, parentEnv }) => {
+    const server = await startCodexServer({ decision, cmd: codex!, run, profileDir: profile!, launcher, parentEnv });
+    const thread = await server.startThread();
+    const kinds: string[] = [];
+    let text = '';
+    for await (const e of server.runTurn(thread, 'Reply with the word READY.')) {
+      kinds.push(e.kind);
+      if (e.kind === 'text_delta' || e.kind === 'message_completed') text += (e.data as { text: string }).text;
+      if (e.kind === 'usage') evidence.usage = e.data;
+    }
+    await server.close();
+    return { kinds, text };
+  });
+  Object.assign(evidence, { event_kinds: [...new Set(r.value.kinds)], ready: /READY/.test(r.value.text), egress: r.egress, passed: /READY/.test(r.value.text) && r.value.kinds.includes('turn_completed') });
 } catch (e) {
   Object.assign(evidence, { passed: false, error: (e instanceof Error ? e.message : String(e)).slice(0, 300) });
-} finally {
-  removeRun(run);
 }
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, JSON.stringify(evidence, null, 2) + '\n');

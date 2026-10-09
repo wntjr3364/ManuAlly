@@ -191,7 +191,11 @@ test('review 2: a citation-only selection can be asked about but not edited; ato
   }
   await toolbar(page).getByRole('button', { name: '질문' }).click();
   await expect(page.getByTestId('selection-scope')).toContainText('선택 0자 · 인용 등 1개 “[인용]”');
+  // the popup moves focus into its box a tick later; a key before that goes to the editor (as in the
+  // IME test below). Flaky twice in full runs (PROGRESS open item) for want of these two waits.
+  await expect(popup(page).getByRole('textbox')).toBeFocused();
   await page.keyboard.press('Escape');
+  await expect(popup(page)).toBeHidden();
   await page.keyboard.press('Shift+Home');
   await expect(toolbar(page).getByRole('button', { name: '문법' })).toBeEnabled();
 });
@@ -236,4 +240,20 @@ test('review 3 / nits: the shortcut explains disabled actions, stale messages cl
   await expect(toolbar(page).getByRole('button', { name: '질문' })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(editor(page)).toBeFocused();
+});
+
+test('Esc closes the popup wherever the focus is (an Esc before the popup takes focus is not lost)', async ({ page }) => {
+  await login(page);
+  await newManuscript(page, 'Esc focus paper');
+  await editor(page).click();
+  await page.keyboard.type('alpha beta');
+  await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
+  await selectText(page, 'beta');
+  await toolbar(page).getByRole('button', { name: '질문' }).click();
+  await expect(popup(page).getByRole('textbox')).toBeFocused();
+  // the focus is back in the editor (as it is for a moment right after opening)
+  await editor(page).evaluate((el) => (el as HTMLElement).focus());
+  await page.keyboard.press('Escape');
+  await expect(popup(page)).toBeHidden();
+  await expect(editor(page)).toHaveText('alpha beta');
 });

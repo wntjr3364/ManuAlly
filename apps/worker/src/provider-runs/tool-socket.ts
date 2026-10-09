@@ -1,5 +1,6 @@
-// Tool gateway transport for one provider run (PW-027). The worker starts this next to the run: a Unix
-// socket file (0600) inside the run folder, bound to the run token. Inside the sandbox the MCP bridge
+// Tool gateway transport for one provider run (PW-027; moved here from apps/api by RFC-010: the worker
+// runs it). A Unix socket file (0600) in a host-owned folder next to the run, bound into the sandbox
+// read-only (RFC-010), bound to the run token. Inside the sandbox the MCP bridge
 // (mcp-bridge.mjs, for Claude) or the Codex adapter's tool callback talks to it; the token itself never
 // enters the sandbox. Newline-delimited JSON: {id, method: 'tools/list' | 'tools/call', params}.
 // Requests are size-limited; anything malformed is answered with an error, never executed.

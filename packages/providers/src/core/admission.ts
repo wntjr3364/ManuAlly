@@ -17,6 +17,8 @@ export type Purpose = 'paper_work' | 'live_smoke';
 export interface RunDecision {
   readonly allowed: boolean; readonly reason: string; readonly purpose: Purpose; readonly key: CapabilityKey;
   readonly max_turns: number; readonly budget_usd: number; readonly decided_at: string; readonly expires_at: string;
+  // the verified sandbox kind this decision rests on (Codex: required; the run must start in it)
+  readonly sandbox_kind: OuterSandbox['kind'] | null;
 }
 
 const issued = new WeakSet<object>();
@@ -31,7 +33,7 @@ export function decideRun(registry: Registry, a: {
   const now = a.now ?? Date.now();
   const host = a.host ?? os.hostname();
   const issue = (allowed: boolean, reason: string, max_turns = 0, budget_usd = 0) => {
-    const d = Object.freeze({ allowed, reason, purpose: a.purpose, key: Object.freeze({ ...a.key }), max_turns, budget_usd, decided_at: new Date(now).toISOString(), expires_at: new Date(now + (a.ttlMs ?? 3600e3)).toISOString() });
+    const d = Object.freeze({ allowed, reason, purpose: a.purpose, key: Object.freeze({ ...a.key }), max_turns, budget_usd, decided_at: new Date(now).toISOString(), expires_at: new Date(now + (a.ttlMs ?? 3600e3)).toISOString(), sandbox_kind: allowed && a.sandbox?.verified === true ? a.sandbox.kind : null });
     issued.add(d);
     spent.set(d, { turns: 0, usd: 0 });
     return d;

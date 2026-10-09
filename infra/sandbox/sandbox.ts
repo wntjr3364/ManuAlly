@@ -26,7 +26,9 @@ import { startEgressProxy } from './egress-proxy.ts';
 
 export type Backend = 'bwrap' | 'unshare';
 export type Network = 'none' | 'proxy';
-export interface SandboxRun { dir: string; cwd: string; homeDir: string; tmpDir: string; inputsDir?: string }
+// inputsDir and gatewayDir (RFC-010: the tool gateway's socket and bridge) are folders inside the run
+// folder that the host prepared; inside they are bound read-only over the writable run folder.
+export interface SandboxRun { dir: string; cwd: string; homeDir: string; tmpDir: string; inputsDir?: string; gatewayDir?: string }
 export interface Limits { cpuSeconds?: number; memoryBytes?: number; maxProcesses?: number; maxFileBytes?: number }
 export interface SandboxSpec {
   run: SandboxRun; network: Network;
@@ -158,13 +160,16 @@ export function bwrapArgs(s: Omit<SandboxSpec, 'limits'>, setup?: Pick<Setup, 'p
   const ro = [...SYSTEM_RO.filter(exists), ...absPaths(s.readOnly, 'read-only path')];
   // bwrap drops capabilities when unprivileged; said explicitly anyway (review MINOR-4)
   const a = ['--unshare-user', '--unshare-pid', '--unshare-ipc', '--unshare-uts', '--unshare-net', '--unshare-cgroup-try', '--disable-userns', '--cap-drop', 'ALL', '--die-with-parent', '--new-session'];
+  // the private /tmp first: read-only paths below the host /tmp stay visible over it (RFC-010)
+  a.push('--tmpfs', '/tmp');
   for (const p of ro) {
     const st = fs.lstatSync(p, { throwIfNoEntry: false });
     if (st?.isSymbolicLink()) a.push('--symlink', fs.readlinkSync(p), p);
     else a.push('--ro-bind', p, p);
   }
-  a.push('--tmpfs', '/tmp', '--bind', s.run.dir, s.run.dir);
+  a.push('--bind', s.run.dir, s.run.dir);
   if (s.run.inputsDir) a.push('--ro-bind', s.run.inputsDir, s.run.inputsDir);
+  if (s.run.gatewayDir) a.push('--ro-bind', s.run.gatewayDir, s.run.gatewayDir);
   if (setup) a.push('--ro-bind', setup.dir, setup.dir, '--ro-bind', setup.passwd, '/etc/passwd', '--ro-bind', setup.group, '/etc/group');
   for (const w of writablePaths(s.writable)) a.push('--bind', w, w);
   // the four devices only, not bwrap's --dev (tty, ptmx, pts, shm …; review MINOR-2)
@@ -184,12 +189,13 @@ function unshareScript(s: SandboxSpec, setup: Setup, newRoot: string): string {
     lines.push(st.isDirectory() ? `mkdir -p "$NR"${sq(at)}` : `mkdir -p "$NR"${sq(path.dirname(at))}; touch "$NR"${sq(at)}`);
     lines.push(`mount --rbind ${sq(p)} "$NR"${sq(at)}`, `mount -o remount,bind,ro "$NR"${sq(at)}`);
   };
+  // the private /tmp first: read-only paths below the host /tmp stay visible over it (RFC-010)
+  lines.push('mkdir -p "$NR/tmp"', 'mount -t tmpfs -o mode=1777,size=67108864 none "$NR/tmp"');
   for (const p of [...SYSTEM_RO.filter(exists), ...absPaths(s.readOnly, 'read-only path')]) bindRo(p);
   bindRo(setup.passwd, '/etc/passwd');
   bindRo(setup.group, '/etc/group');
-  lines.push('mkdir -p "$NR/tmp"', 'mount -t tmpfs -o mode=1777,size=67108864 none "$NR/tmp"');
   lines.push(`mkdir -p "$NR"${sq(s.run.dir)}`, `mount --bind ${sq(s.run.dir)} "$NR"${sq(s.run.dir)}`);
-  if (s.run.inputsDir) lines.push(`mount --bind ${sq(s.run.inputsDir)} "$NR"${sq(s.run.inputsDir)}`, `mount -o remount,bind,ro "$NR"${sq(s.run.inputsDir)}`);
+  for (const d of [s.run.inputsDir, s.run.gatewayDir]) if (d) lines.push(`mount --bind ${sq(d)} "$NR"${sq(d)}`, `mount -o remount,bind,ro "$NR"${sq(d)}`);
   lines.push(`mount --bind ${sq(setup.dir)} "$NR"${sq(setup.dir)}`, `mount -o remount,bind,ro "$NR"${sq(setup.dir)}`);
   for (const w of writablePaths(s.writable)) lines.push(`mkdir -p "$NR"${sq(w)}`, `mount --bind ${sq(w)} "$NR"${sq(w)}`);
   lines.push('mkdir -p "$NR/proc" "$NR/dev"', 'mount -t proc proc "$NR/proc"');
@@ -208,11 +214,20 @@ function unshareScript(s: SandboxSpec, setup: Setup, newRoot: string): string {
 
 export interface SandboxResult { code: number | null; signal: string | null; stdout: string; stderr: string; timedOut: boolean }
 
-export async function runSandboxed(s: SandboxSpec & { backend: Backend; timeoutMs?: number; stdin?: string }): Promise<SandboxResult> {
+// The sandboxed command, prepared but not started (RFC-010: providers start it themselves, streaming,
+// as a recorded run process). The helper files live in the run folder until cleanup().
+export interface SandboxCommand { cmd: string; args: string[]; env: Record<string, string>; cwd: string; cleanup(): void }
+export function prepareSandboxCommand(s: SandboxSpec & { backend: Backend }): SandboxCommand {
   if ((s.network as string) !== 'none' && s.network !== 'proxy') refuse('network must be "none" or "proxy" (the host network exposes loopback services and abstract sockets)');
+  if (s.backend !== 'bwrap' && s.backend !== 'unshare') refuse('backend must be "bwrap" or "unshare"');
   for (const d of [s.run.dir, s.run.cwd, s.run.homeDir, s.run.tmpDir]) if (!path.isAbsolute(d) || !fs.statSync(d, { throwIfNoEntry: false })?.isDirectory()) refuse(`run folder ${d} is missing`);
   // the run folder is used by its real path; a symlinked run folder is refused (review nit)
   if (fs.realpathSync(s.run.dir) !== path.resolve(s.run.dir)) refuse(`run folder ${s.run.dir} must not be or lie below a symlink`);
+  for (const d of [s.run.inputsDir, s.run.gatewayDir]) {
+    if (d === undefined) continue;
+    const st = fs.lstatSync(d, { throwIfNoEntry: false });
+    if (!st?.isDirectory() || st.isSymbolicLink() || path.dirname(path.resolve(d)) !== path.resolve(s.run.dir)) refuse(`${d} must be a folder directly inside the run folder`);
+  }
   if (!s.program.length || !path.isAbsolute(s.program[0]!)) refuse('the program must be an absolute path');
   if (s.network === 'proxy') {
     if (!s.proxy || !path.isAbsolute(s.proxy.node) || !within(path.resolve(s.proxy.socket), path.resolve(s.run.dir))) refuse('network "proxy" needs the egress socket inside the run folder and an absolute node path');
@@ -222,25 +237,29 @@ export async function runSandboxed(s: SandboxSpec & { backend: Backend; timeoutM
   const uid = s.backend === 'bwrap' ? (process.getuid?.() ?? 0) : 0;
   const gid = s.backend === 'bwrap' ? (process.getgid?.() ?? 0) : 0;
   const setup = writeSetup(s.run, uid, gid, s.network === 'proxy');
-  let cmd: string;
-  let args: string[];
+  const cleanup = () => fs.rmSync(setup.dir, { recursive: true, force: true });
   try {
     if (s.backend === 'bwrap') {
-      cmd = 'bwrap';
-      args = bwrapArgs({ ...s, env: innerEnv(s), program: innerProgram(s, setup) }, setup);
-    } else {
-      const newRoot = path.join(setup.dir, 'root');
-      fs.mkdirSync(newRoot, { mode: 0o700 });
-      const script = path.join(setup.dir, 'setup.sh');
-      fs.writeFileSync(script, unshareScript(s, setup, newRoot), { mode: 0o500 });
-      cmd = 'unshare';
-      args = ['--user', '--map-root-user', '--mount', '--pid', '--net', '--fork', '--kill-child', '--propagation', 'private', '/bin/sh', script];
+      return { cmd: 'bwrap', args: bwrapArgs({ ...s, env: innerEnv(s), program: innerProgram(s, setup) }, setup), env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' }, cwd: s.run.dir, cleanup };
     }
+    const newRoot = path.join(setup.dir, 'root');
+    fs.mkdirSync(newRoot, { mode: 0o700 });
+    const script = path.join(setup.dir, 'setup.sh');
+    fs.writeFileSync(script, unshareScript(s, setup, newRoot), { mode: 0o500 });
+    return {
+      cmd: 'unshare',
+      args: ['--user', '--map-root-user', '--mount', '--pid', '--net', '--fork', '--kill-child', '--propagation', 'private', '/bin/sh', script],
+      env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' }, cwd: s.run.dir, cleanup,
+    };
   } catch (e) {
-    fs.rmSync(setup.dir, { recursive: true, force: true });
+    cleanup();
     throw e;
   }
-  const child = spawn(cmd, args, { env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin' }, cwd: s.run.dir, stdio: ['pipe', 'pipe', 'pipe'], detached: true });
+}
+
+export async function runSandboxed(s: SandboxSpec & { backend: Backend; timeoutMs?: number; stdin?: string }): Promise<SandboxResult> {
+  const c = prepareSandboxCommand(s);
+  const child = spawn(c.cmd, c.args, { env: c.env, cwd: c.cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (d) => { stdout += d; });
@@ -249,9 +268,9 @@ export async function runSandboxed(s: SandboxSpec & { backend: Backend; timeoutM
   child.stdin.end(s.stdin ?? '');
   let timedOut = false;
   const t = setTimeout(() => { timedOut = true; try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* gone */ } }, s.timeoutMs ?? 60_000);
-  const { code, signal } = await new Promise<{ code: number | null; signal: string | null }>((r) => child.on('close', (c, sg) => r({ code: c, signal: sg })));
+  const { code, signal } = await new Promise<{ code: number | null; signal: string | null }>((r) => child.on('close', (c2, sg) => r({ code: c2, signal: sg })));
   clearTimeout(t);
-  fs.rmSync(setup.dir, { recursive: true, force: true });
+  c.cleanup();
   return { code, signal, stdout, stderr, timedOut };
 }
 

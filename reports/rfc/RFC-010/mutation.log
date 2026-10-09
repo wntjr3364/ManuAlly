@@ -1,0 +1,16 @@
+# RFC-010 mutations (Fri Oct  9 19:07:59 UTC 2026) — each line breaks one rule; RFC-010 integration tests
+KILLED launcher_must_be_sandboxed
+KILLED codex_kind_matches
+KILLED claude_spawn_via_launcher
+KILLED claude_version_in_sandbox
+KILLED codex_spawn_via_launcher
+KILLED gateway_read_only
+KILLED tmpfs_before_ro
+KILLED proxy_network
+SURVIVED marker_in_env
+KILLED token_revoked
+KILLED usage_recorded
+KILLED run_supervised
+KILLED folders_removed
+# after the reconcile test:
+KILLED marker_in_env

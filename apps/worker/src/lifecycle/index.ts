@@ -66,6 +66,34 @@ function groupMembers(r: RunProcessRecord, opts: { descendants?: boolean } = {})
   return out;
 }
 
+// A run process started by someone else (RFC-010: a launcher starts the CLI inside the sandbox): the
+// marker must already be in the started process's environment; its start time is read at once, before
+// the event loop could reap it.
+export function identifyRunProcess(child: ChildProcess, marker: string): { pid: number; ticks: number; marker: string } {
+  const pid = child.pid;
+  const ticks = pid ? procStartTicks(pid) : null;
+  if (!pid || ticks === null) {
+    if (pid) { try { process.kill(-pid, 'SIGKILL'); } catch { /* gone */ } }
+    throw new Error('could not identify the run process (pid and start time)');
+  }
+  return { pid, ticks, marker };
+}
+
+export async function recordRunProcess(pool: TxPool, a: { jobId: string; fencingToken: number; workerId: string; pid: number; ticks: number; marker: string }): Promise<RunProcessRecord> {
+  try {
+    const { rows } = await pool.query<RunProcessRecord & { fencing_token: string; proc_start_ticks: string }>(
+      `INSERT INTO run_processes (job_id, fencing_token, worker_id, host, pid, pgid, proc_start_ticks, marker) VALUES ($1, $2, $3, $4, $5, $5, $6, $7)
+       RETURNING id, job_id, fencing_token::text AS fencing_token, host, pid, pgid, proc_start_ticks::text AS proc_start_ticks, marker`,
+      [a.jobId, a.fencingToken, a.workerId, os.hostname(), a.pid, a.ticks, a.marker]);
+    return { ...rows[0]!, fencing_token: Number(rows[0]!.fencing_token), proc_start_ticks: Number(rows[0]!.proc_start_ticks) };
+  } catch (e) {
+    try { process.kill(-a.pid, 'SIGKILL'); } catch { /* gone */ } // unrecorded: never leave it running
+    throw e;
+  }
+}
+
+export const newRunMarker = (): string => randomBytes(16).toString('hex');
+
 export async function startRunProcess(pool: TxPool, a: { jobId: string; fencingToken: number; workerId: string; cmd: string; args: string[]; env: Record<string, string>; cwd?: string }): Promise<{ child: ChildProcess; record: RunProcessRecord }> {
   const marker = randomBytes(16).toString('hex');
   // its own process group (detached): ending the run never reaches the worker or other runs

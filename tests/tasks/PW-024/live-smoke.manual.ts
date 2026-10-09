@@ -12,8 +12,9 @@
 //     --approve-live-smoke --budget-usd 0.10 --out reports/tasks/PW-024/live-evidence.json --claude "$(command -v claude)"
 // It records: CLI version, the session id we chose, that resume continued it, init tools (must be
 // []), exit codes and usage. No prompts' answers beyond the check word, no tokens, no paths of secrets.
-// NOTE: until RFC-010 is implemented the CLI runs OUTSIDE the sandbox; this evidence has no
-// ran_inside_sandbox: true, so the registry will not approve Claude on it (it checks the CLI works).
+// RFC-010: the CLI (and its `--version` check) runs INSIDE the sandbox, as the worker runs it, with
+// network only to the Claude hosts through the run's egress proxy (the evidence lists what it
+// contacted); the evidence says ran_inside_sandbox: true. Optional: --cli-root <install folder>.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -21,6 +22,7 @@ import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { decideClaudeCall, startClaudeTurn, type ClaudeRun, type Sentinel } from '../../../packages/providers/src/claude/index.ts';
 import { loadRegistry } from '../../../packages/providers/src/core/index.ts';
+import { smokeBackend, withSandboxedRun } from '../../integration/providers/sandboxed-smoke.manual-helper.ts';
 
 const argv = process.argv.slice(2);
 const opt = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -40,18 +42,21 @@ const sentinel = sentinelAll.claude_agent ? { ...sentinelAll.claude_agent, provi
 const decision = decideClaudeCall(loadRegistry(), { key: { version: `claude-code ${version.split(' ')[0]}`, auth_mode: 'subscription_cli_login', deployment_profile: 'PERSONAL_LOCAL' }, purpose: 'live_smoke', approval: { approved: true, max_turns: 2, budget_usd: budget }, sentinel });
 if (!decision.allowed) { console.error(`not run: ${decision.reason}`); process.exit(2); }
 
-function newRun(): ClaudeRun {
-  const base = fs.mkdtempSync(path.join(process.env.XDG_RUNTIME_DIR ?? os.tmpdir(), 'pw-smoke-'));
-  const r = { dir: base, cwd: path.join(base, 'work'), homeDir: path.join(base, 'home'), tmpDir: path.join(base, 'tmp'), mcpConfigPath: path.join(base, 'mcp.json') };
-  for (const d of [r.cwd, r.homeDir, r.tmpDir]) fs.mkdirSync(d, { mode: 0o700 });
-  fs.writeFileSync(r.mcpConfigPath, JSON.stringify({ mcpServers: {} }), { mode: 0o600 });
-  return r;
-}
+const backend = smokeBackend();
+const egressSeen: { target: string; allowed: boolean }[] = [];
 async function turn(prompt: string, session: { new: string } | { resume: string }) {
-  const t = startClaudeTurn({ decision, cmd: claude!, run: newRun(), profileDir: profile!, prompt, session, effort: 'low' });
-  const events = [];
-  for await (const e of t.events) events.push(e);
-  return { events, result: await t.done };
+  const r = await withSandboxedRun({ provider: 'claude_agent', cli: claude!, cliRoot: expand(opt('--cli-root')), profile: profile!, backend }, async ({ run, launcher, parentEnv }) => {
+    // no paper tools in the smoke: an MCP config without servers, in the read-only gateway folder
+    const mcpConfigPath = path.join(run.gatewayDir, 'mcp.json');
+    fs.writeFileSync(mcpConfigPath, JSON.stringify({ mcpServers: {} }), { mode: 0o600 });
+    const run2: ClaudeRun = { dir: run.dir, cwd: run.cwd, homeDir: run.homeDir, tmpDir: run.tmpDir, mcpConfigPath };
+    const t = startClaudeTurn({ decision, cmd: claude!, run: run2, profileDir: profile!, prompt, session, effort: 'low', launcher, parentEnv });
+    const events = [];
+    for await (const e of t.events) events.push(e);
+    return { events, result: await t.done };
+  });
+  egressSeen.push(...r.egress);
+  return r.value;
 }
 const id = randomUUID();
 const word = `PONG-${randomUUID().slice(0, 6)}`;
@@ -60,7 +65,7 @@ const second = await turn('What word did you reply with in your previous message
 const text = (r: typeof first) => r.events.filter((e) => e.kind === 'message_completed').map((e) => (e.data as { text: string }).text).join('');
 const init = first.events.find((e) => e.kind === 'session_started');
 const evidence = {
-  task: 'PW-024 TST-024A live smoke', host: os.hostname(), checked_at: new Date().toISOString(), cli_version: version,
+  task: 'PW-024 TST-024A live smoke (RFC-010: inside the sandbox)', host: os.hostname(), checked_at: new Date().toISOString(), cli_version: version, ran_inside_sandbox: true, egress: egressSeen,
   session_id_chosen: id, session_id_reported: first.result.reportedSessionId, session_mismatch: first.result.sessionMismatch || second.result.sessionMismatch,
   init_tools: init?.kind === 'session_started' ? init.data.tools : null,
   first_ok: first.result.exitCode === 0 && text(first).includes(word),

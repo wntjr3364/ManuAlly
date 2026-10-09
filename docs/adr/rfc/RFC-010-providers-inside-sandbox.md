@@ -44,3 +44,10 @@ User decision / reviewer: 사용자 위임("니가 적절하게 선택해서 프
 - 실제 provider를 문헌 평가(assessor)에 쓸 때는 후보의 제목·저자·학술지 같은 외부 텍스트를 지시가 아닌 데이터로 넘긴다(spec 08).
   - 별도 데이터 블록이나 tool 결과로 넘기고, 지시문에 이어 붙이지 않는다.
 - 답은 지금처럼 `checkAssessments`의 엄격한 검사와 시스템 규칙을 거친다.
+
+## 구현 기록 (2026-10-09)
+- 보고: `reports/rfc/RFC-010/REPORT.md`. 상태: in_review(독립 리뷰 대기)
+- 정해진 세부:
+  - gateway 폴더는 run 폴더 안에 host가 만들어 읽기 전용으로 bind한다(기존 `inputsDir` 방식). `$XDG_RUNTIME_DIR` 아래 폴더는 sandbox가 노출을 거부하기 때문이다.
+  - mcp.json도 그 폴더에 두어 CLI가 바꿀 수 없다.
+- 범위 밖 파일은 보고서의 부록에 적었다(providers core의 launcher 계약, sandbox 명령 준비, worker main의 주기 reconcile, gateway transport의 worker 이동).

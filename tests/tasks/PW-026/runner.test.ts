@@ -355,7 +355,13 @@ describe('bubblewrap backend (argv only; bwrap is not installed here)', () => {
     expect(bwrapArgs({ run, network: 'none', env: {}, program: ['x'] })).toContain('--unshare-net');
     expect(a.slice(-3)).toEqual(['--', '/opt/node22/bin/node', 'x.mjs']);
     expect(s).not.toMatch(/docker\.sock|--(ro-)?bind \/ |--bind \/root|--bind \/home /);
-    expect(s).toContain('--tmpfs /tmp --bind /r/run1 /r/run1'); // /tmp first: a run below /tmp stays visible
+    // /tmp first, before every bind: a run (or, RFC-010, a read-only path) below /tmp stays visible
+    expect(a.indexOf('--tmpfs')).toBeLessThan(a.indexOf('--ro-bind'));
+    expect(a[a.indexOf('--tmpfs') + 1]).toBe('/tmp');
+    expect(s.indexOf('--tmpfs /tmp')).toBeLessThan(s.indexOf('--bind /r/run1 /r/run1'));
+    // RFC-010: the gateway folder inside the run is bound read-only after the run folder
+    const g = bwrapArgs({ run: { ...run, gatewayDir: '/r/run1/gateway' }, network: 'none', env: {}, program: ['x'] }).join(' ');
+    expect(g.indexOf('--ro-bind /r/run1/gateway /r/run1/gateway')).toBeGreaterThan(g.indexOf('--bind /r/run1 /r/run1'));
     expect(bwrapVersionOk('bubblewrap 0.11.0')).toBe(true);
     expect(bwrapVersionOk('bubblewrap 0.6.1')).toBe(false); // no --disable-userns
   });

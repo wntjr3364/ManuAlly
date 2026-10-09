@@ -111,6 +111,22 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
     editor.view.focus();
   }, [editor]);
 
+  // Esc closes the open popup wherever the focus is: right after opening, the focus reaches the box a
+  // tick later, and an Esc in between went to the editor and was lost. In the box its own handler
+  // decides (an Esc that ends an IME composition keeps the popup). The editor's keymap may already have
+  // marked the key handled; while the popup is open nothing else uses Esc.
+  useEffect(() => {
+    if (!frozen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.isComposing || e.keyCode === 229) return;
+      if (e.target instanceof Node && e.target === inputRef.current) return;
+      e.preventDefault();
+      close();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [frozen, close]);
+
   const submit = () => {
     if (!frozen) return;
     if (frozen.intent === 'comment') {

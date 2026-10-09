@@ -2,3 +2,4 @@
 export * from './capabilities.ts';
 export { normalizeClaude, normalizeCodex } from './events.ts';
 export * from './admission.ts';
+export { assertLauncher, NotSandboxed, type Launcher } from './launch.ts';

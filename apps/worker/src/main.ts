@@ -7,6 +7,7 @@ import { selectionHandlers } from './selection/index.ts';
 import { curationHandlers, createMockAssessor } from './curation/index.ts';
 import { pdfHandlers } from './pdf/index.ts';
 import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
+import { reconcileRunProcesses } from './lifecycle/index.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const url = process.env.PW_DATABASE_URL;
@@ -17,7 +18,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()), ...pdfHandlers(pool, { assetDir: defaultAssetDir() }) },
     onError: (e) => console.error('worker error:', e instanceof Error ? e.message : e),
   });
-  const stop = async () => { await worker.stop(); await pool.end(); process.exit(0); };
+  // RFC-010: provider run processes left by a crashed worker (or of cancelled jobs) are ended on start
+  // and then every minute, under the identity check of PW-028
+  const reconcile = () => reconcileRunProcesses(pool).catch((e) => console.error('reconcile error:', e instanceof Error ? e.message : e));
+  void reconcile();
+  const timer = setInterval(() => void reconcile(), 60_000);
+  const stop = async () => { clearInterval(timer); await worker.stop(); await pool.end(); process.exit(0); };
   process.on('SIGINT', () => void stop());
   process.on('SIGTERM', () => void stop());
   console.log('worker running (provider: mock — answers are labelled MOCK)');

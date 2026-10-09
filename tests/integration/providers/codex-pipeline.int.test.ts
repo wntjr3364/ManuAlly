@@ -26,6 +26,7 @@ import { decideCodexCall, startCodexServer, type CodexRun } from '../../../packa
 import { FEATURES, loadRegistry, type Registry } from '../../../packages/providers/src/core/index.ts';
 import type { ProviderEvent } from '../../../packages/contracts/src/provider/index.ts';
 import { validateProviderEvent } from '../../../packages/contracts/src/provider/index.ts';
+import { directLauncherForTests } from '../../../packages/providers/src/core/launch.ts';
 
 const ORIGIN = 'http://127.0.0.1:5173';
 const FAKE = path.resolve('tests/integration/providers/fake-codex-gateway.mjs');
@@ -102,7 +103,7 @@ async function runCodexJob(s: Awaited<ReturnType<typeof paperWithSelection>>, op
   const { fencingToken } = (await claimJob(pool, { jobId: job.id, workerId: 'w1', leaseMs: 60_000 }))!;
   const token = await issueRunToken(pool, { ownerId, paperId: s.paperId, documentId: s.documentId, handleIds: [s.handleId], provider: 'codex', tools: ['get_document_slice', 'propose_manuscript_edit'], ttlMs: 10 * 60_000, jobId: job.id, fencingToken });
   const toolAnswers: unknown[] = [];
-  const server = await startCodexServer({
+  const server = await startCodexServer({ launcher: directLauncherForTests,
     decision: decision(), cmd: FAKE, run: runFolders(), parentEnv: { PATH: process.env.PATH! }, homes: [os.homedir()],
     profileDir: profile({ tool: 'propose_manuscript_edit', arguments: { handle_id: s.handleId, intent: 'concise', replacement: [{ type: 'text', text: 'clear' }], explanation: 'shorter' } }, opts.flags),
     // the model's tool call → the gateway with this run's token (the token never reaches the provider)
@@ -178,7 +179,7 @@ describe('P03 chain against the stand-in Codex', () => {
     // a new server process: the stand-in knows the thread only through its profile marker (as the
     // real one knows it from CODEX_HOME), so the second run resumes exactly that id
     const p = profile({ tool: 'get_document_slice', arguments: { handle_id: s.handleId } }, [`thread-${first.thread}`]);
-    const server = await startCodexServer({ decision: decision(), cmd: FAKE, run: runFolders(), profileDir: p, parentEnv: { PATH: process.env.PATH! }, homes: [os.homedir()] });
+    const server = await startCodexServer({ launcher: directLauncherForTests, decision: decision(), cmd: FAKE, run: runFolders(), profileDir: p, parentEnv: { PATH: process.env.PATH! }, homes: [os.homedir()] });
     expect(await server.resumeThread(first.thread)).toBe(first.thread);
     await expect(server.resumeThread('th-unknown')).rejects.toThrow(/not found/);
     await server.close();

@@ -1,0 +1,5 @@
+  ✘  1 tests/tasks/PW-016/selection.e2e.ts:245:1 › Esc closes the popup wherever the focus is (an Esc before the popup takes focus is not lost) (9.0s)
+    Error: expect(locator).toBeHidden() failed
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-37830-up-takes-focus-is-not-lost-/error-context.md
+    Error Context: packages/config/test-results/tasks-PW-016-selection.e2e-37830-up-takes-focus-is-not-lost-/error-context.md
+  1 failed

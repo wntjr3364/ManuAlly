@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P04 완료(사용자 위임), RFC-010 approve, P05 진행**. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 in_review(1차 리뷰 반영, 재리뷰 대기).
+- 현재 단계: **P04 완료(사용자 위임), RFC-010 approve, P05 진행**. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 리뷰 approve. PW-043 진행.
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).

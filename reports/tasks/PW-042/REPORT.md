@@ -113,3 +113,9 @@ PW-043: scientific reviewer / 검증 층
 - mutation(`mutation.log` 하단): 13종 모두 탐지.
 - 회귀: `pnpm test` exit 0 — unit 326, integration 433, contracts 17, 브라우저 91 (`pnpm-test-review.log`).
 - 남은 위험(추가): 새 문단은 앞 block만 같으면 적용된다. 뒤 문단이 바뀌어 전환이 어색해질 수 있지만, 이것은 사용자가 보고 적용하는 diff 범위다.
+
+## 재리뷰 (e2b3aa9): approve
+- 확인: MINOR 3개와 NIT 전부 닫힘. 리뷰어 실행: 통합 12/12, unit 36/36, 브라우저 1/1.
+- 남은 NIT(남은 위험으로 기록)
+  - 위치 없이 "원고 끝"으로 요청한 새 문단은 그 사이 끝에 더해진 문단 뒤에 붙는다. 계약의 앞 문단 글과 맞지 않을 수 있다. 사용자가 보고 적용한다.
+  - 적용 중 gate 확인은 paper 행을 잡지만, 근거 철회처럼 paper 행을 건드리지 않는 변화로 생기는 영향은 확인과 commit 사이 아주 짧은 틈에 들어올 수 있다. 다음 읽기에서 영향으로 보인다.

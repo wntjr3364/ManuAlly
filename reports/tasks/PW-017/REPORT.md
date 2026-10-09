@@ -110,3 +110,27 @@
 
 ## 다음
 PW-018: 하이라이트·코멘트 anchor
+
+## 독립 리뷰 결과 반영 (2026-10-09)
+- 결론: changes requested(major 1, minor 3, nit 2).
+- 리뷰어가 문제없다고 확인한 것
+  - 기준 revision의 두 번째 자식이 생기는 경로가 없다(`/saves`·`/revisions`·restore·apply 모두 문서 행 lock).
+  - 동시 적용, 멱등 key 범위, 제안 행 trigger, owner 격리
+  - diff XSS 없음
+
+| 지적 | 조치 |
+|---|---|
+| **MAJOR 숫자 검사가 선택 부분만 봄**<br>"2.5"의 "."만 지우면 25 mg, "mg"의 "m"만 바꾸면 2.5 µg가 PENDING이 되고 적용됨(PW-003 spike도 같은 결함) | 검사를 **문단 전체의 전·후**로 비교한다. 리뷰어 사례 2건 회귀 시험(CHECK_FAILED), 숫자를 그대로 둔 넓은 선택은 PENDING |
+| m1 틀린 `expected_revision_id` 하나로 멀쩡한 제안이 STALE로 굳고 이유도 틀림 | 기대 revision이 기준과 다르면 상태를 바꾸지 않고 409 `EXPECTED_REVISION_MISMATCH`. STALE은 head가 실제로 움직였을 때만. 회귀 시험 |
+| m2 적용 응답 유실·5xx 뒤 편집기가 풀리고 "저장됨"인데 서버 head는 이미 이동 → 충돌로 막힘(502면 재시도 경로도 사라짐) | 응답 유실과 5xx는 "적용 여부 모름"으로 처리한다. key와 제안 표시를 유지하고, 편집기는 잠근 채 "다시 시도"(같은 key)만 허용한다. 서버가 첫 결과를 돌려주거나 한 번 적용한다. 브라우저 시험 2건(유실·502) |
+| m3 새 스토리 승인 뒤 영향 검토가 필요한 개요에서도 학술적 재작성 허용 | 승인된 개요는 draft gate와 같은 조건이다. 개요 APPROVED이고 그 스토리가 활성 승인 스토리여야 한다. 서버와 화면(PaperPage) 모두. 회귀 시험 |
+| nit: 결과를 모르는 제안의 key가 남음 | 결과를 모르는 동안에는 의도적으로 유지한다(재시도에 필요). 결과가 확인되면 지운다 |
+| nit: 유실 시험이 편집기 잠금 해제를 요구함 | 잠긴 채 유지되는지 확인하도록 바꿨다 |
+
+- 함께 바꾼 것
+  - 선택 검증을 `verifySelection`으로 분리했다(PW-018 코멘트가 같은 검증을 쓴다).
+  - 동작 변화는 없다(PW-017 시험이 그대로 통과).
+- RED: 리뷰 전 코드에서 회귀 시험이 실패했다.
+  - 도메인 4건(`review-red.log`)
+  - 브라우저 2건(`review-red-web.log`)
+- 실행: PW-017 통합 17, 브라우저 6. `pnpm test` exit 0(`pnpm-test-review.log`, 작업 중이던 PW-018 파일 포함): unit 129, integration 162, contracts 15, e2e 55, spikes 70

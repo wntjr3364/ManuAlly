@@ -34,6 +34,8 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
   const [items, setItems] = useState<Detail[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  // an apply whose outcome is unknown (answer lost or 5xx): the editor stays locked until it is resolved
+  const [unknown, setUnknown] = useState<string | null>(null);
   const keys = useRef(new Map<string, string>()); // proposal id -> idempotency key of the pending apply
 
   const load = useCallback(async () => {
@@ -41,7 +43,10 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
       const list = await api<ProposalView[]>('GET', `/api/papers/${paperId}/documents/${documentId}/proposals?status=PENDING`);
       const failed = await api<ProposalView[]>('GET', `/api/papers/${paperId}/documents/${documentId}/proposals?status=CHECK_FAILED`);
       const details = await Promise.all([...list, ...failed].map((p) => api<Detail>('GET', `/api/papers/${paperId}/proposals/${p.id}`)));
-      setItems(details);
+      setItems((prev) => {
+        const keep = prev.filter((x) => keys.current.has(x.proposal.id) && !details.some((d) => d.proposal.id === x.proposal.id));
+        return [...details, ...keep];
+      });
       setError('');
     } catch (e) {
       setError(errorText(e));
@@ -55,20 +60,37 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
     if (!key) { key = newKey(); keys.current.set(p.id, key); }
     setBusy(p.id);
     onApplying(true);
+    let resolved = true;
     try {
       const r = await api<{ revision: AppliedRevision; replayed: boolean }>('POST', `/api/papers/${paperId}/proposals/${p.id}/apply`, {
         proposal_hash: p.proposal_hash, expected_revision_id: p.base_revision_id, idempotency_key: key,
       });
       keys.current.delete(p.id);
-      if (!onApplied(r.revision, d.after_block!)) setError('적용은 저장되었지만 화면에 반영하지 못했습니다 — 페이지를 새로 불러오세요');
+      setUnknown(null);
+      setError('');
+      if (!onApplied(r.revision, d.after_block!)) {
+        // stored on the server but not on screen: keep the editor locked rather than let it overwrite
+        resolved = false;
+        setError('적용은 저장되었지만 화면에 반영하지 못했습니다 — 페이지를 새로 불러오세요');
+      }
       await load();
     } catch (e) {
-      // network: the key stays, so "다시 시도" resends the same apply; the server answers it once
-      if (e instanceof ApiError) { keys.current.delete(p.id); await load(); }
-      setError(e instanceof ApiError ? errorText(e) : '네트워크 오류 — 적용되었는지 알 수 없습니다. 다시 시도하면 한 번만 적용됩니다.');
+      if (e instanceof ApiError && e.status < 500) {
+        // refused: nothing was applied
+        keys.current.delete(p.id);
+        setUnknown(null);
+        setError(errorText(e));
+        await load();
+      } else {
+        // answer lost or server error: it may or may not be applied. Keep the key and the lock;
+        // "다시 시도" sends the same apply, which the server answers with the first result or applies once.
+        resolved = false;
+        setUnknown(p.id);
+        setError('적용되었는지 알 수 없습니다. 다시 시도하면 한 번만 적용됩니다. 확인될 때까지 편집을 잠급니다.');
+      }
     } finally {
       setBusy(null);
-      onApplying(false);
+      if (resolved) onApplying(false);
     }
   };
   const reject = async (d: Detail) => {
@@ -107,10 +129,10 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
             )}
             {p.status === 'PENDING' && (
               <div className="toolbar">
-                <button type="button" className="primary" disabled={!canApply || stale || busy !== null} onClick={() => void apply(d)}>
+                <button type="button" className="primary" disabled={busy !== null || (unknown === p.id ? false : !canApply || stale || unknown !== null)} onClick={() => void apply(d)}>
                   {keys.current.has(p.id) ? '다시 시도' : '적용'}
                 </button>
-                <button type="button" disabled={busy !== null} onClick={() => void reject(d)}>거절</button>
+                <button type="button" disabled={busy !== null || unknown !== null} onClick={() => void reject(d)}>거절</button>
                 {stale && <span className="hint">원고가 이 제안 뒤에 바뀌어 적용할 수 없습니다. 지금 원고로 다시 요청하세요.</span>}
                 {!stale && !canApply && <span className="hint">저장된 뒤 적용할 수 있습니다</span>}
               </div>

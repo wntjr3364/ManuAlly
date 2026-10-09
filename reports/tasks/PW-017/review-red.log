@@ -1,0 +1,197 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-017/review-fixes.int.test.ts (5 tests | 4 failed) 1026ms
+   ❯ review MAJOR: a replacement next to a number cannot change the number (3)
+     × removing the "." of 2.5 (which would read 25 mg) is CHECK_FAILED 75ms
+     × changing the "m" of mg to µ (2.5 µg) is CHECK_FAILED 34ms
+   ❯ review MINOR-1: a wrong expected revision is refused without changing the proposal (1)
+     × the proposal stays PENDING and the right apply then succeeds 44ms
+   ❯ review MINOR-3: academic rewrite needs the outline the draft gate accepts (1)
+     × rewrite is allowed under an approved outline and refused again once a new story awaits impact review 123ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-017/review-fixes.int.test.ts > review MAJOR: a replacement next to a number cannot change the number > removing the "." of 2.5 (which would read 25 mg) is CHECK_FAILED
+AssertionError: expected 'PENDING' to be 'CHECK_FAILED' // Object.is equality
+
+Expected: "CHECK_FAILED"
+Received: "PENDING"
+
+ ❯ tests/tasks/PW-017/review-fixes.int.test.ts:65:22
+     63|     const dot = TEXT.indexOf('2.5') + 1;
+     64|     const p = await propose(s, await handle(s, dot, dot + 1), []);
+     65|     expect(p.status).toBe('CHECK_FAILED');
+       |                      ^
+     66|     expect(p.checks.find((c) => c.check === 'numbers')).toMatchObject(…
+     67|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/tasks/PW-017/review-fixes.int.test.ts > review MAJOR: a replacement next to a number cannot change the number > changing the "m" of mg to µ (2.5 µg) is CHECK_FAILED
+AssertionError: expected 'PENDING' to be 'CHECK_FAILED' // Object.is equality
+
+Expected: "CHECK_FAILED"
+Received: "PENDING"
+
+ ❯ tests/tasks/PW-017/review-fixes.int.test.ts:73:22
+     71|     const m = TEXT.indexOf('mg');
+     72|     const p = await propose(s, await handle(s, m, m + 1), [{ type: 'te…
+     73|     expect(p.status).toBe('CHECK_FAILED');
+       |                      ^
+     74|   });
+     75|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/tasks/PW-017/review-fixes.int.test.ts > review MINOR-1: a wrong expected revision is refused without changing the proposal > the proposal stays PENDING and the right apply then succeeds
+AssertionError: expected 'STALE' to be 'EXPECTED_REVISION_MISMATCH' // Object.is equality
+
+Expected: "EXPECTED_REVISION_MISMATCH"
+Received: "STALE"
+
+ ❯ tests/tasks/PW-017/review-fixes.int.test.ts:89:33
+     87|     const wrong = await call('POST', `/api/papers/${s.paperId}/proposa…
+     88|     expect(wrong.statusCode).toBe(409);
+     89|     expect(wrong.json().reason).toBe('EXPECTED_REVISION_MISMATCH');
+       |                                 ^
+     90|     expect((await pool.query('SELECT status FROM edit_proposals WHERE …
+     91|     const ok = await call('POST', `/api/papers/${s.paperId}/proposals/…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/tasks/PW-017/review-fixes.int.test.ts > review MINOR-3: academic rewrite needs the outline the draft gate accepts > rewrite is allowed under an approved outline and refused again once a new story awaits impact review
+AssertionError: promise resolved "{ …(20) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "applied_revision_id": null,
++   "base_revision_id": "e3af5177-20a9-431c-855b-50ad3032b66f",
++   "checks": [
++     {
++       "check": "protected_atoms",
++       "result": "pass",
++     },
++     {
++       "check": "citations",
++       "result": "pass",
++     },
++     {
++       "check": "citation_positions",
++       "result": "pass",
++     },
++     {
++       "check": "formatted_runs",
++       "result": "pass",
++     },
++     {
++       "check": "numbers",
++       "result": "pass",
++     },
++     {
++       "check": "negations",
++       "result": "pass",
++     },
++     {
++       "check": "directions",
++       "result": "pass",
++     },
++   ],
++   "created_at": 2026-10-09T07:40:10.488Z,
++   "decided_at": null,
++   "decided_by": null,
++   "document_id": "55ec2cd1-63b9-4fa8-9314-3ce2b6266603",
++   "explanation": null,
++   "id": "7a3eb422-b6fb-44a8-a71b-5ae52d7482cc",
++   "intent": "rewrite",
++   "mode": "approved_outline",
++   "origin": "worker:test",
++   "outline_revision_id": "1bc0f57b-634d-4190-ab9d-116d1baca032",
++   "paper_id": "8bcddabe-04eb-46cf-bf48-f5d12971dbe0",
++   "proposal": {
++     "base_revision_id": "e3af5177-20a9-431c-855b-50ad3032b66f",
++     "checks": [
++       {
++         "check": "protected_atoms",
++         "result": "pass",
++       },
++       {
++         "check": "citations",
++         "result": "pass",
++       },
++       {
++         "check": "citation_positions",
++         "result": "pass",
++       },
++       {
++         "check": "formatted_runs",
++         "result": "pass",
++       },
++       {
++         "check": "numbers",
++         "result": "pass",
++       },
++       {
++         "check": "negations",
++         "result": "pass",
++       },
++       {
++         "check": "directions",
++         "result": "pass",
++       },
++     ],
++     "document_id": "55ec2cd1-63b9-4fa8-9314-3ce2b6266603",
++     "intent": "rewrite",
++     "operation": {
++       "block_id": "00000000-0000-4000-8000-0000000000a1",
++       "expected_block_hash": "c3f2cb6ccddd649e1ff5c8b5edf5b0daa718049a311509d3866496207ab4a3d4",
++       "from": 0,
++       "replacement": [
++         {
++           "text": "Rats",
++           "type": "text",
++         },
++       ],
++       "selected_slice_hash": "a546936080dd30e7ba1ef487074b8fdc3020d2d239dc0623fa7b77e5f825a76f",
++       "selection_handle_id": "1ffe1bbb-1016-4318-af4f-0cff75189b66",
++       "to": 4,
++       "type": "replace_selection",
++     },
++     "outline_revision_id": "1bc0f57b-634d-4190-ab9d-116d1baca032",
++     "paper_id": "8bcddabe-04eb-46cf-bf48-f5d12971dbe0",
++     "proposal_id": "7a3eb422-b6fb-44a8-a71b-5ae52d7482cc",
++     "schema_version": 2,
++     "source_evidence_ids": [],
++   },
++   "proposal_hash": "a7e0a58dd28222cd1d4c0e1cd538af2f2717a6885bbb7a9ec42c538bc45863e5",
++   "replacement": [
++     {
++       "text": "Rats",
++       "type": "text",
++     },
++   ],
++   "selection_handle_id": "1ffe1bbb-1016-4318-af4f-0cff75189b66",
++   "status": "PENDING",
++   "status_reason": null,
+  }
+
+ ❯ tests/tasks/PW-017/review-fixes.int.test.ts:113:77
+    111|     const s2 = (await call('POST', `/api/papers/${s.paperId}/story/rev…
+    112|     expect((await call('POST', `/api/papers/${s.paperId}/story/revisio…
+    113|     await expect(propose(s, h, [{ type: 'text', text: 'Rats' }], 'rewr…
+       |                                                                             ^
+    114|     expect(await propose(s, h, [{ type: 'text', text: 'Rats' }], 'gram…
+    115|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 1 passed (5)
+   Start at  07:40:08
+   Duration  1.95s (tests 60%, transform 27%, import 13%)
+

@@ -111,11 +111,37 @@ test('TST-017B: an apply whose answer was lost is retried with the same key and 
   const before = await revCount(s.documentId);
   await panel(page).getByRole('button', { name: '적용' }).click();
   await expect(panel(page).getByRole('alert')).toContainText('한 번만 적용됩니다');
-  await expect(editor(page)).toHaveAttribute('contenteditable', 'true');
+  // the outcome is unknown: no typing until it is known (review MINOR-2)
+  await expect(editor(page)).toHaveAttribute('contenteditable', 'false');
   await panel(page).getByRole('button', { name: '다시 시도' }).click();
   await expect(editor(page).locator('p').first()).toHaveText('It was clear at 2.4-fold.');
   await expect(status(page)).toHaveText('저장됨');
+  await expect(editor(page)).toHaveAttribute('contenteditable', 'true');
   expect(await revCount(s.documentId)).toBe(before + 1);
+});
+
+test('review MINOR-2: a 5xx answer after the server applied is treated as unknown, then resolved by the same key', async ({ page }) => {
+  const s = await prepare(page, 'Proxy error paper', 'very very clear');
+  await propose(s, 'clear');
+  await panel(page).getByRole('button', { name: '새로고침' }).click();
+  let failed = false;
+  await page.route('**/apply', async (route) => {
+    if (failed) return route.continue();
+    failed = true;
+    await route.fetch(); // applied on the server ...
+    await route.fulfill({ status: 502, contentType: 'application/json', body: '{"error":"bad_gateway"}' }); // ... a proxy answers 502
+  });
+  await panel(page).getByRole('button', { name: '적용' }).click();
+  await expect(panel(page).getByRole('alert')).toContainText('적용되었는지 알 수 없습니다');
+  await expect(editor(page)).toHaveAttribute('contenteditable', 'false');
+  await expect(panel(page).getByTestId('proposal')).toHaveCount(1); // still there to retry
+  await panel(page).getByRole('button', { name: '다시 시도' }).click();
+  await expect(editor(page).locator('p').first()).toHaveText('It was clear at 2.4-fold.');
+  await expect(editor(page)).toHaveAttribute('contenteditable', 'true');
+  await editor(page).locator('p').nth(1).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' After.');
+  await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 }); // no conflict afterwards
 });
 
 test('rejecting a proposal keeps the text and removes it from the list', async ({ page }) => {

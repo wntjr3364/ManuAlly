@@ -41,9 +41,9 @@ async function storedDoc(db: Queryable, paperId: string, documentId: string, rev
   return parseDocument(rows[0].content_json, rows[0].schema_version);
 }
 
-// The browser sends the snapshot it froze (PW-016); the server derives the same from the stored
-// revision and refuses any difference.
-export async function createSelectionHandle(db: Queryable, a: { paperId: string; documentId: unknown; ownerId: string; baseRevisionId: unknown; selection: unknown }): Promise<SelectionHandle> {
+// Re-derives a selection the browser froze (PW-016) from the stored revision; any difference is
+// refused. Used for selection handles and comment anchors.
+export async function verifySelection(db: Queryable, a: { paperId: string; documentId: unknown; baseRevisionId: unknown; selection: unknown }) {
   if (typeof a.documentId !== 'string' || !UUID_RE.test(a.documentId) || typeof a.baseRevisionId !== 'string' || !UUID_RE.test(a.baseRevisionId)) throw new DomainError('NOT_FOUND', 'document revision not found');
   const s = a.selection as Record<string, unknown> | null;
   if (!s || typeof s !== 'object' || typeof s.block_id !== 'string' || !Number.isInteger(s.from) || !Number.isInteger(s.to) || typeof s.expected_block_hash !== 'string' || typeof s.selected_slice_hash !== 'string') {
@@ -61,6 +61,11 @@ export async function createSelectionHandle(db: Queryable, a: { paperId: string;
   if (snap.expected_block_hash !== s.expected_block_hash || snap.selected_slice_hash !== s.selected_slice_hash) {
     throw new DomainError('CONFLICT', 'the selection does not match the stored revision (it changed or was computed differently); select again', 'selection', { details: { reason: 'SELECTION_MISMATCH' } });
   }
+  return { doc, snap, documentId: a.documentId, revisionId: a.baseRevisionId };
+}
+
+export async function createSelectionHandle(db: Queryable, a: { paperId: string; documentId: unknown; ownerId: string; baseRevisionId: unknown; selection: unknown }): Promise<SelectionHandle> {
+  const { snap } = await verifySelection(db, a);
   const { rows } = await db.query<SelectionHandle>(
     `INSERT INTO selection_handles (paper_id, document_id, base_revision_id, block_id, from_pos, to_pos, expected_block_hash, selected_slice_hash, quote, atoms, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING ${HANDLE}`,
@@ -93,25 +98,26 @@ export async function createProposal(pool: TxPool, a: { paperId: string; handleI
     await setActor(tx, a.origin);
     const handle = await getSelectionHandle(tx, a.paperId, a.handleId);
     if (!handle) throw new DomainError('NOT_FOUND', 'selection handle not found');
-    // the approval state at creation decides the mode (RFC-003)
-    const paper = (await tx.query<{ active_outline_revision_id: string | null }>('SELECT active_outline_revision_id FROM paper_projects WHERE id = $1 FOR SHARE', [a.paperId])).rows[0];
-    if (!paper) throw new DomainError('NOT_FOUND', 'paper not found');
-    const outline = paper.active_outline_revision_id;
+    // the approval state at creation decides the mode (RFC-003): the same condition as the draft gate
+    // (PW-010): an APPROVED outline built on the active, APPROVED story. An outline waiting for impact
+    // review after a story change does not count.
+    const outline = await approvedOutline(tx, a.paperId);
     if (!outline && !PREAPPROVAL_INTENTS.includes(intent)) {
       throw new DomainError('FORBIDDEN', 'academic rewrite needs an approved outline; before approval only grammar and concise corrections are allowed', 'intent', { details: { reason: 'OUTLINE_NOT_APPROVED' } });
     }
     const doc = await storedDoc(tx, a.paperId, handle.document_id, handle.base_revision_id);
     const { node: block } = findBlock(doc!, handle.block_id);
-    const before: ReturnType<typeof atomNodesIn> = [];
-    block.content.cut(handle.from_pos, handle.to_pos).forEach((n) => before.push(n));
-    let after;
+    let newBlock;
     try {
-      after = buildReplacement(a.replacement, atomNodesIn(block, handle.from_pos, handle.to_pos));
+      newBlock = replaceInBlock(block, handle.from_pos, handle.to_pos, buildReplacement(a.replacement, atomNodesIn(block, handle.from_pos, handle.to_pos)));
     } catch (e) {
       if (e instanceof ReplacementError) throw new DomainError('INVALID', e.message, 'replacement');
       throw e;
     }
-    const checks = checkReplacement(before, after, intent);
+    // the checks compare the whole paragraph before and after: a replacement next to a number or unit
+    // (e.g. only the "." of 2.5, or the "m" of mg) changes that quantity even though the slice has none
+    const children = (n: typeof block) => { const out: (typeof block)[] = []; n.forEach((c) => out.push(c)); return out; };
+    const checks = checkReplacement(children(block), children(newBlock), intent);
     const head = (await tx.query<{ head_revision_id: string }>('SELECT head_revision_id FROM documents WHERE paper_id = $1 AND id = $2', [a.paperId, handle.document_id])).rows[0]!.head_revision_id;
     const failed = checks.filter((c) => c.result === 'fail');
     const status: ProposalStatus = failed.length ? 'CHECK_FAILED' : head !== handle.base_revision_id ? 'STALE' : 'PENDING';
@@ -164,6 +170,26 @@ export async function listProposals(db: Queryable, paperId: string, documentId: 
   return rows;
 }
 
+// The block with [from, to) replaced (adjacent text with the same marks is joined, as in the editor).
+function replaceInBlock(block: ReturnType<typeof atomNodesIn>[number], from: number, to: number, replacement: ReturnType<typeof atomNodesIn>) {
+  const children: typeof replacement = [];
+  block.content.cut(0, from).forEach((n) => children.push(n));
+  children.push(...replacement);
+  block.content.cut(to).forEach((n) => children.push(n));
+  return block.type.create(block.attrs, children, block.marks);
+}
+
+async function approvedOutline(tx: Queryable, paperId: string): Promise<string | null> {
+  const lock = await tx.query('SELECT 1 FROM paper_projects WHERE id = $1 FOR SHARE', [paperId]);
+  if (!lock.rows[0]) throw new DomainError('NOT_FOUND', 'paper not found');
+  const { rows } = await tx.query<{ id: string }>(
+    `SELECT o.id FROM paper_projects p
+     JOIN story_revisions s ON s.id = p.active_story_revision_id AND s.status = 'APPROVED'
+     JOIN outline_revisions o ON o.id = p.active_outline_revision_id AND o.status = 'APPROVED' AND o.story_revision_id = p.active_story_revision_id
+     WHERE p.id = $1`, [paperId]);
+  return rows[0]?.id ?? null;
+}
+
 // The document after applying a proposal to its base revision (also used for the diff preview).
 async function appliedDocument(db: Queryable, p: Proposal) {
   const doc = await storedDoc(db, p.paper_id, p.document_id, p.base_revision_id);
@@ -175,13 +201,8 @@ async function appliedDocument(db: Queryable, p: Proposal) {
     throw new DomainError('CONFLICT', 'the selection no longer matches its revision', undefined, { details: { reason: 'SELECTION_MISMATCH' } });
   }
   const { node: block } = findBlock(doc!, op.block_id);
-  const replacement = buildReplacement(p.replacement, atomNodesIn(block, op.from, op.to));
-  const children: typeof replacement = [];
-  block.content.cut(0, op.from).forEach((n) => children.push(n));
-  children.push(...replacement);
-  block.content.cut(op.to).forEach((n) => children.push(n));
-  const newBlock = block.type.create(block.attrs, children, block.marks);
-  const blocks: typeof replacement = [];
+  const newBlock = replaceInBlock(block, op.from, op.to, buildReplacement(p.replacement, atomNodesIn(block, op.from, op.to)));
+  const blocks: (typeof block)[] = [];
   doc!.forEach((n) => blocks.push(n.attrs.id === op.block_id ? newBlock : n));
   const result = doc!.type.create(doc!.attrs, blocks).toJSON();
   const valid = validateDocument(result, EDITOR_SCHEMA_VERSION);
@@ -217,7 +238,9 @@ export async function applyProposal(pool: TxPool, a: { paperId: string; proposal
     if (p.status === 'APPLIED') throw new DomainError('CONFLICT', 'the proposal was already applied', undefined, { details: { reason: 'ALREADY_APPLIED', applied_revision_id: p.applied_revision_id } });
     if (p.status !== 'PENDING') throw new DomainError('CONFLICT', `the proposal is ${p.status} and cannot be applied${p.status_reason ? ` (${p.status_reason})` : ''}`, undefined, { details: { reason: p.status } });
     if (a.proposalHash !== p.proposal_hash) throw new DomainError('CONFLICT', 'the proposal differs from the one shown; reload it', 'proposal_hash', { details: { reason: 'PROPOSAL_CHANGED' } });
-    if (a.expectedRevisionId !== p.base_revision_id || head !== p.base_revision_id) {
+    // the client names another revision than the proposal's base: refuse without changing anything
+    if (a.expectedRevisionId !== p.base_revision_id) throw new DomainError('CONFLICT', 'expected_revision_id is not the revision this proposal was made for; reload it', 'expected_revision_id', { details: { reason: 'EXPECTED_REVISION_MISMATCH' } });
+    if (head !== p.base_revision_id) {
       // v1: never rebase; the manuscript moved on, so this proposal is stale for good
       await tx.query("UPDATE edit_proposals SET status = 'STALE', status_reason = $3 WHERE paper_id = $1 AND id = $2", [a.paperId, p.id, 'the manuscript changed after the proposal was made']);
       return { stale: true } as never;

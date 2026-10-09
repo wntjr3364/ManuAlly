@@ -47,7 +47,7 @@
 | PW-014 | in_review | (P01) | REQ-014 / TST-014A,B | E2E 25/25(Chromium·실제 API·PostgreSQL, 2회 반복 42/42, 불안정했던 시험 60회 반복 60/60), unit 19, 통합 1, 리뷰 4회 반영, 실제 dev 실행 smoke, `pnpm test` exit 0 | IME·자동저장(PW-015/022), asset/reference 입력(P04), 배포·공유 서버 격리(P07) |
 | PW-015 | in_review | (P02) | REQ-015 / TST-015A,B | unit 34, 통합 9, 브라우저 16(CDP 한글 IME), RED(구현 전·리뷰 전·재리뷰 전 코드), mutation 31종 중 30 탐지(1 동등), 독립 리뷰(major 1·minor 7)·재리뷰(minor 4·nit 3) 반영, 최종 확인 approve(nit 2 반영), `pnpm test` exit 0 | 실제 IME·Firefox/Safari(PW-022), 인용 입력 UI(PW-019), revision 누적(PW-021/P07), 복구본 기본값 켜짐 사용자 확인 |
 | PW-016 | in_review | (P02) | REQ-016 / TST-016A,B | unit 9, 브라우저 8(CDP 한글 지시), RED(구현 전·이전 앱), mutation 7종 탐지, 독립 리뷰 approve(minor 3·nit 4 반영), `pnpm test` exit 0 | 서버 전송(PW-017/020), 단축키 설정, 해상도·실제 IME(PW-022) |
-| PW-017 | in_review | (P02) | REQ-017 / TST-017A,B | unit 5, 통합 12, 계약 2, 브라우저 5, mutation 18종 탐지(1개는 시험 추가 후), 계약 RED, `pnpm test` exit 0 | 제안 생성 AI(PW-020), undo(PW-021), 실시간 갱신·다른 탭 알림(PW-020/022), 재작성 의미 검사(PW-043/044) |
+| PW-017 | in_review | (P02) | REQ-017 / TST-017A,B | unit 5, 통합 17, 계약 2, 브라우저 6, mutation 18종 탐지(1개는 시험 추가 후), 계약 RED, 독립 리뷰(major 1·minor 3) 반영, `pnpm test` exit 0 | 제안 생성 AI(PW-020), undo(PW-021), 실시간 갱신·다른 탭 알림(PW-020/022), 재작성 의미 검사(PW-043/044) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

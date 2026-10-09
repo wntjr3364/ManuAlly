@@ -1,0 +1,68 @@
+
+Running 2 tests using 1 worker
+
+[1/2] tests/tasks/PW-017/proposals.e2e.ts:100:1 › TST-017B: an apply whose answer was lost is retried with the same key and applied once
+  1) tests/tasks/PW-017/proposals.e2e.ts:100:1 › TST-017B: an apply whose answer was lost is retried with the same key and applied once 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByTestId('editor').locator('.ProseMirror')
+    Expected: "false"
+    Received: "true"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" getByTestId('editor').locator('.ProseMirror') with timeout 5000ms
+      - waiting for getByTestId('editor').locator('.ProseMirror')
+        14 × locator resolved to <div tabindex="0" role="textbox" translate="no" contenteditable="true" class="tiptap ProseMirror">…</div>
+           - unexpected value "true"
+
+
+      113 |   await expect(panel(page).getByRole('alert')).toContainText('한 번만 적용됩니다');
+      114 |   // the outcome is unknown: no typing until it is known (review MINOR-2)
+    > 115 |   await expect(editor(page)).toHaveAttribute('contenteditable', 'false');
+          |                              ^
+      116 |   await panel(page).getByRole('button', { name: '다시 시도' }).click();
+      117 |   await expect(editor(page).locator('p').first()).toHaveText('It was clear at 2.4-fold.');
+      118 |   await expect(status(page)).toHaveText('저장됨');
+        at /home/user/ManuAlly/tests/tasks/PW-017/proposals.e2e.ts:115:30
+
+    Error Context: packages/config/test-results/tasks-PW-017-proposals.e2e-d6bf8-e-same-key-and-applied-once/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-017-proposals.e2e-d6bf8-e-same-key-and-applied-once/error-context.md
+
+
+[2/2] tests/tasks/PW-017/proposals.e2e.ts:123:1 › review MINOR-2: a 5xx answer after the server applied is treated as unknown, then resolved by the same key
+  2) tests/tasks/PW-017/proposals.e2e.ts:123:1 › review MINOR-2: a 5xx answer after the server applied is treated as unknown, then resolved by the same key 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('proposals').getByRole('alert')
+    Expected substring: "적용되었는지 알 수 없습니다"
+    Received string:    "bad_gateway"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" getByTestId('proposals').getByRole('alert') with timeout 5000ms
+      - waiting for getByTestId('proposals').getByRole('alert')
+        12 × locator resolved to <p role="alert" class="error">bad_gateway</p>
+           - unexpected value "bad_gateway"
+
+
+      133 |   });
+      134 |   await panel(page).getByRole('button', { name: '적용' }).click();
+    > 135 |   await expect(panel(page).getByRole('alert')).toContainText('적용되었는지 알 수 없습니다');
+          |                                                ^
+      136 |   await expect(editor(page)).toHaveAttribute('contenteditable', 'false');
+      137 |   await expect(panel(page).getByTestId('proposal')).toHaveCount(1); // still there to retry
+      138 |   await panel(page).getByRole('button', { name: '다시 시도' }).click();
+        at /home/user/ManuAlly/tests/tasks/PW-017/proposals.e2e.ts:135:48
+
+    Error Context: packages/config/test-results/tasks-PW-017-proposals.e2e-0c51b-en-resolved-by-the-same-key/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-017-proposals.e2e-0c51b-en-resolved-by-the-same-key/error-context.md
+
+
+  2 failed
+    tests/tasks/PW-017/proposals.e2e.ts:100:1 › TST-017B: an apply whose answer was lost is retried with the same key and applied once 
+    tests/tasks/PW-017/proposals.e2e.ts:123:1 › review MINOR-2: a 5xx answer after the server applied is treated as unknown, then resolved by the same key 

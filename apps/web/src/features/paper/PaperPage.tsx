@@ -16,7 +16,18 @@ export function PaperPage({ paperId }: { paperId: string }) {
   // tabs stay mounted once opened: switching tabs never discards unsaved work
   const [opened, setOpened] = useState<Set<Tab>>(() => new Set(['plan']));
   const open = (t: Tab) => { setTab(t); setOpened((o) => (o.has(t) ? o : new Set([...o, t]))); };
-  const reload = useCallback(() => api<Paper>('GET', `/api/papers/${paperId}`).then(setPaper).catch((e) => setError(errorText(e))), [paperId]);
+  // AI rewrite needs what the draft gate needs: an approved outline built on the active approved story
+  const [outlineApproved, setOutlineApproved] = useState(false);
+  const reload = useCallback(async () => {
+    try {
+      const p = await api<Paper>('GET', `/api/papers/${paperId}`);
+      const o = await api<{ active: { status: string; story_revision_id: string } | null }>('GET', `/api/papers/${paperId}/outline`);
+      setOutlineApproved(!!o.active && o.active.status === 'APPROVED' && o.active.story_revision_id === p.active_story_revision_id);
+      setPaper(p);
+    } catch (e) {
+      setError(errorText(e));
+    }
+  }, [paperId]);
   useEffect(() => { void reload(); }, [reload]);
   if (error) return <p role="alert" className="error">{error}</p>;
   if (!paper) return <p className="loading">불러오는 중…</p>;
@@ -30,7 +41,7 @@ export function PaperPage({ paperId }: { paperId: string }) {
       </div>
       <div role="tabpanel" hidden={tab !== 'plan'}>{opened.has('plan') && <StoryOutlineTab paper={paper} onChange={reload} visible={tab === 'plan'} />}</div>
       <div role="tabpanel" hidden={tab !== 'sources'}>{opened.has('sources') && <EvidenceTab paperId={paper.id} visible={tab === 'sources'} />}</div>
-      <div role="tabpanel" hidden={tab !== 'manuscript'}>{opened.has('manuscript') && <ManuscriptTab paperId={paper.id} outlineApproved={paper.active_outline_revision_id !== null} />}</div>
+      <div role="tabpanel" hidden={tab !== 'manuscript'}>{opened.has('manuscript') && <ManuscriptTab paperId={paper.id} outlineApproved={outlineApproved} />}</div>
       <div role="tabpanel" hidden={tab !== 'versions'}>{opened.has('versions') && <SnapshotsTab paperId={paper.id} visible={tab === 'versions'} />}</div>
     </main>
   );

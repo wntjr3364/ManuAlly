@@ -64,4 +64,10 @@ User decision / reviewer:
     - 개발용 시험 handle `selectText`
   - `apps/web/src/features/paper/{ManuscriptTab,PaperPage}.tsx`: 개요 승인 여부(`active_outline_revision_id`) 전달
   - `apps/web/src/app/styles.css`: 선택 도구·popup·고정 범위 스타일
+- PW-017
+  - `apps/api/src/server.ts`: `registerProposalRoutes` 등록
+  - `apps/web/src/editor/ManuscriptEditor.tsx`: 선택 요청을 서버 handle로 보냄, 제안 패널, 적용 결과 반영(`pw-remote` transaction)과 head 채택, 적용 중 잠금
+  - `apps/web/src/editor/autosave.ts`: `adopt()`(화면이 서버의 새 head와 같을 때만)
+  - `apps/web/src/features/selection-chat/SelectionChat.tsx`: `onRequest` 결과 표시
+  - `apps/web/src/app/styles.css`: diff 표시
 

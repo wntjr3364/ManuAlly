@@ -8,6 +8,7 @@ import { registerOutlineRoutes } from './routes/outlines/index.ts';
 import { registerEvidenceRoutes } from './routes/evidence/index.ts';
 import { registerJobRoutes } from './routes/jobs/index.ts';
 import { registerDocumentSaveRoutes } from './documents/index.ts';
+import { registerProposalRoutes } from './proposals/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -88,5 +89,6 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerEvidenceRoutes(app, db);
   registerJobRoutes(app, db);
   registerDocumentSaveRoutes(app, db);
+  registerProposalRoutes(app, db);
   return app;
 }

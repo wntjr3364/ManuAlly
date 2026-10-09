@@ -95,6 +95,19 @@ export class Autosave {
     if (this.#held && !this.#inFlight) void this.#run('retry');
   }
 
+  // The server made a new head that the screen now shows exactly (e.g. an applied proposal): adopt it
+  // as the stored state. Only valid while nothing is unsaved or in flight.
+  adopt(headRevisionId: string, key: string): boolean {
+    if (this.#inFlight || this.#retry || this.#held || this.#stopped || this.#version !== this.#ackedVersion) return false;
+    this.#clearWaits();
+    this.#head = headRevisionId;
+    this.#savedKey = key;
+    // the same acknowledgement pair as a save, so the reducer's edit counter stays in step
+    this.#o.dispatch({ type: 'saveStart', version: this.#version });
+    this.#o.dispatch({ type: 'saveOk', version: this.#version, headRevisionId });
+    return true;
+  }
+
   dispose(): void {
     this.#disposed = true;
     this.#clearWaits();

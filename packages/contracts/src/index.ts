@@ -21,7 +21,9 @@ export interface EditProposalV2 {
   paper_id: string;
   document_id: string;
   base_revision_id: string;
-  outline_revision_id: string;
+  // null only for a pre-approval conservative correction (RFC-003)
+  outline_revision_id: string | null;
+  intent?: 'grammar' | 'concise' | 'rewrite';
   operation: {
     type: 'replace_selection';
     selection_handle_id: string;

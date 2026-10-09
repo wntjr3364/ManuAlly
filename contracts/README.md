@@ -28,3 +28,8 @@ P01 이후 추가할 주요 계약: PaperSnapshot, OutlineApprovalRequest, FactR
 - UUIDs in these contracts are lowercase canonical (`pattern` alongside `format: uuid`), exactly as editor-core requires.
 - An empty `replacement` deletes the selected range, in both `ai_replacement` and `edit_proposal`.
 - `missing` appears only with `needs_evidence`, and must name at least one thing.
+
+## edit_proposal v2 — RFC-003 addition (2026-10-09, PW-017)
+- `outline_revision_id` may be `null`, but only together with `intent` `grammar` or `concise`: a conservative correction made before the outline is approved (RFC-003, accepted narrowed).
+- `intent` (optional; required when `outline_revision_id` is null) records what the proposal was asked to do.
+- Existing valid v2 documents stay valid (the change only widens what is accepted, under the rule above).

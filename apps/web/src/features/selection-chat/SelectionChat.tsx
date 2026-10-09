@@ -24,7 +24,8 @@ export interface SelectionChatProps {
   // the screen equals the stored revision and the editor is editable
   canRequest: boolean;
   outlineApproved: boolean;
-  onRequest?: (req: SelectionRequest) => void;
+  // sends the request (e.g. stores the selection handle on the server); the text is shown with it
+  onRequest?: (req: SelectionRequest) => Promise<string>;
 }
 
 const blockLabel = (t: BlockTarget) => `${t.blockType === 'heading' ? '제목' : '문단'} ${t.blockIndex + 1}`;
@@ -36,7 +37,7 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
   const [frozen, setFrozen] = useState<Frozen | null>(null);
   const [instruction, setInstruction] = useState('');
   const [message, setMessage] = useState('');
-  const [requests, setRequests] = useState<SelectionRequest[]>([]);
+  const [requests, setRequests] = useState<{ request: SelectionRequest; state: string }[]>([]);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -111,8 +112,11 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
     if (!frozen) return;
     const r = buildSelectionRequest({ documentId, baseRevisionId: frozen.baseRevisionId, selection: frozen.selection }, frozen.intent, instruction);
     if (!r.ok) { setMessage(r.error); return; }
-    setRequests((rs) => [...rs, r.request]);
-    onRequest?.(r.request);
+    const index = requests.length;
+    setRequests((rs) => [...rs, { request: r.request, state: onRequest ? '보내는 중…' : '준비됨(AI 연결 전)' }]);
+    if (onRequest) {
+      void onRequest(r.request).then((state) => setRequests((rs) => rs.map((x, i) => (i === index ? { ...x, state } : x))));
+    }
     close();
   };
 
@@ -175,9 +179,9 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
       {!frozen && message && <p role="alert" className="error" data-testid="selection-message">{message}</p>}
       {requests.length > 0 && (
         <section aria-label="선택 요청" data-testid="selection-requests">
-          {requests.map((r, i) => (
-            <p key={i} className="hint" data-request={JSON.stringify(r)}>
-              {INTENTS[r.intent].label}: “{excerpt(r.selection.quote)}”{r.selection.atoms.length ? ` (인용 등 ${r.selection.atoms.length}개)` : ''}{r.instruction ? ` — ${r.instruction}` : ''} · 준비됨(AI 연결 전)
+          {requests.map(({ request: r, state }, i) => (
+            <p key={i} className="hint" data-request={JSON.stringify(r)} data-state={state}>
+              {INTENTS[r.intent].label}: “{excerpt(r.selection.quote)}”{r.selection.atoms.length ? ` (인용 등 ${r.selection.atoms.length}개)` : ''}{r.instruction ? ` — ${r.instruction}` : ''} · {state}
             </p>
           ))}
         </section>

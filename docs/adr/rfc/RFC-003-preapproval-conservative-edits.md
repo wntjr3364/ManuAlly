@@ -31,4 +31,8 @@ User decision / reviewer:
   - 조건: PW-003 보호 guard 통과, diff 표시 후 사용자 apply 필수(즉시 적용 모드 불가), 문서에 "승인 전 교정" 기록.
   - 승인 전 금지: 새 문단 생성, 학술적 재작성, 구조 변경, 주장 추가. 서버가 intent별로 거부한다.
   - guard의 알려진 우회(위 목록)는 PW-043/044 회귀 사례로 남기고, 사용자 확인 diff를 마지막 방어선으로 둔다.
+- 구현(PW-017, 2026-10-09)
+  - `edit_proposal` v2 계약: `outline_revision_id` null은 `intent` grammar/concise일 때만 유효하고, `intent`를 추가했다(contracts/README.md).
+  - DB CHECK도 같은 규칙을 강제한다(`edit_proposals`).
+  - 서버는 승인 전 재작성 요청을 `OUTLINE_NOT_APPROVED`로 거부한다.
 

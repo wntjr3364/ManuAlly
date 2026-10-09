@@ -39,9 +39,13 @@
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
     "outline_revision_id": {
-      "type": "string",
+      "type": [
+        "string",
+        "null"
+      ],
       "format": "uuid",
-      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "The approved outline revision the proposal was made under; null only for a pre-approval conservative correction (RFC-003: intent grammar or concise)."
     },
     "operation": {
       "type": "object",
@@ -223,8 +227,43 @@
     },
     "explanation": {
       "type": "string"
+    },
+    "intent": {
+      "enum": [
+        "grammar",
+        "concise",
+        "rewrite"
+      ],
+      "description": "What the proposal was asked to do (RFC-003)."
     }
   },
   "additionalProperties": false,
-  "description": "Built by the server from a stored selection handle and the model's ai_replacement output. block_id/from/to/expected_block_hash/selected_slice_hash are copied from the handle, never from the model. from/to are editor-core ProseMirror positions (UTF-16 text, inline atom = 1). Semantic checks (from<to, grapheme boundaries, handle match, revision, authorization) are done by editor-core and the server, not by this schema."
+  "description": "Built by the server from a stored selection handle and the model's ai_replacement output. block_id/from/to/expected_block_hash/selected_slice_hash are copied from the handle, never from the model. from/to are editor-core ProseMirror positions (UTF-16 text, inline atom = 1). Semantic checks (from<to, grapheme boundaries, handle match, revision, authorization) are done by editor-core and the server, not by this schema.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outline_revision_id": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "outline_revision_id"
+        ]
+      },
+      "then": {
+        "required": [
+          "intent"
+        ],
+        "properties": {
+          "intent": {
+            "enum": [
+              "grammar",
+              "concise"
+            ]
+          }
+        }
+      }
+    }
+  ]
 }

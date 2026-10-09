@@ -24,6 +24,8 @@ import {
 import { ReadOnlyDocument, renderDocument } from './ReadOnlyDocument.tsx';
 import { SelectionChat } from '../features/selection-chat/SelectionChat.tsx';
 import { FrozenSelection } from '../features/selection-chat/frozen-highlight.ts';
+import type { SelectionRequest } from '../features/selection-chat/request.ts';
+import { ProposalPanel, type AppliedRevision } from '../features/diff/ProposalPanel.tsx';
 
 export interface Revision { id: string; content_json: JSONContent; schema_version: number }
 export interface DocInfo { document: { id: string; kind: string; head_revision_id: string }; head: Revision }
@@ -81,7 +83,8 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
       if (fix) ed.view.dispatch(fix.setMeta('pw-init', true));
     },
     onUpdate: ({ transaction }) => {
-      if (transaction.docChanged && !transaction.getMeta('pw-init')) {
+      // pw-remote: a change the server already stored (an applied proposal), not an edit
+      if (transaction.docChanged && !transaction.getMeta('pw-init') && !transaction.getMeta('pw-remote')) {
         autoRef.current?.edit();
         scheduleDraft();
       }
@@ -104,7 +107,10 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
 
   // locked until the tab id is known, and while this tab's own copy waits for a decision (typing
   // would overwrite it); other tabs' copies do not lock the editor
-  const locked = tabId === null || offers.some((d) => d.tabId === tabId);
+  // an apply request is in flight: no typing until its result is on screen
+  const [applying, setApplying] = useState(false);
+  const [proposalRefresh, setProposalRefresh] = useState(0);
+  const locked = tabId === null || applying || offers.some((d) => d.tabId === tabId);
   useEffect(() => { editor?.setEditable(!locked); }, [editor, locked]);
 
   const cancelDraftTimer = () => {
@@ -286,6 +292,31 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
     if (on && unsaved) writeDraft();
   };
 
+  // Puts an applied proposal's paragraph on screen and adopts the server's new head, so no extra
+  // autosave follows. If the screen does not then equal the stored revision exactly, nothing is adopted.
+  const adoptApplied = (rev: AppliedRevision, afterBlock: JSONContent): boolean => {
+    if (!editor || editor.view.composing) return false;
+    let at = -1;
+    editor.state.doc.forEach((n, offset) => { if (n.attrs.id === afterBlock.attrs?.id) at = offset; });
+    if (at < 0) return false;
+    const node = editor.state.doc.nodeAt(at)!;
+    editor.view.dispatch(editor.state.tr.replaceWith(at, at + node.nodeSize, editor.schema.nodeFromJSON(afterBlock)).setMeta('pw-remote', true).setMeta('addToHistory', false));
+    const key = canonicalJson(rev.content_json);
+    if (canonicalJson(editor.getJSON()) !== key) return false;
+    if (!autoRef.current?.adopt(rev.id, key)) return false;
+    if (storage && owner && tabId) clearDraft(storage, { ownerId: owner, documentId: info.document.id, tabId });
+    return true;
+  };
+  const sendSelection = async (req: SelectionRequest): Promise<string> => {
+    try {
+      await api('POST', `/api/papers/${paperId}/documents/${info.document.id}/selection-handles`, { base_revision_id: req.base_revision_id, selection: req.selection });
+      setProposalRefresh((n) => n + 1);
+      return '서버 확인됨 — AI 연결 전(PW-020)';
+    } catch (e) {
+      return `보내지 못함: ${e instanceof ApiError ? (e.body?.message ?? `서버 응답 ${e.status}`) : '네트워크 오류'}`;
+    }
+  };
+
   if (contentError) return <ReadOnlyDocument content={info.head.content_json} reason={`편집기가 읽을 수 없는 내용(${contentError})`} />;
   // a mouse click on a formatting button leaves focus and selection in the text, so the next key
   // goes to the editor (not to the button, where Space would press it again); keyboard users can
@@ -321,7 +352,7 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
         <span role="status" data-testid="save-status" className={`save-status ${unsaved ? 'unsaved' : 'saved'}`}>{saveLabel(save)}</span>
       </div>
       {problems.length > 0 && <ul role="alert" className="error">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
-      <SelectionChat editor={editor} documentId={info.document.id} baseRevisionId={save.headRevisionId} canRequest={save.status === 'saved' && !locked} outlineApproved={outlineApproved} />
+      <SelectionChat editor={editor} documentId={info.document.id} baseRevisionId={save.headRevisionId} canRequest={save.status === 'saved' && !locked} outlineApproved={outlineApproved} onRequest={sendSelection} />
       <div className="editor" data-testid="editor"><EditorContent editor={editor} /></div>
       {endedHere && <p role="alert" className="hint" data-testid="recovery-ended">다른 탭에서 로그아웃되어 이 화면에서는 저장되지 않은 변경을 임시 보관하지 않습니다. 새로고침하거나 다시 로그인하면 다시 켜집니다.</p>}
       {owner && storage && storageOk && !endedHere && (
@@ -332,6 +363,8 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
           {draftNote && <span role="alert" className="error"> {draftNote}</span>}
         </p>
       )}
+      <ProposalPanel paperId={paperId} documentId={info.document.id} headRevisionId={save.headRevisionId} canApply={save.status === 'saved' && !locked}
+        onApplying={setApplying} onApplied={adoptApplied} refreshKey={proposalRefresh} />
       {owner && !storageOk && <p role="alert" className="hint" data-testid="recovery-unavailable">이 브라우저가 사이트 저장소를 막아 저장되지 않은 변경을 임시 보관할 수 없습니다. 저장 상태를 확인하세요.</p>}
     </section>
   );

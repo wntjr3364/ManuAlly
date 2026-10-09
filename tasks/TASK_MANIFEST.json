@@ -559,7 +559,7 @@
       "id": "PW-017",
       "phase": "P02",
       "title": "Proposal·CAS·원자 적용",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-016"
       ],

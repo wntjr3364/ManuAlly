@@ -1,0 +1,54 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-017/proposal.contract.test.ts (2 tests | 2 failed) 94ms
+   ❯ edit_proposal v2 (RFC-003) (2)
+     × existing valid proposals stay valid 89ms
+     × a pre-approval proposal needs a conservative intent 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-017/proposal.contract.test.ts > edit_proposal v2 (RFC-003) > existing valid proposals stay valid
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/tasks/PW-017/proposal.contract.test.ts:12:70
+     10|   test('existing valid proposals stay valid', () => {
+     11|     expect(validateEditProposal(valid).ok).toBe(true);
+     12|     expect(validateEditProposal({ ...valid, intent: 'rewrite' }).ok).t…
+       |                                                                      ^
+     13|   });
+     14|   test('a pre-approval proposal needs a conservative intent', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-017/proposal.contract.test.ts > edit_proposal v2 (RFC-003) > a pre-approval proposal needs a conservative intent
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/tasks/PW-017/proposal.contract.test.ts:15:97
+     13|   });
+     14|   test('a pre-approval proposal needs a conservative intent', () => {
+     15|     expect(validateEditProposal({ ...valid, outline_revision_id: null,…
+       |                                                                                                 ^
+     16|     expect(validateEditProposal({ ...valid, outline_revision_id: null,…
+     17|     expect(validateEditProposal({ ...valid, outline_revision_id: null,…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  07:30:03
+   Duration  417ms (tests 42%, import 28%, transform 28%, worker 2%)
+

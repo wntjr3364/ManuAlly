@@ -305,6 +305,23 @@ describe('autosave', () => {
     expect(r.sent).toHaveLength(2);
   });
 
+  test('PW-017: adopting a server-made head keeps later saves and acknowledgements in step', async () => {
+    const r = rig();
+    r.setDoc('a');
+    await vi.advanceTimersByTimeAsync(1000);
+    await r.answer({ ok: true, headRevisionId: 'rev-1' });
+    expect(r.auto.adopt('rev-2', JSON.stringify('applied'))).toBe(true);
+    expect(r.state()).toMatchObject({ status: 'saved', headRevisionId: 'rev-2' });
+    r.setDoc('applied!');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(r.sent.at(-1)).toMatchObject({ expectedHead: 'rev-2', json: { text: 'applied!' } });
+    await r.answer({ ok: true, headRevisionId: 'rev-3' });
+    expect(r.state().status).toBe('saved');
+    r.setDoc('applied'); // back to the adopted text: nothing to send... after rev-3 it is a change
+    r.setDoc('x');
+    expect(r.auto.adopt('rev-9', 'k')).toBe(false); // unsaved text on screen: refused
+  });
+
   test('dispose stops all timers', async () => {
     const r = rig();
     r.setDoc('a');

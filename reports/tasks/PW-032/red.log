@@ -1,0 +1,3 @@
+ FAIL  tests/tasks/PW-032/normalize.int.test.ts [ tests/tasks/PW-032/normalize.int.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/literature/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-032/normalize.int.test.ts
+      Tests  no tests

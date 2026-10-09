@@ -1,0 +1,29 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-026/runner.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-026/runner.test.ts [ tests/tasks/PW-026/runner.test.ts ]
+Error: Cannot find module '../../../infra/sandbox/egress-proxy.ts' imported from /home/user/ManuAlly/tests/tasks/PW-026/runner.test.ts
+ ❯ tests/tasks/PW-026/runner.test.ts:15:1
+     13| import { prepareRun, removeRun } from '../../../apps/worker/src/runner…
+     14| import { bwrapArgs, bwrapVersionOk, probeFailures, runSandboxed, sandb…
+     15| import { isPrivateAddress, startEgressProxy } from '../../../infra/san…
+       | ^
+     16|
+     17| const NODE_ROOT = path.dirname(path.dirname(process.execPath));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  12:23:56
+   Duration  462ms (worker 96%, environment 4%)
+
+
+# note: the RED above fails at import (egress-proxy.ts did not exist). The behavioural RED for the
+# review MAJOR is the mutation 'host network namespace kept (no --net)' in mutation.log (4 tests fail:
+# the host abstract socket and loopback port become reachable), matching the reviewer's reproduction.

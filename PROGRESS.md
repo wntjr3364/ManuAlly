@@ -56,7 +56,7 @@
 | PW-023 | in_review | (P03) | REQ-023 / TST-023A,B | unit 19, 통합 1, mutation 16종 탐지, 독립 리뷰(minor 3·nit 2) 반영, `pnpm test` exit 0 | Claude·Codex 필드 경로 실측(PW-030), capability 설정 화면(PW-030) |
 | PW-024 | in_review | (P03) | REQ-024 / TST-024A,B | unit 23(대역 CLI), 통합 2, mutation 22종 탐지, 독립 리뷰(MAJOR 1·minor 4) 반영, `pnpm test` exit 0. **TST-024A live: blocked/not_run**(사용자 PC 수동 smoke 스크립트 제공) | 실제 CLI live smoke, 커널 격리(PW-026), 잔여 프로세스 정리(PW-028), 서버 DB 기반 승인 근거(PW-030) |
 | PW-025 | in_review | (P03) | REQ-025 / TST-025A,B | unit 27(대역 app-server), mutation 19종 탐지, 독립 리뷰(MAJOR 2·minor 5·PW-024 nit) 반영, `pnpm test` exit 0. **live: blocked/not_run**(바깥 sandbox·로그인 필요) | decline 응답·매개변수 실측(PW-030), 도구 호출 형태(PW-027), bubblewrap 검증(PW-026) |
-| PW-026 | in_review | (P03) | REQ-026 / TST-026A,B | unit 12(unshare backend 실제 실행, bwrap argv 정적), mutation 13종 탐지, chroot 탈출 발견·수정(pivot_root+capability 제거, `escape-demo.log`), `pnpm test` exit 0. **bwrap 실행: not_run**(미설치) | 실제 CLI를 sandbox 안에서 실행(PW-030), network host의 loopback 접근, 커널 공격면 |
+| PW-026 | in_review | (P03) | REQ-026 / TST-026A,B | unit 18(unshare backend 실제 실행, bwrap argv 정적), mutation 26종 탐지, chroot 탈출 발견·수정, 독립 리뷰(MAJOR 1: abstract socket → 사설 network namespace + egress proxy, minor 5, nit 1) 반영, `pnpm test` exit 0. **bwrap 실행: not_run**(미설치) | CLI의 HTTPS_PROXY 준수 실측(PW-030), 공급자 허용 목록(PW-028/030), 커널 공격면 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

@@ -24,7 +24,7 @@
     - `verifyOuterSandbox`: 모델 호출 없이 이 host에서 sandbox를 시험한다. Codex gate(PW-025)가 요구하는 증거 `{kind, verified, host, checked_at, failures}`를 만든다.
   - `probe.mjs`: sandbox 안에서 돌며 닿을 수 있는 것을 JSON으로 보고한다(시험과 `verifyOuterSandbox`가 쓴다).
 - 범위 밖(RFC-009 부록): `packages/providers/src/core/admission.ts` — OuterSandbox kind에 `userns`를 추가했다.
-- 시험: `tests/tasks/PW-026/runner.test.ts` 12
+- 시험: `tests/tasks/PW-026/runner.test.ts` 18(리뷰 반영 후)
 
 ## 요구사항-시험 매핑
 | REQ / TST | 시험 |
@@ -62,10 +62,40 @@
 ## 미실행 / 남은 위험
 - **bubblewrap 실행: not_run.** 이 컨테이너에 설치돼 있지 않다. argv만 정적으로 확인했다. 사용자 PC·연구실 서버에 bwrap이 있으면 PW-030에서 `verifyOuterSandbox({backend: 'bwrap'})`로 확인한다.
 - **실제 provider CLI를 sandbox 안에서 돌린 적은 없다**(live 금지). CLI가 읽는 추가 경로(설치 폴더, 인증서)가 더 필요할 수 있다. 그때는 읽기 전용 폴더로만 더한다.
-- **`network: 'host'`는 공급자 접속에 필요하다.** 이때는 loopback의 host 서비스(DB, API)에 닿을 수 있다. DB는 비밀번호, API는 로그인이 지킨다. 도구 호출은 PW-027 gateway로만 받는다. 포트 단위 egress 제한은 sudo 없이 할 수 없어 하지 않았다.
+- **host 네트워크 모드는 없앴다(리뷰 MAJOR).** 공급자 접속은 `proxy` 모드로만 한다. sandbox는 항상 자기 network namespace를 가진다. 그래서 host loopback 서비스(DB, API)와 abstract Unix socket(X11, D-Bus)에 닿지 않는다. 나가는 길은 host egress proxy 하나뿐이고, 허용 목록의 host:port로 가는 CONNECT만 통과한다.
+- **CLI가 `HTTPS_PROXY`를 따르는지는 실측 전이다(documented_not_verified).** Claude Code와 Codex는 문서상 proxy 환경 변수를 지원한다. PW-030 live smoke에서 확인한다. 따르지 않으면 접속이 안 될 뿐이다(우회 경로 없음).
+- **proxy 모드는 namespace 안에서 loopback을 켜는 데 `python3`이 필요하다**(sudo 없이 `ip` 대신 ioctl 한 번). 없으면 `sandboxAvailable(…, {network: 'proxy'})`가 false이고 Codex gate가 거부한다. bubblewrap은 스스로 loopback을 켠다.
+- 공급자 허용 목록(호스트 이름)은 PW-028/030에서 정한다. DNS는 host 쪽 proxy가 푼다. 그 주소가 사설·loopback이면 거부한다(DNS rebinding 방지).
 - **커널 취약점 방어는 보장하지 않는다.** 비특권 user namespace를 쓰므로 그 커널 공격면이 열린다. user namespace가 막힌 host(일부 서버 정책)에서는 sandbox가 없고, Codex gate가 거부한다(안전한 쪽).
 - 동일 계정이라 같은 사용자의 다른 프로세스에 대한 신호·ptrace는 pid namespace로만 막는다. 할당량·CPU는 완전 격리가 아니다(CLAUDE.md 불변조건).
 - runs root가 NFS 같은 공유 파일 시스템이면 소유자·권한 검사가 맞지 않을 수 있다. 기본값은 `$XDG_RUNTIME_DIR` 또는 로컬 tmp다.
 
+## 독립 리뷰 반영 (2026-10-09)
+리뷰 결론: 변경 요청. MAJOR 1, minor 5, nit 1. 리뷰어는 unshare backend 설계(pivot_root, capability 제거, nested userns 실패)가 버틴다고 확인했다.
+- **MAJOR — host 네트워크에서 abstract Unix socket에 닿는다.**
+  - 리뷰어 재현: sandbox 안에서 host의 `\0` socket에 연결해 양방향 통신이 됐다. 데스크톱의 X11 `@/tmp/.X11-unix/X0`도 같은 길로 닿는다.
+  - 고침: `host` 모드를 없앴다. 모든 실행에 `--net`을 준다. 공급자 접속은 `proxy` 모드로 한다.
+    - `egress-proxy.ts`: host 쪽. run 폴더 안의 Unix socket 파일로 듣는다(0600). CONNECT만 받고, 허용 목록의 host:port만 통과시킨다. 사설·loopback·link-local 주소로 풀리는 대상은 거부한다. 평문 HTTP 요청도 거부한다.
+    - `forwarder.mjs`: sandbox 안. 127.0.0.1:3128을 socket 파일로 이어 주고, 프로그램을 자식으로 실행한다. 프로그램은 `HTTPS_PROXY` 등을 받는다. 호출자는 이 변수들을 직접 줄 수 없다.
+  - 시험: none·proxy 두 모드 모두 host abstract socket과 loopback 포트에 닿지 않는다. `host` 모드는 거부한다. 허용 대상은 proxy로 통과하고, 그 밖은 403이다.
+- MINOR-1: `verifyOuterSandbox`
+  - 진짜 저장소 대신 스스로 만든 decoy 폴더만 대상으로 쓴다(이전 mutation 실행에서 저장소에 파일이 생긴 원인).
+  - `probeFailures`가 모든 결과를 판정한다. 대상: 읽기·쓰기(저장소, /usr, inputs, 바깥 session), capability, no_new_privs, /dev, 옛 root가 mount 표에 있는지, remount·umount·nested userns, abstract socket·host TCP, proxy 거부, 환경 변수.
+  - verification은 proxy 모드로 돈다.
+- MINOR-2: bwrap `/dev`는 `--dev` 대신 네 장치만 `--dev-bind`한다.
+- MINOR-3: sandbox 자체가 거부하는 경로
+  - 홈 디렉터리와 그 상위
+  - 홈 아래 개발 CLI 상태와 자격증명(`.claude`, `.codex`, `.ssh`, `.gnupg`, `.aws`, `.config/gcloud`, `.docker`, `.kube`, `.netrc` 등)과 그것을 포함하는 상위 폴더
+  - `/run`·`/proc`·`/sys`·`/dev` 아래, `/etc` 전체
+- MINOR-4: bwrap에 `--unshare-net --unshare-cgroup-try --disable-userns --cap-drop ALL`을 더했다. bwrap 0.8 미만은 사용 불가로 본다.
+- MINOR-5
+  - 사용자 한 명짜리 `/etc/passwd`·`/etc/group`을 넣는다(home은 run의 home).
+  - `/etc/resolv.conf`는 넣지 않는다. 이름은 host proxy가 푼다.
+- nit: run 폴더가 symlink이거나 symlink 아래에 있으면 거부한다. 설정 파일(새 root, script, passwd, forwarder)은 run 폴더 안 `.pw-setup-*`에 두고, sandbox 안에서는 읽기 전용이다. 실행 뒤 지운다.
+- 증거
+  - `review-red.log`: 옛 구현에서는 모듈이 없어 실패했다. 동작 차원의 RED는 아래 mutation이다.
+  - `mutation.log` 아래쪽: 13종 모두 탐지했다. net namespace 제거, 허용 목록 무시, 사설 주소 허용, 평문 HTTP 통과, bwrap 전체 /dev, bwrap nested userns 허용, 홈 거부 목록 비움, 검증의 쓰기·탈출 무시, passwd 없음, symlink run 허용, loopback 미기동, host 모드 허용.
+  - unit 18.
+
 ## 다음
-PW-025 독립 리뷰 지적 반영 → PW-027: typed tool gateway·scope
+PW-027: typed tool gateway·scope

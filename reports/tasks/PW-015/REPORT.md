@@ -17,7 +17,7 @@
 - 시험: `tests/tasks/PW-015/`
   - `autosave.test.ts` 19, `recovery.test.ts` 12, `patch-gate.test.ts` 3
   - `saves-route.int.test.ts` 9
-  - `editor.e2e.ts` 15
+  - `editor.e2e.ts` 16
 - DB migration: 없음. 기존 `document_revisions.reason`의 `autosave`를 쓴다.
 
 ## 동작
@@ -208,3 +208,18 @@
 - 실행
   - PW-015: unit 34, 통합 9, 브라우저 15
   - `pnpm test` exit 0: unit 105, integration 139, contracts 13, e2e 40, spikes 70, evals/pack PASS
+
+## 최종 확인 (2026-10-09)
+- 결론: **approve**(major·minor 없음, nit 2).
+- 재리뷰 지적 7건이 모두 고쳐졌다고 probe로 확인했다(탭 복제, 다른 탭 로그아웃, 보류 중 입력, 대기 저장, 새로고침 5회 연속).
+- 비동기 탭 id, lock 수명, `blocked` 상태는 코드로 확인했다. "저장됨"이 다른 내용에서 표시되는 경로는 없었다.
+
+| nit | 조치 |
+|---|---|
+| 1 다른 탭 로그아웃 뒤 설정 상자를 다시 켜면 켜진 것처럼 보이지만 아무것도 보관하지 않음 | 그 화면에서는 설정 상자 대신 이유를 표시한다(새로고침·재로그인 시 다시 켜짐). 브라우저 시험 |
+| 2 편집기가 열려 있지 않은 탭은 로그아웃 알림을 못 받음 | 알림 수신을 앱 shell(App.tsx)로 옮겼다. 편집기는 자기 복구본 삭제를 계속 맡는다. 브라우저 시험 |
+
+- RED: 63b2344의 앱 코드에서 두 시험이 실패했다(`finalcheck-red.log`).
+- 실행
+  - PW-015: unit 34, 통합 9, 브라우저 16
+  - `pnpm test` exit 0: unit 105, integration 139, contracts 13, e2e 41, spikes 70, evals/pack PASS

@@ -19,7 +19,7 @@ import { Autosave, type SaveRequest, type SendResult } from './autosave.ts';
 import { applyExternalPatch } from './patch-gate.ts';
 import {
   browserLocks, browserStorage, clearDraft, endRecoveryForPage, isLogoutEvent, isRecoveryEnabled, loadDrafts, openTabIds, pageTabId, purgeExpired,
-  recoveryOwner, saveDraft, setRecoveryEnabled, storageWorks, type Draft,
+  recoveryEndedForPage, recoveryOwner, saveDraft, setRecoveryEnabled, storageWorks, type Draft,
 } from './recovery.ts';
 import { ReadOnlyDocument, renderDocument } from './ReadOnlyDocument.tsx';
 
@@ -57,6 +57,8 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   // fixed for this editor's lifetime (a logout elsewhere stops copies via recoveryOwner(), checked on write)
   const owner = useMemo(() => recoveryOwner(), []);
   const [recoveryOn, setRecoveryOn] = useState(() => (storage && owner ? isRecoveryEnabled(storage, owner) : false));
+  // signed out in another tab: nothing is kept in this page any more (the setting cannot be turned on)
+  const [endedHere, setEndedHere] = useState(() => recoveryEndedForPage());
   const recoveryOnRef = useRef(recoveryOn);
   recoveryOnRef.current = recoveryOn;
   const autoRef = useRef<Autosave | null>(null);
@@ -131,6 +133,7 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
       if (owner && tabId) clearDraft(storage, { ownerId: owner, documentId: info.document.id, tabId });
       setRecoveryOn(false);
       recoveryOnRef.current = false;
+      setEndedHere(true);
     };
     addEventListener('storage', onStorage);
     return () => removeEventListener('storage', onStorage);
@@ -304,7 +307,8 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
       </div>
       {problems.length > 0 && <ul role="alert" className="error">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
       <div className="editor" data-testid="editor"><EditorContent editor={editor} /></div>
-      {owner && storage && storageOk && (
+      {endedHere && <p role="alert" className="hint" data-testid="recovery-ended">다른 탭에서 로그아웃되어 이 화면에서는 저장되지 않은 변경을 임시 보관하지 않습니다. 새로고침하거나 다시 로그인하면 다시 켜집니다.</p>}
+      {owner && storage && storageOk && !endedHere && (
         <p className="hint">
           <label className="inline">
             <input type="checkbox" checked={recoveryOn} onChange={(e) => toggleRecovery(e.target.checked)} /> 저장되지 않은 변경을 이 브라우저에 임시 보관(7일, 로그아웃하면 삭제)

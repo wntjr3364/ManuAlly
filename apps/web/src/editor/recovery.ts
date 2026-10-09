@@ -206,6 +206,7 @@ let pageLoggedOut = false;
 export function endRecoveryForPage(): void { pageLoggedOut = true; currentOwner = null; }
 // a sign-in in this page starts keeping copies again
 export function resumeRecoveryForPage(): void { pageLoggedOut = false; }
+export const recoveryEndedForPage = () => pageLoggedOut;
 
 // The signed-in account, set by the app shell; the editor stores drafts under it.
 let currentOwner: string | null = null;

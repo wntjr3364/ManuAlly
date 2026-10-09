@@ -1,0 +1,61 @@
+
+Running 2 tests using 1 worker
+
+[1/2] tests/tasks/PW-015/editor.e2e.ts:416:1 › re-review 4: after a logout in another tab, an open editor keeps no copy
+  1) tests/tasks/PW-015/editor.e2e.ts:416:1 › re-review 4: after a logout in another tab, an open editor keeps no copy 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('recovery-ended')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('recovery-ended') with timeout 5000ms
+      - waiting for getByTestId('recovery-ended')
+
+
+      428 |   expect(await allRecoveryKeys(a)).toEqual([]);
+      429 |   // the setting cannot be turned back on in this page; it says why (final check nit 1)
+    > 430 |   await expect(a.getByTestId('recovery-ended')).toBeVisible();
+          |                                                 ^
+      431 |   await expect(a.getByLabel(/임시 보관/)).toHaveCount(0);
+      432 |   await closeTab(a);
+      433 |   expect(await allRecoveryKeys(b)).toEqual([]);
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:430:49
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-d0b12-n-open-editor-keeps-no-copy/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-d0b12-n-open-editor-keeps-no-copy/error-context.md
+
+
+[2/2] tests/tasks/PW-015/editor.e2e.ts:436:1 › final check nit 2: a tab without an open editor also stops keeping copies after a logout elsewhere
+  2) tests/tasks/PW-015/editor.e2e.ts:436:1 › final check nit 2: a tab without an open editor also stops keeping copies after a logout elsewhere 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 3
+
+    - Array []
+    + Array [
+    +   "pw-recovery:v1:draft:67e0f0bc-78a7-4704-98a5-606969b285e7:3117d5b1-c730-4061-bb16-0452314af391:0dc7d867-7237-40f1-9190-bc641b02a427",
+    + ]
+
+      458 |   await expect(status(a)).toContainText('저장 실패', { timeout: 10_000 });
+      459 |   await a.waitForTimeout(1000);
+    > 460 |   expect(await recoveryKeys(a)).toEqual([]);
+          |                                 ^
+      461 | });
+      462 |
+        at /home/user/ManuAlly/tests/tasks/PW-015/editor.e2e.ts:460:33
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-4e425-es-after-a-logout-elsewhere/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-015-editor.e2e.ts-4e425-es-after-a-logout-elsewhere/error-context.md
+
+
+  2 failed
+    tests/tasks/PW-015/editor.e2e.ts:416:1 › re-review 4: after a logout in another tab, an open editor keeps no copy 
+    tests/tasks/PW-015/editor.e2e.ts:436:1 › final check nit 2: a tab without an open editor also stops keeping copies after a logout elsewhere 

@@ -426,6 +426,36 @@ test('re-review 4: after a logout in another tab, an open editor keeps no copy',
   await expect(status(a)).not.toHaveText('저장됨', { timeout: 10_000 });
   await a.waitForTimeout(1000); // longer than the copy delay
   expect(await allRecoveryKeys(a)).toEqual([]);
+  // the setting cannot be turned back on in this page; it says why (final check nit 1)
+  await expect(a.getByTestId('recovery-ended')).toBeVisible();
+  await expect(a.getByLabel(/임시 보관/)).toHaveCount(0);
   await closeTab(a);
   expect(await allRecoveryKeys(b)).toEqual([]);
+});
+
+test('final check nit 2: a tab without an open editor also stops keeping copies after a logout elsewhere', async ({ context }) => {
+  const a = await context.newPage();
+  await login(a);
+  await a.getByLabel('새 논문 제목').fill('List tab paper');
+  await a.getByRole('button', { name: '새 논문' }).click();
+  await expect(a.getByRole('link', { name: 'List tab paper' })).toBeVisible();
+  // tab B logs out and signs in again; tab A stayed on the papers list the whole time
+  const b = await context.newPage();
+  await b.goto(h.webUrl);
+  await b.getByRole('button', { name: '로그아웃' }).click();
+  await login(b);
+  await b.getByRole('link', { name: 'List tab paper' }).click(); // B (new session) creates the manuscript
+  await b.getByRole('tab', { name: '원고' }).click();
+  await b.getByRole('button', { name: '원고 만들기' }).click();
+  await expect(editor(b)).toBeVisible();
+  await closeTab(b);
+  await a.getByRole('link', { name: 'List tab paper' }).click();
+  await a.getByRole('tab', { name: '원고' }).click();
+  await expect(editor(a)).toHaveAttribute('contenteditable', 'true');
+  await a.route('**/saves', (r) => r.abort('failed'));
+  await editor(a).click();
+  await a.keyboard.type('not kept after logout elsewhere');
+  await expect(status(a)).toContainText('저장 실패', { timeout: 10_000 });
+  await a.waitForTimeout(1000);
+  expect(await recoveryKeys(a)).toEqual([]);
 });

@@ -1,0 +1,27 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  01:47:21
+   Duration  374ms (transform 62%, import 19%, tests 16%, worker 2%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  01:47:22
+   Duration  1.99s (import 46%, tests 42%, transform 12%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  2 passed (2)
+      Tests  13 passed (13)
+   Start at  01:47:25
+   Duration  634ms (tests 40%, transform 40%, import 18%, worker 1%)
+

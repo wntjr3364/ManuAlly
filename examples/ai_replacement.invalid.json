@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "selection_handle_id": "00000000-0000-4000-8000-000000000006",
+  "outcome": "replacement",
+  "replacement": [
+    {
+      "type": "text",
+      "text": "Treatment was associated with growth"
+    },
+    {
+      "type": "preserve_atom",
+      "atom_index": 0
+    },
+    {
+      "type": "text",
+      "text": "."
+    }
+  ],
+  "explanation": "Synthetic example: shorter wording, citation kept in place.",
+  "from": 0,
+  "to": 70
+}

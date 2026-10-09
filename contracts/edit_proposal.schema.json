@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:paper-workspace:edit-proposal:v1",
-  "title": "Server-normalized edit proposal v1",
+  "$id": "urn:paper-workspace:edit-proposal:v2",
+  "title": "Server-normalized edit proposal v2 (RFC-005)",
   "type": "object",
   "required": [
     "schema_version",
@@ -16,7 +16,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "const": 2
     },
     "proposal_id": {
       "type": "string",
@@ -45,6 +45,7 @@
         "selection_handle_id",
         "block_id",
         "expected_block_hash",
+        "selected_slice_hash",
         "from",
         "to",
         "replacement"
@@ -62,6 +63,10 @@
           "format": "uuid"
         },
         "expected_block_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "selected_slice_hash": {
           "type": "string",
           "pattern": "^[a-f0-9]{64}$"
         },
@@ -88,7 +93,8 @@
                     "const": "text"
                   },
                   "text": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                   },
                   "marks": {
                     "type": "array",
@@ -124,7 +130,26 @@
                     "type": [
                       "string",
                       "null"
-                    ]
+                    ],
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type",
+                  "atom_index"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "preserve_atom"
+                  },
+                  "atom_index": {
+                    "type": "integer",
+                    "minimum": 0
                   }
                 },
                 "additionalProperties": false
@@ -174,5 +199,6 @@
       "type": "string"
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "description": "Built by the server from a stored selection handle and the model's ai_replacement output. block_id/from/to/expected_block_hash/selected_slice_hash are copied from the handle, never from the model. from/to are editor-core ProseMirror positions (UTF-16 text, inline atom = 1). Semantic checks (from<to, grapheme boundaries, handle match, revision, authorization) are done by editor-core and the server, not by this schema."
 }

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "proposal_id": "00000000-0000-4000-8000-000000000001",
   "paper_id": "00000000-0000-4000-8000-000000000002",
   "document_id": "00000000-0000-4000-8000-000000000003",
@@ -10,12 +10,21 @@
     "selection_handle_id": "00000000-0000-4000-8000-000000000006",
     "block_id": "00000000-0000-4000-8000-000000000007",
     "expected_block_hash": "2eb3f6215bbe653975349fcdc133f63c131339971311729db4c0f81d926bb2ad",
+    "selected_slice_hash": "5d1b0b6a2c7e5f0d8a1e4c3b2a19f8e7d6c5b4a3928170f6e5d4c3b2a1908f7e",
     "from": 0,
     "to": 70,
     "replacement": [
       {
         "type": "text",
-        "text": "These results indicate an association between treatment and growth."
+        "text": "These results indicate an association between treatment and growth"
+      },
+      {
+        "type": "preserve_atom",
+        "atom_index": 0
+      },
+      {
+        "type": "text",
+        "text": "."
       }
     ]
   },

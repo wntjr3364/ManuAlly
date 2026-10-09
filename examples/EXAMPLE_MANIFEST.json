@@ -24,6 +24,16 @@
       "file": "examples/edit_proposal.invalid.json",
       "schema": "contracts/edit_proposal.schema.json",
       "valid": false
+    },
+    {
+      "file": "examples/ai_replacement.valid.json",
+      "schema": "contracts/ai_replacement.schema.json",
+      "valid": true
+    },
+    {
+      "file": "examples/ai_replacement.invalid.json",
+      "schema": "contracts/ai_replacement.schema.json",
+      "valid": false
     }
   ]
 }

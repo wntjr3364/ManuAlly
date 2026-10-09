@@ -394,7 +394,7 @@
       "id": "PW-012",
       "phase": "P01",
       "title": "Shared editor schema·계약",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-011"
       ],

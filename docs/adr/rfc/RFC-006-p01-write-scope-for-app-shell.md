@@ -62,3 +62,7 @@ PW-010 및 PW-009 리뷰 반영 시 추가 기록(2026-10-08):
   - `packages/domain/src/shared/db.ts`: DomainError `details`(missing/reasons 등 기계 판독 정보)
   - `apps/api/src/auth/plugin.ts`: 응답에 details 포함
   - `packages/domain/src/outlines/index.ts`: OutlineError가 공용 details 사용(동작 동일)
+- PW-012
+  - RFC-005에 따라 `contracts/**`와 `examples/**`(edit_proposal v2, ai_replacement v1, manifest)를 갱신했다.
+  - `tests/tasks/PW-007/...`가 아닌 PW-012 시험 폴더 안에 Chromium parity 시험을 `*.int.test.ts`로 두었다(integration 명령이 실행).
+  - 저장 경로(`packages/domain/src/revisions`)에 문서 검증을 연결하는 일은 PW-014로 제안한다.

@@ -8,3 +8,20 @@ JSON Schema 검증만으로 권한·DB reference·revision·scientific accuracy�
 checkpoint는 서버가 작성하며 summary_note는 비신뢰 참고자료다. quota_unknown은 정상적 표현이다. null을 0이나 reset 시각으로 자동 변환하지 않는다. provider capability의 documented_not_verified는 실사용 지원 확인이 아니다.
 
 P01 이후 추가할 주요 계약: PaperSnapshot, OutlineApprovalRequest, FactRecord, EvidenceLocator, AssetPolicy, ContextManifest, AIJob, normalized RunEvent, BudgetReservation, ApplyProposalRequest, ExportManifest. 생성된 OpenAPI와 실제 라우트의 contract test를 함께 추가한다.
+
+## edit_proposal v2 and ai_replacement v1 (RFC-005, PW-012)
+- **Position rule** (`packages/editor-core` owns it; browser and server run the same code, checked in Chromium and Node by TST-012A)
+  - `from`/`to` are ProseMirror positions relative to the start of the addressed top-level textblock's content.
+  - Text counts its UTF-16 length. Each inline atom (citation, inline math, figure/table reference) counts 1.
+  - A position may not split a surrogate pair or an extended grapheme cluster (emoji ZWJ sequences, flags, combining marks, decomposed Hangul).
+  - Blocks are addressed only by their stable UUID. Text search is never used to place an edit.
+- **Hashes**
+  - `expected_block_hash` = sha256(canonical JSON of `block.toJSON()`), with keys sorted and undefined dropped.
+  - `selected_slice_hash` = sha256(canonical JSON of `{block_id, from, to, content}`).
+- **Model output (`ai_replacement`)** names only the selection handle it was given plus the replacement or `needs_evidence`/`no_change`.
+  - The server copies block, range and hashes from the stored handle into `edit_proposal` v2.
+  - Model output carrying positions, ids, hashes or approval fields is refused.
+- **`preserve_atom`** keeps an atom of the original selection by its index, the only way to keep inline math or figure references through an AI edit.
+- **Document JSON** is validated by `validateDocument(json, schema_version)`.
+  - Refused: unknown nodes or marks, raw HTML, unknown fields/attributes, missing or duplicate block ids.
+  - A different `schema_version` is not read. It needs an explicit `migrateDocument` (none exist yet for version 1).

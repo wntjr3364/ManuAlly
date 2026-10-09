@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:paper-workspace:ai-replacement:v1",
+  "title": "AI replacement for a stored selection handle",
+  "description": "What a model may return for one selection. It names the selection handle it was given and the replacement content only. It cannot carry positions, block ids, hashes, approval or verification fields: the server takes those from the stored handle (RFC-005). needs_evidence lets the model decline instead of inventing support.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "selection_handle_id",
+    "outcome"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "selection_handle_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "outcome": {
+      "enum": [
+        "replacement",
+        "needs_evidence",
+        "no_change"
+      ]
+    },
+    "replacement": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 500,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "text"
+            ],
+            "properties": {
+              "type": {
+                "const": "text"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "marks": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "bold",
+                    "italic",
+                    "subscript",
+                    "superscript"
+                  ]
+                },
+                "uniqueItems": true
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "reference_id"
+            ],
+            "properties": {
+              "type": {
+                "const": "citation"
+              },
+              "reference_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "locator": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "atom_index"
+            ],
+            "properties": {
+              "type": {
+                "const": "preserve_atom"
+              },
+              "atom_index": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "missing": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "maxItems": 50
+    },
+    "explanation": {
+      "type": "string",
+      "maxLength": 4000
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "replacement"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "replacement": true
+        },
+        "required": [
+          "replacement"
+        ]
+      },
+      "else": {
+        "not": {
+          "properties": {
+            "replacement": true
+          },
+          "required": [
+            "replacement"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "needs_evidence"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "missing": true
+        },
+        "required": [
+          "missing"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

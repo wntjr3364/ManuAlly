@@ -1,0 +1,155 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-012/editor-core.test.ts (21 tests | 21 failed) 20ms
+   ❯ TST-012A: positions follow the contract on hand-checked fixtures (4)
+     × the golden manuscript is valid and every textblock has the hand-checked boundaries 5ms
+     × selections give the expected quote and atoms, or the expected refusal 1ms
+     × replacement content is built from typed items; atoms are kept only by index 1ms
+     × hashes are canonical: key order does not matter, any content change does 1ms
+   ❯ TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly (17)
+     × an HTML string is refused (<p onclick="x()">Hi</p>) 0ms
+     × an html node is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × an unknown node is refused ({ type: 'doc', content: [ [Object] ] }) 2ms
+     × an unknown mark is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × an event-handler attribute is refused ({ type: 'doc', content: [ [Object] ] }) 1ms
+     × an extra field is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × a block without id is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × a non-UUID block id is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × duplicate block ids is refused ({ type: 'doc', content: [Array] }) 0ms
+     × a citation without reference is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × a figure reference without target is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × a table row outside a table is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × empty text is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × a lone surrogate is refused ({ type: 'doc', content: [ [Object] ] }) 0ms
+     × text that merely looks like HTML is text, never markup 0ms
+     × another schema version is never read silently; migration is an explicit call that fails when no path exists 0ms
+     × parseDocument throws with every problem listed 4ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 21 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012A: positions follow the contract on hand-checked fixtures > the golden manuscript is valid and every textblock has the hand-checked boundaries
+TypeError: core.validateDocument is not a function
+ ❯ fixtureReport tests/tasks/PW-012/fixture-report.ts:10:18
+      8|
+      9| export async function fixtureReport(core: Core) {
+     10|   const v = core.validateDocument(manuscript, core.EDITOR_SCHEMA_VERSI…
+       |                  ^
+     11|   if (!v.ok) return { valid: false, errors: v.errors };
+     12|   const doc = v.doc;
+ ❯ tests/tasks/PW-012/editor-core.test.ts:14:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/21]⎯
+
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012A: positions follow the contract on hand-checked fixtures > selections give the expected quote and atoms, or the expected refusal
+TypeError: core.validateDocument is not a function
+ ❯ fixtureReport tests/tasks/PW-012/fixture-report.ts:10:18
+      8|
+      9| export async function fixtureReport(core: Core) {
+     10|   const v = core.validateDocument(manuscript, core.EDITOR_SCHEMA_VERSI…
+       |                  ^
+     11|   if (!v.ok) return { valid: false, errors: v.errors };
+     12|   const doc = v.doc;
+ ❯ tests/tasks/PW-012/editor-core.test.ts:22:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/21]⎯
+
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012A: positions follow the contract on hand-checked fixtures > replacement content is built from typed items; atoms are kept only by index
+TypeError: core.validateDocument is not a function
+ ❯ fixtureReport tests/tasks/PW-012/fixture-report.ts:10:18
+      8|
+      9| export async function fixtureReport(core: Core) {
+     10|   const v = core.validateDocument(manuscript, core.EDITOR_SCHEMA_VERSI…
+       |                  ^
+     11|   if (!v.ok) return { valid: false, errors: v.errors };
+     12|   const doc = v.doc;
+ ❯ tests/tasks/PW-012/editor-core.test.ts:37:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/21]⎯
+
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012A: positions follow the contract on hand-checked fixtures > hashes are canonical: key order does not matter, any content change does
+TypeError: parseDocument is not a function
+ ❯ tests/tasks/PW-012/editor-core.test.ts:48:20
+     46|
+     47|   test('hashes are canonical: key order does not matter, any content c…
+     48|     const a = core.parseDocument(doc(para(ID.plain, [{ text: 'same', t…
+       |                    ^
+     49|     const b = core.parseDocument({ content: [{ content: [{ type: 'text…
+     50|     const c = core.parseDocument(doc(para(ID.plain, [{ type: 'text', t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/21]⎯
+
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > an HTML string is refused (<p onclick="x()">Hi</p>)
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > an html node is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > an unknown node is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > an unknown mark is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > an event-handler attribute is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > an extra field is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > a block without id is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > a non-UUID block id is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > duplicate block ids is refused ({ type: 'doc', content: [Array] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > a citation without reference is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > a figure reference without target is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > a table row outside a table is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > empty text is refused ({ type: 'doc', content: [ [Object] ] })
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > a lone surrogate is refused ({ type: 'doc', content: [ [Object] ] })
+TypeError: validateDocument is not a function
+ ❯ tests/tasks/PW-012/editor-core.test.ts:76:23
+     74|     ['a lone surrogate', doc(para(ID.plain, [{ type: 'text', text: 'a\…
+     75|   ])('%s is refused (%s)', (_name, json, code) => {
+     76|     expect(codes(core.validateDocument(json, V))).toContain(code);
+       |                       ^
+     77|   });
+     78|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/21]⎯
+
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > text that merely looks like HTML is text, never markup
+TypeError: validateDocument is not a function
+ ❯ tests/tasks/PW-012/editor-core.test.ts:80:20
+     78|
+     79|   test('text that merely looks like HTML is text, never markup', () =>…
+     80|     const r = core.validateDocument(doc(para(ID.plain, [{ type: 'text'…
+       |                    ^
+     81|     expect(r.ok).toBe(true);
+     82|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/21]⎯
+
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > another schema version is never read silently; migration is an explicit call that fails when no path exists
+TypeError: validateDocument is not a function
+ ❯ tests/tasks/PW-012/editor-core.test.ts:86:22
+     84|   test('another schema version is never read silently; migration is an…
+     85|     for (const version of [0, 2, '1', undefined]) {
+     86|       const r = core.validateDocument(manuscript, version);
+       |                      ^
+     87|       expect(r.ok, String(version)).toBe(false);
+     88|       expect(codes(r)[0], String(version)).toMatch(/^MIGRATION_(REQUIR…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/21]⎯
+
+ FAIL  tests/tasks/PW-012/editor-core.test.ts > TST-012B: unknown nodes, raw HTML, duplicate ids and other versions are refused or migrated explicitly > parseDocument throws with every problem listed
+AssertionError: expected [Function] to throw error matching /BLOCK_ID_DUPLICATE.*RAW_HTML|RAW_HTML…/ but got '__vite_ssr_import_1__.parseDocument i…'
+
+- Expected:
+/BLOCK_ID_DUPLICATE.*RAW_HTML|RAW_HTML.*BLOCK_ID_DUPLICATE/
+
++ Received:
+"__vite_ssr_import_1__.parseDocument is not a function"
+
+ ❯ tests/tasks/PW-012/editor-core.test.ts:95:98
+     93|
+     94|   test('parseDocument throws with every problem listed', () => {
+     95|     expect(() => core.parseDocument(doc(para(ID.plain), para(ID.plain)…
+       |                                                                                                  ^
+     96|   });
+     97| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/21]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  21 failed (21)
+   Start at  01:40:40
+   Duration  390ms (transform 66%, import 16%, tests 15%, worker 3%)
+

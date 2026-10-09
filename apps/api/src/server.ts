@@ -22,6 +22,7 @@ import { registerFigureVersionRoutes } from './figure-versions/index.ts';
 import { registerReferenceImportRoutes } from './reference-import/index.ts';
 import { registerStoryAiRoutes } from './story-ai/index.ts';
 import { registerWritingProfileRoutes } from './writing-profile/index.ts';
+import { registerWriterRoutes } from './writer/index.ts';
 import { registerOutlineImpactRoutes } from './outline-impact/index.ts';
 import type { ZoteroConfig } from '@pw/search/zotero/index.ts';
 import { selectProvider } from '@pw/providers';
@@ -125,6 +126,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerReferenceImportRoutes(app, db, { zotero: opts.zotero });
   registerStoryAiRoutes(app, db);
   registerWritingProfileRoutes(app, db);
+  registerWriterRoutes(app, db);
   registerOutlineImpactRoutes(app, db);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;

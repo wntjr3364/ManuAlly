@@ -18,6 +18,7 @@ import { DomainError, UUID_RE, type Queryable } from '@pw/domain/shared/db.ts';
 import { canonicalJson } from '@pw/domain/revisions/index.ts';
 import { externalSendDecision } from '@pw/domain/asset-policy/index.ts';
 import { noticesOf } from '@pw/domain/literature/index.ts';
+import { nodeScope } from '@pw/domain/outline-impact/index.ts';
 
 // part of every fingerprint: a change of these rules is a change of the context
 export const RETRIEVAL_VERSION = 'pw-retrieval-3'; // 3: unsupported observations withheld (PW-040 review)
@@ -158,6 +159,13 @@ export async function settledMaterial(db: Queryable, paperId: string, provider: 
   const pool = await candidatePool(db, paperId, provider);
   const ok = (k: string) => new Set(pool.filter((c) => c.kind === k && !c.withheld).map((c) => c.id));
   return { factIds: ok('fact'), claimIds: ok('claim'), excerptIds: ok('excerpt'), withheld: pool.filter((c) => c.withheld).map((c) => ({ kind: c.kind, id: c.id, reason: c.withheld! })) };
+}
+
+// The generation scope of an approved node as it may go to this provider: nodeScope with the gates of
+// that same provider. The only way callers build a scope (PW-040 review NIT: a scope never gets the
+// settled set of another provider, or none).
+export async function nodeScopeFor(db: Queryable, a: { paperId: string; outlineRevisionId: string; nodeId: string; provider: string }) {
+  return nodeScope(db, a.paperId, a.outlineRevisionId, a.nodeId, await settledMaterial(db, a.paperId, a.provider));
 }
 
 // Lexical search within one paper (used for the "related" part of a context, and on its own).

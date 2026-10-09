@@ -3,8 +3,8 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { TxPool } from '@pw/domain/revisions/index.ts';
 import { DomainError } from '@pw/domain/shared/db.ts';
-import { linkParagraph, listImpacts, nodeScope, resolveImpact, unlinkParagraph } from '@pw/domain/outline-impact/index.ts';
-import { settledMaterial } from '@pw/search/retrieval/index.ts';
+import { linkParagraph, listImpacts, resolveImpact, unlinkParagraph } from '@pw/domain/outline-impact/index.ts';
+import { nodeScopeFor } from '@pw/search/retrieval/index.ts';
 import { sendDomainError } from '../auth/plugin.ts';
 
 export function registerOutlineImpactRoutes(app: FastifyInstance, pool: TxPool): void {
@@ -28,7 +28,7 @@ export function registerOutlineImpactRoutes(app: FastifyInstance, pool: TxPool):
       // the scope as it may go to this provider (?provider=claude_agent|codex; default: the local MOCK)
       const provider = (req.query as { provider?: string }).provider ?? 'mock';
       if (!['mock', 'claude_agent', 'codex'].includes(provider)) throw new DomainError('INVALID', 'unknown provider', 'provider');
-      return nodeScope(pool, req.paper!.id, (req.params as P).revisionId, (req.params as P).nodeId, await settledMaterial(pool, req.paper!.id, provider));
+      return nodeScopeFor(pool, { paperId: req.paper!.id, outlineRevisionId: (req.params as P).revisionId, nodeId: (req.params as P).nodeId, provider });
     }));
   app.post('/api/papers/:paperId/outline/revisions/:revisionId/nodes/:nodeId/paragraphs', scoped, async (req, reply) =>
     run(reply, () => linkParagraph(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, outlineRevisionId: (req.params as P).revisionId, nodeId: (req.params as P).nodeId, body: req.body }), 201));

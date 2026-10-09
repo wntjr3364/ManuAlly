@@ -1,0 +1,29 @@
+# PW-042 mutations (each applied alone, then restored)
+KILLED invented claim accepted
+KILLED invented fact accepted
+KILLED citation outside paper accepted
+KILLED bibliography string accepted
+KILLED no word cap
+KILLED word cap 3x
+KILLED atoms in a new paragraph
+KILLED numbers not checked
+KILLED mandatory claims not checked
+KILLED avoided terms not checked
+KILLED original not guarded
+KILLED provider policy dropped
+KILLED gate not re-checked at run
+KILLED late answer not STALE
+KILLED unchanged not detected
+KILLED length warning dropped
+KILLED apply ignores hash
+KILLED apply ignores expected revision
+KILLED apply rebases instead of STALE
+KILLED apply skips the gate
+KILLED apply does not link the node
+KILLED apply of non-PENDING
+KILLED apply needs no intent
+KILLED request on an old base
+KILLED request names a missing block
+KILLED headings accepted
+KILLED draft inserted at the end
+KILLED line breaks accepted

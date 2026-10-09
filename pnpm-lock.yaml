@@ -168,6 +168,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@pw/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@pw/domain':
         specifier: workspace:*
         version: link:../../packages/domain

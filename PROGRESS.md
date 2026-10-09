@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P04 완료(사용자 위임), RFC-010 approve, P05 진행**. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 진행.
+- 현재 단계: **P04 완료(사용자 위임), RFC-010 approve, P05 진행**. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 in_review(리뷰 대기).
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).
@@ -72,6 +72,7 @@
 | PW-039 | in_review | (P05) | REQ-039 / TST-039A,B | 통합 16, unit 3, 브라우저 1(리뷰 반영), mutation 19+12종 탐지, `pnpm test` exit 0 | MOCK generator만(실제 provider는 PW-042와 함께), 수치 일치만 검사(의미·단위는 PW-043) |
 | PW-040 | in_review | (P05) | REQ-040 / TST-040A,B | 통합 13(리뷰 반영 +4), 브라우저 1, mutation 18+8종 탐지, `pnpm test` exit 0 | 문단 연결 화면 없음(PW-042 적용 때 기록), 재정렬·profile 영향 제외 |
 | PW-041 | in_review | (P05) | REQ-041 / TST-041A,B | 통합 9, unit 8, 브라우저 1(리뷰 반영), mutation 21+11종 탐지, `pnpm test` exit 0 | MOCK 생성기만(실제 provider는 PW-042와 함께), 한 줄 섹션 제목만 인식, 8단어 연속 복사만 검사 |
+| PW-042 | in_review | (P05) | REQ-042 / TST-042A,B | 통합 9, unit 19, 브라우저 1, mutation 28종 탐지, `pnpm test` exit 0 | MOCK writer만(실제 공급자 prompt·live는 사용자 PC), 주장 반영은 생성기 선언(의미 검토는 PW-043), 단위·그룹 매칭 없음 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

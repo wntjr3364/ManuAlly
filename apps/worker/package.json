@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@pw/contracts": "workspace:*",
     "@pw/domain": "workspace:*",
     "@pw/providers": "workspace:*",
     "@pw/search": "workspace:*",

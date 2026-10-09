@@ -1371,7 +1371,7 @@
       "id": "PW-042",
       "phase": "P05",
       "title": "ParagraphContract·Writer",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-041"
       ],

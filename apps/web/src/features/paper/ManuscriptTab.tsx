@@ -7,12 +7,16 @@ import { api, errorText } from '../../app/api.ts';
 import { unsupportedTypes } from './editor-extensions.ts';
 import { ManuscriptEditor, type DocInfo, type EditorState } from '../../editor/ManuscriptEditor.tsx';
 import { ReadOnlyDocument } from '../../editor/ReadOnlyDocument.tsx';
+import { WriterPanel } from '../writer/WriterPanel.tsx';
 
 // reloadKey: bumped after the versions tab made a new head (restore, undo, import); the editor then
 // opens that head
 export function ManuscriptTab({ paperId, outlineApproved = false, reloadKey = 0, onState }: { paperId: string; outlineApproved?: boolean; reloadKey?: number; onState?: (s: EditorState | null) => void }) {
   const [doc, setDoc] = useState<DocInfo | null | undefined>(undefined);
   const [error, setError] = useState('');
+  // the editor's saved head and whether it has unsaved edits (the writer works on the saved text)
+  const [state, setState] = useState<EditorState | null>(null);
+  const track = useCallback((s: EditorState | null) => { setState(s); onState?.(s); }, [onState]);
   const load = useCallback(async () => {
     const docs = await api<{ id: string; kind: string }[]>('GET', `/api/papers/${paperId}/documents`);
     const m = docs.find((d) => d.kind === 'manuscript');
@@ -21,7 +25,7 @@ export function ManuscriptTab({ paperId, outlineApproved = false, reloadKey = 0,
   useEffect(() => { load().catch((e) => setError(errorText(e))); }, [load, reloadKey]);
   // no editable manuscript on screen: nothing unsaved here
   const editable = !!doc && doc.head.schema_version === EDITOR_SCHEMA_VERSION && !unsupportedTypes(doc.head.content_json).length;
-  useEffect(() => { if (!editable) onState?.(null); }, [editable, onState]);
+  useEffect(() => { if (!editable) track(null); }, [editable, track]);
   if (error) return <p role="alert" className="error">{error}</p>;
   if (doc === undefined) return <p className="loading">불러오는 중…</p>;
   if (doc === null) {
@@ -35,5 +39,11 @@ export function ManuscriptTab({ paperId, outlineApproved = false, reloadKey = 0,
   if (doc.head.schema_version !== EDITOR_SCHEMA_VERSION) return <ReadOnlyDocument content={doc.head.content_json} reason={`다른 문서 형식 버전(${doc.head.schema_version}; 현재 ${EDITOR_SCHEMA_VERSION}) — 변환(migration)이 필요한 내용`} />;
   const unsupported = unsupportedTypes(doc.head.content_json);
   if (unsupported.length) return <ReadOnlyDocument content={doc.head.content_json} reason={`편집기가 아직 지원하지 않는 요소(${unsupported.join(', ')})`} />;
-  return <ManuscriptEditor key={`${doc.document.id}:${doc.head.id}`} paperId={paperId} info={doc} outlineApproved={outlineApproved} onState={onState} />;
+  return (
+    <>
+      <ManuscriptEditor key={`${doc.document.id}:${doc.head.id}`} paperId={paperId} info={doc} outlineApproved={outlineApproved} onState={track} />
+      <WriterPanel paperId={paperId} documentId={doc.document.id} headId={state?.headRevisionId ?? doc.head.id} clean={state?.clean ?? true}
+        onApplied={() => { load().catch((e) => setError(errorText(e))); }} />
+    </>
+  );
 }

@@ -48,3 +48,10 @@ User decision / reviewer:
   - 새 화면 폴더 `apps/web/src/features/writing-profile/**`, `apps/web/src/features/paper/PaperPage.tsx`("글쓰기 프로필" tab)
   - `packages/domain/src/jobs/index.ts`(`JOB_INTENTS`에 `propose_profile`; migration의 `jobs_intent_check`와 짝)
   - `tests/e2e/manual-paper/harness.ts`(시험용 worker에 handler 등록)
+- PW-042
+  - 새 도메인 폴더 `packages/domain/src/writer/**`(요청·적용·거절; 적용은 PW-017과 같은 CAS·STALE 규칙)
+  - `packages/search/src/retrieval/index.ts` `nodeScopeFor`(PW-040 리뷰 NIT: scope는 그 공급자의 settled 집합으로만), `apps/api/src/outline-impact/index.ts`가 이것을 씀
+  - 새 route 폴더 `apps/api/src/writer/**`, `apps/api/src/server.ts`, `apps/worker/src/main.ts`(`draft_paragraph` handler, MOCK writer)
+  - `packages/contracts/package.json`(`./writing` export), `apps/worker/package.json`(`@pw/contracts` workspace 의존성; 새 외부 의존성 없음), `pnpm-lock.yaml`
+  - 새 화면 `apps/web/src/features/writer/**`, `apps/web/src/features/paper/ManuscriptTab.tsx`(편집기 아래 "문단 작성")
+  - `tests/e2e/manual-paper/harness.ts`(시험용 worker에 handler 등록)

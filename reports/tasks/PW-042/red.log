@@ -1,0 +1,185 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-042/writer.int.test.ts (8 tests | 8 failed) 1996ms
+   ❯ TST-042A: from the node's contract, back as a proposal only (4)
+     × the contract holds the node's purpose, approved claims, exact facts, evidence, neighbours, terminology and length — and nothing of other nodes 209ms
+     × applying needs the intent, the exact proposal and its base; it inserts one paragraph after the chosen one and links it to the node 115ms
+     × conservative correction and scientific rewrite of an existing paragraph: the same block, checked against the original 115ms
+     × a proposal made for an older manuscript is STALE; the gate and the provider policy hold before anything is written 100ms
+   ❯ TST-042B: no invented evidence; one paragraph only (4)
+     × "needs evidence" is a valid answer: kept with what is missing, never applicable 103ms
+     × a number outside the contract, a missing mandatory claim or an avoided term makes the proposal CHECK_FAILED 106ms
+     × an invented claim or fact, a citation outside this paper's references, or a bibliography string: the answer is refused and nothing is stored 113ms
+     × a one-paragraph request is never widened into a manuscript: a second paragraph, a heading or far more than the budget is refused 107ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-042/writer.int.test.ts > TST-042A: from the node's contract, back as a proposal only > the contract holds the node's purpose, approved claims, exact facts, evidence, neighbours, terminology and length — and nothing of other nodes
+AssertionError: {"message":"Route POST:/api/papers/f4f4c8bf-66e9-44f3-8ecf-b478ebe487f2/writer/requests not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-042/writer.int.test.ts:107:32
+    105| async function run(w: W, gen: Writer = createMockWriter(), o: Record<s…
+    106|   const r = await request(w, o);
+    107|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+    108|   const jobId = r.json().job.id as string;
+    109|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-042/writer.int.test.ts:128:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/tasks/PW-042/writer.int.test.ts > TST-042A: from the node's contract, back as a proposal only > applying needs the intent, the exact proposal and its base; it inserts one paragraph after the chosen one and links it to the node
+AssertionError: {"message":"Route POST:/api/papers/24c8916e-8449-4548-9ffa-a31f5990723e/writer/requests not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-042/writer.int.test.ts:107:32
+    105| async function run(w: W, gen: Writer = createMockWriter(), o: Record<s…
+    106|   const r = await request(w, o);
+    107|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+    108|   const jobId = r.json().job.id as string;
+    109|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-042/writer.int.test.ts:153:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  tests/tasks/PW-042/writer.int.test.ts > TST-042A: from the node's contract, back as a proposal only > conservative correction and scientific rewrite of an existing paragraph: the same block, checked against the original
+AssertionError: {"message":"Route POST:/api/papers/e3b4447a-ca3d-4920-9532-c6b49a09799b/writer/requests not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-042/writer.int.test.ts:107:32
+    105| async function run(w: W, gen: Writer = createMockWriter(), o: Record<s…
+    106|   const r = await request(w, o);
+    107|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+    108|   const jobId = r.json().job.id as string;
+    109|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-042/writer.int.test.ts:173:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  tests/tasks/PW-042/writer.int.test.ts > TST-042A: from the node's contract, back as a proposal only > a proposal made for an older manuscript is STALE; the gate and the provider policy hold before anything is written
+AssertionError: {"message":"Route POST:/api/papers/8e6e224e-5dde-4127-b29a-e228352d0c3d/writer/requests not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-042/writer.int.test.ts:107:32
+    105| async function run(w: W, gen: Writer = createMockWriter(), o: Record<s…
+    106|   const r = await request(w, o);
+    107|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+    108|   const jobId = r.json().job.id as string;
+    109|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-042/writer.int.test.ts:190:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  tests/tasks/PW-042/writer.int.test.ts > TST-042B: no invented evidence; one paragraph only > "needs evidence" is a valid answer: kept with what is missing, never applicable
+AssertionError: {"message":"Route POST:/api/papers/8ef65e54-1c56-4e17-a9a8-ef81b7a91f09/writer/requests not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-042/writer.int.test.ts:107:32
+    105| async function run(w: W, gen: Writer = createMockWriter(), o: Record<s…
+    106|   const r = await request(w, o);
+    107|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+    108|   const jobId = r.json().job.id as string;
+    109|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-042/writer.int.test.ts:216:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  tests/tasks/PW-042/writer.int.test.ts > TST-042B: no invented evidence; one paragraph only > a number outside the contract, a missing mandatory claim or an avoided term makes the proposal CHECK_FAILED
+AssertionError: {"message":"Route POST:/api/papers/149f9c59-d6b2-4a96-8bff-cc306e87bf84/writer/requests not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-042/writer.int.test.ts:107:32
+    105| async function run(w: W, gen: Writer = createMockWriter(), o: Record<s…
+    106|   const r = await request(w, o);
+    107|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+    108|   const jobId = r.json().job.id as string;
+    109|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ bad tests/tasks/PW-042/writer.int.test.ts:223:71
+ ❯ tests/tasks/PW-042/writer.int.test.ts:224:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  tests/tasks/PW-042/writer.int.test.ts > TST-042B: no invented evidence; one paragraph only > an invented claim or fact, a citation outside this paper's references, or a bibliography string: the answer is refused and nothing is stored
+AssertionError: {"message":"Route POST:/api/papers/50d39eab-c305-4070-ae38-3259ea87a9ba/writer/requests not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-042/writer.int.test.ts:107:32
+    105| async function run(w: W, gen: Writer = createMockWriter(), o: Record<s…
+    106|   const r = await request(w, o);
+    107|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+    108|   const jobId = r.json().job.id as string;
+    109|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-042/writer.int.test.ts:247:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  tests/tasks/PW-042/writer.int.test.ts > TST-042B: no invented evidence; one paragraph only > a one-paragraph request is never widened into a manuscript: a second paragraph, a heading or far more than the budget is refused
+AssertionError: {"message":"Route POST:/api/papers/0a651edd-cafe-4de1-b8ba-44e19b6b16b4/writer/requests not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ run tests/tasks/PW-042/writer.int.test.ts:107:32
+    105| async function run(w: W, gen: Writer = createMockWriter(), o: Record<s…
+    106|   const r = await request(w, o);
+    107|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+    108|   const jobId = r.json().job.id as string;
+    109|   await processDelivery(pool, { job_id: jobId, paper_id: w.paperId, in…
+ ❯ tests/tasks/PW-042/writer.int.test.ts:262:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed (8)
+   Start at  21:45:37
+   Duration  3.68s (tests 57%, transform 32%, import 10%)
+
+exit 1

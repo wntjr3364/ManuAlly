@@ -58,6 +58,15 @@ describe('block ids', () => {
     expect(out[3]).toBe(C);
   });
 
+  test('splitting at the very start of a paragraph: the text keeps the id, the new empty block gets a fresh one', () => {
+    const s0 = createEditorState(doc());
+    const s1 = step(s0, (s) => s.tr.split(offsetOf(s, B) + 1));
+    expect(s1.doc.child(1).textContent).toBe('');
+    expect(s1.doc.child(2).textContent).toBe('second');
+    expect(ids(s1)[2]).toBe(B);
+    expect(ids(s1)[1]).not.toBe(B);
+  });
+
   test('blocks without ids get one; deleting a block leaves the others alone', () => {
     const bare = schema.nodeFromJSON({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }, { type: 'paragraph', attrs: { id: B } }] });
     const s0 = createEditorState(bare);

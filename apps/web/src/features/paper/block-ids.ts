@@ -17,7 +17,6 @@ export const createEditorState = (doc: PMNode) => EditorState.create({ schema: e
 // Returns a transaction that fixes the ids in `state`, or null when nothing needs fixing.
 export function reconcileBlockIds(oldDoc: PMNode, state: EditorState, transactions: readonly Transaction[]): Transaction | null {
   const mapping = new Mapping(transactions.flatMap((t) => t.mapping.maps));
-  // where each old block's start ended up (assoc 1: content inserted at its start goes before it)
   // A block whose start survived claims its new position first. A block that was replaced in place
   // (setBlockType reports its start as deleted while the block is still there) claims its position
   // only if no surviving block does — a block deleted outright never takes its neighbour's id.
@@ -26,9 +25,12 @@ export function reconcileBlockIds(oldDoc: PMNode, state: EditorState, transactio
   oldDoc.forEach((node, offset) => {
     const id = node.attrs.id as unknown;
     if (!BLOCK_TYPES.includes(node.type.name) || typeof id !== 'string' || !UUID.test(id)) return;
-    const r = mapping.mapResult(offset, 1);
-    if (r.deleted) replaced.push([r.pos, id]);
-    else if (!claims.has(r.pos)) claims.set(r.pos, id);
+    // follow the first position inside the block (not its start): Enter at the very start then
+    // leaves the id with the text, and content inserted before the block pushes it along
+    const r = mapping.mapResult(offset + 1, 1);
+    const at = r.pos - 1;
+    if (r.deleted) replaced.push([at, id]);
+    else if (!claims.has(at)) claims.set(at, id);
   });
   const claimed = new Set(claims.values());
   for (const [pos, id] of replaced) if (!claims.has(pos) && !claimed.has(id)) { claims.set(pos, id); claimed.add(id); }

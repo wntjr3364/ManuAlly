@@ -17,7 +17,9 @@ import { UndoRedo } from '@tiptap/extensions';
 const BLOCKS = ['paragraph', 'heading'];
 
 // set by block-ids.ts (it imports this module to build the schema)
-let reconcileIds: (oldDoc: PMNode, state: EditorState, trs: readonly Transaction[]) => Transaction | null = () => null;
+let reconcileIds: (oldDoc: PMNode, state: EditorState, trs: readonly Transaction[]) => Transaction | null = () => {
+  throw new Error('block id reconciler not installed: import block-ids.ts with the editor');
+};
 export const setBlockIdReconciler = (fn: typeof reconcileIds) => { reconcileIds = fn; };
 
 const BlockIds = Extension.create({
@@ -33,8 +35,9 @@ const BlockIds = Extension.create({
   addProseMirrorPlugins() {
     return [new Plugin({
       key: new PluginKey('blockIds'),
-      // lazy import keeps block-ids (which builds the schema from these extensions) out of a cycle
-      appendTransaction: (trs, oldState, state) => (trs.some((t) => t.docChanged) || oldState.doc === state.doc ? reconcileIds(oldState.doc, state, trs) : null),
+      // the reconciler is injected by block-ids.ts (which builds its schema from these extensions, so a
+      // direct import would be circular); runs only when a transaction changed the document
+      appendTransaction: (trs, oldState, state) => (trs.some((t) => t.docChanged) ? reconcileIds(oldState.doc, state, trs) : null),
     })];
   },
 });

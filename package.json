@@ -38,10 +38,10 @@
     "overrides": {
       "@tiptap/extension-bubble-menu": "3.31.3",
       "@tiptap/extension-floating-menu": "3.31.3",
+      "@typescript-eslint/eslint-plugin>ignore": "7.0.10",
       "acorn": "8.18.0",
       "chai": "6.2.2",
       "fast-equals": "5.4.3",
-      "ignore": "7.0.10",
       "magic-string": "1.4.2",
       "nanoid": "3.3.19",
       "pg-cloudflare": "1.4.0",

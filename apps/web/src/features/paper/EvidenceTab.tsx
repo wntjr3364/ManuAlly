@@ -2,6 +2,7 @@
 // click that sends the content hash of what is shown. The number is entered exactly as in the source.
 import { useEffect, useState } from 'react';
 import { api, errorText } from '../../app/api.ts';
+import { setUnsaved } from '../../app/unsaved.ts';
 
 export interface Evidence { id: string; kind: string; label: string; locator: Record<string, unknown>; extraction_state: string; content_hash: string }
 interface Fact { id: string; evidence_id: string; entity: string; metric: string; value_text: string; unit: string; group: string; comparison: string; n: number | null; verification_state: string; content_hash: string }
@@ -12,6 +13,15 @@ export function EvidenceTab({ paperId, visible }: { paperId: string; visible: bo
   const [ev, setEv] = useState({ kind: 'method_record', note: '', label: '' });
   const [fact, setFact] = useState({ evidence_id: '', entity: '', metric: '', value_text: '', unit: '', group: '', comparison: '', n: '' });
   const [error, setError] = useState('');
+  // typed but not yet added
+  const evDirty = !!(ev.note.trim() || ev.label.trim());
+  const factDirty = ['entity', 'metric', 'value_text', 'unit', 'group', 'comparison', 'n'].some((k) => fact[k as keyof typeof fact].trim());
+  useEffect(() => {
+    setUnsaved(`evidence-form:${paperId}`, evDirty ? '근거 입력' : null);
+    setUnsaved(`fact-form:${paperId}`, factDirty ? '사실 입력' : null);
+  }, [evDirty, factDirty, paperId]);
+  useEffect(() => () => { setUnsaved(`evidence-form:${paperId}`, null); setUnsaved(`fact-form:${paperId}`, null); }, [paperId]);
+
   async function load() {
     setEvidence(await api<Evidence[]>('GET', `/api/papers/${paperId}/evidence`));
     setFacts(await api<Fact[]>('GET', `/api/papers/${paperId}/facts`));

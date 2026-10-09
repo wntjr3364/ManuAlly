@@ -16,7 +16,12 @@ export default defineConfig({
     proxy: { '/api': { target: process.env.PW_API_URL ?? 'http://127.0.0.1:8787' } },
     // serve only the web app, the shared editor package and installed dependencies — not the rest
     // of the repository (docs, reports, other sources) through /@fs/
-    fs: { strict: true, allow: [here, `${repo}packages/editor-core`, `${repo}node_modules`], deny: ['.env', '.env.*', '*.{crt,pem,key}'] },
+    // (deny: Vite's defaults kept, plus pnpm's links back into workspace sources)
+    fs: {
+      strict: true,
+      allow: [here, `${repo}packages/editor-core`, `${repo}node_modules`],
+      deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '.npmrc', '.yarnrc.yml', '*.{p12,pfx,cer,der,key}', '**/node_modules/.pnpm/node_modules/@pw/**', '**/node_modules/@pw/**'],
+    },
   },
   build: { outDir: 'dist', sourcemap: true },
 });

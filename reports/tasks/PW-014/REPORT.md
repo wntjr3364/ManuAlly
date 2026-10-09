@@ -32,7 +32,9 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-014
       - ~~편집기가 모르는 요소(예: 표)가 있으면 읽기 전용으로 열어 손실을 막는다.~~ **최초 커밋에서는 거짓이었다**(리뷰 M1: 빈 편집기로 열리고, 저장하면 덮어썼다). 수정 후에는 저장된 JSON을 그대로 보여 주고 저장할 수 없다.
     - `SnapshotsTab`: 이름 붙인 스냅샷과, 스냅샷이 고정한 story/outline 표시
 - **서버**
-  - `apps/api/src/routes/revisions/index.ts`: 원고 저장 시 editor-core `validateDocument`로 검사(PW-012 이월). 거부하면 422와 `errors`를 돌려준다.
+  - 원고 저장 시 editor-core `validateDocument`로 검사(PW-012 이월). 거부하면 422와 `errors`를 돌려준다.
+    - 처음에는 route(`apps/api/src/routes/revisions/index.ts`)에 두었다가, 리뷰 후 domain `saveRevision`으로 옮겼다(아래).
+    - 복원(restore)은 이미 검증되어 저장된 내용을 복사하므로 다시 검사하지 않는다.
   - `packages/domain/src/shared/db.ts`: `DomainError`의 parameter property를 제거했다. **PW-008 이후 `pnpm --filter @pw/api dev`(node strip-types)가 시작조차 안 되던 결함**이다. 시험이 모두 vitest(변환 실행)라서 드러나지 않았고, 실제 실행 smoke에서 발견했다. 재발 방지 시험을 추가했다.
   - `packages/editor-core/src/schema.ts`: `doc` 내용을 `block+`에서 `block*`로 바꿨다. 새 원고는 빈 문서로 시작한다.
 - **시험**
@@ -127,10 +129,35 @@ P01 gate(사용자 승인). `reports/phases/P01_GATE.md`
 | m4 Ctrl+S 전역 | 편집기 영역에 focus가 있을 때만 |
 | m5 n 비정수 무음 누락 | 클라이언트에서 거부하고 오류 표시. E2E |
 | m6 의존성 나이 | prosemirror-transform을 1.12.1로 낮춤(editor-core 포함). 전체 lockfile(270개)을 감사해 14일 미만 29개를 overrides로 이전 버전에 고정: rolldown 1.2.11, postcss 8.5.28, pg-protocol 1.16.0, pino 10.3.1 등. 재감사 결과 0개, 전체 시험 통과 |
-| m7 dev server가 저장소 파일 제공 | `server.fs.strict` + allow(웹 앱, editor-core, node_modules), .env·키 파일 거부. E2E: CLAUDE.md·PROGRESS.md·서버 소스·.env.example 403. **공유 서버의 다른 로컬 사용자가 127.0.0.1:5173에 접근하는 위험과, proxy 경유 첫 계정 생성 위험**은 gate 위험 목록에 기록 |
+| m7 dev server가 저장소 파일 제공 | `server.fs.strict` + allow(웹 앱, editor-core, node_modules), .env·키 파일 거부. (**재리뷰: pnpm 링크 `node_modules/.pnpm/node_modules/@pw/*`로 우회 가능했고, deny 지정이 Vite 기본 deny를 덮어썼다.** 아래에서 수정) E2E: CLAUDE.md·PROGRESS.md·서버 소스·.env.example 403. **공유 서버의 다른 로컬 사용자가 127.0.0.1:5173에 접근하는 위험과, proxy 경유 첫 계정 생성 위험**은 gate 위험 목록에 기록 |
 | m8 범위·검증 위치 | 원고 검증을 domain `saveRevision`으로 옮겨 모든 저장 경로에 적용(route 중복 검사 제거). 범위 밖 변경은 RFC-006 부록과 gate에서 확인 요청 |
 | m9 빈 문서·옛 id의 화면/저장 차이 | 기록만 한다. 빈 문서는 빈 문단 하나로 보이고, 내용 차이는 없다. 비UUID id는 이제 서버가 저장을 거부하므로 생길 수 없다 |
 
 - 실행
   - 브라우저 11/11(`e2e.log`). 반복 실행에서 8개 시험을 3회 돌려 24/24
   - `pnpm test` exit 0: unit 66, integration 130, contracts 13, e2e 11, spikes 70, evals/pack PASS
+
+## 재리뷰 결과 반영 (2026-10-09)
+- 결론: changes requested(major 2, minor 8).
+- 회귀 시험
+  - 브라우저 `tests/e2e/manual-paper/rereview-fixes.e2e.ts` 7건
+  - 단위 block-id 1건
+- RED: 수정 전 6건 실패(`rereview-red-e2e.log`).
+  - "단락 처음에서 Enter" 브라우저 시험은 수정 전에도 통과했다(Tiptap이 실제 Enter를 다르게 처리한다). 대신 단위 시험(`tr.split`)이 수정 전 실패를 보였다.
+
+| 지적 | 조치 |
+|---|---|
+| **MA1 브라우저 뒤로 가기가 미저장 내용을 묻지 않고 버림** | router의 popstate에서 미저장 등록부를 확인한다. 머무르기를 고르면 원래 주소를 다시 넣는다. E2E: `goBack()` → 확인 창, 취소하면 주소와 텍스트 유지 |
+| **MA2 끝 줄바꿈·앞 공백이 있는 한계 항목 때문에 저장 후에도 "미저장" → 승인 영구 불가** | 화면 비교와 서버 데이터 병합을 실제 전송 payload(정리된 목록) 기준으로 한다. E2E: `' small n\n\n'` 저장 → 승인 가능, 홈 이동 시 확인 창 없음 |
+| m1 Vite 차단 우회(pnpm 링크), 기본 deny 소실 | Vite 기본 deny(.git, .npmrc, 키 파일 등)를 유지하고 `**/node_modules/.pnpm/node_modules/@pw/**`, `**/node_modules/@pw/**`를 추가. E2E: pnpm 링크 경로와 .git/config가 원문·`?raw` 모두 403. 존재하지 않는 파일은 앱 페이지로 대체되므로 시험 대상에서 뺐다 |
+| m2 단락 처음에서 split하면 id가 빈 블록으로 이동 | 블록 시작이 아니라 블록 안 첫 위치를 추적한다. 단위 시험 추가, 기존 5건 유지 |
+| m3 `ignore` override가 eslint의 ^5 범위를 깸 | `@typescript-eslint/eslint-plugin>ignore`로 범위를 좁혔다(eslint는 5.3.2, 2024-08) |
+| m4 다른 schema_version 원고가 편집 가능하게 열림 | 현재 버전이 아니면 읽기 전용(변환 필요 표시). E2E |
+| m5 다른 곳에서 먼저 저장(409)한 뒤 최신본을 불러올 방법 없음 | 오류 옆에 "최신 스토리 불러오기"(화면 변경을 버린다는 확인 후 강제 로드). E2E |
+| m6 근거·사실 입력 중 텍스트가 미저장 등록부에 없음 | 등록한다. E2E: 근거 메모 입력 후 홈 이동 시 확인 |
+| m7 코드 nit | 주석 정정. 문서가 바뀐 transaction에서만 reconcile하고, reconciler가 설치되지 않으면 오류. 새 개요 첫 행은 논문마다 새 node id |
+| m8 보고서 정확도 | 위 변경 파일·m7 항목 정정. "모든 저장 경로" 문구에 restore 예외를 명시 |
+
+- 실행
+  - 브라우저 18/18(`e2e.log`). 전체 2회 반복 36/36. 충돌 시험 8회 반복 8/8. 최초 실행에서 충돌 시험 1건이 시험 자체의 타이밍 문제로 실패했다(다른 창이 로드 중에 입력). 로드를 기다리도록 고쳤다.
+  - `pnpm test` exit 0: unit 67, integration 130, contracts 13, e2e 18, spikes 70, evals/pack PASS

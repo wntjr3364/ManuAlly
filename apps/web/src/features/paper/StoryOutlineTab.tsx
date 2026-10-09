@@ -16,7 +16,7 @@ interface OutlineRev { id: string; status: string; content_hash: string; story_r
 const ROLES = ['background', 'gap', 'aim', 'method', 'result', 'interpretation', 'comparison', 'limitation', 'conclusion', 'other'];
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const newNode = (): Node => ({ node_id: crypto.randomUUID(), section: '', role: 'result', paragraph_goal: '', requires_evidence: false, evidence_ids: [] });
-const newNodeTemplate = newNode();
+const newNodeTemplate = newNode(); // only a comparison base; rows get their own ids
 
 const formOf = (r: StoryRev | null) => ({
   purpose: str(r?.brief.purpose), audience: str(r?.brief.audience), question: str(r?.story.question), main_message: str(r?.story.main_message),
@@ -29,27 +29,35 @@ const editable = (n: Node) => ({
   allowed_interpretation: n.allowed_interpretation ?? '', exclusions: n.exclusions ?? [], transition: n.transition ?? '',
   word_budget_min: n.word_budget_min ?? null, word_budget_max: n.word_budget_max ?? null,
 });
-const nodeKey = (ns: Node[]) => JSON.stringify(ns.map(editable));
+// node ids are generated per row; an untouched first row compares equal to the empty template
+const nodeKey = (ns: Node[]) => JSON.stringify(ns.map((n) => ({ ...editable(n), node_id: ns.length === 1 && !n.paragraph_goal && !n.section ? '' : n.node_id })));
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+type Form = ReturnType<typeof formOf>;
+// exactly what "스토리 저장" sends; dirty checks compare this, so tidied text is not "unsaved"
+const payloadOf = (f: Form) => ({
+  brief: { purpose: f.purpose, audience: f.audience },
+  story: { question: f.question, main_message: f.main_message, novelty: f.novelty, limitations: f.limitations.split('\n').map((l) => l.trim()).filter(Boolean) },
+});
+const sameStory = (a: Form, b: Form) => same(payloadOf(a), payloadOf(b));
 
 export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; onChange: () => void; visible: boolean }) {
   const [story, setStory] = useState<{ latest: StoryRev | null; active: StoryRev | null; missing: string[] } | null>(null);
   const [form, setForm] = useState({ purpose: '', audience: '', question: '', main_message: '', novelty: '', limitations: '' });
   const [outline, setOutline] = useState<{ latest: OutlineRev | null; active: OutlineRev | null } | null>(null);
-  const [nodes, setNodes] = useState<Node[]>([newNodeTemplate]);
+  const [nodes, setNodes] = useState<Node[]>(() => [{ ...newNodeTemplate, node_id: crypto.randomUUID() }]);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [error, setError] = useState('');
   const baseForm = useRef(formOf(null));
   const baseNodes = useRef<Node[]>([newNodeTemplate]);
 
-  async function load() {
+  async function load(force = false) {
     const s = await api<{ latest: StoryRev | null; active: StoryRev | null; missing: string[] }>('GET', `/api/papers/${paper.id}/story`);
     setStory(s);
     // server data replaces the form only where the user has not typed since the last known server
     // state (typing before the first load or during a save is kept)
     const storyBase = formOf(s.latest);
     const before = baseForm.current; // read now: the updater below runs later
-    setForm((prev) => (same(prev, before) || same(prev, storyBase) ? storyBase : prev));
+    setForm((prev) => (force || sameStory(prev, before) || sameStory(prev, storyBase) ? storyBase : prev));
     baseForm.current = storyBase;
     const o = await api<{ latest: OutlineRev | null; active: OutlineRev | null }>('GET', `/api/papers/${paper.id}/outline`);
     if (o.latest) {
@@ -57,14 +65,14 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
       setOutline({ latest: full, active: o.active });
       const nodesBase = full.nodes ?? [newNodeTemplate];
       const before = baseNodes.current;
-      setNodes((prev) => (nodeKey(prev) === nodeKey(before) || nodeKey(prev) === nodeKey(nodesBase) ? nodesBase : prev));
+      setNodes((prev) => (force || nodeKey(prev) === nodeKey(before) || nodeKey(prev) === nodeKey(nodesBase) ? nodesBase : prev));
       baseNodes.current = nodesBase;
     } else setOutline(o);
     setEvidence(await api<Evidence[]>('GET', `/api/papers/${paper.id}/evidence`));
   }
   useEffect(() => { load().catch((e) => setError(errorText(e))); }, [paper.id]);
   // what is on screen differs from the stored latest revision: approval would approve something else
-  const storyDirty = story !== null && JSON.stringify(form) !== JSON.stringify(formOf(story.latest));
+  const storyDirty = story !== null && !sameStory(form, formOf(story.latest));
   const outlineDirty = outline !== null && nodeKey(nodes) !== nodeKey(outline.latest?.nodes ?? [newNodeTemplate]);
   useEffect(() => {
     setUnsaved(`story:${paper.id}`, storyDirty ? '스토리' : null);
@@ -84,11 +92,13 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
       setError(errorText(e));
     }
   };
-  const saveStory = act(() => api('POST', `/api/papers/${paper.id}/story/revisions`, {
-    parent_revision_id: story?.latest?.id ?? null,
-    brief: { purpose: form.purpose, audience: form.audience },
-    story: { question: form.question, main_message: form.main_message, novelty: form.novelty, limitations: form.limitations.split('\n').map((l) => l.trim()).filter(Boolean) },
-  }));
+  const saveStory = act(() => api('POST', `/api/papers/${paper.id}/story/revisions`, { parent_revision_id: story?.latest?.id ?? null, ...payloadOf(form) }));
+  // after someone else saved first (409), the user can discard their screen edits and load the newer version
+  const loadLatest = async () => {
+    if (!window.confirm('화면의 저장되지 않은 내용을 버리고 최신 버전을 불러올까요?')) return;
+    setError('');
+    await load(true).catch((e) => setError(errorText(e)));
+  };
   const approveStory = act(() => api('POST', `/api/papers/${paper.id}/story/revisions/${story!.latest!.id}/approve`, { intent: 'approve_story', content_hash: story!.latest!.content_hash }));
   const saveOutline = act(() => api('POST', `/api/papers/${paper.id}/outline/revisions`, {
     parent_revision_id: outline?.latest?.id ?? null,
@@ -101,7 +111,17 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
 
   return (
     <>
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <div role="alert" className="error">
+          {error}{' '}
+          {/stale|changed/i.test(error) && (
+            <>
+              <button type="button" onClick={loadLatest}>최신 스토리 불러오기</button>{' '}
+              <span className="hint">(화면의 변경은 버려집니다. 필요하면 먼저 복사해 두세요)</span>
+            </>
+          )}
+        </div>
+      )}
       <section className="card">
         <h2>스토리 <span className="status" data-testid="story-status">{story?.latest?.status ?? '없음'}</span></h2>
         <label>연구 목적<textarea {...f('purpose')} /></label>
@@ -137,6 +157,7 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
         ))}
         <div className="toolbar">
           <button type="button" onClick={() => setNodes([...nodes, newNode()])}>문단 계획 추가</button>
+          {nodes.length > 1 && <button type="button" onClick={() => setNodes(nodes.slice(0, -1))}>마지막 계획 빼기</button>}
           <button type="button" onClick={saveOutline} disabled={!paper.active_story_revision_id}>개요 저장</button>
           {outline?.latest && outline.latest.status !== 'APPROVED' && outline.latest.status !== 'SUPERSEDED' && (
             <button type="button" className="primary" onClick={approveOutline} disabled={outlineDirty}>이 개요 버전 승인</button>

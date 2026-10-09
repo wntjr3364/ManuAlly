@@ -35,6 +35,7 @@ export function ManuscriptTab({ paperId }: { paperId: string }) {
       </section>
     );
   }
+  if (doc.head.schema_version !== EDITOR_SCHEMA_VERSION) return <ReadOnly info={doc} reason={`다른 문서 형식 버전(${doc.head.schema_version}; 현재 ${EDITOR_SCHEMA_VERSION}) — 변환(migration)이 필요한 내용`} />;
   const unsupported = unsupportedTypes(doc.head.content_json);
   if (unsupported.length) return <ReadOnly info={doc} reason={`편집기가 아직 지원하지 않는 요소(${unsupported.join(', ')})`} />;
   return <Editor key={doc.document.id} paperId={paperId} info={doc} />;

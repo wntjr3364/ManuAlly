@@ -725,7 +725,7 @@
       "id": "PW-022",
       "phase": "P02",
       "title": "선택편집 브라우저 gate",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-021"
       ],

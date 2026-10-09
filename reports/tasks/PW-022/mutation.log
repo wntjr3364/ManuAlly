@@ -1,0 +1,6 @@
+baseline ::   1 passed (8.4s)
+reference labels dispatch on every reload ::   1 failed
+comment highlights dispatch on every reload ::   1 passed (7.8s)
+baseline autosave ::   1 passed (10.6s)
+rerun: comment highlights dispatch on every reload (autosave test) ::   1 failed
+reference labels dispatch on every reload (autosave test) ::   1 failed

@@ -46,6 +46,11 @@ export const ReferenceLabels = Extension.create({
   },
 });
 
+// Dispatches only when the labels' inputs actually changed. A reload that finds the same data (e.g. on
+// window focus) must not dispatch: a transaction arriving while the user extends a selection with
+// Shift+Arrow writes the editor's older selection back to the page and the keystrokes are lost (PW-022).
 export function setReferenceContext(view: EditorView, ctx: ReferenceContext): void {
+  const now = key.getState(view.state);
+  if (now && JSON.stringify(now) === JSON.stringify(ctx)) return;
   view.dispatch(view.state.tr.setMeta(key, ctx).setMeta('addToHistory', false));
 }

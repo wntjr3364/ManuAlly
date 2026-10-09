@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P02 진행 중**. PW-015~021 in_review. 다음은 PW-022.
+- 현재 단계: **P02 완료(사용자 위임), P03 진행**. PW-015~022 in_review. P02 gate: `reports/phases/P02_GATE.md`. 다음은 PW-023.
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).
@@ -52,6 +52,7 @@
 | PW-019 | in_review | (P02) | REQ-019 / TST-019A,B | unit 10, 통합 8, 브라우저 2, mutation 8종 탐지, 독립 리뷰 approve(minor 2·nit 반영, RFC-008), `pnpm test` exit 0 | CSL/citeproc 고정(PW-056), 문헌 검색(P04), 연속 인용 묶기, 그림 파일(PW-036) |
 | PW-020 | in_review | (P02) | REQ-020 / TST-020A,B | unit 15, 통합 15, 브라우저 4, mutation 16종 탐지, 독립 리뷰(major 1·minor 1·nit 4) 반영, `pnpm test` exit 0 | 실제 provider(P03, blocked/not_run), SSE polling 부하, 프록시 버퍼링·worker 서비스화(P07) |
 | PW-021 | in_review | (P02) | REQ-021 / TST-021A,B | unit 16, 통합 9, 브라우저 3, mutation 17종 탐지, 독립 리뷰(major 1·minor 3·nit 6) 반영, `pnpm test` exit 0 | DOCX 가져오기(P05/P07), 표 편집, 문단 분할·병합 lineage, 원고 문서 유일성 제약(P07) |
+| PW-022 | in_review | (P02) | REQ-022 / TST-022A,B | 브라우저 8(gate 5회 반복 통과), 두 해상도 스크린샷, 찾은 제품 결함 1건(배경 재로딩이 선택 키 입력을 잃게 함) 수정·mutation 2종, `pnpm test` exit 0 | 실제 IME·Firefox·Safari 수동 확인, 기계 속도 연속 키 입력, 화면 배치(P07) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

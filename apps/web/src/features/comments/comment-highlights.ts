@@ -33,7 +33,10 @@ export const CommentHighlights = Extension.create({
   },
 });
 
+// Dispatches only on a real change (see reference-labels.ts: a background transaction during a
+// Shift+Arrow selection loses the user's keystrokes).
 export function setCommentRanges(view: EditorView, ranges: CommentRange[]): void {
+  if (JSON.stringify(key.getState(view.state) ?? []) === JSON.stringify(ranges)) return;
   view.dispatch(view.state.tr.setMeta(key, ranges).setMeta('addToHistory', false));
 }
 

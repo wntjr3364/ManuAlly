@@ -54,13 +54,16 @@ function checkEntry(e: unknown, i: number): RegistryEntry {
   // the P00 rule: approved (or a verified feature) only for the mock, or with structured live evidence
   // from the user's own machine: when, which CLI version, where, which tests, and that they passed
   const needsLive = c.provider !== 'mock' && (c.admission === 'approved' || FEATURES.some((k) => f[k] === 'verified'));
-  if (needsLive && !liveEvidenceOk(ev.live_evidence, c.version)) throw bad('approved or verified needs live_evidence {checked_at, cli_version (= version), host, tests[], passed: true} from the user\'s machine');
+  if (needsLive && !liveEvidenceOk(ev.live_evidence, c.version, c.provider)) throw bad('approved or verified needs live_evidence {checked_at, cli_version (= version), host, tests[], passed: true, ran_inside_sandbox: true} from the user\'s machine');
   return e as RegistryEntry;
 }
 
-export function liveEvidenceOk(v: unknown, version: string): boolean {
-  const l = v as { checked_at?: unknown; cli_version?: unknown; host?: unknown; tests?: unknown; passed?: unknown } | null;
+// A real provider (Claude Code, Codex) is approved only on evidence from a run inside the outer
+// sandbox (RFC-010; PW-030 review): a smoke run outside it says nothing about the isolated setup.
+export function liveEvidenceOk(v: unknown, version: string, provider?: string): boolean {
+  const l = v as { checked_at?: unknown; cli_version?: unknown; host?: unknown; tests?: unknown; passed?: unknown; ran_inside_sandbox?: unknown } | null;
   return !!l && typeof l === 'object'
+    && (provider === undefined || provider === 'mock' || l.ran_inside_sandbox === true)
     && typeof l.checked_at === 'string' && !Number.isNaN(Date.parse(l.checked_at))
     && typeof l.cli_version === 'string' && l.cli_version === version
     && typeof l.host === 'string' && l.host.length > 0

@@ -34,7 +34,9 @@ const text = (v: unknown, name: string, max: number): string | null => {
 // bare "5" or a zone-less local time would otherwise be parsed into a guess (re-review MINOR-3).
 const ISO_WITH_ZONE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})$/;
 export function explicitTime(v: unknown): string | null {
-  if (typeof v === 'number' && Number.isFinite(v) && v > 0) return new Date(v * 1000).toISOString();
+  // epoch seconds within a plausible window (2017 … now + 5 years): a relative "in 3600 s" or epoch
+  // milliseconds are not taken as a time (re-review nit)
+  if (typeof v === 'number' && Number.isFinite(v) && v >= 1.5e9 && v <= Date.now() / 1000 + 5 * 365 * 86400) return new Date(v * 1000).toISOString();
   if (typeof v === 'string' && ISO_WITH_ZONE.test(v) && !Number.isNaN(Date.parse(v))) return new Date(v).toISOString();
   return null;
 }

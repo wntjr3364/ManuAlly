@@ -1,5 +1,5 @@
 # RFC-010 — 실제 provider를 sandbox 안에서 실행하고 worker run 경로에 연결
-Status: accepted (delegated, 2026-10-09) — 구현은 P05 Writer(PW-042) 전에 한다
+Status: accepted (delegated, 2026-10-09) — 보안 경계 변경이라 P03 gate에서 사용자 확인 대상으로 표시한다. 구현은 P05 Writer(PW-042) 전에 한다
 Trigger task: PW-030(P03 통합 gate)
 Affected requirements/specs/contracts: REQ-024, REQ-025, REQ-026, REQ-027, REQ-028; docs/specs/07_AGENT_RUNTIME.md "실제 격리"
 
@@ -11,8 +11,8 @@ Problem and evidence:
 
 Proposed change:
 1. provider 실행 명령을 `runSandboxed`/`startRunProcess`의 형태로 감싼다.
-   - network `proxy`. 허용 목록은 provider API host:443만 둔다.
-   - 읽기 전용: CLI 설치 폴더. 쓰기: run 폴더와 run의 auth profile 사본 또는 bind.
+   - network `proxy`. 허용 목록은 provider API host:443과, 로그인 갱신에 필요한 인증 host:443이다. 목록은 live smoke에서 실측해 확정한다.
+   - 읽기 전용: CLI 설치 폴더. 쓰기: run 폴더와, 전용 격리 profile(개발자 `~/.claude`·`~/.codex`가 아님)의 bind. 자격증명은 복사하지 않는다(CLAUDE.md Safety).
    - 실행 사용자는 runtime 사용자다.
 2. adapter가 그 감싼 명령을 쓰도록 바꾼다(`packages/providers/src/claude|codex/**`). 버전 확인(`--version`)도 같은 sandbox 안에서 한다.
 3. tool gateway socket은 host 소유의 읽기 전용 폴더에 두고 bind한다(PW-027 리뷰 nit).
@@ -35,6 +35,7 @@ Data migration / backward compatibility: 없음(새 연결)
 Tests and acceptance criteria:
 - 대역 CLI를 sandbox 안에서 실행해 PW-030 chain 시험을 다시 통과한다.
 - run 폴더 밖 쓰기, host loopback, abstract socket은 닿지 않는다(PW-026 probe).
-- 취소하면 sandbox 안의 프로세스까지 끝난다.
+- 취소하면 sandbox 안의 프로세스까지 끝난다. unshare(`--kill-child`)와 bwrap(`--die-with-parent`, `--new-session`) 둘 다 시험한다.
+- live 증거에는 `ran_inside_sandbox: true`가 있어야 등록부가 승인한다(PW-030 리뷰 반영으로 검사 코드에 넣음).
 Write scope: `packages/providers/src/{claude,codex}/**`, `apps/worker/src/{runner,lifecycle}/**`, 새 `apps/worker/src/provider-runs/**`, 관련 tests/reports
 User decision / reviewer: 사용자 위임("니가 적절하게 선택해서 프로젝트 완성해라", 2026-10-09)으로 채택한다. 독립 리뷰가 확인한다.

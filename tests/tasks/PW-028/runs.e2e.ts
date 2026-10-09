@@ -51,7 +51,7 @@ test('TST-028A: reload keeps the run; 중지 stores the cancel; every reconnect 
   // stop
   await run.getByRole('button', { name: '중지' }).click();
   await expect(run).toHaveAttribute('data-status', 'CANCELLED');
-  await expect(run.getByTestId('run-status')).toHaveText('취소됨 — 결과 없음');
+  await expect(run.getByTestId('run-status')).toHaveText('취소됨 — 취소 뒤 결과는 반영되지 않음');
   expect((await dbStatus(paperId)).status).toBe('CANCELLED');
   // the worker's late answer cannot finish it: still cancelled a moment later, no answer stored
   await page.waitForTimeout(1500);
@@ -81,5 +81,5 @@ test('TST-028A: while offline the tab says so; when the network returns it shows
   await context.setOffline(false);
   await expect(page.getByTestId('runs-offline')).toHaveCount(0, { timeout: 10_000 });
   await expect(run).toHaveAttribute('data-status', 'CANCELLED');
-  await expect(run.getByTestId('run-status')).toHaveText('취소됨 — 결과 없음');
+  await expect(run.getByTestId('run-status')).toHaveText('취소됨 — 취소 뒤 결과는 반영되지 않음');
 });

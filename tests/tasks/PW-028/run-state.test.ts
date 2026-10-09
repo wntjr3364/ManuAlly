@@ -4,7 +4,7 @@ import { aiRuns, isActive, statusLabel } from '../../../apps/web/src/features/ru
 
 describe('run labels', () => {
   test('each stored status has one label; success says what finished and that nothing was applied', () => {
-    expect(statusLabel({ status: 'CANCELLED', result: null })).toBe('취소됨 — 결과 없음');
+    expect(statusLabel({ status: 'CANCELLED', result: null })).toBe('취소됨 — 취소 뒤 결과는 반영되지 않음'); // not "결과 없음": a proposal made before the stop stays
     expect(statusLabel({ status: 'SUCCEEDED', result: { kind: 'proposal' } })).toBe('제안 준비됨 — 적용은 원고에서 따로');
     expect(statusLabel({ status: 'SUCCEEDED', result: { kind: 'answer' } })).toBe('답변 완료 — 원고는 바뀌지 않음');
     expect(statusLabel({ status: 'STALE', result: null })).toMatch(/결과 없음/);

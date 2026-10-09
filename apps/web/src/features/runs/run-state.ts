@@ -26,7 +26,8 @@ export function statusLabel(r: Pick<RunRow, 'status' | 'result'>): string {
       return '완료';
     }
     case 'FAILED': return '실패 — 원고는 바뀌지 않음';
-    case 'CANCELLED': return '취소됨 — 결과 없음';
+    // a proposal the run made before the stop stays in the proposal list for review; nothing after it
+    case 'CANCELLED': return '취소됨 — 취소 뒤 결과는 반영되지 않음';
     case 'STALE': return '원고가 바뀌어 중단됨 — 결과 없음';
     case 'WAITING_QUOTA': return '사용량 한도 — 대기 중';
     case 'WAITING_AUTH': return 'AI 로그인 필요 — 대기 중';

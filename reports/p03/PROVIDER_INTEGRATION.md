@@ -3,21 +3,30 @@
 
 이 문서는 무엇을 **실제로 실행했는지**와 **실행하지 않았는지**를 나눠 적는다. 실제 Claude·Codex 호출은 이 개발 환경에서 한 번도 하지 않았다.
 - 사용자 로그인 profile, 비용·약관 승인, live 호출 허가가 없기 때문이다(CLAUDE.md, 세션 규칙).
-- 그래서 아래 어느 줄도 "v1 전체 연동 완료"를 뜻하지 않는다.
+- 그래서 아래 어느 줄도 v1에서 실제 provider를 쓸 준비가 끝났다는 뜻이 아니다.
 
 ## 상태 (기계 판독용 — `tests/tasks/PW-030/gate.test.ts`가 등록부와 대조한다)
 ```json
 {
   "providers": [
-    { "provider": "mock", "live": "executed", "what": "모의 provider로 선택 질문·교정·스트리밍·취소 전 과정(PW-020, PW-028 브라우저 시험)", "evidence": ["tests/tasks/PW-020/stream.e2e.ts", "tests/tasks/PW-028/runs.e2e.ts"] },
+    { "provider": "mock", "live": "executed", "what": "모의 provider로 선택 질문·교정·스트리밍·취소 전 과정. evidence는 실행 로그가 아니라 매번 실행되는 시험 파일이다(PW-020, PW-028 브라우저 시험)", "evidence": ["tests/tasks/PW-020/stream.e2e.ts", "tests/tasks/PW-028/runs.e2e.ts"] },
     { "provider": "claude_agent", "live": "not_run", "reason": "사용자 PC의 격리 로그인 profile과 live smoke 승인이 필요하다. 등록부 requires_verification", "stand_in": "tests/tasks/PW-024/claude.test.ts (대역 CLI)", "manual": "tests/tasks/PW-024/live-smoke.manual.ts" },
     { "provider": "codex", "live": "not_run", "reason": "사용자 PC의 로그인 profile, 바깥 sandbox 검증, live smoke 승인이 필요하다. app-server를 sandbox 안에서 띄우는 연결이 아직 없다. 등록부 requires_verification", "stand_in": "tests/integration/providers/codex-pipeline.int.test.ts (대역 app-server)", "manual": "tests/integration/providers/codex-live-smoke.manual.ts" }
+  ],
+  "open_items": [
+    { "item": "providers_inside_sandbox", "status": "open", "why": "RFC-010: adapter가 Claude CLI·Codex app-server를 아직 sandbox 밖에서 띄운다. 등록부는 sandbox 안 live 증거(ran_inside_sandbox)가 있어야 승인한다" },
+    { "item": "worker_provider_run_path", "status": "open", "why": "worker의 실제 provider run 경로(token 발급, superviseRun, 사용량 기록)가 아직 시험에서만 조합되어 있다(RFC-010)" },
+    { "item": "paragraph_draft_from_outline", "status": "blocked", "why": "개요 기반 1문단 초안은 P05 PW-042(Writer)에서 만든다" }
   ],
   "v1_provider_integration_complete": false
 }
 ```
 
 ## 실제로 실행한 것 (이 컨테이너, 대역 provider)
+- 이 연쇄 시험의 한계
+  - 승인된 등록부와 `sandbox: {verified: true}`는 시험이 만든 값이다.
+  - 사용량 event key(`thread:job:순번`)는 adapter가 만들 형식이 아니다.
+  - 수명 관리(`startRunProcess`/`superviseRun`)와 sandbox는 이 연쇄에 들어 있지 않다. 각각 PW-026·028 시험에서 따로 검증했다.
 `tests/integration/providers/codex-pipeline.int.test.ts`, 통합 3개.
 - 연결 순서(worker가 할 일을 시험에서 조합)
   1. 작업을 claim한다.
@@ -50,4 +59,4 @@
 ## 사용자 PC에서 할 일 (수동, 비용 발생)
 1. Claude: `tests/tasks/PW-024/live-smoke.manual.ts` 머리말의 순서대로 진행한다. 결과 JSON을 `reports/tasks/PW-024/live-evidence.json`에 저장한다.
 2. Codex: `tests/integration/providers/codex-live-smoke.manual.ts` 머리말의 순서대로 진행한다. 결과 JSON을 `reports/p03/evidence/codex-live.json`에 저장한다.
-3. 두 결과가 `passed: true`일 때만 등록부 행을 `approved`로 바꾸는 RFC를 올린다. 바꾸기 전에는 gate test가 위 표를 그대로 지킨다.
+3. RFC-010(provider를 sandbox 안에서 실행)이 구현된 뒤, 그 안에서 실행한 결과가 `passed: true`이고 `ran_inside_sandbox: true`일 때만 등록부 행을 `approved`로 바꾸는 RFC를 올린다. 등록부는 sandbox 밖 증거로는 승인을 받지 않는다(검사 코드). 바꾸기 전에는 gate test가 위 표를 그대로 지킨다.

@@ -10,7 +10,7 @@
 ## 변경 파일
 - `tests/integration/providers/`
   - `fake-codex-gateway.mjs`: PW-025 대역에 두 가지를 더했다. profile의 `tool-call.json`대로 도구를 호출하고, 누적 사용량을 보고한다.
-  - `codex-pipeline.int.test.ts`(통합 3)
+  - `codex-pipeline.int.test.ts`(통합 4, 리뷰 반영 후)
     - 연쇄: 작업 claim → run token(job fencing에 묶임) → 승인 결정 아래 Codex adapter → 도구 호출이 gateway를 거쳐 PENDING proposal → 누적 사용량이 ledger delta → 완료 → token 소멸
     - turn 중 중지: 취소 저장, interrupt, 늦은 도구 호출은 `invalid_token`, 늦은 완료는 "lease lost", proposal 증가 없음
     - 저장된 thread id로만 재개
@@ -48,5 +48,28 @@
 - MCP bridge, `HTTPS_PROXY` 준수, Codex 응답 형식은 실측 전이다.
 - 개요 기반 1문단 초안: blocked(P05).
 
+## 독립 리뷰 반영 (2026-10-09)
+리뷰 결론: 변경 요청. MAJOR 없음, minor 4·nit 4. 보고서의 정직성("adapter가 sandbox 밖에서 실행")은 확인됨.
+- MINOR-1: gate가 수동 스크립트 없는 not_run 줄을 통과시켰다(`path.resolve('')`는 항상 존재). 증거 경로도 저장소 밖(`/etc/hostname`)을 받았다.
+  - 고침: 인용 경로는 저장소의 `tests/`나 `reports/` 아래 상대 경로이고, 실제 파일이어야 한다.
+- MINOR-2: 두 provider가 승인되면 "완료"를 강제했다. 초안 기능이 blocked이고 RFC-010이 미구현이어도 마찬가지였다. 본문 검사 단어 목록도 좁았다.
+  - 고침: 블록에 `open_items`(sandbox 안 실행, worker 연결, 개요 기반 초안)를 두었다. 완료는 모든 provider 승인 + 모든 항목 done일 때만 허용한다. 본문 검사는 "연동·통합·integration" 근처의 "완료·끝났·complete·done"을 넓게 찾는다.
+- MINOR-3: live smoke 증거에 `sandbox.verified: true`가 남아, sandbox 안에서 실행한 것처럼 보였다. 그 증거로 Codex를 승인하는 것도 막는 코드가 없었다.
+  - 고침
+    - 증거에 `ran_inside_sandbox: false`와 `host_sandbox_checked`를 남긴다. 머리말을 바로잡았다.
+    - 등록부가 실제 provider(Claude·Codex)를 승인하려면 live 증거에 `ran_inside_sandbox: true`가 있어야 한다(`liveEvidenceOk`, 범위 밖 수정은 RFC-009 부록). PW-023 시험에 거부 사례를 더했다.
+    - 보고서 3단계에 RFC-010 전제를 적었다.
+- MINOR-4: 연쇄 시험이 취소 경로를 대충 다뤘다.
+  - interrupt 전송을 `seen.json`으로 확인한다.
+  - 주석을 바로잡았다(도구 호출은 중지와 비슷한 때 도착한다. 어느 쪽이 먼저든 취소 뒤에는 아무것도 생기지 않는다).
+  - 시험 머리말에 supervisor·sandbox가 빠졌다고 적었다.
+  - "취소 전에 만든 제안" 시험을 더했다: 제안은 PENDING으로 남고, 작업은 CANCELLED, 완료는 거부, 문서는 그대로다.
+  - 이 경우 "취소됨 — 결과 없음"은 틀린 말이다. 실행 화면 문구를 "취소됨 — 취소 뒤 결과는 반영되지 않음"으로 바꿨다(PW-028 파일).
+- nit
+  - RFC-010: "auth profile 사본"을 "전용 격리 profile bind, 자격증명 복사 금지"로 고쳤다. 로그인 갱신 host와 bwrap 종료 시험을 더했다. 상태는 "P03 gate에서 사용자 확인 대상"으로 표시했다.
+  - 보고서에 연쇄 시험의 한계(시험이 만든 등록부·sandbox 값, event key 형식)를 적었다.
+  - mock 줄의 증거가 시험 파일이라고 적었다.
+- 증거: `mutation.log` 아래쪽 8종 탐지(수동 스크립트 누락, 저장소 밖 증거, 미결 항목이 있는데 완료 주장, 본문 "통합 완료"·"integration done", 등록부의 실행 위치 무시, 취소 문구, interrupt 미전송).
+
 ## 다음
-P03 gate 보고서(리뷰 반영 뒤) → P04 PW-031
+P03 gate 보고서 → P04 PW-032

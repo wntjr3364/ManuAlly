@@ -4,7 +4,9 @@
 // through the gateway and becomes a pending proposal (PW-017/027) → the provider's usage reports go to
 // the ledger (PW-029) → the job completes under its fencing token. Then: stop in the middle of a turn
 // (nothing is created, the token is dead), and resume of the stored thread id only.
-// What this does NOT show: that the real Codex CLI behaves like the stand-in (see reports/p03).
+// What this does NOT show: that the real Codex CLI behaves like the stand-in; the process supervisor
+// (startRunProcess/superviseRun) and the sandbox, which are not part of this chain (PW-026/028 test
+// them on their own); the registry and sandbox verdicts here are test-made (see reports/p03).
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -35,7 +37,7 @@ const KEY = { version: 'codex-cli 0.161.0', auth_mode: 'chatgpt_login', deployme
 const now = Date.now();
 const APPROVED: Registry = loadRegistry({ entries: [{
   capability: { provider: 'codex', ...KEY, admission: 'approved', features: Object.fromEntries(FEATURES.map((f) => [f, 'unknown'])) },
-  evidence: { live_evidence: { checked_at: new Date(now).toISOString(), cli_version: KEY.version, host, tests: ['PW-030 stand-in'], passed: true } },
+  evidence: { live_evidence: { checked_at: new Date(now).toISOString(), cli_version: KEY.version, host, tests: ['PW-030 stand-in'], passed: true, ran_inside_sandbox: true } },
 }] });
 const decision = () => decideCodexCall(APPROVED, {
   key: KEY, purpose: 'paper_work', approval: { approved: true, max_turns: 5, budget_usd: 1 },
@@ -78,10 +80,12 @@ async function paperWithSelection() {
   const handle = (await app.inject({ method: 'POST', url: `/api/papers/${paperId}/documents/${d.document.id}/selection-handles`, headers: H, payload: { base_revision_id: head, selection } })).json();
   return { paperId: paperId as string, documentId: d.document.id as string, head: head as string, handleId: handle.id as string };
 }
+let lastRun: CodexRun | null = null;
 function runFolders(): CodexRun {
   const dir = fs.mkdtempSync(path.join(root, 'run-'));
   const r = { dir, cwd: path.join(dir, 'work'), homeDir: path.join(dir, 'home'), tmpDir: path.join(dir, 'tmp') };
   for (const x of [r.cwd, r.homeDir, r.tmpDir]) fs.mkdirSync(x, { mode: 0o700 });
+  lastRun = r;
   return r;
 }
 function profile(toolCall: unknown, flags: string[] = []) {
@@ -143,15 +147,29 @@ describe('P03 chain against the stand-in Codex', () => {
 
   test('stopping in the middle of a turn: the cancel is stored, the turn is interrupted, the late tool call creates nothing', async () => {
     const s = await paperWithSelection();
-    // slow: the turn stays open until interrupted. The stand-in makes its tool call at turn start (before
-    // the stop); a late call after the stop is made directly with the run's token.
+    // slow: the turn stays open until interrupted. The stand-in's tool call reaches the gateway around the
+    // stop; whichever comes first, nothing is created after the cancel. A late call is also made directly.
     const r = await runCodexJob(s, { flags: ['slow'], stopAfter: 1 });
     expect((await pool.query('SELECT status FROM jobs WHERE id = $1', [r.job.id])).rows[0].status).toBe('CANCELLED');
+    // the adapter interrupted the provider's turn (recorded by the stand-in)
+    expect(JSON.parse(fs.readFileSync(path.join(lastRun!.homeDir, 'seen.json'), 'utf8')).client).toContain('turn/interrupt');
     const before = (await pool.query('SELECT count(*)::int AS n FROM edit_proposals WHERE document_id = $1', [s.documentId])).rows[0].n;
     const late = await callTool(pool, r.token.token, 'propose_manuscript_edit', { handle_id: s.handleId, intent: 'concise', replacement: [{ type: 'text', text: 'late' }] });
     expect(late.error?.code).toBe('invalid_token');
     expect((await pool.query('SELECT count(*)::int AS n FROM edit_proposals WHERE document_id = $1', [s.documentId])).rows[0].n).toBe(before);
     await expect(completeJob(pool, { jobId: r.job.id, fencingToken: r.fencingToken, result: { kind: 'proposal' } })).rejects.toThrow(/lease lost/);
+  });
+
+  // review MINOR-4: a proposal made before the cancel stays a proposal for the user to review; the run
+  // itself ends cancelled and can no longer finish or create anything
+  test('a proposal made before the cancel stays pending; the cancelled run cannot finish', async () => {
+    const s = await paperWithSelection();
+    const r = await runCodexJob(s); // the turn completes and the tool call created a proposal
+    await app.inject({ method: 'POST', url: `/api/papers/${s.paperId}/jobs/${r.job.id}/cancel`, headers: H, payload: {} });
+    expect((await pool.query('SELECT status FROM edit_proposals WHERE document_id = $1', [s.documentId])).rows).toEqual([{ status: 'PENDING' }]);
+    expect((await pool.query('SELECT status FROM jobs WHERE id = $1', [r.job.id])).rows[0].status).toBe('CANCELLED');
+    await expect(completeJob(pool, { jobId: r.job.id, fencingToken: r.fencingToken, result: { kind: 'proposal' } })).rejects.toThrow(/lease lost/);
+    expect((await pool.query('SELECT head_revision_id FROM documents WHERE id = $1', [s.documentId])).rows[0].head_revision_id).toBe(s.head);
   });
 
   test('resume continues the stored thread id only; an unknown id is refused', async () => {

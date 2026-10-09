@@ -5,3 +5,12 @@ KILLED  prose claims completion :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯�
 KILLED  executed without evidence :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 4 passed (5) 
 KILLED  not-run row without a reason :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 4 passed (5) 
 KILLED  registry approves codex without live evidence :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯       Tests  3 failed | 2 passed (5) 
+# review fixes
+KILLED  not-run row without its manual script :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 4 passed (5) 
+KILLED  evidence outside the repo :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 4 passed (5) 
+KILLED  complete claimed with open items :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 4 passed (5) 
+KILLED  prose: 통합 완료 :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 4 passed (5) 
+KILLED  prose: integration done :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 4 passed (5) 
+KILLED  registry ignores where the live run happened :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 18 passed (19) 
+KILLED  cancel label claims no result :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 1 passed (2) 
+KILLED  interrupt not sent on stop :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 3 passed (4) 

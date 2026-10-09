@@ -41,3 +41,4 @@ User decision / reviewer:
 - PW-028: `apps/web/src/features/paper/PaperPage.tsx`("AI 실행" 탭 연결)
 - PW-029: `apps/api/src/usage/**`(새 route 폴더: `GET /api/papers/:paperId/usage`, `GET /api/providers/quota`), `apps/api/src/server.ts`(등록), `apps/web/src/features/paper/PaperPage.tsx`("AI 실행" 탭에 사용량 패널)
 - PW-028 리뷰 반영: `packages/domain/src/tool-policy/index.ts`(run token을 job의 fencing token에 묶음: 발급 시 확인, 호출 때마다 RUNNING·같은 token일 때만 유효)
+- PW-030 리뷰 반영: `packages/providers/src/core/capabilities.ts`, `packages/providers/src/core/admission.ts`(실제 provider 승인에 `ran_inside_sandbox: true` live 증거 필요), `apps/web/src/features/runs/run-state.ts`(취소 문구), `tests/tasks/PW-023|024|025` 고정값(live 증거에 `ran_inside_sandbox`)

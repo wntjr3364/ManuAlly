@@ -22,7 +22,7 @@ const KEY = { version: 'codex-cli 0.161.0', auth_mode: 'chatgpt_login', deployme
 // the registry after a passed live smoke on this machine (the shipped one is requires_verification)
 const APPROVED: Registry = loadRegistry({ entries: [{
   capability: { provider: 'codex', ...KEY, admission: 'approved', features: Object.fromEntries(FEATURES.map((f) => [f, 'unknown'])) },
-  evidence: { live_evidence: { checked_at: new Date(now).toISOString(), cli_version: KEY.version, host, tests: ['PW-025 live'], passed: true } },
+  evidence: { live_evidence: { checked_at: new Date(now).toISOString(), cli_version: KEY.version, host, tests: ['PW-025 live'], passed: true, ran_inside_sandbox: true } },
 }] });
 const approval = { approved: true, max_turns: 10, budget_usd: 1 };
 const decision = (over: Record<string, unknown> = {}, reg = APPROVED) => decideCodexCall(reg, { key: KEY, purpose: 'paper_work', approval, sentinel: sentinel(), sandbox: sandbox(), now, host, ...over });

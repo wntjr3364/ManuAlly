@@ -10,9 +10,12 @@
 //   node --experimental-strip-types tests/integration/providers/codex-live-smoke.manual.ts \
 //     --profile ~/.local/state/paper-workspace/codex-profile --sentinel /tmp/sentinel.json \
 //     --approve-live-smoke --codex "$(command -v codex)" --out reports/p03/evidence/codex-live.json
-// It first verifies the outer sandbox on this host (no model call), then runs: initialize, one thread,
-// one turn ("Reply with the word READY."), and records: CLI version, host, time, the event kinds seen,
-// whether READY came back, the decline answers the server accepted, and usage. No tokens, no secrets.
+// It first verifies that the outer sandbox works on this host (no model call), then runs: initialize,
+// one thread, one turn ("Reply with the word READY."), and records: CLI version, host, time, the event
+// kinds seen, whether READY came back, and usage. No tokens, no secrets.
+// NOTE: until RFC-010 is implemented the app-server itself runs OUTSIDE the sandbox (as does the
+// `--version` read below). The evidence says so (ran_inside_sandbox: false), and the registry refuses
+// to approve Codex on such evidence.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -43,7 +46,7 @@ const decision = decideCodexCall(loadRegistry(), { key: { version: `codex-cli ${
 if (!decision.allowed) { console.error(`not run: ${decision.reason}`); process.exit(2); }
 
 const run = prepareRun({ runsRoot, runId: crypto.randomUUID() });
-const evidence: Record<string, unknown> = { checked_at: new Date().toISOString(), host: os.hostname(), cli_version: `codex-cli ${version}`, sandbox: { kind: sandbox.kind, verified: sandbox.verified }, tests: ['PW-030 codex live smoke'] };
+const evidence: Record<string, unknown> = { checked_at: new Date().toISOString(), host: os.hostname(), cli_version: `codex-cli ${version}`, host_sandbox_checked: { kind: sandbox.kind, verified: sandbox.verified }, ran_inside_sandbox: false, tests: ['PW-030 codex live smoke'] };
 try {
   const server = await startCodexServer({ decision, cmd: codex, run, profileDir: profile });
   const thread = await server.startThread();

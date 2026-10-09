@@ -27,7 +27,7 @@ const entry = (admission: string, live: unknown) => ({
   capability: { provider: 'claude_agent', ...KEY, admission, features: Object.fromEntries(FEATURES.map((f) => [f, 'unknown'])) },
   evidence: { live_evidence: live },
 });
-const LIVE = { checked_at: new Date(now).toISOString(), cli_version: VERSION, host, tests: ['PW-024 TST-024A'], passed: true };
+const LIVE = { checked_at: new Date(now).toISOString(), cli_version: VERSION, host, tests: ['PW-024 TST-024A'], passed: true, ran_inside_sandbox: true };
 const APPROVED: Registry = loadRegistry({ entries: [entry('approved', LIVE)] });
 const SHIPPED: Registry = loadRegistry();
 

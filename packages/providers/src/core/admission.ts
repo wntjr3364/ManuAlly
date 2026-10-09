@@ -44,7 +44,7 @@ export function decideRun(registry: Registry, a: {
   if (cap.admission === 'disabled') return deny('this provider/auth/deployment is disabled');
   const entry = registry.entries.find((x) => x.capability.provider === k.provider && x.capability.version === k.version && x.capability.auth_mode === k.auth_mode && x.capability.deployment_profile === k.deployment_profile);
   if (a.purpose === 'paper_work') {
-    if (cap.admission !== 'approved' || !liveEvidenceOk(entry?.evidence.live_evidence, k.version)) return deny(`admission is ${cap.admission}: paper work needs live evidence for ${k.version} from this machine (run the live smoke first)`);
+    if (cap.admission !== 'approved' || !liveEvidenceOk(entry?.evidence.live_evidence, k.version, k.provider)) return deny(`admission is ${cap.admission}: paper work needs live evidence for ${k.version} from this machine (run the live smoke first)`);
   } else if (a.purpose !== 'live_smoke') return deny('unknown purpose');
   if (k.provider === 'codex') {
     const sb = a.sandbox;

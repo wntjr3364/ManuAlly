@@ -167,12 +167,12 @@ describe('TST-029B: no double counting, no invented reset times', () => {
 
   // re-review MINOR-3: only explicit times are times
   test('a reset time without an explicit zone, or not a full ISO time, is kept raw with a reason — never parsed into a guess', async () => {
-    for (const [raw, n] of [['5', 1], ['12', 2], ['2026-10-09T15:00:00', 3], ['tomorrow', 4]] as const) {
+    for (const [raw, n] of [['5', 1], ['12', 2], ['2026-10-09T15:00:00', 3], ['tomorrow', 4], [3600, 6], [1.7e12, 7]] as const) {
       await recordQuota(pool, { provider: 'codex', authProfileId: 'codex-strict', bucket: `b${n}`, eventKey: `strict-${n}`, data: { status: 'warning', used_percent: 50, resets_at: raw, raw_resets_at: null, unknown_reason: null } });
     }
     await recordQuota(pool, { provider: 'codex', authProfileId: 'codex-strict', bucket: 'b5', eventKey: 'strict-5', data: { status: 'warning', used_percent: 50, resets_at: '2026-10-09T15:00:00+09:00', raw_resets_at: null, unknown_reason: null } });
     const rows = (await quotaStatus(pool, { provider: 'codex' })).filter((r) => r.auth_profile_id === 'codex-strict');
-    for (const b of ['b1', 'b2', 'b3', 'b4']) expect(rows.find((r) => r.bucket === b), b).toMatchObject({ resets_at: null, unknown_reason: 'reset time in an unverified format' });
+    for (const b of ['b1', 'b2', 'b3', 'b4', 'b6', 'b7']) expect(rows.find((r) => r.bucket === b), b).toMatchObject({ resets_at: null, unknown_reason: 'reset time in an unverified format' });
     expect(rows.find((r) => r.bucket === 'b5')!.resets_at).toBe('2026-10-09T06:00:00.000Z');
     await expect(recordUsage(pool, { paperId: await paper(), provider: 'codex', nativeSessionId: 'x', eventKey: S(), observedAt: '2026-10-09 10:00', data: u('turn', 1, 1, 0) })).rejects.toThrow(/observed_at/);
   });

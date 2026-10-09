@@ -49,8 +49,8 @@ if (!decision.allowed) { console.error(`not run: ${decision.reason}`); process.e
 
 const evidence: Record<string, unknown> = { checked_at: new Date().toISOString(), host: os.hostname(), cli_version: `codex-cli ${version}`, host_sandbox_checked: { kind: sandbox.kind, verified: sandbox.verified }, ran_inside_sandbox: true, tests: ['PW-030 codex live smoke (RFC-010: inside the sandbox)'] };
 try {
-  const r = await withSandboxedRun({ provider: 'codex', cli: codex!, cliRoot: expand(opt('--cli-root')), profile: profile!, backend }, async ({ run, launcher, parentEnv }) => {
-    const server = await startCodexServer({ decision, cmd: codex!, run, profileDir: profile!, launcher, parentEnv });
+  const r = await withSandboxedRun({ provider: 'codex', cli: codex!, cliRoot: expand(opt('--cli-root')), profile: profile!, backend }, async ({ run, launcher, parentEnv, stateDir }) => {
+    const server = await startCodexServer({ decision, cmd: codex!, run, profileDir: stateDir, launcher, parentEnv });
     const thread = await server.startThread();
     const kinds: string[] = [];
     let text = '';

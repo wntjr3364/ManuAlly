@@ -1,9 +1,10 @@
 // The launcher the worker gives an adapter (RFC-010): the CLI runs inside the Linux sandbox (PW-026)
 // with the run's folder, the read-only folders it needs (CLI install, Node, the gateway folder), the
-// isolated auth profile as its only other writable folder, and network only through the run's egress
-// proxy. The `--version` check runs in the same sandbox without network. The started process carries
-// the run's marker in its own environment (the sandbox clears the CLI's), so the supervisor can
-// recognise and end it; ending it ends the sandbox's PID namespace and everything inside.
+// paper's own CLI state folder as its only other writable folder (with the login credential file bound
+// into it — RFC-010 review), and network only through the run's egress proxy. The `--version` check
+// runs in the same sandbox without network. The started process carries the run's marker in its own
+// environment (the sandbox clears the CLI's), so the supervisor can recognise and end it; ending it
+// ends the sandbox's PID namespace and everything inside.
 import path from 'node:path';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import type { Launcher } from '@pw/providers/core/launch.ts';
@@ -14,14 +15,14 @@ export interface StartedRunProcess { child: ChildProcess; pid: number; ticks: nu
 export interface SandboxedLauncher extends Launcher { started(): StartedRunProcess | null }
 
 export function sandboxedLauncher(a: {
-  backend: Backend; run: SandboxRun; egressSocket: string; nodePath: string; readOnly: string[]; writable: string[]; limits?: Limits;
+  backend: Backend; run: SandboxRun; egressSocket: string; nodePath: string; readOnly: string[]; writable: string[]; fileBinds?: { source: string; target: string }[]; limits?: Limits;
 }): SandboxedLauncher {
   if (!path.isAbsolute(a.nodePath)) throw new Error('refused: the node binary must be an absolute path');
   // the Node install the forwarder (and a Node-based CLI) needs, read-only
   const readOnly = [...new Set([...a.readOnly, path.dirname(path.dirname(a.nodePath))])];
   const spec = (env: Record<string, string>, cwd: string, program: string[]) => {
     if (path.resolve(cwd) !== path.resolve(a.run.cwd)) throw new Error('refused: a sandboxed CLI runs in its run\'s work folder');
-    return { backend: a.backend, run: a.run, readOnly, writable: a.writable, env, limits: a.limits, program };
+    return { backend: a.backend, run: a.run, readOnly, writable: a.writable, fileBinds: a.fileBinds, env, limits: a.limits, program };
   };
   let started: StartedRunProcess | null = null;
   return Object.freeze({

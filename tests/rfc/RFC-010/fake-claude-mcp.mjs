@@ -5,8 +5,11 @@
 // talks MCP to them; it makes the tool call the profile asks for (`tool-call.json`) and reports, as
 // assistant text, what the tool answered and what it could reach from inside (`PROBE {...}`): files
 // outside its run, the gateway folder (read-only), the host's loopback and abstract sockets.
-// Test controls in the profile: `probe.json` (paths and ports to try), `grandchild` (start a detached
-// `sleep` in a new session, named by the file's content, then wait), `slow` (wait before answering).
+// CLAUDE_CONFIG_DIR is the paper's own state folder; the login is its `.credentials.json` (bound in from
+// the login profile). Test controls are files the test puts in the state folder: `probe.json` (paths
+// and ports to try), `grandchild` (start a detached `sleep` in a new session, named by the file's
+// content, then wait), `slow` (wait before answering), `refresh` (rewrite the credential in place, as a
+// token refresh would). Each turn leaves a transcript in sessions/<id>.json, as the real CLI does.
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
@@ -54,7 +57,10 @@ const tryConnect = (opts) => new Promise((r) => {
 
 process.stdin.resume(); // the prompt (not used by this stand-in)
 process.stdin.on('end', async () => {
-  if (!has('logged-in')) { out({ type: 'result', subtype: 'error_during_execution', is_error: true, result: 'Not logged in · Please run /login', session_id: id }); process.exit(1); }
+  if (!has('.credentials.json') || !read('.credentials.json').trim()) { out({ type: 'result', subtype: 'error_during_execution', is_error: true, result: 'Not logged in · Please run /login', session_id: id }); process.exit(1); }
+  fs.mkdirSync(path.join(profile, 'sessions'), { recursive: true });
+  fs.writeFileSync(path.join(profile, 'sessions', `${id}.json`), JSON.stringify({ transcript: 'this paper only' }));
+  if (has('refresh')) fs.writeFileSync(path.join(profile, '.credentials.json'), read('refresh'));
   out({ type: 'system', subtype: 'init', session_id: id, tools: [], mcp_servers: [], model: 'fake-model' });
   const cfg = JSON.parse(fs.readFileSync(get('--mcp-config'), 'utf8'));
   const server = cfg.mcpServers.paper;
@@ -67,9 +73,14 @@ process.stdin.on('end', async () => {
     const sock = server.args[1];
     const probe = {
       readDecoy: tryFs(() => fs.readFileSync(p.decoy)),
+      readOtherPaperState: p.otherState ? tryFs(() => fs.readdirSync(p.otherState)) : null,
+      readLoginProfileOther: p.loginExtra ? tryFs(() => fs.readFileSync(p.loginExtra)) : null,
+      credentialReadable: tryFs(() => fs.readFileSync(path.join(profile, '.credentials.json'))),
       writeOutside: tryFs(() => fs.writeFileSync(path.join(p.outsideDir, 'x'), 'x')),
       listRunsRoot: (() => { try { return fs.readdirSync(p.runsRoot); } catch (e) { return e.code; } })(),
       replaceSocket: tryFs(() => fs.unlinkSync(sock)),
+      // wherever the run's egress socket is (the run folder is the parent of the work folder)
+      replaceEgressSocket: tryFs(() => fs.unlinkSync([path.join(path.dirname(process.cwd()), 'egress.sock'), path.join(path.dirname(sock), 'egress.sock')].find((f) => fs.existsSync(f)) ?? '/nonexistent-egress')),
       writeGatewayDir: tryFs(() => fs.writeFileSync(path.join(path.dirname(sock), 'planted'), 'x')),
       hostTcp: await tryConnect({ host: '127.0.0.1', port: p.tcpPort }),
       abstractSocket: await tryConnect({ path: `\0${p.abstract}` }),

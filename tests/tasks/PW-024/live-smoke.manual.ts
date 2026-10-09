@@ -45,12 +45,12 @@ if (!decision.allowed) { console.error(`not run: ${decision.reason}`); process.e
 const backend = smokeBackend();
 const egressSeen: { target: string; allowed: boolean }[] = [];
 async function turn(prompt: string, session: { new: string } | { resume: string }) {
-  const r = await withSandboxedRun({ provider: 'claude_agent', cli: claude!, cliRoot: expand(opt('--cli-root')), profile: profile!, backend }, async ({ run, launcher, parentEnv }) => {
+  const r = await withSandboxedRun({ provider: 'claude_agent', cli: claude!, cliRoot: expand(opt('--cli-root')), profile: profile!, backend }, async ({ run, launcher, parentEnv, stateDir }) => {
     // no paper tools in the smoke: an MCP config without servers, in the read-only gateway folder
     const mcpConfigPath = path.join(run.gatewayDir, 'mcp.json');
     fs.writeFileSync(mcpConfigPath, JSON.stringify({ mcpServers: {} }), { mode: 0o600 });
     const run2: ClaudeRun = { dir: run.dir, cwd: run.cwd, homeDir: run.homeDir, tmpDir: run.tmpDir, mcpConfigPath };
-    const t = startClaudeTurn({ decision, cmd: claude!, run: run2, profileDir: profile!, prompt, session, effort: 'low', launcher, parentEnv });
+    const t = startClaudeTurn({ decision, cmd: claude!, run: run2, profileDir: stateDir, prompt, session, effort: 'low', launcher, parentEnv });
     const events = [];
     for await (const e of t.events) events.push(e);
     return { events, result: await t.done };

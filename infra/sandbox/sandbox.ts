@@ -36,6 +36,9 @@ export interface SandboxSpec {
   // runs the forwarder (its install folder must be among the read-only paths)
   proxy?: { socket: string; node: string };
   readOnly?: string[]; writable?: string[];
+  // single files bound read-write at a path inside a writable folder (RFC-010 review: the login
+  // credential, and nothing else of the login profile, inside a paper's own CLI state folder)
+  fileBinds?: { source: string; target: string }[];
   env: Record<string, string>; limits?: Limits; program: string[];
 }
 export const PROXY_PORT = 3128;
@@ -77,6 +80,23 @@ function writablePaths(list: string[] | undefined): string[] {
   });
 }
 const exists = (p: string) => fs.existsSync(p) || !!fs.lstatSync(p, { throwIfNoEntry: false });
+// a file bind: the source a regular, private file of the runtime user (no links, nowhere developer state
+// lives); the target an existing regular file (a placeholder) inside one of the writable folders
+function fileBindPaths(s: Pick<SandboxSpec, 'fileBinds' | 'writable'>): { source: string; target: string }[] {
+  const writable = writablePaths(s.writable);
+  return (s.fileBinds ?? []).map(({ source, target }) => {
+    const [src] = absPaths([source], 'file bind source');
+    const [dst] = absPaths([target], 'file bind target');
+    for (const [p, what] of [[src!, 'source'], [dst!, 'target']] as const) {
+      const st = fs.lstatSync(p, { throwIfNoEntry: false });
+      if (!st || st.isSymbolicLink() || !st.isFile() || st.nlink > 1) return refuse(`file bind ${what} ${p} must be a regular file without other links`);
+      if (process.getuid && st.uid !== process.getuid()) refuse(`file bind ${what} ${p} is not the runtime user's own`);
+      if (st.mode & 0o077) refuse(`file bind ${what} ${p} must be private (mode 600)`);
+    }
+    if (!writable.some((w) => within(dst!, w) && dst !== w)) refuse(`file bind target ${dst} must lie inside a writable folder`);
+    return { source: src!, target: dst! };
+  });
+}
 
 const BRING_LO_UP = [
   'import socket, fcntl, struct',
@@ -172,6 +192,7 @@ export function bwrapArgs(s: Omit<SandboxSpec, 'limits'>, setup?: Pick<Setup, 'p
   if (s.run.gatewayDir) a.push('--ro-bind', s.run.gatewayDir, s.run.gatewayDir);
   if (setup) a.push('--ro-bind', setup.dir, setup.dir, '--ro-bind', setup.passwd, '/etc/passwd', '--ro-bind', setup.group, '/etc/group');
   for (const w of writablePaths(s.writable)) a.push('--bind', w, w);
+  for (const f of fileBindPaths(s)) a.push('--bind', f.source, f.target);
   // the four devices only, not bwrap's --dev (tty, ptmx, pts, shm …; review MINOR-2)
   a.push('--proc', '/proc', '--dir', '/dev');
   for (const d of DEVICES) a.push('--dev-bind', `/dev/${d}`, `/dev/${d}`);
@@ -198,6 +219,7 @@ function unshareScript(s: SandboxSpec, setup: Setup, newRoot: string): string {
   for (const d of [s.run.inputsDir, s.run.gatewayDir]) if (d) lines.push(`mount --bind ${sq(d)} "$NR"${sq(d)}`, `mount -o remount,bind,ro "$NR"${sq(d)}`);
   lines.push(`mount --bind ${sq(setup.dir)} "$NR"${sq(setup.dir)}`, `mount -o remount,bind,ro "$NR"${sq(setup.dir)}`);
   for (const w of writablePaths(s.writable)) lines.push(`mkdir -p "$NR"${sq(w)}`, `mount --bind ${sq(w)} "$NR"${sq(w)}`);
+  for (const f of fileBindPaths(s)) lines.push(`mount --bind ${sq(f.source)} "$NR"${sq(f.target)}`);
   lines.push('mkdir -p "$NR/proc" "$NR/dev"', 'mount -t proc proc "$NR/proc"');
   for (const d of DEVICES) lines.push(`touch "$NR/dev/${d}"`, `mount --bind /dev/${d} "$NR/dev/${d}"`);
   if (s.network === 'proxy') lines.push(`/usr/bin/python3 -I -c ${sq(BRING_LO_UP)}`);

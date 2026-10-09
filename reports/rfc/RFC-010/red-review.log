@@ -1,0 +1,12 @@
+     × Claude: a run proposes through the read-only gateway folder, records usage and leaves nothing behind; the CLI reaches nothing outside 711ms
+     × Codex: the app-server runs inside the sandbox; its tool call reaches the gateway; the job's run is recorded 693ms
+     × cancel: the run ends inside the sandbox too, including a process that left the session; the token dies 15047ms
+     × after a worker restart: a sandboxed run whose job no longer runs is recognised and ended by reconcile 15073ms
+     × each paper has its own state folder; transcripts stay there; a token refresh reaches the login profile 550ms
+     × instructions, hooks or settings planted in a paper's state folder stop the next start; a missing login is said 515ms
+     × MINOR: a run that fails half-way leaves no process and no folder (start recorded or not) 243ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  7 failed | 3 passed (10)
+  ✘  1 tests/tasks/PW-016/selection.e2e.ts:261:1 › an Esc meant for another control on the page does not close the popup (or lose its text) (8.9s)
+    Error: expect(locator).toBeVisible() failed
+  1 failed

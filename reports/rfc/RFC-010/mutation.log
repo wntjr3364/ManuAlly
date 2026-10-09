@@ -14,3 +14,16 @@ KILLED run_supervised
 KILLED folders_removed
 # after the reconcile test:
 KILLED marker_in_env
+# review fixes (Fri Oct  9 19:45:41 UTC 2026): RFC-010 integration (+ PW-016 browser for the Esc rule)
+KILLED credential_bind_passed
+KILLED state_is_login_profile
+KILLED state_shared_by_papers
+KILLED planted_check
+SURVIVED egress_socket_ro
+KILLED unshare_file_bind
+SURVIVED unrecorded_start_killed
+KILLED esc_only_from_here
+# after making the egress probe look where the socket is:
+KILLED egress_socket_ro
+# unrecorded_start_killed is equivalent alone: recordRunProcess kills the group itself when recording fails. Both removed:
+KILLED unrecorded_start_killed_both

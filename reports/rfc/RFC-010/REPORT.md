@@ -87,3 +87,24 @@ RFC 범위(`packages/providers/src/{claude,codex}/**`, `apps/worker/src/{runner,
 - `apps/api/src/agent-tools/**` → `apps/worker/src/provider-runs/`(이동)
 - 시험: PW-024·025·026·027, `tests/integration/providers/*`(test launcher 명시, 수동 smoke)
 - 회귀 중 찾은 결함: `apps/web/src/features/selection-chat/SelectionChat.tsx`(Esc), `tests/tasks/PW-016/selection.e2e.ts`(대기 조건, 새 시험)
+
+## 리뷰 반영 (1차, changes requested — MAJOR 1, MINOR 1, NIT 3)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR: 로그인 profile 하나가 모든 run에 쓰기 가능으로 bind됨. Codex는 sandbox 안 명령(`unified_exec`, 끌 수 없음)으로 다른 논문의 transcript와 `auth.json`을 읽을 수 있었다. Claude도 모든 논문의 세션이 한 profile에 있었다 | **논문마다 자기 CLI 상태 폴더**(`<stateRoot>/<provider>/<paper>`, 비공개·영속)를 쓴다. 세션과 transcript는 그 논문 것만 있다. 로그인 profile에서는 **credential 파일만**(`CREDENTIAL_FILES`: Claude `.credentials.json`, Codex `auth.json`) 그 폴더 안 자리로 읽기·쓰기 bind한다. token 갱신이 원래 파일에 그대로 반영된다. 로그인 profile의 나머지(다른 논문 transcript, settings, hooks)는 sandbox 안에 없다. sandbox에 단일 파일 bind를 더했다(`fileBinds`: 원본·대상 모두 실행 사용자의 비공개 일반 파일, 링크 없음, 대상은 쓰기 가능 폴더 안). 시작할 때마다 상태 폴더에 심어진 지시·hook·설정(`settings.json`, `CLAUDE.md`, `AGENTS.md`, `hooks/`, `.mcp.json`, 내용 있는 `config.toml` 등)이 있으면 거부한다(다음 run을 오염시키는 경로 차단). 로그인이 없으면 그렇게 말한다 | probe: 다른 논문의 상태 폴더 ENOENT, 로그인 profile의 다른 파일 ENOENT, credential은 읽힘(아래 공개). 상태 폴더 분리·transcript 위치·token 갱신 반영. 심어진 파일 4종 거부·로그인 없음 |
+| MINOR: 반쯤 시작한 run의 정리에 시험이 없음 | 시험 추가: (a) 시작 기록 실패(worker id 제약 위반) → CLI와 손자 프로세스가 사라지고 폴더도 없음. (b) 이벤트 처리 실패 → 기록된 run이 종료됨 | `MINOR: a run that fails half-way` |
+| NIT: Esc가 페이지 어디서든 팝업을 닫음 | 편집기, 팝업, 또는 포커스 없음(body)에서 온 Esc만 닫는다. 다른 입력칸·대화상자의 Esc는 팝업과 입력을 그대로 둔다 | 브라우저 `an Esc meant for another control` |
+| NIT: quota bucket 이름 | 정규화된 provider_event v1의 quota에는 bucket이 없다. 바꾸려면 계약 버전 변경이 필요하다. 지금은 `reported` 하나로 두고 남은 위험에 적었다 | — |
+| NIT: egress socket이 쓰기 가능한 run 폴더에 있음 | 읽기 전용 gateway 폴더로 옮겼다. CLI가 지우거나 바꿀 수 없다 | probe `replaceEgressSocket` EROFS |
+
+- 수동 live smoke 도구도 같은 방식으로 바꿨다(smoke 전용 상태 폴더, credential bind).
+- **공개**: CLI와 그 안에서 도는 명령은 자기가 쓰는 credential을 언제나 읽을 수 있다(로그인에 필요하다). 모델이 그것을 답에 되풀이할 위험은 남는다. 그래서 provider 답은 제안으로만 저장되고 사용자가 본다.
+- RED(`red-review.log`): 532a52a 구현으로 새·바뀐 시험 7개가 실패한다. Esc 시험도 실패한다.
+- GREEN: RFC-010 통합 10, PW-016 브라우저 10.
+- mutation(`mutation.log` 하단):
+  - 9종 탐지: credential bind 전달, 로그인 profile을 상태로 쓰기, 논문 간 상태 공유, 심어진 파일 검사, egress socket 위치(probe를 실제 위치로 고친 뒤), unshare 파일 bind, Esc 범위, 기록 안 된 시작의 종료(둘 다 제거 시)
+  - 1종 동치: 기록 실패 시 종료는 `recordRunProcess`가 먼저 한다.
+- 회귀: `pnpm test` exit 0 — unit 278, integration 383, contracts 17, 브라우저 87 (`pnpm-test-review.log`)
+- 남은 위험(추가):
+  - `CREDENTIAL_FILES`와 파일 bind 방식(제자리 쓰기)이 실제 CLI와 맞는지는 live smoke로 확인한다. CLI가 이름 바꾸기로 저장하면 갱신이 실패한다(인증 오류로 보임).
+  - quota bucket 구분이 없다.

@@ -3,11 +3,15 @@
 //   2. a run token bound to the job and its fencing token (the token stays in the worker)
 //   3. the tool gateway: Claude reaches it through the MCP bridge and a socket in the gateway folder;
 //      Codex asks through its app-server, answered here with the same gateway
-//   4. the run's egress proxy (only the allowlisted provider hosts)
-//   5. the adapter, given a launcher that starts the CLI inside the sandbox; the started process is
+//   4. the run's egress proxy (only the allowlisted provider hosts); its socket in the gateway folder
+//   5. the paper's own CLI state folder (sessions, transcripts: never another paper's), checked for
+//      planted instructions or hooks before each start, with only the login credential file bound
+//      into it from the login profile (RFC-010 review MAJOR). The CLI and the commands it runs inside
+//      can always read the credential they run with; nothing else of the login profile is there.
+//   6. the adapter, given a launcher that starts the CLI inside the sandbox; the started process is
 //      recorded as the job's run process and supervised (cancel or a lost lease → interrupt → group end)
-//   6. events: usage → the ledger, quota → quota observations
-//   7. always: token revoked, socket and proxy closed, the run process ended, folders removed
+//   7. events: usage → the ledger, quota → quota observations
+//   8. always: token revoked, socket and proxy closed, the run process ended, folders removed
 // Nothing here applies anything: tool calls create proposals only (PW-017/027).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,9 +37,50 @@ export const PROVIDER_EGRESS: Record<'claude_agent' | 'codex', EgressTarget[]> =
   codex: [{ host: 'chatgpt.com', port: 443 }, { host: 'api.openai.com', port: 443 }, { host: 'auth.openai.com', port: 443 }],
 };
 
+// The files of a login profile that hold the login (bound read-write: a CLI refreshes its token). To be
+// confirmed by the live smoke; a missing one shows as an auth failure, not as a leak.
+export const CREDENTIAL_FILES: Record<'claude_agent' | 'codex', string[]> = { claude_agent: ['.credentials.json'], codex: ['auth.json'] };
+// What may never sit in a paper's CLI state folder: instructions, settings with hooks, extra tools.
+// A run could plant them for the next run of the same paper; the next start refuses instead.
+const PLANTED = ['settings.json', 'settings.local.json', 'CLAUDE.md', 'CLAUDE.local.md', 'AGENTS.md', 'AGENTS.override.md', '.mcp.json', 'hooks', 'commands', 'agents', 'plugins', 'skills', 'prompts'];
+
+export class StateRefused extends Error {}
+export function assertCleanStateDir(dir: string): void {
+  for (const n of PLANTED) if (fs.existsSync(path.join(dir, n))) throw new StateRefused(`refused: the CLI state folder ${dir} holds ${n} (instructions, hooks or tools are not allowed there); remove it after checking`);
+  const cfg = path.join(dir, 'config.toml');
+  if (fs.existsSync(cfg) && fs.readFileSync(cfg, 'utf8').split('\n').some((l) => l.trim() && !l.trim().startsWith('#'))) throw new StateRefused(`refused: the CLI state folder ${dir} has a config.toml`);
+}
+
+// <stateRoot>/<provider>/<paper>: private folders of the runtime user; the credential's placeholder
+export function prepareStateDir(stateRoot: string, provider: 'claude_agent' | 'codex', paperId: string, loginProfile: string): { dir: string; binds: { source: string; target: string }[] } {
+  if (!UUID.test(paperId)) throw new StateRefused('refused: invalid paper id');
+  for (const d of [stateRoot, path.join(stateRoot, provider)]) {
+    if (!fs.existsSync(d)) fs.mkdirSync(d, { mode: 0o700 });
+    const st = fs.lstatSync(d);
+    if (st.isSymbolicLink() || !st.isDirectory() || st.mode & 0o077 || (process.getuid && st.uid !== process.getuid())) throw new StateRefused(`refused: ${d} must be a private folder of the runtime user`);
+  }
+  const dir = path.join(stateRoot, provider, paperId);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { mode: 0o700 });
+  const st = fs.lstatSync(dir);
+  if (st.isSymbolicLink() || !st.isDirectory() || st.mode & 0o077 || (process.getuid && st.uid !== process.getuid())) throw new StateRefused(`refused: ${dir} must be a private folder of the runtime user`);
+  assertCleanStateDir(dir);
+  const binds = CREDENTIAL_FILES[provider].map((name) => {
+    const source = path.join(loginProfile, name);
+    if (!fs.lstatSync(source, { throwIfNoEntry: false })?.isFile()) throw new StateRefused(`refused: the login profile has no ${name}; log in to the runtime profile first`);
+    const target = path.join(dir, name);
+    const t = fs.lstatSync(target, { throwIfNoEntry: false });
+    if (!t) fs.writeFileSync(target, '', { mode: 0o600 });
+    else if (t.isSymbolicLink() || !t.isFile()) throw new StateRefused(`refused: ${target} must be a plain file`);
+    return { source, target };
+  });
+  return { dir, binds };
+}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 export interface ProviderRunConfig {
   backend: Backend;
   runsRoot: string;
+  stateRoot: string; // the papers' own CLI state folders live below it (private, persistent)
   nodePath: string; // absolute; its install folder is bound read-only
   readOnly: string[]; // the CLI's install folder(s)
   egressAllow: EgressTarget[];
@@ -61,7 +106,7 @@ export async function runProviderTurn(pool: TxPool, a: {
   provider: 'claude_agent' | 'codex';
   decision: RunDecision;
   cmd: string;
-  profileDir: string;
+  profileDir: string; // the login profile: only its credential file reaches a run
   prompt: string;
   documentId: string | null;
   handleIds: string[];
@@ -98,9 +143,11 @@ export async function runProviderTurn(pool: TxPool, a: {
       ownerId: a.job.ownerId, paperId: a.job.paperId, documentId: a.documentId, handleIds: a.handleIds, provider: a.provider, tools: a.tools,
       ttlMs: c.tokenTtlMs ?? 30 * 60_000, jobId: a.job.id, fencingToken: a.job.fencingToken,
     });
-    egress = await startEgressProxy({ socketPath: path.join(run.dir, 'egress.sock'), allow: c.egressAllow });
+    // in the read-only gateway folder: the CLI cannot remove or replace it (review nit)
+    egress = await startEgressProxy({ socketPath: path.join(gwDir, 'egress.sock'), allow: c.egressAllow });
+    const state = prepareStateDir(c.stateRoot, a.provider, a.job.paperId, a.profileDir);
     const parentEnv = { PATH: `${path.dirname(c.nodePath)}:/usr/bin:/bin` };
-    const launcher = sandboxedLauncher({ backend: c.backend, run: { ...run, gatewayDir: gwDir }, egressSocket: egress.socketPath, nodePath: c.nodePath, readOnly: c.readOnly, writable: [a.profileDir], limits: c.limits });
+    const launcher = sandboxedLauncher({ backend: c.backend, run: { ...run, gatewayDir: gwDir }, egressSocket: egress.socketPath, nodePath: c.nodePath, readOnly: c.readOnly, writable: [state.dir], fileBinds: state.binds, limits: c.limits });
     const supervise = async (interrupt: () => Promise<void>) => {
       const st = launcher.started();
       if (!st) throw new Error('the CLI did not start');
@@ -121,7 +168,7 @@ export async function runProviderTurn(pool: TxPool, a: {
       fs.writeFileSync(mcpConfigPath, JSON.stringify({ mcpServers: { paper: { command: c.nodePath, args: [bridge, sock] } } }), { mode: 0o600 });
       const turn = startClaudeTurn({
         decision: a.decision, cmd: a.cmd, run: { dir: run.dir, cwd: run.cwd, homeDir: run.homeDir, tmpDir: run.tmpDir, mcpConfigPath },
-        profileDir: a.profileDir, prompt: a.prompt, session: a.session!, parentEnv, homes: a.homes, launcher,
+        profileDir: state.dir, prompt: a.prompt, session: a.session!, parentEnv, homes: a.homes, launcher,
       });
       nativeSessionId = 'new' in a.session! ? a.session!.new : a.session!.resume;
       await supervise(async () => { await turn.cancel({ graceMs: c.interruptGraceMs ?? 5000 }); });
@@ -129,7 +176,7 @@ export async function runProviderTurn(pool: TxPool, a: {
       claude = await turn.done;
     } else {
       const server = await startCodexServer({
-        decision: a.decision, cmd: a.cmd, run: { dir: run.dir, cwd: run.cwd, homeDir: run.homeDir, tmpDir: run.tmpDir }, profileDir: a.profileDir, parentEnv, homes: a.homes, launcher,
+        decision: a.decision, cmd: a.cmd, run: { dir: run.dir, cwd: run.cwd, homeDir: run.homeDir, tmpDir: run.tmpDir }, profileDir: state.dir, parentEnv, homes: a.homes, launcher,
         // the model's tool call → the gateway with this run's token (the token never reaches the CLI)
         onToolCall: async (name, args) => {
           const out = await callTool(pool, token!.token, name, args);

@@ -120,12 +120,17 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.isComposing || e.keyCode === 229) return;
       if (e.target instanceof Node && e.target === inputRef.current) return;
+      // only from the editor, the popup or no focused control: an Esc meant for another dialog or
+      // menu opened on top does not close this one (and lose its text; review nit)
+      const t = e.target instanceof Node ? e.target : null;
+      const fromHere = !t || t === document.body || editor?.view.dom.contains(t) || hostRef.current?.contains(t);
+      if (!fromHere) return;
       e.preventDefault();
       close();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [frozen, close]);
+  }, [frozen, close, editor]);
 
   const submit = () => {
     if (!frozen) return;

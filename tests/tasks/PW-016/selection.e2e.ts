@@ -257,3 +257,19 @@ test('Esc closes the popup wherever the focus is (an Esc before the popup takes 
   await expect(popup(page)).toBeHidden();
   await expect(editor(page)).toHaveText('alpha beta');
 });
+
+test('an Esc meant for another control on the page does not close the popup (or lose its text)', async ({ page }) => {
+  await login(page);
+  await newManuscript(page, 'Esc other paper');
+  await editor(page).click();
+  await page.keyboard.type('alpha beta');
+  await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
+  await selectText(page, 'beta');
+  await toolbar(page).getByRole('button', { name: '질문' }).click();
+  await expect(popup(page).getByRole('textbox')).toBeFocused();
+  await page.keyboard.type('Why?');
+  await page.getByLabel('인용 위치').focus();
+  await page.keyboard.press('Escape');
+  await expect(popup(page)).toBeVisible();
+  await expect(popup(page).getByRole('textbox')).toHaveValue('Why?');
+});

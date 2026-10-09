@@ -1,0 +1,173 @@
+ RUN  v5.0.1 /home/user/ManuAlly
+ ❯ tests/tasks/PW-037/retrieval.int.test.ts (12 tests | 7 failed) 1982ms
+   ❯ TST-037A: only what the selected paragraph relates to enters the context (4)
+     × cited excerpts (with locator), facts of mentioned figures and the claims on them; related-by-words marked; nothing unrelated 172ms
+   ❯ TST-037B: nothing leaks through scope, permissions or the cache (4)
+     × records: an identical context is recognised while every input is unchanged: a withdrawn permission, a removed reference, a retracted record or a new figure version are never served from it 83ms
+     × a changed paragraph (new document revision) is a new context 92ms
+   ❯ review fixes (4)
+     × MAJOR: a fact read from a source that may not be sent, or whose reference was removed, does not enter (not even by words) 97ms
+     × MINOR 1: a sensitive paper sends nothing 113ms
+     × MINOR 2: an excerpt (and a claim on it) from a work the library knows as retracted is withheld 127ms
+     × MINOR 3: the context is always computed now — a stored record is never served instead; records are pruned 93ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/tasks/PW-037/retrieval.int.test.ts > TST-037A: only what the selected paragraph relates to enters the context > cited excerpts (with locator), facts of mentioned figures and the claims on them; related-by-words marked; nothing unrelated
+AssertionError: expected { kind: 'fact', …(4) } to match object { kind: 'fact', …(3) }
+(1 matching property omitted from actual)
+- Expected
++ Received
+@@ -3,8 +3,8 @@
+    "locator": {
+      "figure_id": "fedcb772-fc89-47bb-9031-cb080dd20a5c",
+      "panel": "A",
+      "version_no": 1,
+    },
+-   "text": "ABC1 · fold change = 2.4 fold; group: abc1 vs WT; compared with: WT; n=3",
++   "text": "ABC1 fold change = 2.4 fold (abc1 vs WT vs WT, n=3)",
+    "via": "figure_ref",
+  }
+ ❯ tests/tasks/PW-037/retrieval.int.test.ts:97:33
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+ FAIL  tests/tasks/PW-037/retrieval.int.test.ts > TST-037B: nothing leaks through scope, permissions or the cache > records: an identical context is recognised while every input is unchanged: a withdrawn permission, a removed reference, a retracted record or a new figure version are never served from it
+AssertionError: expected undefined to be false // Object.is equality
+- Expected:
+false
++ Received:
+undefined
+ ❯ tests/tasks/PW-037/retrieval.int.test.ts:153:35
+    151|     const w = await world(ids.alice!);
+    152|     const first = await ctx(w, w.p1);
+    153|     expect(first.recorded_before).toBe(false);
+       |                                   ^
+    154|     const again = await ctx(w, w.p1);
+    155|     expect(again).toMatchObject({ recorded_before: true, fingerprint: …
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+ FAIL  tests/tasks/PW-037/retrieval.int.test.ts > TST-037B: nothing leaks through scope, permissions or the cache > a changed paragraph (new document revision) is a new context
+AssertionError: expected undefined to be false // Object.is equality
+- Expected:
+false
++ Received:
+undefined
+ ❯ tests/tasks/PW-037/retrieval.int.test.ts:190:31
+    188|     ] } });
+    189|     const b = await ctx(w, w.p1);
+    190|     expect(b.recorded_before).toBe(false);
+       |                               ^
+    191|     expect(b.fingerprint).not.toBe(a.fingerprint);
+    192|     expect(b.items.filter((i) => i.via !== 'lexical')).toEqual([]);
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+ FAIL  tests/tasks/PW-037/retrieval.int.test.ts > review fixes > MAJOR: a fact read from a source that may not be sent, or whose reference was removed, does not enter (not even by words)
+AssertionError: expected true to be false // Object.is equality
+- Expected
++ Received
+- false
++ true
+ ❯ tests/tasks/PW-037/retrieval.int.test.ts:204:50
+    202|     await reviewFact(pool, { paperId: w.paperId, ownerId: w.owner, id:…
+    203|     let c = await ctx(w, w.p1);
+    204|     expect(c.items.some((i) => i.id === f3!.id)).toBe(false);
+       |                                                  ^
+    205|     expect(c.withheld).toEqual(expect.arrayContaining([expect.objectCo…
+    206|     // the reference is removed: the fact is gone entirely
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+ FAIL  tests/tasks/PW-037/retrieval.int.test.ts > review fixes > MINOR 1: a sensitive paper sends nothing
+AssertionError: promise resolved "{ paragraph: { …(2) }, …(5) }" instead of rejecting
+- Expected
++ Received
+- Error {
+-   "message": "rejected promise",
++ {
++   "cached": false,
++   "fingerprint": "9ca30b33483727effa19334786df7379a3f29096502229984d69142ec0b93a7d",
++   "items": [
++     {
++       "id": "d6ea5a8a-1208-4682-904c-ed326207eb39",
++       "kind": "fact",
++       "locator": {
++         "evidence_id": "eb6562a8-4690-4302-983c-e426b2606b2f",
++         "figure_id": "a4d9d3e1-1713-4c69-a83c-4da5208f9d91",
++         "panel": "A",
++         "version_no": 1,
++       },
++       "text": "ABC1 fold change = 2.4 fold (abc1 vs WT vs WT, n=3)",
++       "via": "figure_ref",
++     },
++     {
++       "id": "45ec4f76-c696-48e4-8fee-40f8cb9bb0ac",
++       "kind": "claim",
++       "locator": {
++         "evidence_ids": [
++           "eb6562a8-4690-4302-983c-e426b2606b2f",
++         ],
++       },
++       "text": "ABC1 is induced 2.4-fold by drought.",
++       "via": "claim",
++     },
++   ],
++   "paragraph": {
++     "block_id": "8b2e2e54-7233-43b1-b701-54973ea3607e",
++     "text": "In drought-stressed roots ABC1 transcripts accumulate  and the transporter  is induced ().",
++   },
++   "truncated": false,
++   "withheld": [
++     {
++       "id": "a6d2d899-fc21-49e6-8aab-819d15911cac",
++       "kind": "excerpt",
++       "reason": "paper_is_sensitive",
++       "via": "citation",
++     },
++     {
++       "id": "c7fd6359-0579-4310-aef4-8d80efe8fa39",
++       "kind": "excerpt",
++       "reason": "paper_is_sensitive,asset_send_denied",
++       "via": "citation",
++     },
++     {
++       "id": "d3ca523f-b48f-4d90-83f8-9f36b6ed2261",
++       "kind": "excerpt",
++       "reason": "paper_is_sensitive",
++       "via": "lexical",
++     },
++   ],
+  }
+ ❯ tests/tasks/PW-037/retrieval.int.test.ts:216:31
+    214|     const w = await world(ids.alice!);
+    215|     await pool.query("UPDATE paper_projects SET data_classification = …
+    216|     await expect(ctx(w, w.p1)).rejects.toThrow(/sensitive/);
+       |                               ^
+    217|   });
+    218|
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+ FAIL  tests/tasks/PW-037/retrieval.int.test.ts > review fixes > MINOR 2: an excerpt (and a claim on it) from a work the library knows as retracted is withheld
+AssertionError: expected [ { kind: 'excerpt', …(3) } ] to deeply equal ArrayContaining{…}
+- Expected
++ Received
+- ArrayContaining [
+-   ObjectContaining {
+-     "id": "a931c206-91f2-43f3-838f-b6ee632a04ee",
+-     "reason": "source_retracted",
++ [
++   {
++     "id": "e531b9eb-f0ed-4b32-b312-5c20f5284947",
++     "kind": "excerpt",
++     "reason": "asset_send_denied",
++     "via": "citation",
+    },
+  ]
+ ❯ tests/tasks/PW-037/retrieval.int.test.ts:231:24
+    229|     await approveClaim(pool, { paperId: w.paperId, ownerId: w.owner, i…
+    230|     const c = await ctx(w, w.p1);
+    231|     expect(c.withheld).toEqual(expect.arrayContaining([expect.objectCo…
+       |                        ^
+    232|     expect(c.items.some((i) => i.id === w.e1.evidence.id || i.id === c…
+    233|   });
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+ FAIL  tests/tasks/PW-037/retrieval.int.test.ts > review fixes > MINOR 3: the context is always computed now — a stored record is never served instead; records are pruned
+error: immutable: retrieval_cache rows cannot be deleted
+ ❯ node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.0/node_modules/pg-pool/index.js:45:11
+ ❯ tests/tasks/PW-037/retrieval.int.test.ts:239:5
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+ Test Files  1 failed (1)
+      Tests  7 failed | 5 passed (12)
+   Start at  18:09:06
+   Duration  2.94s (tests 71%, transform 25%, import 4%)

@@ -1,7 +1,7 @@
 // Claims, evidence records and fact records (spec 02 "과학 근거", spec 05 "Evidence와 Fact").
 // Everything starts as a candidate/draft. Only the paper owner, through an explicit verify/approve
 // action that names the exact content hash, moves it on; requests can never carry a verifier.
-// A fact keeps the source's exact number text (DB-checked to equal its numeric value), its unit,
+// A fact keeps the source's exact number text (the DB checks it parses to the stored number), its unit,
 // groups, n and statistics; p, adjusted p and q are different statistic kinds and are never
 // inferred from loose labels or merged.
 import { randomUUID } from 'node:crypto';
@@ -23,7 +23,8 @@ const PROBABILITY_KINDS: StatKind[] = ['p_value', 'adjusted_p_value', 'q_value']
 // (conservative: a false match only asks for the comparison group)
 const RELATIVE_METRICS = /(fold|fc|ratio|diff|change|odds|hazard|relative|delta|\bvs\b|versus)/i;
 // a decimal number as printed in a source; the exponent is bounded so PostgreSQL numeric holds it
-const NUMBER = /^([+-]?)(\d+(?:\.\d*)?|\.\d+)(?:[eE]([+-]?\d{1,3}))?$/;
+// same shape as the DB CHECK on value_text (a trailing '.' like '2.' is refused by both)
+const NUMBER = /^([+-]?)(\d+(?:\.\d+)?|\.\d+)(?:[eE]([+-]?\d{1,3}))?$/;
 const MAX_EXPONENT = 300;
 
 function isNumberText(s: string): boolean {

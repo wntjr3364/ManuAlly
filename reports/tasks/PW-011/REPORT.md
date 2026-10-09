@@ -84,7 +84,7 @@ Status: in_review (독립 리뷰 대기) / Phase: P01 / Requirement: REQ-011
 PW-012 공유 editor schema + contracts(자동 시작하지 않음, 리뷰 후).
 
 ## 독립 리뷰 결과 반영 (2026-10-09)
-결론: changes requested(major 1, minor 6). 모두 수정했다.
+결론: changes requested(major 1, minor 6). 모두 수정했다. 재리뷰(2026-10-09): approve. minor 3건도 반영했다(아래).
 - 수정 위치: `pw_011_0002_review_fixes.sql`, `evidence/index.ts`, `routes/outlines/index.ts`(오류 응답을 공용 sender로 통일)
 - 회귀 시험: `tests/tasks/PW-011/review-fixes.int.test.ts` 22건. 수정 전 18건 실패(`review-red.log`). 4건은 이미 맞게 동작하던 경로의 보강이다.
 
@@ -103,3 +103,19 @@ PW-012 공유 editor schema + contracts(자동 시작하지 않음, 리뷰 후).
   - PW-011 통합 32/32(`green.log`)
   - `pnpm test` exit 0: unit 30, integration 97, contracts 6, e2e 1, spikes 70, evals/pack PASS
   - 이 수치에는 작업 중인 PW-012 시험(미커밋)도 포함되어 있다.
+
+### 재리뷰 minor 반영
+- 끝이 점인 숫자(`2.`)
+  - 이전: API는 받고 DB가 막아 모호한 422가 났다.
+  - 이제 API 정규식을 DB와 같게 맞춰 필드를 밝힌 422를 준다(시험 추가).
+- 시험 보강
+  - 통계 숫자·텍스트 불일치 CHECK를 같은 트랜잭션에서 직접 시험한다. 이전 시험은 seal trigger 때문에 통과하고 있었다.
+  - DB 시계 기록을 fact verify/retract와 claim approve/reject까지 확인한다.
+- 문구 정정: DB CHECK는 "텍스트가 저장된 숫자로 해석되는지"만 본다. `'2400'`과 2400처럼 정규화된 텍스트는 막지 못한다. 원문 보존을 실제로 보장하는 것은 API의 분리 bind이고, 이는 왕복 시험으로 확인한다.
+- **기존 데이터 주의**
+  - pw_011_0002는 PW-011 데이터가 이미 있는 DB에서 실패할 수 있다(보정법이 있는 p_value, manual_entry로 기록된 AI 사실).
+  - dbf806a 이전에 저장된 정규화 텍스트는 그대로 남는다.
+  - 현재는 배포된 데이터가 없어 영향이 없다. 그 이전에 만든 개발 DB는 다시 만들어야 한다.
+- API에서만 지키는 규칙
+  - 기각된 evidence에 link 금지
+  - observation trigger의 잠금은 API 경로가 먼저 잡는다

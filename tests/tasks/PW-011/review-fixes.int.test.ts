@@ -68,15 +68,33 @@ describe('review M1: the number text is stored exactly as the source wrote it', 
   test('the database refuses a numeric value that differs from its text', async () => {
     const p = await paper();
     const ev = await evidence(p.id);
-    const f = (await postFact(p.id, factBody(ev.id))).json();
     await expect(pool.query(
       "INSERT INTO fact_records (paper_id, evidence_id, entity, metric, value, value_text, unit, extraction_method, content_hash, origin, created_by) VALUES ($1, $2, 'e', 'm', 99, '1', 'u', 'manual_entry', repeat('0', 64), 'user', $3)",
       [p.id, ev.id, aliceId],
-    )).rejects.toThrow(/check/);
-    await expect(pool.query(
-      'BEGIN; ' + "INSERT INTO fact_statistics (fact_id, paper_id, kind, value, value_text) VALUES ($1, $2, 'q_value', 0.9, '0.001')".replace('$1', `'${f.id}'`).replace('$2', `'${p.id}'`) + '; COMMIT',
-    )).rejects.toThrow(/check|immutable/);
-    await pool.query('ROLLBACK').catch(() => {});
+    )).rejects.toThrow(/value_matches_text/);
+    // fact and mismatched statistic in the same transaction, so only the CHECK can refuse it
+    const c = await pool.connect();
+    try {
+      await c.query('BEGIN');
+      const { rows } = await c.query(
+        "INSERT INTO fact_records (paper_id, evidence_id, entity, metric, value, value_text, unit, extraction_method, content_hash, origin, created_by) VALUES ($1, $2, 'e', 'm', 1, '1', 'u', 'manual_entry', repeat('0', 64), 'user', $3) RETURNING id",
+        [p.id, ev.id, aliceId],
+      );
+      await expect(c.query("INSERT INTO fact_statistics (fact_id, paper_id, kind, value, value_text) VALUES ($1, $2, 'q_value', 0.9, '0.001')", [rows[0].id, p.id])).rejects.toThrow(/value_matches_text/);
+    } finally {
+      await c.query('ROLLBACK');
+      c.release();
+    }
+  });
+
+  test('a trailing decimal point gets the field-specific 422', async () => {
+    const p = await paper();
+    const ev = await evidence(p.id);
+    for (const [over, field] of [[{ value_text: '2.' }, 'value_text'], [{ statistics: [{ kind: 'p_value', value_text: '0.' }] }, 'statistics[0].value_text']] as const) {
+      const r = await postFact(p.id, factBody(ev.id, over));
+      expect(r.statusCode).toBe(422);
+      expect(r.json().field).toBe(field);
+    }
   });
 });
 
@@ -122,8 +140,20 @@ describe('review m3: the database also enforces claim evidence and review timest
     await expect(pool.query("UPDATE claims SET approval_state = 'APPROVED', approved_by = $2, approved_at = now() WHERE id = $1", [c.id, aliceId])).rejects.toThrow(/evidence/);
     const ev = await evidence(p.id);
     await pool.query("UPDATE evidence_records SET extraction_state = 'VERIFIED', verified_by = $2, verified_at = '1970-01-01' WHERE id = $1", [ev.id, aliceId]);
-    const { rows } = await pool.query('SELECT verified_at > now() - interval \'1 minute\' AS recent FROM evidence_records WHERE id = $1', [ev.id]);
-    expect(rows[0].recent).toBe(true);
+    const recent = async (sql: string, id: string) => (await pool.query(`SELECT ${sql} > now() - interval '1 minute' AS r FROM ${sql.split('.')[0]} WHERE id = $1`, [id])).rows[0].r;
+    expect(await recent('evidence_records.verified_at', ev.id)).toBe(true);
+    // every review stamp comes from the DB clock: fact verify/retract, claim approve/reject
+    const f = (await postFact(p.id, factBody(ev.id))).json();
+    await pool.query("UPDATE fact_records SET verification_state = 'VERIFIED', verified_by = $2, verified_at = '1970-01-01' WHERE id = $1", [f.id, aliceId]);
+    expect(await recent('fact_records.verified_at', f.id)).toBe(true);
+    await pool.query("UPDATE fact_records SET verification_state = 'RETRACTED', closed_at = '1970-01-01' WHERE id = $1", [f.id]);
+    expect(await recent('fact_records.closed_at', f.id)).toBe(true);
+    const bg = (await call('POST', `/api/papers/${p.id}/claims`, { kind: 'background', text: 'b' })).json();
+    await pool.query("UPDATE claims SET approval_state = 'APPROVED', approved_by = $2, approved_at = '1970-01-01' WHERE id = $1", [bg.id, aliceId]);
+    expect(await recent('claims.approved_at', bg.id)).toBe(true);
+    const rj = (await call('POST', `/api/papers/${p.id}/claims`, { kind: 'background', text: 'r' })).json();
+    await pool.query("UPDATE claims SET approval_state = 'REJECTED', closed_at = '1970-01-01' WHERE id = $1", [rj.id]);
+    expect(await recent('claims.closed_at', rj.id)).toBe(true);
   });
 });
 

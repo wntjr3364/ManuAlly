@@ -26,7 +26,7 @@ PW-024,P03,Claude Agent adapter,in_review,PW-023,REQ-024,"TST-024A,TST-024B",pac
 PW-025,P03,Codex App Server adapter,in_review,PW-024,REQ-025,"TST-025A,TST-025B",packages/providers/src/codex/**;tests/tasks/PW-025/**;reports/tasks/PW-025/**;db/migrations/pw_025_*
 PW-026,P03,Isolated runner·입출력 mount,in_review,PW-025,REQ-026,"TST-026A,TST-026B",apps/worker/src/runner/**;infra/sandbox/**;tests/tasks/PW-026/**;reports/tasks/PW-026/**;db/migrations/pw_026_*
 PW-027,P03,Typed tool gateway·scope,in_review,PW-026,REQ-027,"TST-027A,TST-027B",apps/api/src/agent-tools/**;packages/domain/src/tool-policy/**;tests/tasks/PW-027/**;reports/tasks/PW-027/**;db/migrations/pw_027_*
-PW-028,P03,Interrupt·취소·재연결,planned,PW-027,REQ-028,"TST-028A,TST-028B",apps/worker/src/lifecycle/**;apps/web/src/features/runs/**;tests/tasks/PW-028/**;reports/tasks/PW-028/**;db/migrations/pw_028_*
+PW-028,P03,Interrupt·취소·재연결,in_review,PW-027,REQ-028,"TST-028A,TST-028B",apps/worker/src/lifecycle/**;apps/web/src/features/runs/**;tests/tasks/PW-028/**;reports/tasks/PW-028/**;db/migrations/pw_028_*
 PW-029,P03,Usage·quota 관측 기본,planned,PW-028,REQ-029,"TST-029A,TST-029B",packages/domain/src/usage/**;apps/web/src/features/usage/**;tests/tasks/PW-029/**;reports/tasks/PW-029/**;db/migrations/pw_029_*
 PW-030,P03,실제 provider 통합 gate,planned,PW-029,REQ-030,"TST-030A,TST-030B",tests/integration/providers/**;reports/p03/**;tests/tasks/PW-030/**;reports/tasks/PW-030/**;db/migrations/pw_030_*
 PW-031,P04,서지 검색 adapter,planned,PW-030,REQ-031,"TST-031A,TST-031B",packages/search/src/bibliographic/**;tests/tasks/PW-031/**;reports/tasks/PW-031/**;db/migrations/pw_031_*

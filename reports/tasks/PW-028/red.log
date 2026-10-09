@@ -1,0 +1,12 @@
+ FAIL  tests/tasks/PW-028/lifecycle.int.test.ts [ tests/tasks/PW-028/lifecycle.int.test.ts ]
+Error: Cannot find module '../../../apps/worker/src/lifecycle/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-028/lifecycle.int.test.ts
+ Test Files  1 failed (1)
+      Tests  no tests
+ FAIL  tests/tasks/PW-028/run-state.test.ts [ tests/tasks/PW-028/run-state.test.ts ]
+Error: Cannot find module '../../../apps/web/src/features/runs/run-state.ts' imported from /home/user/ManuAlly/tests/tasks/PW-028/run-state.test.ts
+ Test Files  1 failed (1)
+      Tests  no tests
+  ✘  1 tests/tasks/PW-028/runs.e2e.ts:41:1 › TST-028A: reload keeps the run; 중지 stores the cancel; every reconnect shows the stored state (1.0m)
+  ✘  2 tests/tasks/PW-028/runs.e2e.ts:69:1 › TST-028A: while offline the tab says so; when the network returns it shows what the database holds (1.0m)
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Error: locator.click: Test timeout of 60000ms exceeded.

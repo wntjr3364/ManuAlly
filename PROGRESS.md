@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P02 완료(사용자 위임), P03 진행**. PW-015~027 in_review. P02 gate: `reports/phases/P02_GATE.md`. 다음은 PW-028.
+- 현재 단계: **P02 완료(사용자 위임), P03 진행**. PW-015~028 in_review. P02 gate: `reports/phases/P02_GATE.md`. 다음은 PW-029.
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).
@@ -58,6 +58,7 @@
 | PW-025 | in_review | (P03) | REQ-025 / TST-025A,B | unit 27(대역 app-server), mutation 19종 탐지, 독립 리뷰(MAJOR 2·minor 5·PW-024 nit) 반영, `pnpm test` exit 0. **live: blocked/not_run**(바깥 sandbox·로그인 필요) | decline 응답·매개변수 실측(PW-030), 도구 호출 형태(PW-027), bubblewrap 검증(PW-026) |
 | PW-026 | in_review | (P03) | REQ-026 / TST-026A,B | unit 18(unshare backend 실제 실행, bwrap argv 정적), mutation 26종 탐지, chroot 탈출 발견·수정, 독립 리뷰(MAJOR 1: abstract socket → 사설 network namespace + egress proxy, minor 5, nit 1) 반영, `pnpm test` exit 0. **bwrap 실행: not_run**(미설치) | CLI의 HTTPS_PROXY 준수 실측(PW-030), 공급자 허용 목록(PW-028/030), 커널 공격면 |
 | PW-027 | in_review | (P03) | REQ-027 / TST-027A,B | 통합 11, contract 2(ajv와 검증기 일치), mutation 16종 탐지(시험 공백 2건 보완), `pnpm test` exit 0. **실제 CLI의 MCP·tool call 실측: not_run** | worker 연결(token 발급·socket·폐기, PW-028/030), MCP·Codex tool call 형식 실측(PW-030) |
+| PW-028 | in_review | (P03) | REQ-028 / TST-028A,B | 통합 9, unit 2, 브라우저 2(새로고침·오프라인 재연결), mutation 11종 탐지(시험 공백 1건 보완), `pnpm test` exit 0(첫 실행의 PW-015 1회 실패는 18회 반복에도 재현 안 됨, 원인 미확인). **실제 provider 연결: not_run** | adapter interrupt·sandbox 연결(PW-030), bwrap 안쪽 종료 확인, 원고 화면 진행 표시 재부착(PW-054) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

@@ -38,3 +38,4 @@ User decision / reviewer:
   - `packages/providers/src/core/admission.ts`(OuterSandbox kind에 `userns` 추가: sudo 없는 unshare backend의 검증 결과를 Codex gate가 받을 수 있게)
 - PW-027: 범위 밖 파일 없음(다른 domain 모듈은 import만 함)
 - PW-027 리뷰 반영: `apps/web/src/features/diff/ProposalPanel.tsx`, `apps/web/src/features/versions/VersionsTab.tsx`(MOCK 배지 규칙에 `worker:tool-gateway:mock` 추가)
+- PW-028: `apps/web/src/features/paper/PaperPage.tsx`("AI 실행" 탭 연결)

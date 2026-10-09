@@ -919,7 +919,7 @@
       "id": "PW-028",
       "phase": "P03",
       "title": "Interrupt·취소·재연결",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-027"
       ],

@@ -1,5 +1,5 @@
 # RFC-003 — 개요 승인 전에도 사용자가 쓴 문장의 보수적 AI 교정은 허용
-Status: proposed
+Status: accepted (delegated, 2026-10-09) — 범위를 좁혀 채택
 Trigger task: PW-006
 Affected requirements/specs/contracts: REQ-010, REQ-016, REQ-017; docs/specs/03_STORY_AND_OUTLINE.md, 04_EDITOR_AND_INTERACTION.md
 Problem and evidence:
@@ -26,3 +26,9 @@ User decision / reviewer:
 - 처음에는 사용자 위임으로 accepted 처리했다.
 - 독립 리뷰 M2(guard가 그룹값 교환·부등호·단위·부정어·위첨자·인용 locator 변경을 통과시킴)를 반영해 **proposed로 되돌렸다**.
 - guard는 bf76f80에서 강화했지만 영어 중심 휴리스틱이므로, P00 gate에서 사용자가 직접 승인해야 한다.
+- 2026-10-09 사용자 위임("니가 적절하게 선택해서 프로젝트 완성해라")으로 아래 조건에서 채택한다.
+  - 승인 전 허용: 사용자가 쓴 텍스트에 대한 replace_selection의 conservative 모드(문법, 간결화)만.
+  - 조건: PW-003 보호 guard 통과, diff 표시 후 사용자 apply 필수(즉시 적용 모드 불가), 문서에 "승인 전 교정" 기록.
+  - 승인 전 금지: 새 문단 생성, 학술적 재작성, 구조 변경, 주장 추가. 서버가 intent별로 거부한다.
+  - guard의 알려진 우회(위 목록)는 PW-043/044 회귀 사례로 남기고, 사용자 확인 diff를 마지막 방어선으로 둔다.
+

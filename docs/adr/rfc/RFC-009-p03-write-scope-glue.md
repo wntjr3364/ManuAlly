@@ -32,3 +32,4 @@ User decision / reviewer:
 - PW-024 리뷰 반영
   - `packages/providers/src/core/admission.ts`(새 파일: Claude·Codex 공용 gate. 등록부를 직접 읽고, 만료·turn·USD 예산을 둔다)
   - `packages/providers/src/core/capabilities.ts`(`liveEvidenceOk` export), `packages/providers/src/core/index.ts`
+- PW-025: 범위 밖 파일 없음(공용 gate는 PW-024 리뷰 반영에서 추가)

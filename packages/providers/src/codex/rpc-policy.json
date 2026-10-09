@@ -1,0 +1,80 @@
+{
+  "pinned_codex_cli_version": "0.161.0",
+  "inventory": "codex-app-server-0.161.0.inventory.json",
+  "client_request_allowlist": [
+    "initialize",
+    "thread/start",
+    "thread/resume",
+    "thread/read",
+    "thread/compact/start",
+    "turn/start",
+    "turn/interrupt",
+    "account/read",
+    "account/rateLimits/read",
+    "account/usage/read",
+    "model/list",
+    "mcpServerStatus/list"
+  ],
+  "client_notification_allowlist": [
+    "initialized"
+  ],
+  "explicit_deny_examples": {
+    "thread/shellCommand": "runs commands outside the sandbox (S07)",
+    "command/exec": "arbitrary command execution",
+    "fs/writeFile": "arbitrary file write; documents change only through the server apply API",
+    "fs/readFile": "arbitrary file read; context comes only from the tool gateway",
+    "account/rateLimitResetCredit/consume": "spends a reset credit; never automatic",
+    "account/sendAddCreditsNudgeEmail": "sends email to the account owner",
+    "account/login/start": "login is done by the user out of band in the isolated CODEX_HOME",
+    "account/logout": "credential lifecycle is a user action",
+    "feedback/upload": "would send transcripts to a third party",
+    "config/value/write": "runtime config is fixed per run",
+    "config/batchWrite": "runtime config is fixed per run",
+    "plugin/install": "no plugin loading at runtime",
+    "marketplace/add": "no plugin loading at runtime",
+    "thread/delete": "provider history is not deleted by the paper runtime",
+    "thread/inject_items": "context is built from the database, not injected history"
+  },
+  "server_request_handling": {
+    "item/commandExecution/requestApproval": "decline",
+    "item/fileChange/requestApproval": "decline",
+    "item/permissions/requestApproval": "decline",
+    "applyPatchApproval": "decline",
+    "execCommandApproval": "decline",
+    "item/tool/requestUserInput": "decline",
+    "mcpServer/elicitation/request": "decline",
+    "account/chatgptAuthTokens/refresh": "decline",
+    "attestation/generate": "decline",
+    "item/tool/call": "route_to_tool_gateway"
+  },
+  "thread_defaults": {
+    "sandbox": "read-only",
+    "approvalPolicy": "on-request",
+    "ephemeral": false
+  },
+  "status": "documented_not_verified: decline response shapes and the behaviour of in-sandbox unified_exec under approval_policy=on-request are checked live in P03 (PW-025). Until an outer filesystem sandbox (bubblewrap) is verified, Codex stays non-admitted (RFC-004).",
+  "feature_flags": {
+    "disabled": [
+      "shell_tool",
+      "unified_exec_tty",
+      "shell_snapshot",
+      "browser_use",
+      "browser_use_external",
+      "browser_use_full_cdp_access",
+      "browser_annotation_api",
+      "computer_use",
+      "apps",
+      "code_mode_host",
+      "view_image",
+      "skill_search",
+      "tool_suggest",
+      "goals",
+      "sleep_tool"
+    ],
+    "not_disableable_in_0_161_0": [
+      "unified_exec"
+    ],
+    "evidence": "reports/tasks/PW-004/codex-features.txt (codex features list with -c features.X=false; unified_exec stays true with -c, --disable and config.toml)",
+    "approval_policy_note": "0.161.0 refuses approval_policy=\"untrusted\" at startup (\"no longer supported\") although the generated schema lists it; on-request/never/on-failure start. In-sandbox commands therefore run without approval."
+  }
+}

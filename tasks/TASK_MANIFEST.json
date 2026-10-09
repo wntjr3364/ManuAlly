@@ -821,7 +821,7 @@
       "id": "PW-025",
       "phase": "P03",
       "title": "Codex App Server adapter",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-024"
       ],

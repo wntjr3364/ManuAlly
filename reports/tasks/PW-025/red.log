@@ -1,0 +1,20 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-025/codex.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-025/codex.test.ts [ tests/tasks/PW-025/codex.test.ts ]
+Error: Cannot find module '../../../packages/providers/src/codex/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-025/codex.test.ts
+ ❯ tests/tasks/PW-025/codex.test.ts:10:1
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  11:31:58
+   Duration  311ms (worker 95%, environment 5%)
+

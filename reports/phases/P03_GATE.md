@@ -11,7 +11,7 @@
      - 등록부는 두 provider 모두 requires_verification으로 유지한다.
      - sandbox 안에서 실행한 live 증거(`ran_inside_sandbox: true`) 없이는 승인되지 않는다(검사 코드).
   4. OpenAlex는 사용조건을 확인할 수 없어 넣지 않는다(P04 PW-031).
-- **P03 완료. P04(PW-031부터) 진행.** PW-031은 이미 in_review다.
+- **P03 구현 완료. gate는 사용자 확인 대기(RFC-010).** 위임에 따라 P04에 착수했다(PW-031·032 in_review).
 
 ## 사용자가 직접 해야 하는 일 (위임할 수 없음)
 - 사용자 PC에서 live smoke를 실행한다(비용·약관은 사용자 계정).
@@ -24,13 +24,13 @@
 | Task | 내용 | 시험(최종) | 독립 리뷰 |
 |---|---|---|---|
 | PW-023 | provider 등록부·이벤트 정규화(provider_event v1) | unit 19, 통합 1 | approve(minor 반영) |
-| PW-024 | Claude Code CLI adapter(명시 session, 고정 플래그, 승인 gate) | unit 24, 통합 2 | 리뷰·재리뷰 approve |
-| PW-025 | Codex app-server adapter(사적 stdio, RPC 허용 목록, turn 하나씩·정리) | unit 29 | 리뷰·재리뷰 approve |
+| PW-024 | Claude Code CLI adapter(명시 session, 고정 플래그, 승인 gate) | unit 24, 통합 2 | 리뷰(MAJOR: 호출자가 준 capability)·재리뷰 approve |
+| PW-025 | Codex app-server adapter(사적 stdio, RPC 허용 목록, turn 하나씩·정리) | unit 29 | 리뷰(MAJOR 2: 원시 RPC 매개변수, 동시 turn)·재리뷰 approve |
 | PW-026 | run 폴더 + Linux sandbox(unshare/bwrap, pivot_root, capability 제거, 사설 network + egress proxy) | unit 19 | 리뷰(MAJOR: abstract socket)·재리뷰 approve |
 | PW-027 | typed tool gateway(run token 범위, 닫힌 schema, 감사, socket·MCP bridge) | 통합 13, 계약 2 | 리뷰 approve(minor 반영) |
 | PW-028 | 중지·interrupt·좁은 종료·재시작 정리·재연결 화면 | 통합 12, unit 2, 브라우저 2 | 리뷰(MAJOR: 취소 뒤 gateway 제안)·재리뷰 approve |
 | PW-029 | 사용량 ledger·한도 관측(범위 분리, 지어내지 않음) | 통합 8, unit 2, 브라우저 1 | 리뷰(MAJOR: 문맥=turn 합계)·재리뷰 approve |
-| PW-030 | 통합 gate(대역 연쇄, 실행/미실행 보고, 수동 live smoke) | unit 5, 통합 4 | 리뷰(minor 4) 반영, 재리뷰 대기 |
+| PW-030 | 통합 gate(대역 연쇄, 실행/미실행 보고, 수동 live smoke) | unit 5, 통합 4 | 리뷰(minor 4)·재리뷰 approve(nit 반영) |
 
 최종 회귀 `pnpm test` exit 0: unit 278, integration 251, contracts 17, e2e 80, spikes·evals·pack PASS.
 

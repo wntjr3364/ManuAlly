@@ -12,3 +12,11 @@ KILLED  no contact sent :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯�
 KILLED  limit unbounded :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 14 passed (15) 
 KILLED  http allowed (rerun: exact message) :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 15 passed (16) 
 KILLED  items without DOI accepted (rerun: DOI-less sample) :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 15 passed (16) 
+# review fixes
+KILLED  PubMed ERROR ignored :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 
+KILLED  updated-by ignored :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 
+KILLED  implausible year kept :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 
+KILLED  unreadable authors dropped :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 
+KILLED  Retry-After ignored :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 
+KILLED  more items than asked kept :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 
+KILLED  redirect reason lost :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 19 passed (20) 

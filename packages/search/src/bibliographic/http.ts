@@ -22,6 +22,8 @@ export async function boundedGet(url: string, opts: { timeoutMs: number; maxByte
   } catch (e) {
     const name = (e as { name?: string }).name;
     if (name === 'TimeoutError' || name === 'AbortError') throw new SourceUnavailable('timeout', `no answer within ${opts.timeoutMs} ms`);
+    // redirect: 'error' makes a moved endpoint fail here, before any status is seen
+    if (/redirect/i.test(String((e as { cause?: { message?: string } }).cause?.message ?? (e as Error).message))) throw new SourceUnavailable('endpoint_changed', 'the endpoint redirects elsewhere');
     throw new SourceUnavailable('network', 'the source could not be reached');
   }
   const status = res.status;
@@ -32,6 +34,11 @@ export async function boundedGet(url: string, opts: { timeoutMs: number; maxByte
   }
   if (status === 404 || status === 410 || (status >= 300 && status < 400)) throw new SourceUnavailable('endpoint_changed', `the endpoint answered ${status}`, status);
   if (status >= 500) throw new SourceUnavailable('server_error', `the source failed (${status})`, status);
+  if (status === 400) {
+    // NCBI answers a bad api_key with 400 and a message naming the key
+    const body = (await res.text().catch(() => '')).slice(0, 2000);
+    throw new SourceUnavailable(/api[_ -]?key/i.test(body) ? 'auth' : 'endpoint_changed', `the source refused the request (400)`, status);
+  }
   if (status !== 200) throw new SourceUnavailable('endpoint_changed', `unexpected status ${status}`, status);
   // read with a size limit
   const reader = res.body?.getReader();

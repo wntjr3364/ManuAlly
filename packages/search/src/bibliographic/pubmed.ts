@@ -32,6 +32,10 @@ export function esummaryUrl(endpoint: string, ids: string[], a: { contact: strin
 export function parseEsearch(body: unknown): { ids: string[]; total: number | null; version: string | null } {
   if (!obj(body) || !obj(body.esearchresult)) throw bad('no esearchresult');
   const r = body.esearchresult;
+  // a backend error is not "no results" (review MINOR-2)
+  if (r.ERROR !== undefined || (obj(r.errorlist) && Object.entries(r.errorlist).some(([k, v]) => k !== 'phrasesnotfound' && Array.isArray(v) && v.length))) {
+    throw new SourceUnavailable('server_error', 'PubMed reported a search error');
+  }
   if (!Array.isArray(r.idlist) || r.idlist.some((x) => typeof x !== 'string' || !/^\d{1,12}$/.test(x))) throw bad('idlist');
   const total = typeof r.count === 'string' && /^\d+$/.test(r.count) ? Number(r.count) : null;
   return { ids: r.idlist as string[], total, version: obj(body.header) && typeof body.header.version === 'string' ? body.header.version : null };
@@ -45,12 +49,16 @@ export function parseEsummary(body: unknown, ids: string[]): Parsed {
     if (!obj(r) || r.uid !== id) throw bad(`record ${id} is missing`);
     if (typeof r.title !== 'string' || !r.title.trim()) throw bad(`record ${id} has no title`);
     if (!Array.isArray(r.authors)) throw bad(`record ${id} authors`);
-    const authors = r.authors.flatMap((a) => {
-      if (!obj(a) || typeof a.name !== 'string') return [];
-      const m = /^(.*\S)\s+([A-Z]{1,4})$/.exec(a.name.trim());
-      return [m ? { family: m[1]!, given: m[2]! } : { family: a.name.trim() }];
+    const authors = r.authors.map((a, j) => {
+      if (!obj(a) || typeof a.name !== 'string' || !a.name.trim()) throw bad(`record ${id} author ${j} is unreadable`);
+      const name = a.name.trim().slice(0, 200);
+      // a collective (group) name stays whole; "Kim J" is family + initials
+      if (a.authtype === 'CollectiveName') return { family: name };
+      const m = /^(.*\S)\s+([A-Z]{1,3})$/.exec(name);
+      return m ? { family: m[1]!, given: m[2]! } : { family: name };
     });
-    const year = typeof r.pubdate === 'string' && /^(\d{4})/.test(r.pubdate) ? Number(r.pubdate.slice(0, 4)) : null;
+    const y = typeof r.pubdate === 'string' && /^(\d{4})/.test(r.pubdate) ? Number(r.pubdate.slice(0, 4)) : null;
+    const year = y !== null && y >= 1000 && y <= 3000 ? y : null;
     const ids2 = Array.isArray(r.articleids) ? r.articleids : [];
     const doiRaw = ids2.find((x) => obj(x) && x.idtype === 'doi' && typeof x.value === 'string') as Record<string, string> | undefined;
     const doi = doiRaw && DOI.test(doiRaw.value!) ? doiRaw.value!.toLowerCase() : null;
@@ -58,7 +66,7 @@ export function parseEsummary(body: unknown, ids: string[]): Parsed {
     const notice = pubtype.includes('Retracted Publication') ? 'retracted_publication' : pubtype.includes('Retraction of Publication') ? 'retraction' : pubtype.includes('Published Erratum') ? 'erratum' : pubtype.includes('Expression of Concern') ? 'expression_of_concern' : null;
     return {
       source: 'pubmed', source_record_id: id, doi, title: r.title.trim(), authors, year,
-      container: typeof r.fulljournalname === 'string' ? r.fulljournalname : null, work_type: pubtype[0] ?? null,
+      container: typeof r.fulljournalname === 'string' ? r.fulljournalname.slice(0, 1000) : null, work_type: pubtype[0] && pubtype[0].length <= 100 ? pubtype[0] : null,
       is_preprint: pubtype.includes('Preprint'), relations: {}, update_notice: notice ? { type: notice } : null,
     };
   });

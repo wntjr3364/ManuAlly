@@ -16,7 +16,7 @@ export function crossrefUrl(endpoint: string, a: { query: string; limit: number;
   const u = new URL(endpoint);
   u.searchParams.set('query.bibliographic', a.query);
   u.searchParams.set('rows', String(a.limit));
-  u.searchParams.set('select', 'DOI,title,author,issued,container-title,type,subtype,relation,update-to');
+  u.searchParams.set('select', 'DOI,title,author,issued,container-title,type,subtype,relation,update-to,updated-by');
   if (a.contact) u.searchParams.set('mailto', a.contact);
   return u.toString();
 }
@@ -26,13 +26,20 @@ export function parseCrossref(body: unknown): Parsed {
   const m = body.message;
   if (!Array.isArray(m.items)) throw bad('no items');
   const items: Candidate[] = m.items.map((it: unknown, i: number) => {
-    if (!obj(it) || typeof it.DOI !== 'string' || !DOI.test(it.DOI)) throw bad(`item ${i} has no DOI`);
+    if (!obj(it) || typeof it.DOI !== 'string' || !DOI.test(it.DOI) || it.DOI.length > 300) throw bad(`item ${i} has no DOI`);
     const title = strList(it.title, 'title')[0];
     if (!title) throw bad(`item ${i} has no title`);
     if (it.author !== undefined && !Array.isArray(it.author)) throw bad(`item ${i} authors`);
-    const authors = ((it.author as unknown[] | undefined) ?? []).flatMap((a) => (obj(a) && typeof a.family === 'string' ? [{ family: a.family, ...(typeof a.given === 'string' ? { given: a.given } : {}) }] : obj(a) && typeof a.name === 'string' ? [{ family: a.name }] : []));
+    // every author entry must be readable: a list with unreadable entries would look complete
+    const authors = ((it.author as unknown[] | undefined) ?? []).map((a, j) => {
+      if (obj(a) && typeof a.family === 'string' && a.family.trim()) return { family: a.family.slice(0, 200), ...(typeof a.given === 'string' && a.given.trim() ? { given: a.given.slice(0, 200) } : {}) };
+      if (obj(a) && typeof a.name === 'string' && a.name.trim()) return { family: a.name.slice(0, 200) }; // a group author
+      if (obj(a) && typeof a.given === 'string' && a.given.trim() && a.family === undefined) return { family: a.given.slice(0, 200) }; // a single name
+      throw bad(`item ${i} author ${j} is unreadable`);
+    });
     const parts = obj(it.issued) && Array.isArray(it.issued['date-parts']) ? (it.issued['date-parts'] as unknown[])[0] : undefined;
-    const year = Array.isArray(parts) && Number.isInteger(parts[0]) ? (parts[0] as number) : null;
+    // a year outside 1000–3000 is not a publication year: unknown, not invented
+    const year = Array.isArray(parts) && Number.isInteger(parts[0]) && (parts[0] as number) >= 1000 && (parts[0] as number) <= 3000 ? (parts[0] as number) : null;
     const relations: Record<string, string[]> = {};
     if (it.relation !== undefined) {
       if (!obj(it.relation)) throw bad(`item ${i} relation`);
@@ -45,12 +52,22 @@ export function parseCrossref(body: unknown): Parsed {
       }
     }
     let update: Candidate['update_notice'] = null;
+    // this record IS a notice about another work (update-to) …
     if (it['update-to'] !== undefined) {
       if (!Array.isArray(it['update-to'])) throw bad(`item ${i} update-to`);
       const u = (it['update-to'] as unknown[]).find((x) => obj(x) && typeof x.type === 'string') as Record<string, unknown> | undefined;
       if (u) update = { type: String(u.type), target_doi: typeof u.DOI === 'string' ? u.DOI.toLowerCase() : null };
     }
-    const type = typeof it.type === 'string' ? it.type : null;
+    // … or this work was updated by a notice (updated-by): a retracted original shows as retracted
+    if (!update && it['updated-by'] !== undefined) {
+      if (!Array.isArray(it['updated-by'])) throw bad(`item ${i} updated-by`);
+      const kinds = (it['updated-by'] as unknown[]).filter((x): x is Record<string, unknown> => obj(x) && typeof x.type === 'string');
+      const pick = kinds.find((x) => x.type === 'retraction') ?? kinds.find((x) => x.type === 'expression_of_concern' || x.type === 'expression-of-concern') ?? kinds.find((x) => x.type === 'correction' || x.type === 'erratum');
+      const FLAG: Record<string, string> = { retraction: 'retracted_publication', expression_of_concern: 'expression_of_concern', 'expression-of-concern': 'expression_of_concern', correction: 'erratum', erratum: 'erratum' };
+      if (pick) update = { type: FLAG[String(pick.type)]!, notice_doi: typeof pick.DOI === 'string' ? pick.DOI.toLowerCase() : null };
+    }
+    // an implausible type is dropped (unknown), not stored
+    const type = typeof it.type === 'string' && it.type.length <= 100 ? it.type : null;
     return {
       source: 'crossref', source_record_id: it.DOI.toLowerCase(), doi: it.DOI.toLowerCase(), title, authors, year,
       container: strList(it['container-title'], 'container-title')[0] ?? null, work_type: type,

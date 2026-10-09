@@ -1,3 +1,19 @@
  FAIL  tests/tasks/PW-031/search.int.test.ts [ tests/tasks/PW-031/search.int.test.ts ]
 Error: Cannot find module '../../../packages/search/src/bibliographic/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-031/search.int.test.ts
       Tests  no tests
+# review RED (before the review fixes)
+     × auth → unavailable, no candidates stored 12ms
+     × auth → unavailable, no candidates stored 6ms
+     × rate_limited → unavailable, no candidates stored 8ms
+     × endpoint_changed → unavailable, no candidates stored 5ms
+     × server_error → unavailable, no candidates stored 6ms
+     × schema_changed → unavailable, no candidates stored 6ms
+     × schema_changed → unavailable, no candidates stored 5ms
+     × schema_changed → unavailable, no candidates stored 6ms
+     × schema_changed → unavailable, no candidates stored 7ms
+     × records with out-of-range values: the odd value is dropped or the answer is schema_changed — always logged 7ms
+     × a PubMed esearch that reports an error is unavailable, not an empty result (and nothing is cached) 14ms
+     × a retracted original from Crossref carries its retraction (updated-by), not only the notice 10ms
+     × nits: a redirect is endpoint_changed; an NCBI 400 about the key is auth; more items than asked are cut to the limit; after a 429 the source is not asked again until Retry-After 8ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  13 failed | 7 passed (20)

@@ -22,6 +22,8 @@ export const DEFAULT_ENDPOINTS: Record<Source, string> = {
   pubmed: 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils',
 };
 export const MAX_LIMIT = 20;
+// part of the cache key: a change in what is requested or how it is read starts a fresh cache
+export const PARSER_VERSION = 'pw-bib-2';
 
 export interface SearchConfig {
   endpoints?: Partial<Record<Source, string>>;
@@ -55,9 +57,12 @@ function endpointFor(source: Source, c: SearchConfig): string {
   return e;
 }
 
-// one request at a time per source, at least minIntervalMs apart (per process)
+// one request at a time per source, at least minIntervalMs apart (per process); after a 429 the source
+// is not asked again before its Retry-After has passed
 const lastAt = new Map<Source, number>();
 const queue = new Map<Source, Promise<unknown>>();
+const notBefore = new Map<Source, number>();
+export function resetPacingForTests(): void { lastAt.clear(); notBefore.clear(); }
 function paced<T>(source: Source, minIntervalMs: number, fn: () => Promise<T>): Promise<T> {
   const run = (queue.get(source) ?? Promise.resolve()).catch(() => {}).then(async () => {
     const wait = (lastAt.get(source) ?? 0) + minIntervalMs - Date.now();
@@ -70,7 +75,16 @@ function paced<T>(source: Source, minIntervalMs: number, fn: () => Promise<T>): 
 }
 
 async function fetchParsed(source: Source, endpoint: string, a: { query: string; limit: number }, c: Required<Pick<SearchConfig, 'timeoutMs' | 'maxBytes' | 'minIntervalMs'>> & SearchConfig): Promise<{ parsed: Parsed; hash: string }> {
-  const get = (url: string) => paced(source, c.minIntervalMs, () => boundedGet(url, { timeoutMs: c.timeoutMs, maxBytes: c.maxBytes }));
+  const get = (url: string) => paced(source, c.minIntervalMs, async () => {
+    const wait = (notBefore.get(source) ?? 0) - Date.now();
+    if (wait > 0) throw new SourceUnavailable('rate_limited', 'the source asked to wait (Retry-After)', null, Math.ceil(wait / 1000));
+    try {
+      return await boundedGet(url, { timeoutMs: c.timeoutMs, maxBytes: c.maxBytes });
+    } catch (e) {
+      if (e instanceof SourceUnavailable && e.reason === 'rate_limited') notBefore.set(source, Date.now() + (e.retryAfterS ?? 60) * 1000);
+      throw e;
+    }
+  });
   if (source === 'crossref') {
     const r = await get(crossrefUrl(endpoint, { ...a, contact: c.contact ?? null }));
     return { parsed: parseCrossref(parseJson(r.text)), hash: sha256(r.text) };
@@ -90,8 +104,9 @@ export async function searchBibliographic(pool: Pool, a: { paperId: string; crea
   if (!Number.isInteger(a.limit) || a.limit < 1 || a.limit > MAX_LIMIT) throw new Refused(`refused: the limit must be 1–${MAX_LIMIT}`);
   const c = { timeoutMs: 15_000, maxBytes: 2 * 1024 * 1024, minIntervalMs: a.source === 'pubmed' ? (a.config?.apiKey ? 110 : 350) : 200, cacheTtlMs: 24 * 3600e3, ...a.config };
   const endpoint = endpointFor(a.source, c);
-  const params = { limit: a.limit };
-  const cacheKey = sha256(JSON.stringify({ source: a.source, endpoint, query, params }));
+  // what is stored as the request: the limit and the full request shape (no secrets: api_key is not stored)
+  const params = { limit: a.limit, parser: PARSER_VERSION, contact: c.contact ? 'set' : null, api_key: c.apiKey ? 'set' : null };
+  const cacheKey = sha256(JSON.stringify({ source: a.source, endpoint, query, limit: a.limit, parser: PARSER_VERSION }));
 
   // cache: the latest successful identical search of this paper within the cache time
   const hit = (await pool.query<{ id: string; observed_at: string; total_results: number | null }>(
@@ -108,10 +123,23 @@ export async function searchBibliographic(pool: Pool, a: { paperId: string; crea
   let failure: SourceUnavailable | null = null;
   try {
     ({ parsed, hash } = await fetchParsed(a.source, endpoint, { query, limit: a.limit }, c));
+    // a source that returns more than asked: only the requested number is kept
+    if (parsed.items.length > a.limit) parsed = { ...parsed, items: parsed.items.slice(0, a.limit) };
   } catch (e) {
     if (!(e instanceof SourceUnavailable)) throw e;
     failure = e;
   }
+  try {
+    return await store(pool, a, { query, endpoint, params, cacheKey, parsed, hash, failure });
+  } catch (e) {
+    // a value the database refuses (a check constraint) is a changed answer: logged as schema_changed
+    if ((e as { code?: string }).code !== '23514' || failure) throw e;
+    return store(pool, a, { query, endpoint, params, cacheKey, parsed: null, hash, failure: new SourceUnavailable('schema_changed', 'a record had values outside the stored limits') });
+  }
+}
+
+async function store(pool: Pool, a: { paperId: string; createdBy: string; source: Source }, d: { query: string; endpoint: string; params: Record<string, unknown>; cacheKey: string; parsed: Parsed | null; hash: string | null; failure: SourceUnavailable | null }): Promise<SearchResult> {
+  const { query, endpoint, params, cacheKey, parsed, hash, failure } = d;
   const tx = await pool.connect();
   try {
     await tx.query('BEGIN');

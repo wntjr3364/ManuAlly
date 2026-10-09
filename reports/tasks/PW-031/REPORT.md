@@ -20,7 +20,7 @@
     - 검색 기록과 후보는 한 트랜잭션으로 저장한다.
 - `packages/search/src/index.ts`(export)
 - 시험(`tests/tasks/PW-031/`)
-  - `search.int.test.ts`: 통합 16, loopback 대역 서버와 합성 fixture
+  - `search.int.test.ts`: 통합 20(리뷰 반영 후), loopback 대역 서버와 합성 fixture
   - `fixtures/*.json`: 합성 Crossref·PubMed 응답
   - `live-contract.manual.ts`: 실제 endpoint 계약 확인. 수동, 승인 플래그 필요
 
@@ -56,6 +56,27 @@
 - PubMed 저자 이름의 이니셜 해석은 "성 이니셜" 형식만 나눈다. 그 밖의 형식은 이름 전체를 family로 둔다.
 - 최소 간격은 프로세스 단위다. worker가 여러 개면 출처 한도를 나눠 쓴다(PW-049/050에서 다룸).
 - Node `fetch`는 `HTTPS_PROXY`를 자동으로 쓰지 않는다. proxy가 필요한 기관 망에서는 설정이 필요하다(P07 배포 안내).
+
+## 독립 리뷰 반영 (2026-10-09)
+리뷰 결론: 변경 요청. MAJOR 없음, minor 4·nit 6. endpoint 고정, 크기·시간 제한, 엄격한 파싱, 트랜잭션은 확인됨.
+- MINOR-1: DB 제약 밖의 값(연도 0, 150자 type)이 들어오면 검색 전체가 예외로 끝나고 기록도 남지 않았다.
+  - 고침
+    - 파서가 DB 한도에 맞춘다: 1000–3000 밖의 연도와 100자 넘는 유형은 "모름"(null)으로 둔다. 300자 넘는 DOI는 `schema_changed`다.
+    - 그래도 CHECK 위반이 나면 그 검색을 `schema_changed`로 기록한다.
+- MINOR-2: PubMed esearch의 `ERROR`를 무시해 "결과 0건"으로 저장·cache했다. → `ERROR`나 errorlist(phrasesnotfound 제외)가 있으면 `server_error`다.
+- MINOR-3: Crossref에서 철회된 원 논문이 깨끗해 보였다(고지 레코드에만 표시).
+  - 고침: `updated-by`를 요청하고 읽는다. 철회 → `retracted_publication`, 우려 고지 → `expression_of_concern`, 정정 → `erratum`. 고지 DOI도 남긴다. PW-032 플래그 관계로 이어진다.
+  - Crossref `updated-by` 필드 형식은 문서 기준이다(documented_not_verified). 수동 계약 확인에서 본다.
+- MINOR-4: 수동 계약 스크립트가 DB의 첫 논문에 영구 기록을 남겼다. → `--paper-id`가 필요하고, 제목이 "scratch"로 시작하는 논문만 받는다.
+- nit
+  - redirect는 `endpoint_changed`다(이전에는 network).
+  - NCBI의 key 관련 400은 `auth`다.
+  - 읽을 수 없는 저자 항목이 있으면 `schema_changed`다(빠진 목록이 완전해 보이지 않게). PubMed 단체 저자(CollectiveName)는 이름 전체를 쓴다.
+  - 요청보다 많은 항목은 limit까지만 저장한다.
+  - cache key에 파서 버전을 넣었다. 저장하는 요청 매개변수를 늘렸다(비밀 없음: key는 "set"으로만 표시).
+  - 429 뒤에는 Retry-After 동안 그 출처에 요청하지 않는다.
+  - `searchBibliographic`은 논문 소유 확인을 하지 않는다. 호출자(API·worker)가 소유자 범위로 부른다. PW-033에서 연결할 때 확인한다.
+- 증거: `red.log` 아래쪽(옛 구현에서 13개 실패, 이 가운데 9개는 새 시험 helper가 없어서), `mutation.log` 아래쪽(7종 탐지), 통합 20.
 
 ## 다음
 PW-032: 서지 정규화·출판본 관계

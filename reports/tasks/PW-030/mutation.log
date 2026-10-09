@@ -14,3 +14,6 @@ KILLED  prose: integration done :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯�
 KILLED  registry ignores where the live run happened :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 18 passed (19) 
 KILLED  cancel label claims no result :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 1 passed (2) 
 KILLED  interrupt not sent on stop :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 3 passed (4) 
+# re-review nits
+KILLED  required open item dropped :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 4 passed (5) 
+KILLED  sandbox item marked done without the code :: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯       Tests  1 failed | 4 passed (5) 

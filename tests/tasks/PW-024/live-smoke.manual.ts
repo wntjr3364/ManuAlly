@@ -12,6 +12,8 @@
 //     --approve-live-smoke --budget-usd 0.10 --out reports/tasks/PW-024/live-evidence.json --claude "$(command -v claude)"
 // It records: CLI version, the session id we chose, that resume continued it, init tools (must be
 // []), exit codes and usage. No prompts' answers beyond the check word, no tokens, no paths of secrets.
+// NOTE: until RFC-010 is implemented the CLI runs OUTSIDE the sandbox; this evidence has no
+// ran_inside_sandbox: true, so the registry will not approve Claude on it (it checks the CLI works).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

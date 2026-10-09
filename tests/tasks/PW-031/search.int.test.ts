@@ -14,7 +14,7 @@ import { createTempDatabase } from '../../../packages/config/src/test-db.ts';
 import { migrate } from '../../../apps/api/src/db/migrate.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { createPaper } from '../../../packages/domain/src/papers/index.ts';
-import { searchBibliographic, type SearchConfig } from '../../../packages/search/src/bibliographic/index.ts';
+import { resetPacingForTests, searchBibliographic, type SearchConfig } from '../../../packages/search/src/bibliographic/index.ts';
 
 const FIX = path.resolve('tests/tasks/PW-031/fixtures');
 const fixture = (n: string) => fs.readFileSync(path.join(FIX, n), 'utf8');
@@ -145,6 +145,56 @@ describe('TST-031B: changed key, limit, endpoint or shape → source unavailable
     const log = (await pool.query('SELECT status, unavailable_reason, (SELECT count(*)::int FROM literature_candidates c WHERE c.search_id = s.id) AS n FROM literature_searches s WHERE id = $1', [r.search_id])).rows[0];
     expect(log).toMatchObject({ status: 'source_unavailable', unavailable_reason: reason, n: 0 });
     if (reason === 'rate_limited') expect(r).toMatchObject({ retry_after_s: 120 });
+    resetPacingForTests();
+  });
+
+  // review MINOR-1: a value the database would refuse never aborts the search unlogged
+  test('records with out-of-range values: the odd value is dropped or the answer is schema_changed — always logged', async () => {
+    const one = (item: Record<string, unknown>) => json(JSON.stringify({ status: 'ok', 'message-version': '1.0.0', message: { 'total-results': 1, items: [{ DOI: '10.5555/odd.1', title: ['Odd'], ...item }] } }));
+    behave = { '/works': one({ issued: { 'date-parts': [[0]] } }) };
+    const r1 = await search({ query: `odd year ${Math.random()}` });
+    expect(r1).toMatchObject({ status: 'ok', candidates: [{ year: null }] }); // not a year: unknown, not invented
+    behave = { '/works': one({ type: 'x'.repeat(150) }) };
+    expect(await search({ query: `odd type ${Math.random()}` })).toMatchObject({ status: 'ok', candidates: [{ work_type: null }] });
+    behave = { '/works': one({ DOI: `10.5555/${'d'.repeat(400)}` }) };
+    expect(await search({ query: `odd doi ${Math.random()}` })).toMatchObject({ status: 'source_unavailable', reason: 'schema_changed' });
+    // malformed authors are not silently dropped (a partial list would look complete)
+    behave = { '/works': one({ author: [{ family: 'Lee' }, 'junk'] }) };
+    expect(await search({ query: `odd authors ${Math.random()}` })).toMatchObject({ status: 'source_unavailable', reason: 'schema_changed' });
+    const logged = (await pool.query("SELECT count(*)::int AS n FROM literature_searches WHERE query LIKE 'odd %'")).rows[0].n;
+    expect(logged).toBe(4);
+  });
+
+  // review MINOR-2: a backend error is not "no literature found"
+  test('a PubMed esearch that reports an error is unavailable, not an empty result (and nothing is cached)', async () => {
+    behave = { ...normal(), '/entrez/eutils/esearch.fcgi': json('{"esearchresult":{"count":"0","idlist":[],"ERROR":"Search Backend failed"}}') };
+    expect(await search({ source: 'pubmed', query: `backend ${Math.random()}` })).toMatchObject({ status: 'source_unavailable', reason: 'server_error' });
+  });
+
+  // review MINOR-3: the original article's own update status (Crossref updated-by)
+  test('a retracted original from Crossref carries its retraction (updated-by), not only the notice', async () => {
+    behave = { '/works': json(JSON.stringify({ status: 'ok', message: { items: [{ DOI: '10.5555/orig.1', title: ['Original later retracted'], 'updated-by': [{ type: 'retraction', DOI: '10.5555/notice.9' }] }] } })) };
+    const r = await search({ query: `retracted original ${Math.random()}` });
+    expect(r).toMatchObject({ status: 'ok', candidates: [{ update_notice: { type: 'retracted_publication', notice_doi: '10.5555/notice.9' } }] });
+    expect(seen.at(-1)!.query.get('select')).toContain('updated-by');
+  });
+
+  test('nits: a redirect is endpoint_changed; an NCBI 400 about the key is auth; more items than asked are cut to the limit; after a 429 the source is not asked again until Retry-After', async () => {
+    behave = { '/works': (_q, res) => { res.writeHead(301, { location: 'https://elsewhere.example/works' }); res.end(); } };
+    expect(await search({ query: `moved ${Math.random()}` })).toMatchObject({ status: 'source_unavailable', reason: 'endpoint_changed' });
+    behave = { ...normal(), '/entrez/eutils/esearch.fcgi': json('{"error":"API key invalid"}', 400) };
+    expect(await search({ source: 'pubmed', query: `badkey ${Math.random()}` })).toMatchObject({ status: 'source_unavailable', reason: 'auth' });
+    const many = { status: 'ok', message: { items: Array.from({ length: 8 }, (_, i) => ({ DOI: `10.5555/many.${i}`, title: [`Work ${i}`] })) } };
+    behave = { '/works': json(JSON.stringify(many)) };
+    const r = await search({ query: `many ${Math.random()}`, limit: 5 });
+    expect(r.status === 'ok' && r.candidates.length).toBe(5);
+    behave = { '/works': json('{}', 429, { 'retry-after': '30' }) };
+    expect(await search({ query: `limited ${Math.random()}` })).toMatchObject({ reason: 'rate_limited' });
+    behave = normal();
+    const n = seen.length;
+    expect(await search({ query: `right after ${Math.random()}` })).toMatchObject({ status: 'source_unavailable', reason: 'rate_limited' });
+    expect(seen.length).toBe(n); // no request inside the Retry-After window
+    resetPacingForTests();
   });
 
   test('a slow or oversized answer is unavailable (timeout, too_large); a failed search is not served from the cache', async () => {

@@ -10,6 +10,6 @@ export interface Candidate {
   work_type: string | null;
   is_preprint: boolean;
   relations: Record<string, string[]>;
-  update_notice: { type: string; target_doi?: string | null } | null;
+  update_notice: { type: string; target_doi?: string | null; notice_doi?: string | null } | null;
 }
 export interface Parsed { apiVersion: string | null; total: number | null; items: Candidate[] }

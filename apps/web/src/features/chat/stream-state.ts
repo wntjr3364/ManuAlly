@@ -17,15 +17,17 @@ export interface StreamState {
   proposalId: string | null;
   note: string;
   ended: boolean;
+  // attempt number of the run whose events are shown (a retried job starts over)
+  run: number | null;
 }
 
-export const initialState: StreamState = { phase: 'queued', answer: '', lastSeq: 0, label: null, provider: null, proposalId: null, note: '', ended: false };
+export const initialState: StreamState = { phase: 'queued', answer: '', lastSeq: 0, label: null, provider: null, proposalId: null, note: '', ended: false, run: null };
 
 const PROPOSAL_PHASE: Record<string, Phase> = { PENDING: 'proposal_ready', APPLIED: 'applied', REJECTED: 'rejected', STALE: 'stale', CHECK_FAILED: 'check_failed' };
 
 export interface ServerEvent { event: string; id?: number; data: Record<string, unknown> }
 
-const UNNUMBERED = ['job', 'end'];
+const UNNUMBERED = ['job', 'end', 'rotate'];
 
 export function reduce(s: StreamState, e: ServerEvent): StreamState {
   // a resent event (reconnect) is ignored. Only stored job events are numbered: the browser's
@@ -36,8 +38,12 @@ export function reduce(s: StreamState, e: ServerEvent): StreamState {
   }
   const d = e.data;
   switch (e.event) {
-    case 'status':
-      return { ...s, phase: s.phase === 'queued' ? 'running' : s.phase, label: (d.label as string | null) ?? null, provider: (d.provider as string) ?? null };
+    case 'status': {
+      // a new run (retry after a failure or an expired lease) replaces whatever the earlier run sent
+      const run = typeof d.run === 'number' ? d.run : null;
+      const fresh = run !== s.run;
+      return { ...s, run, phase: fresh || s.phase === 'queued' ? 'running' : s.phase, answer: fresh ? '' : s.answer, note: fresh ? '' : s.note, label: (d.label as string | null) ?? null, provider: (d.provider as string) ?? null };
+    }
     case 'delta':
       return { ...s, phase: 'answering', answer: s.answer + String(d.text ?? '') };
     case 'answer_done':
@@ -49,6 +55,9 @@ export function reduce(s: StreamState, e: ServerEvent): StreamState {
     case 'job': {
       const st = String(d.status);
       if (st === 'RUNNING' && s.phase === 'queued') return { ...s, phase: 'running' };
+      // queued again: a failed run waits for its retry (its partial answer is not a result)
+      if (st === 'QUEUED' && s.phase !== 'queued') return { ...s, phase: 'queued', note: '다시 시도 대기' };
+      if (st.startsWith('WAITING_')) return { ...s, phase: 'waiting', note: st };
       return s;
     }
     case 'end': {
@@ -83,4 +92,7 @@ export const PHASE_LABEL: Record<Phase, string> = {
   waiting: '대기 중(외부 조건)',
 };
 
-export const canCancel = (s: StreamState) => !s.ended && ['queued', 'running', 'answering'].includes(s.phase);
+// answer text of a run that did not finish: shown only as an interrupted fragment, never as a result
+export const partialAnswer = (s: StreamState) => s.answer !== '' && s.phase !== 'answering' && s.phase !== 'answered';
+
+export const canCancel = (s: StreamState) => !s.ended && ['queued', 'running', 'answering', 'waiting'].includes(s.phase);

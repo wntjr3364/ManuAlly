@@ -18,7 +18,8 @@ export function selectionHandlers(pool: TxPool, provider: SelectionProvider): Re
   const start = async (job: Job, fencingToken: number) => {
     const p = job.payload as unknown as SelectionJobPayload;
     const report = (kind: Parameters<typeof appendJobEvent>[1]['kind'], data: Record<string, unknown>) => appendJobEvent(pool, { jobId: job.id, fencingToken, kind, data });
-    await report('status', { state: 'running', ...tag });
+    // run = attempt number: a retried job streams again from the start, and the page starts over
+    await report('status', { state: 'running', run: job.attempts, ...tag });
     const slice = await selectionSlice(pool, job.paper_id, p.handle_id).catch((e) => {
       throw e instanceof DomainError && e.code !== 'CONFLICT' ? new JobOutcomeError(e.message, 'FAILED') : e;
     });

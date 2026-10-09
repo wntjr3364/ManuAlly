@@ -3,8 +3,10 @@
 //   the worker answers later. 201 for a new request, 200 for a resend with the same key.
 // - GET …/jobs/:jobId/events: Server-Sent Events. Each stored job event is sent once, in order, with
 //   its sequence number as the event id, so a reconnect (Last-Event-ID, or ?after=) continues where it
-//   stopped. When the job ends an `end` event carries its status. Closing the connection only stops
-//   this stream; it never cancels the job (cancel is an explicit owner action).
+//   stopped. When the job ends an `end` event carries its status; a job waiting for an outside
+//   condition (WAITING_*) keeps the stream open. Every maxMs the server sends `rotate` and closes the
+//   stream: the browser reconnects, which checks the session again (a logout elsewhere ends the
+//   flow). Closing the connection only stops this stream; it never cancels the job.
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ServerResponse } from 'node:http';
 import type { TxPool } from '@pw/domain/revisions/index.ts';
@@ -15,9 +17,10 @@ import { sendDomainError } from '../auth/plugin.ts';
 
 const KEEPALIVE_MS = 15_000;
 
-export function registerAiRoutes(app: FastifyInstance, pool: TxPool, opts: { pollMs?: number } = {}): void {
+export function registerAiRoutes(app: FastifyInstance, pool: TxPool, opts: { pollMs?: number; maxMs?: number } = {}): void {
   const scoped = { config: { paperScoped: true } };
   const pollMs = opts.pollMs ?? 250;
+  const maxMs = opts.maxMs ?? 60_000;
 
   app.post('/api/papers/:paperId/documents/:documentId/ai-requests', scoped, async (req, reply: FastifyReply) => {
     const b = (req.body ?? {}) as Record<string, unknown>;
@@ -70,6 +73,7 @@ export function registerAiRoutes(app: FastifyInstance, pool: TxPool, opts: { pol
     };
     let lastStatus = '';
     let lastWrite = Date.now();
+    const opened = Date.now();
     try {
       while (!gone && !closing) {
         await flush();
@@ -78,10 +82,14 @@ export function registerAiRoutes(app: FastifyInstance, pool: TxPool, opts: { pol
           lastStatus = job.status;
           send('job', { status: job.status });
         }
-        if (TERMINAL.includes(job.status) || job.status.startsWith('WAITING_')) {
+        if (TERMINAL.includes(job.status)) {
           // a run's last events commit together with its final status: read once more, then end
           await flush();
           send('end', { status: job.status, last_error: job.last_error });
+          break;
+        }
+        if (Date.now() - opened > maxMs) {
+          send('rotate', {}); // reconnect (with Last-Event-ID) so the session is checked again
           break;
         }
         if (Date.now() - lastWrite > KEEPALIVE_MS) { res.write(': keep-alive\n\n'); lastWrite = Date.now(); }

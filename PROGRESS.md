@@ -50,7 +50,7 @@
 | PW-017 | in_review | (P02) | REQ-017 / TST-017A,B | unit 5, 통합 17, 계약 2, 브라우저 6, mutation 18종 탐지(1개는 시험 추가 후), 계약 RED, 독립 리뷰(major 1·minor 3)·재리뷰(approve, minor 1) 반영, `pnpm test` exit 0 | 제안 생성 AI(PW-020), undo(PW-021), 실시간 갱신·다른 탭 알림(PW-020/022), 재작성 의미 검사(PW-043/044) |
 | PW-018 | in_review | (P02) | REQ-018 / TST-018A,B | unit 15, 통합 7, 브라우저 3, mutation 7종 탐지, 독립 리뷰·재리뷰·최종 확인(approve) 반영, `pnpm test` exit 0 | PDF highlight(PW-035), 실시간 공유, 문단 분할·병합 시 재연결 필요 |
 | PW-019 | in_review | (P02) | REQ-019 / TST-019A,B | unit 10, 통합 8, 브라우저 2, mutation 8종 탐지, 독립 리뷰 approve(minor 2·nit 반영, RFC-008), `pnpm test` exit 0 | CSL/citeproc 고정(PW-056), 문헌 검색(P04), 연속 인용 묶기, 그림 파일(PW-036) |
-| PW-020 | in_review | (P02) | REQ-020 / TST-020A,B | unit 11, 통합 12, 브라우저 4, mutation 11종 탐지, `pnpm test` exit 0 | 실제 provider(P03, blocked/not_run), SSE polling 부하, 프록시 버퍼링·worker 서비스화(P07) |
+| PW-020 | in_review | (P02) | REQ-020 / TST-020A,B | unit 15, 통합 15, 브라우저 4, mutation 16종 탐지, 독립 리뷰(major 1·minor 1·nit 4) 반영, `pnpm test` exit 0 | 실제 provider(P03, blocked/not_run), SSE polling 부하, 프록시 버퍼링·worker 서비스화(P07) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

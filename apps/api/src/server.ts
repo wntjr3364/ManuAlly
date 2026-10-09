@@ -40,6 +40,8 @@ export interface ServerOptions {
   provider?: string;
   // how often an open job event stream looks for new events (ms)
   eventPollMs?: number;
+  // how long one event stream stays open before the browser is asked to reconnect (ms)
+  eventStreamMaxMs?: number;
 }
 
 export function buildServer(opts: ServerOptions): FastifyInstance {
@@ -97,6 +99,6 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerProposalRoutes(app, db);
   registerCommentRoutes(app, db);
   registerReferenceRoutes(app, db);
-  registerAiRoutes(app, db, { pollMs: opts.eventPollMs });
+  registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;
 }

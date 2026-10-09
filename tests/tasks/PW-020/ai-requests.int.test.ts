@@ -11,7 +11,7 @@ import { migrate } from '../../../apps/api/src/db/migrate.ts';
 import { buildServer } from '../../../apps/api/src/server.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { parseDocument, snapshotSelection } from '../../../packages/editor-core/src/index.ts';
-import { appendJobEvent, cancelJob, claimJob } from '../../../packages/domain/src/jobs/index.ts';
+import { appendJobEvent, cancelJob, claimJob, failJob } from '../../../packages/domain/src/jobs/index.ts';
 import { runOnce } from '../../../apps/worker/src/local/index.ts';
 import { selectionHandlers } from '../../../apps/worker/src/selection/index.ts';
 import { createMockProvider } from '../../../packages/providers/src/mock/index.ts';
@@ -36,7 +36,7 @@ beforeAll(async () => {
   const c = await pool.connect();
   await migrate(c, path.resolve('db/migrations'));
   c.release();
-  app = buildServer({ pool, allowedOrigins: [ORIGIN], eventPollMs: 20 });
+  app = buildServer({ pool, allowedOrigins: [ORIGIN], eventPollMs: 20, eventStreamMaxMs: 1500 });
   base = await app.listen({ host: '127.0.0.1', port: 0 });
   H = await login('alice');
   other = await login('mallory');
@@ -259,5 +259,53 @@ describe('TST-020B: a disconnect is not a cancel; a cancel stops the run without
     expect((await run).find((o) => o.job_id === job.id)!.outcome).toBe('lost_lease');
     expect((await pool.query('SELECT count(*)::int AS n FROM edit_proposals WHERE paper_id = $1', [s.paperId])).rows[0].n).toBe(0);
     expect((await events(job.id)).map((e) => e.kind)).toEqual(['status']);
+  });
+});
+
+describe('review fixes', () => {
+  test('MAJOR: each run numbers its status, so a retried answer can be told apart from the failed one', async () => {
+    const s = await setup();
+    const job = (await request(s, 'very very clear', 'ask', 'Why?')).json().job;
+    const mock = createMockProvider();
+    let calls = 0;
+    const flaky = { ...mock, async *answer(i: { question: string; quote: string }) {
+      calls++;
+      let n = 0;
+      for await (const piece of mock.answer(i)) {
+        if (calls === 1 && n++ === 2) throw new Error('provider dropped the connection');
+        yield piece;
+      }
+    } };
+    const h = selectionHandlers(pool, flaky);
+    expect((await runOnce(pool, { handlers: h })).find((o) => o.job_id === job.id)!.outcome).toBe('failed');
+    await new Promise((r) => setTimeout(r, 2300)); // retry is dispatched after 2 s
+    expect((await runOnce(pool, { handlers: h })).find((o) => o.job_id === job.id)!.outcome).toBe('completed');
+    const ev = await events(job.id);
+    expect(ev.filter((e) => e.kind === 'status').map((e) => e.data.run)).toEqual([1, 2]);
+    const second = ev.slice(ev.findLastIndex((e) => e.kind === 'status') + 1).filter((e) => e.kind === 'delta').map((e) => e.data.text).join('');
+    expect(second.match(/\[MOCK\]/g)).toHaveLength(1);
+  });
+
+  test('a job waiting for an outside condition keeps its stream open (no end)', async () => {
+    const s = await setup();
+    const job = (await request(s, 'very very clear', 'ask', 'q?')).json().job;
+    const claim = (await claimJob(pool, { jobId: job.id, workerId: 'w', leaseMs: 30_000 }))!;
+    await failJob(pool, { jobId: job.id, fencingToken: claim.fencingToken, error: 'quota', next: 'WAITING_QUOTA' });
+    // read until the server closes the stream: it rotates, it does not end
+    const r = await readSse(`${base}/api/papers/${s.paperId}/jobs/${job.id}/events`, { headers: sseHeaders(), stop: (evs) => evs.some((e) => e.event === 'rotate') });
+    expect(r.events.map((e) => [e.event, e.data])).toEqual([['job', JSON.stringify({ status: 'WAITING_QUOTA' })], ['rotate', '{}']]);
+  });
+
+  test('a stream is rotated, and the reconnect checks the session again (a logout ends the flow)', async () => {
+    const s = await setup();
+    const job = (await request(s, 'very very clear', 'ask', 'q?')).json().job; // never run: stays QUEUED
+    const t0 = Date.now();
+    const r = await readSse(`${base}/api/papers/${s.paperId}/jobs/${job.id}/events`, { headers: sseHeaders() });
+    expect(r.events.map((e) => e.event)).toEqual(['job', 'rotate']);
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(1400);
+    const temp = await login(`tmp${Date.now()}`);
+    const p2 = (await call('POST', '/api/papers', { working_title: 'q', article_type: 'research_article' }, temp)).json();
+    expect((await call('POST', '/api/auth/logout', {}, temp)).statusCode).toBe(200);
+    expect((await readSse(`${base}/api/papers/${p2.id}/jobs/${job.id}/events`, { headers: sseHeaders(temp) })).status).toBe(401);
   });
 });

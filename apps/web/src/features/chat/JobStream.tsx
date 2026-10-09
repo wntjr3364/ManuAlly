@@ -1,13 +1,13 @@
 // AI jobs of this manuscript and their live progress (PW-020). Each job is read over Server-Sent
 // Events; the browser resumes from the last event it saw after a dropped connection, and leaving the
 // page never cancels a job (only the "취소" button does). Mock output always carries a MOCK badge.
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { api, errorText } from '../../app/api.ts';
-import { PHASE_LABEL, canCancel, initialState, reduce, withProposalStatus, type ServerEvent, type StreamState } from './stream-state.ts';
+import { PHASE_LABEL, canCancel, initialState, partialAnswer, reduce, withProposalStatus, type ServerEvent, type StreamState } from './stream-state.ts';
 
 export interface JobRef { id: string; intent: string; instruction: string; quote: string }
 const INTENT_LABEL: Record<string, string> = { ask: '질문', grammar: '문법', concise: '간결화', rewrite: '학술적 재작성' };
-const KINDS = ['status', 'delta', 'answer_done', 'proposal', 'no_change', 'job', 'end'];
+const KINDS = ['status', 'delta', 'answer_done', 'proposal', 'no_change', 'job', 'end', 'rotate'];
 
 type Action = ServerEvent | { event: 'proposal-status'; data: { status: string } };
 const reducer = (s: StreamState, a: Action) => (a.event === 'proposal-status' ? withProposalStatus(s, String(a.data.status)) : reduce(s, a as ServerEvent));
@@ -22,6 +22,8 @@ function JobItem({ paperId, job, proposalRefresh, onProposal }: { paperId: strin
   const [conn, setConn] = useState<'open' | 'retrying' | 'lost'>('open');
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState('');
+  // the server closes a stream now and then on purpose (rotate); the reconnect that follows is normal
+  const rotating = useRef(false);
 
   useEffect(() => {
     if (s.ended) return;
@@ -32,11 +34,16 @@ function JobItem({ paperId, job, proposalRefresh, onProposal }: { paperId: strin
       es.addEventListener(kind, (m) => {
         const ev = m as MessageEvent<string>;
         setConn('open');
+        rotating.current = kind === 'rotate';
+        if (kind === 'rotate') return;
         dispatch({ event: kind, id: ev.lastEventId ? Number(ev.lastEventId) : undefined, data: JSON.parse(ev.data) as Record<string, unknown> });
         if (kind === 'end') es.close();
       });
     }
-    es.onerror = () => setConn(es.readyState === EventSource.CLOSED ? 'lost' : 'retrying');
+    es.onerror = () => {
+      if (es.readyState !== EventSource.CLOSED && rotating.current) return;
+      setConn(es.readyState === EventSource.CLOSED ? 'lost' : 'retrying');
+    };
     return () => es.close(); // leaving the page only closes the stream
   }, [paperId, job.id, attempt]);
 
@@ -73,7 +80,10 @@ function JobItem({ paperId, job, proposalRefresh, onProposal }: { paperId: strin
           <span className="hint"> · 연결 끊김(작업은 계속됨) <button type="button" onClick={() => { setConn('open'); setAttempt((n) => n + 1); }}>다시 연결</button></span>
         )}
       </p>
-      {s.answer && <p className="answer" data-testid="ai-answer">{s.answer}</p>}
+      {s.answer && !partialAnswer(s) && <p className="answer" data-testid="ai-answer">{s.answer}</p>}
+      {partialAnswer(s) && (
+        <details data-testid="ai-partial-answer"><summary>중단된 부분 응답(결과 아님)</summary><p className="answer partial">{s.answer}</p></details>
+      )}
       {s.phase === 'proposal_ready' && <p className="hint">아래 “수정 제안”에서 차이를 확인하고 적용하거나 거절하세요.</p>}
       {canCancel(s) && <button type="button" onClick={cancel}>취소</button>}
       {error && <p role="alert" className="error">{error}</p>}

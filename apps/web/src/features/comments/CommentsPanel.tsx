@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Editor } from '@tiptap/core';
 import { api, errorText } from '../../app/api.ts';
-import { setCommentRanges, type CommentRange } from './comment-highlights.ts';
+import { commentRanges, setCommentRanges, type CommentRange } from './comment-highlights.ts';
 
 interface Thread {
   id: string; state: 'OPEN' | 'RESOLVED';
@@ -48,7 +48,14 @@ export function CommentsPanel({ paperId, documentId, editor, headRevisionId, scr
 
   // place highlights when the screen shows exactly the revision the positions were computed for
   useEffect(() => {
-    if (!editor || !screenIsHead || head !== headRevisionId) return;
+    if (!editor) return;
+    if (!screenIsHead || head !== headRevisionId) {
+      // positions cannot be placed now, but a thread that is no longer open loses its highlight at once
+      const open = new Set(threads.filter((t) => t.state === 'OPEN').map((t) => t.id));
+      const ranges = commentRanges(editor.view);
+      if (ranges.some((r) => !open.has(r.id))) setCommentRanges(editor.view, ranges.filter((r) => open.has(r.id)));
+      return;
+    }
     const starts = new Map<string, number>();
     editor.state.doc.forEach((n, offset) => { if (typeof n.attrs.id === 'string') starts.set(n.attrs.id, offset + 1); });
     const ranges: CommentRange[] = [];

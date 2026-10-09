@@ -36,3 +36,5 @@ export const CommentHighlights = Extension.create({
 export function setCommentRanges(view: EditorView, ranges: CommentRange[]): void {
   view.dispatch(view.state.tr.setMeta(key, ranges).setMeta('addToHistory', false));
 }
+
+export const commentRanges = (view: EditorView): CommentRange[] => key.getState(view.state) ?? [];

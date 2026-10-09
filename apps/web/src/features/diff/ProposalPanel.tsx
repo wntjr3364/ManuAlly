@@ -101,7 +101,10 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
   const settleUnknown = async (d: Detail, refusal: ApiError): Promise<boolean> => {
     const p = d.proposal;
     try {
-      const now = (await api<Detail>('GET', `/api/papers/${paperId}/proposals/${p.id}`)).proposal as ProposalView & { applied_revision_id?: string | null };
+      const read = async () => (await api<Detail>('GET', `/api/papers/${paperId}/proposals/${p.id}`)).proposal as ProposalView & { applied_revision_id?: string | null };
+      let now = await read();
+      // the first apply may still be running (e.g. waiting for the document lock): look once more
+      if (now.status === 'PENDING') { await new Promise((r) => setTimeout(r, 1500)); now = await read(); }
       if (now.status === 'APPLIED' && now.applied_revision_id) {
         const doc = await api<{ head: AppliedRevision }>('GET', `/api/papers/${paperId}/documents/${documentId}`);
         if (doc.head.id !== now.applied_revision_id || !onApplied(doc.head, d.after_block!)) {

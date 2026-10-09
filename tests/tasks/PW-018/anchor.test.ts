@@ -66,3 +66,27 @@ describe('comment anchors', () => {
     expect(r.state === 'ATTACHED' && r.from).toBe('Copy: Expression rose in roots. Roots grew. '.length);
   });
 });
+
+describe('review regressions', () => {
+  test('review MAJOR P1: a deleted short quote does not jump to the same word in another sentence', () => {
+    const d0 = doc(para(A, text('We measured growth. The effect was large in mutants.')));
+    const a = makeAnchor(d0, A, 'We measured growth. The '.length, 'We measured growth. The effect'.length);
+    const d1 = doc(para(A, text('We measured growth. Its size was large in mutants. A side effect remains unclear.')));
+    expect(resolveAnchor(d1, a)).toEqual({ state: 'ORPHANED', reason: 'TEXT_CHANGED' });
+  });
+
+  test('review MAJOR P2: the original sentence replaced and one identical copy elsewhere: ORPHANED, like with two copies', () => {
+    const one = doc(para(A, text('Roots grew. Something else now. Leaves were small. Later: Expression rose in roots. End.')));
+    expect(resolveAnchor(one, anchor)).toEqual({ state: 'ORPHANED', reason: 'TEXT_CHANGED' });
+  });
+
+  test('review MINOR: a comment on a citation does not stay attached when the citation is replaced by another', () => {
+    const OTHER = '00000000-0000-4000-8000-0000000000f2';
+    const c = (id: string, locator: string | null = null) => ({ type: 'citation', attrs: { referenceId: id, locator } });
+    const d0 = doc(para(A, text('As shown '), c(REF), text(' before.')));
+    const a = makeAnchor(d0, A, 0, 'As shown '.length + 1);
+    expect(a.atoms).toEqual([{ type: 'citation', referenceId: REF, locator: null }]);
+    expect(resolveAnchor(doc(para(A, text('As shown '), c(OTHER, 'p. 9'), text(' before.'))), a)).toEqual({ state: 'ORPHANED', reason: 'TEXT_CHANGED' });
+    expect(resolveAnchor(doc(para(A, text('Earlier. As shown '), c(REF), text(' before.'))), a)).toMatchObject({ state: 'ATTACHED', from: 9 });
+  });
+});

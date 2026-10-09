@@ -1,0 +1,94 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-018/anchor.test.ts (12 tests | 3 failed) 21ms
+   ❯ review regressions (3)
+     × review MAJOR P1: a deleted short quote does not jump to the same word in another sentence 8ms
+     × review MAJOR P2: the original sentence replaced and one identical copy elsewhere: ORPHANED, like with two copies 2ms
+     × review MINOR: a comment on a citation does not stay attached when the citation is replaced by another 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-018/anchor.test.ts > review regressions > review MAJOR P1: a deleted short quote does not jump to the same word in another sentence
+AssertionError: expected { state: 'ATTACHED', …(4) } to deeply equal { state: 'ORPHANED', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "reason": "TEXT_CHANGED",
+-   "state": "ORPHANED",
++   "block_id": "00000000-0000-4000-8000-0000000000a1",
++   "from": 58,
++   "moved": true,
++   "state": "ATTACHED",
++   "to": 64,
+  }
+
+ ❯ tests/tasks/PW-018/anchor.test.ts:75:34
+     73|     const a = makeAnchor(d0, A, 'We measured growth. The '.length, 'We…
+     74|     const d1 = doc(para(A, text('We measured growth. Its size was larg…
+     75|     expect(resolveAnchor(d1, a)).toEqual({ state: 'ORPHANED', reason: …
+       |                                  ^
+     76|   });
+     77|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/tasks/PW-018/anchor.test.ts > review regressions > review MAJOR P2: the original sentence replaced and one identical copy elsewhere: ORPHANED, like with two copies
+AssertionError: expected { state: 'ATTACHED', …(4) } to deeply equal { state: 'ORPHANED', …(1) }
+
+- Expected
++ Received
+
+  {
+-   "reason": "TEXT_CHANGED",
+-   "state": "ORPHANED",
++   "block_id": "00000000-0000-4000-8000-0000000000a1",
++   "from": 58,
++   "moved": true,
++   "state": "ATTACHED",
++   "to": 83,
+  }
+
+ ❯ tests/tasks/PW-018/anchor.test.ts:80:40
+     78|   test('review MAJOR P2: the original sentence replaced and one identi…
+     79|     const one = doc(para(A, text('Roots grew. Something else now. Leav…
+     80|     expect(resolveAnchor(one, anchor)).toEqual({ state: 'ORPHANED', re…
+       |                                        ^
+     81|   });
+     82|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/tasks/PW-018/anchor.test.ts > review regressions > review MINOR: a comment on a citation does not stay attached when the citation is replaced by another
+AssertionError: expected undefined to deeply equal [ { type: 'citation', …(2) } ]
+
+- Expected:
+[
+  {
+    "locator": null,
+    "referenceId": "00000000-0000-4000-8000-0000000000f1",
+    "type": "citation",
+  },
+]
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-018/anchor.test.ts:88:21
+     86|     const d0 = doc(para(A, text('As shown '), c(REF), text(' before.')…
+     87|     const a = makeAnchor(d0, A, 0, 'As shown '.length + 1);
+     88|     expect(a.atoms).toEqual([{ type: 'citation', referenceId: REF, loc…
+       |                     ^
+     89|     expect(resolveAnchor(doc(para(A, text('As shown '), c(OTHER, 'p. 9…
+     90|     expect(resolveAnchor(doc(para(A, text('Earlier. As shown '), c(REF…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 9 passed (12)
+   Start at  08:01:11
+   Duration  473ms (transform 76%, import 16%, tests 7%, worker 1%)
+

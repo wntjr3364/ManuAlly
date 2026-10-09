@@ -99,3 +99,25 @@
 
 ## 다음
 PW-019: 인용·그림 교차참조 노드
+
+## 독립 리뷰 결과 반영 (2026-10-09)
+- 결론: changes requested(major 1, minor 1, nit 4). 같은 커밋의 PW-017 재리뷰 반영분은 nit 1건 외 문제없음.
+- 문제없다고 확인된 것
+  - thread 상태 규칙
+  - anchor와 문서의 연결(composite FK + trigger)
+  - owner 격리, XSS 없음
+  - 미저장 상태에서 코멘트 생성 차단
+  - 강조 위치는 저장된 head일 때만 둔다
+  - 문단 분할·병합·복사 시 ORPHANED 또는 새 id
+
+| 지적 | 조치 |
+|---|---|
+| **MAJOR 지운 짧은 인용이 같은 문단 다른 문장의 같은 단어로 이동**<br>"effect" → "side effect"(P1). 복사본 1개면 붙고 2개면 AMBIGUOUS인 비일관성(P2) | "문단에 한 번만 있으면 붙임" 규칙을 없앴다. 문맥(앞뒤 32자)이 맞지 않으면 바로 앞 또는 뒤의 12자가 기록과 같은 후보가 정확히 하나일 때만 붙인다(한쪽만 편집된 경우). 증거가 없으면 ORPHANED. P1·P2 회귀 시험 |
+| m1 인용 atom을 자리표시자로만 비교 → 다른 인용으로 바뀌어도 붙어 있음 | anchor에 인용 범위 안 atom의 정체(종류·reference id·locator)를 저장하고 비교한다. `pw_018_0002`가 `atoms` 열을 추가한다. 기존 anchor는 atom이 있으면 ORPHANED 쪽(안전)으로 판단한다. 회귀 시험 |
+| nit: 문단 이동 시험이 시험용 transaction 사용 | 맞다. 편집기에 문단 이동 UI가 아직 없어, 끌어 놓기처럼 블록 id를 유지하는 transaction으로만 보였다. 문단 텍스트를 잘라 붙이면 새 블록 id가 되어 ORPHANED가 된다(남은 위험) |
+| nit: 미저장 상태에서 해결·다시 열기하면 강조가 남음 | 열린 상태가 아닌 thread의 강조는 언제든 즉시 지운다. 브라우저 시험 |
+| nit: thread guard가 이전 `state_changed_by`를 그대로 받아도 통과 | 바꾸지 않는다. 한 owner가 해결했다가 다시 여는 정상 흐름에서 같은 id가 된다. 누가 바꿨는지는 감사 기록의 actor(`pw.actor`)가 정확히 남긴다 |
+| nit(PW-017): 첫 적용이 아직 진행 중이면 PENDING으로 읽고 풀 수 있음 | PENDING이면 1.5초 뒤 한 번 더 읽는다. 아주 느린 서버에서는 여전히 이론상 가능하다(남은 위험) |
+
+- RED: 리뷰 전 anchor 코드에서 회귀 unit 3건 실패(`review-red.log`)
+- 실행: PW-018 unit 12, 통합 6, 브라우저 3. PW-017 브라우저 7 회귀 통과. `pnpm test` exit 0(`pnpm-test-review.log`, 작업 중이던 PW-019 파일 포함): unit 140, integration 162, contracts 15, e2e 59, spikes 70

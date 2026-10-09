@@ -89,7 +89,12 @@ test('replies, resolve and reopen; a resolved comment has no highlight', async (
   await item.getByLabel('답글').fill('Yes, by qPCR.');
   await item.getByRole('button', { name: '답글' }).click();
   await expect(item.locator('.comment-message')).toHaveText(['Is this measured?', 'Yes, by qPCR.']);
+  // resolving while the screen has unsaved text removes the highlight at once (review nit)
+  await editor(page).locator('p').nth(1).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' x');
   await item.getByRole('button', { name: '해결' }).click();
+  await expect(highlight(page)).toHaveCount(0);
   await expect(comments(page).getByTestId('comment')).toHaveCount(0);
   await expect(highlight(page)).toHaveCount(0);
   await comments(page).getByLabel(/해결된 코멘트도 보기/).check();

@@ -48,7 +48,7 @@
 | PW-015 | in_review | (P02) | REQ-015 / TST-015A,B | unit 34, 통합 9, 브라우저 16(CDP 한글 IME), RED(구현 전·리뷰 전·재리뷰 전 코드), mutation 31종 중 30 탐지(1 동등), 독립 리뷰(major 1·minor 7)·재리뷰(minor 4·nit 3) 반영, 최종 확인 approve(nit 2 반영), `pnpm test` exit 0 | 실제 IME·Firefox/Safari(PW-022), 인용 입력 UI(PW-019), revision 누적(PW-021/P07), 복구본 기본값 켜짐 사용자 확인 |
 | PW-016 | in_review | (P02) | REQ-016 / TST-016A,B | unit 9, 브라우저 8(CDP 한글 지시), RED(구현 전·이전 앱), mutation 7종 탐지, 독립 리뷰 approve(minor 3·nit 4 반영), `pnpm test` exit 0 | 서버 전송(PW-017/020), 단축키 설정, 해상도·실제 IME(PW-022) |
 | PW-017 | in_review | (P02) | REQ-017 / TST-017A,B | unit 5, 통합 17, 계약 2, 브라우저 6, mutation 18종 탐지(1개는 시험 추가 후), 계약 RED, 독립 리뷰(major 1·minor 3)·재리뷰(approve, minor 1) 반영, `pnpm test` exit 0 | 제안 생성 AI(PW-020), undo(PW-021), 실시간 갱신·다른 탭 알림(PW-020/022), 재작성 의미 검사(PW-043/044) |
-| PW-018 | in_review | (P02) | REQ-018 / TST-018A,B | unit 9, 통합 6, 브라우저 3, mutation 7종 탐지, `pnpm test` exit 0 | PDF highlight(PW-035), 실시간 공유, 문단 분할·병합 시 재연결 필요 |
+| PW-018 | in_review | (P02) | REQ-018 / TST-018A,B | unit 12, 통합 6, 브라우저 3, mutation 7종 탐지, 독립 리뷰(major 1·minor 1) 반영, `pnpm test` exit 0 | PDF highlight(PW-035), 실시간 공유, 문단 분할·병합 시 재연결 필요 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

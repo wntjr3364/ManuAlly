@@ -1,0 +1,20 @@
+{
+  "header": { "type": "esummary", "version": "0.3" },
+  "result": {
+    "uids": ["90000001", "90000002"],
+    "90000001": {
+      "uid": "90000001", "pubdate": "2021 May 3", "fulljournalname": "Synthetic Plant Journal",
+      "title": "Drought induces ABC1 in synthetic roots.",
+      "authors": [{ "name": "Kim J", "authtype": "Author" }, { "name": "Lee S", "authtype": "Author" }],
+      "articleids": [{ "idtype": "pubmed", "value": "90000001" }, { "idtype": "doi", "value": "10.5555/synthetic.0001" }],
+      "pubtype": ["Journal Article"]
+    },
+    "90000002": {
+      "uid": "90000002", "pubdate": "2019", "fulljournalname": "Synthetic Stress Biology",
+      "title": "ABC2 and drought: a retracted synthetic study.",
+      "authors": [{ "name": "Park H", "authtype": "Author" }],
+      "articleids": [{ "idtype": "pubmed", "value": "90000002" }],
+      "pubtype": ["Journal Article", "Retracted Publication"]
+    }
+  }
+}

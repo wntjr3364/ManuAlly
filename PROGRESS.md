@@ -61,6 +61,7 @@
 | PW-028 | in_review | (P03) | REQ-028 / TST-028A,B | 통합 12, unit 2, 브라우저 2(새로고침·오프라인 재연결), mutation 17종 탐지, 독립 리뷰(MAJOR 1: 취소 뒤 gateway 제안 → run token을 fencing에 묶음, MINOR 2) 반영, `pnpm test` exit 0(첫 실행의 PW-015 1회 실패는 18회 반복에도 재현 안 됨, 원인 미확인). **실제 provider 연결: not_run** | adapter interrupt·sandbox 연결(PW-030), bwrap 안쪽 종료 확인, 원고 화면 진행 표시 재부착(PW-054) |
 | PW-029 | in_review | (P03) | REQ-029 / TST-029A,B | 통합 7, unit 2, 브라우저 1, mutation 10종 탐지(1종 같은 동작), `pnpm test` exit 0. 구현을 시험보다 먼저 씀(기록) | 실제 이벤트 기록 연결(PW-030), 예산 예약(PW-050), 실행 중 갱신(PW-054) |
 | PW-030 | in_review | (P03) | REQ-030 / TST-030A,B | gate unit 5(보고서↔등록부), 대역 Codex 연쇄 통합 3, 정직하지 않은 보고서 7종 거부, `pnpm test` exit 0. **실제 Claude·Codex: not_run**(수동 스크립트 제공) | RFC-010(provider를 sandbox 안에서, worker 연결), live smoke(사용자 PC) |
+| PW-031 | in_review | (P04) | REQ-031 / TST-031A,B | 통합 16(대역 서버·합성 fixture), mutation 12종 탐지(시험 공백 2건 보완), `pnpm test` exit 0. **실제 Crossref·PubMed: not_run**(수동 계약 스크립트) | OpenAlex(조건 미확인), 다중 worker 출처 한도(PW-049/050) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

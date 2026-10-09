@@ -1,0 +1,38 @@
+{
+  "status": "ok",
+  "message-type": "work-list",
+  "message-version": "1.0.0",
+  "message": {
+    "total-results": 3,
+    "items": [
+      {
+        "DOI": "10.5555/synthetic.0001",
+        "title": ["Drought induces ABC1 in synthetic roots"],
+        "author": [{ "family": "Kim", "given": "Jiwon" }, { "family": "Lee", "given": "Sora" }],
+        "issued": { "date-parts": [[2021, 5, 3]] },
+        "container-title": ["Synthetic Plant Journal"],
+        "type": "journal-article",
+        "relation": { "has-preprint": [{ "id-type": "doi", "id": "10.5555/synthetic.pre1", "asserted-by": "subject" }] }
+      },
+      {
+        "DOI": "10.5555/synthetic.pre1",
+        "title": ["Drought induces ABC1 (preprint)"],
+        "author": [{ "family": "Kim", "given": "Jiwon" }],
+        "issued": { "date-parts": [[2020]] },
+        "container-title": [],
+        "type": "posted-content",
+        "subtype": "preprint",
+        "relation": { "is-preprint-of": [{ "id-type": "doi", "id": "10.5555/synthetic.0001", "asserted-by": "subject" }] }
+      },
+      {
+        "DOI": "10.5555/synthetic.retraction",
+        "title": ["Retraction notice: ABC2 is not drought responsive"],
+        "author": [],
+        "issued": { "date-parts": [[2022, 1]] },
+        "container-title": ["Synthetic Plant Journal"],
+        "type": "journal-article",
+        "update-to": [{ "type": "retraction", "DOI": "10.5555/synthetic.0099", "updated": { "date-parts": [[2022, 1, 10]] } }]
+      }
+    ]
+  }
+}

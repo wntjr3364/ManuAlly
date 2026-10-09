@@ -1,2 +1,2 @@
-// Entry point; populated by later P01 tasks.
-export {};
+// @pw/search: bibliographic search adapters (PW-031).
+export * from './bibliographic/index.ts';

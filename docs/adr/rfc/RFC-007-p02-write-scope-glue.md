@@ -31,6 +31,13 @@ Tests and acceptance criteria:
 - 각 Task의 TST와 기존 `pnpm test` 전체가 통과해야 한다.
 - PW-007 guard(모든 시험 파일이 정확히 한 명령에 속함)가 Task 폴더의 `*.e2e.ts`도 검사한다.
 
+Write scope: 아래 부록의 파일(Task별)
+
+User decision / reviewer:
+- 사용자가 P01 gate에서 RFC-006(같은 방식의 P01 연결 지점)을 확정했다(2026-10-09 "해라").
+- 이 RFC는 같은 원칙을 P02에 적용한 위임 결정이다. P02 gate에서 사용자 확인을 요청한다.
+- PW-015 독립 리뷰가 연결 파일(App.tsx 로그아웃·로그인 정리, ManuscriptTab)을 함께 검토했다.
+
 ## 부록 — Task별 연결 지점
 - PW-015
   - `apps/web/src/features/paper/ManuscriptTab.tsx`
@@ -39,6 +46,7 @@ Tests and acceptance criteria:
   - `apps/web/src/app/App.tsx`
     - 로그인한 계정을 복구 저장소에 알린다.
     - 로그아웃 시 이 브라우저의 복구본을 모두 지운다.
+    - 로그인 시 다른 계정의 복구본과 설정을 지운다(PW-015 리뷰 8).
   - `apps/web/src/app/styles.css`: 복구 안내 상자 스타일(`.notice`)
   - `apps/api/src/server.ts`: `registerDocumentSaveRoutes` 등록
   - `packages/config/test-patterns.ts`, `packages/config/playwright.config.ts`

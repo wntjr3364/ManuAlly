@@ -2,42 +2,44 @@
 // copy, and IME safety.
 // - "저장됨" only after the server stored exactly what is on screen (save-state.ts, autosave.ts)
 // - no save and no outside change while an IME composition is in progress
-// - unsaved text is also kept in this browser (per account and document, 7 days, can be turned off,
-//   removed at logout) and offered back when the page is opened again; a copy made from an older
-//   server version is shown for copying, never merged silently
+// - unsaved text is also kept in this browser (per account, document and tab; 7 days; can be turned
+//   off; removed at logout) and offered back when the page is opened again. A copy made from an older
+//   server version is shown for copying, never merged silently. Copies of tabs that are still open
+//   are left to them.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/core';
 import { EDITOR_SCHEMA_VERSION, canonicalJson, validateDocument } from '@pw/editor-core';
-import { ApiError, api } from '../app/api.ts';
+import { ApiError, api, setCsrf } from '../app/api.ts';
 import { setUnsaved } from '../app/unsaved.ts';
 import { editorExtensions } from '../features/paper/editor-extensions.ts';
 import { reconcileBlockIds } from '../features/paper/block-ids.ts';
 import { initialSaveState, isUnsaved, saveLabel, saveReducer } from '../features/paper/save-state.ts';
 import { Autosave, type SaveRequest, type SendResult } from './autosave.ts';
 import { applyExternalPatch } from './patch-gate.ts';
-import { browserStorage, clearDraft, isRecoveryEnabled, loadDraft, purgeExpired, recoveryOwner, saveDraft, setRecoveryEnabled, type Draft } from './recovery.ts';
+import {
+  LIVE_REFRESH_MS, browserStorage, clearDraft, clearLive, isRecoveryEnabled, loadDrafts, markLive, pageTabId, purgeExpired, recoveryOwner,
+  saveDraft, setRecoveryEnabled, storageWorks, type Draft,
+} from './recovery.ts';
 import { ReadOnlyDocument, renderDocument } from './ReadOnlyDocument.tsx';
 
 export interface Revision { id: string; content_json: JSONContent; schema_version: number }
 export interface DocInfo { document: { id: string; kind: string; head_revision_id: string }; head: Revision }
 
 const DRAFT_DELAY_MS = 400;
+const LOGIN_EXPIRED = '로그인이 만료되었습니다 — 다른 탭에서 다시 로그인한 뒤 저장을 누르세요';
 
-type Offer = { kind: 'restore' | 'diverged'; draft: Draft } | null;
-
-function findOffer(info: DocInfo): Offer {
+// recovery copies to offer when the editor opens; copies equal to the stored text are dropped
+function findOffers(info: DocInfo, tabId: string): Draft[] {
   const storage = browserStorage();
   const owner = recoveryOwner();
-  if (!storage || !owner) return null;
+  if (!storage || !owner) return [];
   purgeExpired(storage, Date.now());
-  const draft = loadDraft(storage, owner, info.document.id, Date.now());
-  if (!draft) return null;
-  if (canonicalJson(draft.content) === canonicalJson(info.head.content_json)) {
-    clearDraft(storage, owner, info.document.id);
-    return null;
-  }
-  return { kind: draft.baseRevisionId === info.head.id ? 'restore' : 'diverged', draft };
+  return loadDrafts(storage, owner, info.document.id, tabId, Date.now()).filter((d) => {
+    if (canonicalJson(d.content) !== canonicalJson(info.head.content_json)) return true;
+    clearDraft(storage, d);
+    return false;
+  });
 }
 
 export function ManuscriptEditor({ paperId, info }: { paperId: string; info: DocInfo }) {
@@ -45,16 +47,15 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   const containerRef = useRef<HTMLDivElement>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [contentError, setContentError] = useState('');
-  const [offer, setOffer] = useState<Offer>(() => findOffer(info));
+  const tabId = useMemo(() => pageTabId(), []);
+  const [offers, setOffers] = useState<Draft[]>(() => findOffers(info, tabId));
   const [draftNote, setDraftNote] = useState('');
   const storage = useMemo(() => browserStorage(), []);
+  const storageOk = useMemo(() => storageWorks(storage), [storage]);
   const owner = recoveryOwner();
   const [recoveryOn, setRecoveryOn] = useState(() => (storage && owner ? isRecoveryEnabled(storage, owner) : false));
-  const offerRef = useRef(offer);
-  offerRef.current = offer;
   const recoveryOnRef = useRef(recoveryOn);
   recoveryOnRef.current = recoveryOn;
-  const manualRef = useRef(false);
   const autoRef = useRef<Autosave | null>(null);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initial = info.head.content_json.content?.length ? info.head.content_json : undefined;
@@ -62,7 +63,7 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   const editor = useEditor({
     extensions: editorExtensions,
     content: initial,
-    editable: offer === null,
+    editable: offers.length === 0,
     enableContentCheck: true,
     onContentError: ({ error }) => setContentError(error.message),
     onCreate: ({ editor: ed }) => {
@@ -80,45 +81,85 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   const editorRef = useRef(editor);
   editorRef.current = editor;
 
+  // the editor is locked while recovery copies wait for a decision
+  useEffect(() => { editor?.setEditable(offers.length === 0); }, [editor, offers.length]);
+
+  const cancelDraftTimer = () => {
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    draftTimer.current = null;
+  };
+  // writes this tab's copy of the unsaved text, based on the head it was edited from
   const writeDraft = useCallback(() => {
+    draftTimer.current = null;
     const ed = editorRef.current;
     const auto = autoRef.current;
-    if (!ed || !auto || !storage || !owner || !recoveryOnRef.current || offerRef.current) return;
+    if (!ed || !auto || !storage || !owner || !recoveryOnRef.current) return;
     if (auto.version === 0) return;
-    const r = saveDraft(storage, { ownerId: owner, paperId, documentId: info.document.id, baseRevisionId: auto.headRevisionId, schemaVersion: EDITOR_SCHEMA_VERSION, content: ed.getJSON(), savedAt: Date.now() });
+    const r = saveDraft(storage, { ownerId: owner, paperId, documentId: info.document.id, tabId, baseRevisionId: auto.headRevisionId, schemaVersion: EDITOR_SCHEMA_VERSION, content: ed.getJSON(), savedAt: Date.now() });
     setDraftNote(r.ok || r.error === 'disabled' ? '' : r.error);
-  }, [storage, owner, paperId, info.document.id]);
+  }, [storage, owner, paperId, info.document.id, tabId]);
 
   function scheduleDraft() {
-    if (draftTimer.current) clearTimeout(draftTimer.current);
+    cancelDraftTimer();
     draftTimer.current = setTimeout(writeDraft, DRAFT_DELAY_MS);
   }
+
+  // this tab is open: other tabs leave its recovery copies alone
+  useEffect(() => {
+    if (!storage || !storageOk) return;
+    const beat = () => markLive(storage, tabId, Date.now());
+    const gone = () => clearLive(storage, tabId);
+    beat();
+    const t = setInterval(beat, LIVE_REFRESH_MS);
+    addEventListener('pagehide', gone);
+    addEventListener('pageshow', beat);
+    return () => {
+      clearInterval(t);
+      removeEventListener('pagehide', gone);
+      removeEventListener('pageshow', beat);
+      gone();
+    };
+  }, [storage, storageOk, tabId]);
 
   // the autosave controller lives as long as this editor
   useEffect(() => {
     if (!editor) return;
-    const send = async (req: SaveRequest): Promise<SendResult> => {
-      const reason = manualRef.current ? 'manual' : 'autosave';
-      manualRef.current = false;
-      try {
-        const rev = await api<{ id: string }>('POST', `/api/papers/${paperId}/documents/${info.document.id}/saves`, {
-          expected_head_revision_id: req.expectedHead, content_json: req.json, schema_version: EDITOR_SCHEMA_VERSION, reason,
-        });
-        setProblems([]);
-        return { ok: true, headRevisionId: rev.id };
-      } catch (e) {
-        if (e instanceof ApiError) {
-          if (e.status === 409) return { ok: false, kind: 'conflict', message: '서버 응답 409' };
-          if (e.status >= 500) return { ok: false, kind: 'server', message: `서버 응답 ${e.status} — 잠시 후 다시 시도합니다` };
-          if (e.body?.errors) setProblems(e.body.errors.map((x) => `${x.code}: ${x.message}`));
-          return { ok: false, kind: 'rejected', message: e.status === 401 ? '로그인이 필요합니다' : `서버 응답 ${e.status}` };
-        }
-        return { ok: false, kind: 'network', message: navigator.onLine ? '네트워크 오류 — 잠시 후 다시 시도합니다' : '오프라인 — 연결되면 다시 저장합니다' };
+    const url = `/api/papers/${paperId}/documents/${info.document.id}/saves`;
+    const post = (req: SaveRequest) => api<{ id: string }>('POST', url, {
+      expected_head_revision_id: req.expectedHead, content_json: req.json, schema_version: EDITOR_SCHEMA_VERSION, reason: req.manual ? 'manual' : 'autosave',
+    });
+    const failure = (e: unknown): SendResult => {
+      if (e instanceof ApiError) {
+        if (e.status === 409) return { ok: false, kind: 'conflict', message: '서버 응답 409' };
+        if (e.status >= 500) return { ok: false, kind: 'server', message: `서버 응답 ${e.status} — 잠시 후 다시 시도합니다` };
+        if (e.body?.errors) setProblems(e.body.errors.map((x) => `${x.code}: ${x.message}`));
+        return { ok: false, kind: 'rejected', message: e.status === 401 ? LOGIN_EXPIRED : `서버 응답 ${e.status}` };
       }
+      return { ok: false, kind: 'network', message: navigator.onLine ? '네트워크 오류 — 잠시 후 다시 시도합니다' : '오프라인 — 연결되면 다시 저장합니다' };
+    };
+    const send = async (req: SaveRequest): Promise<SendResult> => {
+      let rev: { id: string };
+      try {
+        rev = await post(req);
+      } catch (e) {
+        if (!(e instanceof ApiError && (e.status === 401 || e.status === 403))) return failure(e);
+        // the login may have been renewed in another tab: take its CSRF token and try once more
+        const fresh = await api<{ csrfToken: string }>('GET', '/api/auth/session').catch(() => null);
+        if (!fresh) return { ok: false, kind: 'rejected', message: LOGIN_EXPIRED };
+        setCsrf(fresh.csrfToken);
+        try {
+          rev = await post(req);
+        } catch (e2) {
+          return failure(e2);
+        }
+      }
+      setProblems([]);
+      return { ok: true, headRevisionId: rev.id };
     };
     const auto = new Autosave({
       headRevisionId: info.head.id,
-      savedKey: canonicalJson(editor.getJSON()),
+      // what the server is known to hold: the stored revision itself
+      savedKey: canonicalJson(info.head.content_json),
       snapshot: () => {
         const json = editor.getJSON();
         const checked = validateDocument(json, EDITOR_SCHEMA_VERSION);
@@ -132,9 +173,11 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
       onInvalid: setProblems,
       onSaved: (req) => {
         if (!storage || !owner) return;
-        // fully saved: the recovery copy is no longer needed; otherwise rebase it on the new head
-        if (auto.version === req.version) clearDraft(storage, owner, info.document.id);
-        else writeDraft();
+        if (auto.version === req.version) {
+          // fully saved: this tab's copy is no longer needed (and no pending write may bring it back)
+          cancelDraftTimer();
+          clearDraft(storage, { ownerId: owner, documentId: info.document.id, tabId });
+        } else writeDraft(); // newer text on screen: keep it, now based on the new head
       },
     });
     autoRef.current = auto;
@@ -149,15 +192,15 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
       removeEventListener('online', onOnline);
       auto.dispose();
       autoRef.current = null;
-      if (draftTimer.current) clearTimeout(draftTimer.current);
+      cancelDraftTimer();
     };
-  }, [editor, info.document.id, info.head.id, paperId, storage, owner, writeDraft]);
+  }, [editor, info.document.id, info.head.id, info.head.content_json, paperId, storage, owner, tabId, writeDraft]);
 
   const unsaved = isUnsaved(save);
   useEffect(() => { setUnsaved(`manuscript:${info.document.id}`, unsaved ? '원고' : null); }, [unsaved, info.document.id]);
   useEffect(() => () => setUnsaved(`manuscript:${info.document.id}`, null), [info.document.id]);
 
-  const saveNow = useCallback(() => { manualRef.current = true; autoRef.current?.saveNow(); }, []);
+  const saveNow = useCallback(() => { autoRef.current?.saveNow(); }, []);
 
   // Ctrl/Cmd+S only while focus is in this editor area (spec 04: shortcuts work inside the editor)
   useEffect(() => {
@@ -180,26 +223,29 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
     };
   }, [editor]);
 
+  const offer = offers[0];
+  // a copy can be put back only onto the very revision it was edited from, with nothing unsaved on screen
+  const canRestore = offer !== undefined && offer.baseRevisionId === save.headRevisionId && !unsaved;
   const restore = () => {
-    if (!editor || offer?.kind !== 'restore') return;
-    setOffer(null);
-    offerRef.current = null;
+    if (!editor || !offer || !canRestore) return;
+    // the text now belongs to this tab: its own copy replaces the old one once it is written
+    if (storage && offer.tabId !== tabId) clearDraft(storage, offer);
+    setOffers(offers.slice(1));
     editor.setEditable(true);
     // replaces the screen with the recovered text; it is then unsaved and autosaved like typing
-    editor.commands.setContent(offer.draft.content as JSONContent, { emitUpdate: true });
+    editor.commands.setContent(offer.content as JSONContent, { emitUpdate: true });
   };
   const discard = () => {
-    if (storage && owner) clearDraft(storage, owner, info.document.id);
-    setOffer(null);
-    offerRef.current = null;
-    editor?.setEditable(true);
+    if (!offer) return;
+    if (storage) clearDraft(storage, offer);
+    setOffers(offers.slice(1));
   };
   const toggleRecovery = (on: boolean) => {
     if (!storage || !owner) return;
     setRecoveryEnabled(storage, owner, on);
     setRecoveryOn(on);
     recoveryOnRef.current = on;
-    if (on && autoRef.current && isUnsaved(save)) writeDraft();
+    if (on && unsaved) writeDraft();
   };
 
   if (contentError) return <ReadOnlyDocument content={info.head.content_json} reason={`편집기가 읽을 수 없는 내용(${contentError})`} />;
@@ -207,23 +253,24 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
   // goes to the editor (not to the button, where Space would press it again); keyboard users can
   // still Tab to the buttons
   const keepFocus = (e: { preventDefault(): void }) => e.preventDefault();
+  const locked = offers.length > 0;
   const mark = (name: 'bold' | 'italic' | 'subscript' | 'superscript', label: string) => (
-    <button type="button" aria-pressed={editor?.isActive(name) ?? false} disabled={offer !== null} onMouseDown={keepFocus} onClick={() => editor?.chain().focus().toggleMark(name).run()}>{label}</button>
+    <button type="button" aria-pressed={editor?.isActive(name) ?? false} disabled={locked} onMouseDown={keepFocus} onClick={() => editor?.chain().focus().toggleMark(name).run()}>{label}</button>
   );
-  const when = offer ? new Date(offer.draft.savedAt).toLocaleString() : '';
+  const when = offer ? new Date(offer.savedAt).toLocaleString() : '';
   return (
     <section className="card" ref={containerRef}>
-      {offer?.kind === 'restore' && (
+      {offer && canRestore && (
         <div role="alert" className="notice" data-testid="recovery-offer">
           <p>이 브라우저에 저장되지 않은 원고 변경이 남아 있습니다({when}). 불러오면 화면에 올린 뒤 자동 저장합니다.</p>
           <button type="button" className="primary" onClick={restore}>복구본 불러오기</button>
           <button type="button" onClick={discard}>복구본 버리기</button>
         </div>
       )}
-      {offer?.kind === 'diverged' && (
+      {offer && !canRestore && (
         <div role="alert" className="notice" data-testid="recovery-offer">
-          <p>이 브라우저에 남은 복구본({when})은 그 뒤 서버에서 바뀐 원고보다 오래된 버전을 바탕으로 합니다. 자동으로 합치지 않습니다. 필요한 부분을 아래에서 복사한 뒤 버리세요.</p>
-          <div className="editor readonly" data-testid="recovery-text">{renderDocument(offer.draft.content as JSONContent)}</div>
+          <p>이 브라우저에 남은 복구본({when})은 지금 화면의 원고와 다른 버전을 바탕으로 합니다. 자동으로 합치지 않습니다. 필요한 부분을 아래에서 복사한 뒤 버리세요.</p>
+          <div className="editor readonly" data-testid="recovery-text">{renderDocument(offer.content as JSONContent)}</div>
           <button type="button" onClick={discard}>복구본 버리기</button>
         </div>
       )}
@@ -232,13 +279,13 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
         {mark('italic', '기울임')}
         {mark('subscript', '아래첨자')}
         {mark('superscript', '위첨자')}
-        <button type="button" disabled={offer !== null} onMouseDown={keepFocus} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>제목</button>
-        <button type="button" className="primary" onClick={saveNow} disabled={save.status === 'saving' || offer !== null}>저장</button>
+        <button type="button" disabled={locked} onMouseDown={keepFocus} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>제목</button>
+        <button type="button" className="primary" onClick={saveNow} disabled={save.status === 'saving' || locked}>저장</button>
         <span role="status" data-testid="save-status" className={`save-status ${unsaved ? 'unsaved' : 'saved'}`}>{saveLabel(save)}</span>
       </div>
       {problems.length > 0 && <ul role="alert" className="error">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
       <div className="editor" data-testid="editor"><EditorContent editor={editor} /></div>
-      {storage && owner && (
+      {owner && storage && storageOk && (
         <p className="hint">
           <label className="inline">
             <input type="checkbox" checked={recoveryOn} onChange={(e) => toggleRecovery(e.target.checked)} /> 저장되지 않은 변경을 이 브라우저에 임시 보관(7일, 로그아웃하면 삭제)
@@ -246,6 +293,7 @@ export function ManuscriptEditor({ paperId, info }: { paperId: string; info: Doc
           {draftNote && <span role="alert" className="error"> {draftNote}</span>}
         </p>
       )}
+      {owner && !storageOk && <p role="alert" className="hint" data-testid="recovery-unavailable">이 브라우저가 사이트 저장소를 막아 저장되지 않은 변경을 임시 보관할 수 없습니다. 저장 상태를 확인하세요.</p>}
     </section>
   );
 }

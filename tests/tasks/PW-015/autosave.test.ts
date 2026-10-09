@@ -13,6 +13,7 @@ interface Rig {
   composing: { on: boolean };
   answer: (r: SendResult) => Promise<void>;
   invalid: string[][];
+  waiting: () => number;
 }
 
 function rig(opts: { idleMs?: number; maxWaitMs?: number } = {}): Rig {
@@ -40,6 +41,7 @@ function rig(opts: { idleMs?: number; maxWaitMs?: number } = {}): Rig {
     state: () => state,
     setDoc: (t) => { doc = t; auto.edit(); },
     answer: async (r) => { waiting.shift()!(r); await vi.advanceTimersByTimeAsync(0); },
+    waiting: () => waiting.length,
   };
 }
 
@@ -55,7 +57,7 @@ describe('autosave', () => {
     expect(r.sent).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(1);
     expect(r.sent).toHaveLength(1);
-    expect(r.sent[0]).toMatchObject({ json: { text: 'ab' }, expectedHead: 'rev-0', version: 2 });
+    expect(r.sent[0]).toMatchObject({ json: { text: 'ab' }, expectedHead: 'rev-0', version: 2, manual: false });
     expect(r.state().status).toBe('saving');
     expect(r.labels.some((l) => l === '저장됨')).toBe(false);
     await r.answer({ ok: true, headRevisionId: 'rev-1' });
@@ -175,9 +177,96 @@ describe('autosave', () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect(r.sent).toHaveLength(1);
     await r.answer({ ok: true, headRevisionId: 'rev-1' });
-    expect(r.state().status).toBe('dirty');
-    await vi.advanceTimersByTimeAsync(1000);
+    expect(r.state().status).not.toBe('saved'); // '12' is not stored yet
+    // the maximum wait passed during the request, so the newer text goes out right after it
+    await vi.advanceTimersByTimeAsync(0);
+    expect(r.sent).toHaveLength(2);
     expect(r.sent[1]).toMatchObject({ json: { text: '12' }, expectedHead: 'rev-1' });
+  });
+
+  test('review MAJOR-1: after an unanswered save, typing back to the old text is not shown as saved', async () => {
+    const r = rig();
+    r.setDoc('X');
+    await vi.advanceTimersByTimeAsync(1000);
+    await r.answer({ ok: false, kind: 'network', message: '네트워크 오류' }); // the server may hold X
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(r.sent).toHaveLength(2);
+    await r.answer({ ok: false, kind: 'rejected', message: '로그인이 필요합니다' }); // resend refused (login expired)
+    r.setDoc(''); // back to the text that was loaded
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(r.state().status).not.toBe('saved');
+    expect(r.labels).not.toContain('저장됨');
+    expect(r.sent).toHaveLength(2); // typing does not resend a refused request
+    r.auto.saveNow(); // an explicit save sends the pending request again, unchanged
+    expect(r.sent).toHaveLength(3);
+    expect(r.sent[2]).toEqual(r.sent[0]);
+    await r.answer({ ok: true, headRevisionId: 'rev-1' }); // it had been stored
+    expect(r.state().status).toBe('dirty'); // the screen ('') differs from what is stored (X)
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(r.sent[3]).toMatchObject({ json: { text: '' }, expectedHead: 'rev-1' });
+  });
+
+  test('review 4: continuous IME typing is still saved when the maximum wait is reached', async () => {
+    const r = rig({ idleMs: 1000, maxWaitMs: 3000 });
+    // a composition is in progress all the time; each syllable ends it for an instant only
+    for (let t = 0; t < 30; t++) {
+      r.composing.on = true;
+      r.setDoc(`가${t}`);
+      await vi.advanceTimersByTimeAsync(300);
+      r.composing.on = false;
+      r.auto.compositionEnded();
+      if (r.waiting()) await r.answer({ ok: true, headRevisionId: `rev-${t}` });
+    }
+    expect(r.sent.length).toBeGreaterThanOrEqual(2); // 9 s of typing, maximum wait 3 s
+  });
+
+  test('review NIT: Ctrl+S during a composition saves right after the composition ends', async () => {
+    const r = rig();
+    r.composing.on = true;
+    r.setDoc('한');
+    r.auto.saveNow();
+    r.composing.on = false;
+    r.auto.compositionEnded();
+    expect(r.sent).toHaveLength(1);
+    expect(r.sent[0]!.manual).toBe(true);
+  });
+
+  test('review 5: explicit saves while a retry waits do not multiply the retries', async () => {
+    const r = rig();
+    r.setDoc('x');
+    await vi.advanceTimersByTimeAsync(1000);
+    await r.answer({ ok: false, kind: 'network', message: '오프라인' });
+    for (let i = 0; i < 5; i++) {
+      r.auto.saveNow();
+      await r.answer({ ok: false, kind: 'network', message: '오프라인' });
+    }
+    const after = r.sent.length;
+    // every resend fails at once; over 20 s the backoff (4 s by now) allows about 5 more, not 5 per timer
+    for (let ms = 0; ms < 20_000; ms += 100) {
+      await vi.advanceTimersByTimeAsync(100);
+      while (r.waiting()) await r.answer({ ok: false, kind: 'network', message: '오프라인' });
+    }
+    expect(r.sent.length - after).toBeLessThanOrEqual(5);
+  });
+
+  test('review 6: after a rejected save an explicit save tries again', async () => {
+    const r = rig();
+    r.setDoc('x');
+    await vi.advanceTimersByTimeAsync(1000);
+    await r.answer({ ok: false, kind: 'rejected', message: '로그인이 필요합니다' });
+    r.auto.saveNow();
+    expect(r.sent).toHaveLength(2);
+    expect(r.sent[1]!.manual).toBe(true);
+    await r.answer({ ok: true, headRevisionId: 'rev-1' });
+    expect(r.state().status).toBe('saved');
+  });
+
+  test('review NIT: an explicit save that sends nothing does not mark the next autosave as manual', async () => {
+    const r = rig();
+    r.auto.saveNow(); // nothing to save
+    r.setDoc('x');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(r.sent[0]!.manual).toBe(false);
   });
 
   test('dispose stops all timers', async () => {

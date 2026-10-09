@@ -81,7 +81,14 @@ async function pasteCitation(page: Page) {
   }, REF);
 }
 
-const recoveryKeys = (page: Page) => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('pw-recovery:')));
+// evidence screenshots are written only when asked for, so test runs leave the tree unchanged
+const evidence = async (page: Page, name: string) => {
+  if (process.env.PW_SAVE_EVIDENCE) await page.screenshot({ path: `reports/tasks/PW-015/screens/${name}` });
+};
+
+// recovery copies (drafts) only; allRecoveryKeys also counts settings and open-tab marks
+const recoveryKeys = (page: Page) => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('pw-recovery:v1:draft:')));
+const allRecoveryKeys = (page: Page) => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('pw-recovery:')));
 
 test('TST-015A: Korean IME, italic, sub/superscript and a citation are autosaved and come back after reload', async ({ page }) => {
   await login(page);
@@ -129,7 +136,7 @@ test('TST-015A: Korean IME, italic, sub/superscript and a citation are autosaved
   await expect(editor(page).locator('sup')).toHaveText('3');
   await expect(editor(page).locator(`span[data-pw-citation][data-reference-id="${REF}"]`)).toHaveCount(1);
   await expect(status(page)).toHaveText('저장됨');
-  await page.screenshot({ path: 'reports/tasks/PW-015/screens/1-ime-marks-citation-reloaded.png' });
+  await evidence(page, '1-ime-marks-citation-reloaded.png');
 });
 
 test('TST-015B: an outside patch is refused while composing and applied after', async ({ page }) => {
@@ -163,7 +170,7 @@ test('TST-015B: a failing save is never shown as saved; it is retried and then s
   await page.waitForTimeout(3000); // at least one retry, still failing
   expect(await statuses()).not.toContain('저장됨');
   expect(await revisionCount(documentId)).toBe(before);
-  await page.screenshot({ path: 'reports/tasks/PW-015/screens/2-save-failed.png' });
+  await evidence(page, '2-save-failed.png');
   await h.failRevisionInserts(false);
   await expect(status(page)).toHaveText('저장됨', { timeout: 20_000 });
   expect(textOf((await head(documentId)).content_json)).toBe('must not look saved');
@@ -205,6 +212,13 @@ test('TST-015B: a save whose answer was lost is not stored twice and not reporte
   expect(textOf((await head(documentId)).content_json)).toBe('stored once and more');
 });
 
+// closing a tab with unsaved text: the browser asks (beforeunload), the user leaves anyway
+async function closeTab(page: Page) {
+  page.on('dialog', (d) => void d.accept());
+  await page.close({ runBeforeUnload: true });
+  if (!page.isClosed()) await page.waitForEvent('close');
+}
+
 async function leaveDraft(context: BrowserContext, text: string) {
   const page = await context.newPage();
   await login(page);
@@ -215,7 +229,7 @@ async function leaveDraft(context: BrowserContext, text: string) {
   await expect(status(page)).toContainText('저장 실패', { timeout: 10_000 });
   await expect.poll(() => recoveryKeys(page)).toHaveLength(1);
   const url = page.url();
-  await page.close(); // e.g. the tab or browser was closed
+  await closeTab(page); // e.g. the tab was closed while the server failed
   await h.failRevisionInserts(false);
   return { ...ids, url };
 }
@@ -227,7 +241,7 @@ test('TST-015A: unsaved text is offered back from this browser and then saved', 
   await page.getByRole('tab', { name: '원고' }).click();
   await expect(page.getByTestId('recovery-offer')).toContainText('저장되지 않은 원고 변경');
   await expect(editor(page)).toHaveAttribute('contenteditable', 'false');
-  await page.screenshot({ path: 'reports/tasks/PW-015/screens/3-recovery-offer.png' });
+  await evidence(page, '3-recovery-offer.png');
   await page.getByRole('button', { name: '복구본 불러오기' }).click();
   await expect(editor(page)).toHaveText('복구할 문장 x');
   await expect(status(page)).toHaveText('저장됨', { timeout: 15_000 });
@@ -264,7 +278,7 @@ test('TST-015A: logout leaves no recovery copy; turning recovery off stores none
   expect(await recoveryKeys(page)).toHaveLength(1);
   await page.getByRole('button', { name: '로그아웃' }).click();
   await expect(page.getByLabel('사용자 이름')).toBeVisible();
-  expect(await recoveryKeys(page)).toHaveLength(0);
+  expect(await allRecoveryKeys(page)).toHaveLength(0);
 
   await login(page);
   await newManuscript(page, 'No recovery paper');
@@ -274,7 +288,7 @@ test('TST-015A: logout leaves no recovery copy; turning recovery off stores none
   await page.keyboard.type('not kept locally');
   await expect(status(page)).toContainText('저장 실패', { timeout: 10_000 });
   await page.waitForTimeout(800);
-  expect((await recoveryKeys(page)).filter((k) => k.includes(':draft:'))).toHaveLength(0);
+  expect(await recoveryKeys(page)).toHaveLength(0);
 });
 
 test('Korean composition inside a paragraph keeps the paragraph id', async ({ page }) => {
@@ -290,4 +304,75 @@ test('Korean composition inside a paragraph keeps the paragraph id', async ({ pa
   await compose(page, ['ㄴ', '나'], '나');
   await expect(editor(page).locator('p').nth(1)).toHaveText('나second');
   expect(await idOf()).toBe(before);
+});
+
+test('review 2: a save right after typing leaves no copy of the saved text behind', async ({ page }) => {
+  await login(page);
+  await newManuscript(page, 'Quick save paper');
+  await editor(page).click();
+  await page.keyboard.type('saved at once');
+  await page.keyboard.press('Control+s');
+  await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
+  await page.waitForTimeout(800); // longer than the recovery-copy delay
+  expect(await recoveryKeys(page)).toEqual([]);
+});
+
+test('review 3: tabs keep their own recovery copies; an open tab\'s copy is not offered elsewhere', async ({ context }) => {
+  const a = await context.newPage();
+  await login(a);
+  await newManuscript(a, 'Two tabs paper');
+  const url = a.url();
+  const b = await context.newPage();
+  await b.goto(url);
+  await b.getByRole('tab', { name: '원고' }).click();
+  // B's saves do not get through (its network fails); its text is only on screen and in its copy
+  await b.route('**/saves', (r) => r.abort('failed'));
+  await editor(b).click();
+  await b.keyboard.type('bbb text of tab B');
+  await expect(status(b)).toContainText('저장 실패', { timeout: 10_000 });
+  // A saves other text: B's copy stays
+  await editor(a).click();
+  await a.keyboard.type('aaa text of tab A');
+  await expect(status(a)).toHaveText('저장됨', { timeout: 10_000 });
+  const copies = () => a.evaluate(() => Object.keys(localStorage).filter((k) => k.includes(':draft:')).map((k) => localStorage.getItem(k) ?? ''));
+  await expect.poll(async () => (await copies()).filter((c) => c.includes('bbb text of tab B'))).toHaveLength(1);
+  // B's save now meets A's newer head: a conflict, and B's text is still kept in this browser
+  await b.unroute('**/saves');
+  await b.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(status(b)).toContainText('다른 곳에서 먼저 바뀐 원고', { timeout: 15_000 });
+  expect((await copies()).filter((c) => c.includes('bbb text of tab B'))).toHaveLength(1);
+  // a third tab does not take over the copy of B, which is still open
+  const c = await context.newPage();
+  await c.goto(url);
+  await c.getByRole('tab', { name: '원고' }).click();
+  await expect(editor(c)).toHaveText('aaa text of tab A');
+  await expect(c.getByTestId('recovery-offer')).toHaveCount(0);
+  await expect(editor(c)).toHaveAttribute('contenteditable', 'true');
+  // once B is closed, its copy is offered (for copying: it was based on an older version)
+  await closeTab(b);
+  await c.reload();
+  await c.getByRole('tab', { name: '원고' }).click();
+  await expect(c.getByTestId('recovery-text')).toHaveText('bbb text of tab B');
+});
+
+test('review 7: a browser that blocks site storage is told that nothing is kept locally', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });
+  });
+  await login(page);
+  await newManuscript(page, 'Blocked storage paper');
+  await expect(page.getByTestId('recovery-unavailable')).toContainText('임시 보관할 수 없습니다');
+  await editor(page).click();
+  await page.keyboard.type('still autosaved');
+  await expect(status(page)).toHaveText('저장됨', { timeout: 10_000 });
+});
+
+test('review 8: signing in removes recovery copies another account left in this browser', async ({ page }) => {
+  await page.goto(h.webUrl);
+  await page.evaluate(() => {
+    localStorage.setItem('pw-recovery:v1:draft:00000000-0000-4000-8000-00000000000b:00000000-0000-4000-8000-0000000000d1:t1', '{"other":"account"}');
+    localStorage.setItem('pw-recovery:v1:off:00000000-0000-4000-8000-00000000000b', '1');
+  });
+  await login(page);
+  await expect.poll(() => allRecoveryKeys(page)).toEqual([]);
 });

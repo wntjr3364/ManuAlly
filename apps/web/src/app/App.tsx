@@ -3,7 +3,7 @@ import { api, setCsrf } from './api.ts';
 import { Login, type Owner } from './Login.tsx';
 import { navigate, usePath } from './router.ts';
 import { confirmLeave } from './unsaved.ts';
-import { browserStorage, clearAllRecoveryData, setRecoveryOwner } from '../editor/recovery.ts';
+import { browserStorage, clearAllRecoveryData, clearOtherAccounts, setRecoveryOwner } from '../editor/recovery.ts';
 import { PapersPage } from '../features/paper/PapersPage.tsx';
 import { PaperPage } from '../features/paper/PaperPage.tsx';
 
@@ -17,6 +17,11 @@ export function App() {
   }, []);
   // the editor keeps its browser recovery copies under the signed-in account
   setRecoveryOwner(owner?.id ?? null);
+  // signing in leaves nothing of another account on this device (spec 04 shared device)
+  useEffect(() => {
+    const storage = browserStorage();
+    if (owner && storage) clearOtherAccounts(storage, owner.id);
+  }, [owner]);
   if (owner === undefined) return <p className="loading">불러오는 중…</p>;
   if (owner === null) return <Login onLogin={setOwner} />;
   const logout = async () => {

@@ -1,0 +1,40 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-015/autosave.test.ts (17 tests | 2 failed | 15 skipped) 22ms
+   ❯ autosave (17)
+     × review 4: continuous IME typing is still saved when the maximum wait is reached 14ms
+     × review 5: explicit saves while a retry waits do not multiply the retries 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-015/autosave.test.ts > autosave > review 4: continuous IME typing is still saved when the maximum wait is reached
+AssertionError: expected 0 to be greater than or equal to 2
+ ❯ tests/tasks/PW-015/autosave.test.ts:220:27
+    218|       if (r.waiting()) await r.answer({ ok: true, headRevisionId: `rev…
+    219|     }
+    220|     expect(r.sent.length).toBeGreaterThanOrEqual(2); // 9 s of typing,…
+       |                           ^
+    221|   });
+    222|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-015/autosave.test.ts > autosave > review 5: explicit saves while a retry waits do not multiply the retries
+AssertionError: expected 10 to be less than or equal to 5
+ ❯ tests/tasks/PW-015/autosave.test.ts:249:35
+    247|       while (r.waiting()) await r.answer({ ok: false, kind: 'network',…
+    248|     }
+    249|     expect(r.sent.length - after).toBeLessThanOrEqual(5);
+       |                                   ^
+    250|   });
+    251|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 15 skipped (17)
+   Start at  05:14:26
+   Duration  333ms (transform 66%, import 16%, tests 15%, worker 4%)
+

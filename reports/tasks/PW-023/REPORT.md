@@ -85,3 +85,24 @@
 
 ## 다음
 PW-024: Claude Agent adapter
+
+## 독립 리뷰 결과 반영 (2026-10-09)
+- 결론: changes requested(minor 3, nit 2). MAJOR 없음.
+- 문제없다고 확인된 것
+  - 문서만 있는 기능이 verified로 표시되거나 쓰이는 경로가 없다.
+  - 정규화가 값을 지어내지 않는다.
+  - API가 근거 메모를 보내지 않는다.
+  - strip-types 실행에서 JSON import가 동작한다.
+
+| 지적 | 조치 |
+|---|---|
+| minor-1 등록부 검사가 v1 정책을 강제하지 않고, live_evidence는 아무 값이나 받음 | 구조화된 live evidence를 요구한다: `checked_at`, `cli_version`(행 버전과 같아야 함), `host`, `tests[]`, `passed: true`. `MULTIUSER_HOSTED`·`api_key` 행은 disabled만 허용한다. 같은 키가 두 번 나오면 거부한다. unit 시험 3개 |
+| minor-2 Claude 사용량에 캐시된 입력이 빠져 context 사용량이 거의 0으로 보임. message/turn 사용량이 구분되지 않음 | 입력 크기 = `input_tokens` + `cache_read_input_tokens` + `cache_creation_input_tokens`. 캐시 필드가 알 수 없는 형식이면 입력은 unknown이다. usage 이벤트에 `scope`(message·turn·session)를 더했다. unit 시험 |
+| minor-3 계약이 null 필드와 `unknown_fields`를 묶지 않음 | 각 필드가 null이면 `unknown_fields`에 있어야 하고, 아니면 없어야 한다(if/then/else). unit 시험 |
+| nit 활성 provider 행을 id만으로 찾음 | 서버의 전체 키(mock: `spike`/`none`/`PERSONAL_LOCAL`)로 `resolveCapability`한다 |
+| nit 통합 시험이 근거 미노출을 넓게만 봄 | 행에 `evidence` 필드가 없음을 확인한다. 로그인 요구(401)는 이미 시험한다 |
+
+- mutation(`mutation-review.log`): 6종 모두 탐지했다.
+- 실행
+  - PW-023: unit 19, 통합 1
+  - `pnpm test` exit 0(PW-024와 함께 실행, `reports/tasks/PW-024/pnpm-test.log`)

@@ -35,4 +35,5 @@ test('GET /api/providers/capabilities lists the matrix for a logged-in owner onl
   expect(body.rows.find((x: { provider: string; deployment_profile: string; auth_mode: string }) => x.provider === 'codex' && x.deployment_profile === 'PERSONAL_LOCAL' && x.auth_mode === 'chatgpt_login').features.quota_read).toEqual({ state: 'unknown', note: 'documented, not verified' });
   // evidence notes stay server-side details: no paths or secrets, only the fields shown
   expect(JSON.stringify(body)).not.toMatch(/CLAUDE_CONFIG_DIR|OAUTH|token/i);
+  expect(body.rows.every((x: Record<string, unknown>) => !('evidence' in x))).toBe(true);
 });

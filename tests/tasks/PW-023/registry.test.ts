@@ -56,3 +56,25 @@ describe('TST-023B: unsupported or unverified features are not assumed', () => {
     expect(() => loadRegistry({ entries: [forged] })).toThrow(/live_evidence/);
   });
 });
+
+describe('review MINOR-1: the registry enforces the v1 admission policy', () => {
+  const entry = (over: Record<string, unknown>, evidence: Record<string, unknown> = { live_evidence: null }) => ({
+    capability: { provider: 'claude_agent', version: 'claude-code 2.1.294', auth_mode: 'subscription_cli_login', deployment_profile: 'PERSONAL_LOCAL', admission: 'requires_verification', features: Object.fromEntries(FEATURES.map((f) => [f, 'unknown'])), ...over },
+    evidence,
+  });
+  const live = { checked_at: '2026-10-09T10:00:00Z', cli_version: 'claude-code 2.1.294', host: 'my-pc', tests: ['PW-024 TST-024A'], passed: true };
+  test('live evidence must be structured, match the version and have passed', () => {
+    expect(() => loadRegistry({ entries: [entry({ admission: 'approved' }, { live_evidence: 'x' })] })).toThrow(/live_evidence/);
+    expect(() => loadRegistry({ entries: [entry({ admission: 'approved' }, { live_evidence: { ...live, passed: false } })] })).toThrow(/live_evidence/);
+    expect(() => loadRegistry({ entries: [entry({ admission: 'approved' }, { live_evidence: { ...live, cli_version: 'claude-code 2.2.0' } })] })).toThrow(/live_evidence/);
+    expect(() => loadRegistry({ entries: [entry({ features: { ...Object.fromEntries(FEATURES.map((f) => [f, 'unknown'])), interrupt: 'verified' } }, { live_evidence: 'yes' })] })).toThrow(/live_evidence/);
+    expect(loadRegistry({ entries: [entry({ admission: 'approved' }, { live_evidence: live })] }).entries).toHaveLength(1);
+  });
+  test('multi-user hosting and API keys stay disabled', () => {
+    expect(() => loadRegistry({ entries: [entry({ deployment_profile: 'MULTIUSER_HOSTED', admission: 'approved' }, { live_evidence: live })] })).toThrow(/must stay disabled/);
+    expect(() => loadRegistry({ entries: [entry({ auth_mode: 'api_key', admission: 'requires_verification' })] })).toThrow(/must stay disabled/);
+  });
+  test('the same capability key twice is refused', () => {
+    expect(() => loadRegistry({ entries: [entry({}), entry({})] })).toThrow(/appears twice/);
+  });
+});

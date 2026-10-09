@@ -16,10 +16,28 @@ const money = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v 
 const ev = <K extends keyof ProviderEventData>(provider: ProviderId, kind: K, data: ProviderEventData[K]) => ({ schema_version: 1 as const, provider, kind, data }) as ProviderEvent;
 const unrecognized = (provider: ProviderId, raw: unknown) => ev(provider, 'unrecognized', { raw_type: str(obj(raw)?.type ?? obj(raw)?.method)?.slice(0, 200) ?? null });
 
-function usage(provider: ProviderId, v: { input_tokens: unknown; output_tokens: unknown; cost_usd_estimate: unknown; context_window: unknown }) {
+// scope: what the counts cover — one message, one whole turn, or the session so far (summing usage
+// events of different scopes double counts)
+function usage(provider: ProviderId, scope: ProviderEventData['usage']['scope'], v: { input_tokens: unknown; output_tokens: unknown; cost_usd_estimate: unknown; context_window: unknown }) {
   const d = { input_tokens: count(v.input_tokens), output_tokens: count(v.output_tokens), cost_usd_estimate: money(v.cost_usd_estimate), context_window: count(v.context_window) || null };
   const unknown_fields = (Object.keys(d) as UsageField[]).filter((k) => d[k] === null);
-  return ev(provider, 'usage', { ...d, unknown_fields });
+  return ev(provider, 'usage', { scope, ...d, unknown_fields });
+}
+
+// Claude reports cached prompt tokens separately from input_tokens; the prompt size is their sum. A
+// cache field present in a form we do not understand makes the input size unknown, not small.
+function claudeInput(u: O | null): number | null {
+  if (!u) return null;
+  const base = count(u.input_tokens);
+  if (base === null) return null;
+  let total = base;
+  for (const k of ['cache_read_input_tokens', 'cache_creation_input_tokens']) {
+    if (u[k] === undefined) continue;
+    const n = count(u[k]);
+    if (n === null) return null;
+    total += n;
+  }
+  return total;
 }
 
 function resetTime(raw: unknown): { resets_at: string | null; raw_resets_at: string | null; why: string | null } {
@@ -56,7 +74,7 @@ export function normalizeClaude(raw: unknown): ProviderEvent[] {
         else out.push(unrecognized(P, c));
       }
       const u = obj(msg?.usage);
-      if (u) out.push(usage(P, { input_tokens: u.input_tokens, output_tokens: u.output_tokens, cost_usd_estimate: undefined, context_window: undefined }));
+      if (u) out.push(usage(P, 'message', { input_tokens: claudeInput(u), output_tokens: u.output_tokens, cost_usd_estimate: undefined, context_window: undefined }));
       return out;
     }
     case 'stream_event': {
@@ -76,7 +94,7 @@ export function normalizeClaude(raw: unknown): ProviderEvent[] {
       const u = obj(m.usage);
       const outcome = m.subtype === 'success' && m.is_error !== true ? 'success' : typeof m.subtype === 'string' && m.subtype.startsWith('error') ? 'error' : 'unknown';
       return [
-        usage(P, { input_tokens: u?.input_tokens, output_tokens: u?.output_tokens, cost_usd_estimate: m.total_cost_usd, context_window: undefined }),
+        usage(P, 'turn', { input_tokens: claudeInput(u), output_tokens: u?.output_tokens, cost_usd_estimate: m.total_cost_usd, context_window: undefined }),
         ev(P, 'turn_completed', { outcome, stop_reason: str(m.subtype) }),
       ];
     }
@@ -106,7 +124,7 @@ export function normalizeCodex(raw: unknown): ProviderEvent[] {
     case 'thread/tokenUsage/updated': {
       const t = obj(p.tokenUsage);
       const total = obj(t?.total);
-      return [usage(P, { input_tokens: total?.inputTokens, output_tokens: total?.outputTokens, cost_usd_estimate: undefined, context_window: t?.modelContextWindow })];
+      return [usage(P, 'session', { input_tokens: total?.inputTokens, output_tokens: total?.outputTokens, cost_usd_estimate: undefined, context_window: t?.modelContextWindow })];
     }
     case 'account/rateLimits/updated': {
       const primary = obj(obj(p.rateLimits)?.primary);

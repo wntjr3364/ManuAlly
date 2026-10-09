@@ -74,3 +74,23 @@ test('the contract refuses an event that claims a value without a basis', () => 
   expect(validateProviderEvent({ schema_version: 1, provider: 'claude_agent', kind: 'quota', data: { status: 'allowed', used_percent: 0, resets_at: 'tomorrow', raw_resets_at: null, unknown_reason: null, source: 'official_adapter_event' } }).ok).toBe(false);
   expect(validateProviderEvent({ schema_version: 1, provider: 'claude_agent', kind: 'made_up', data: {} }).ok).toBe(false);
 });
+
+describe('review MINOR-2/3: usage counts cached input, says its scope, and null means listed as unknown', () => {
+  test('Claude cached prompt tokens are part of the input size', () => {
+    const [u] = valid(normalizeClaude({ type: 'result', subtype: 'success', usage: { input_tokens: 3, cache_read_input_tokens: 15000, cache_creation_input_tokens: 2000, output_tokens: 7 } }));
+    expect(u).toMatchObject({ kind: 'usage', data: { scope: 'turn', input_tokens: 17003, output_tokens: 7 } });
+    const [bad] = valid(normalizeClaude({ type: 'result', subtype: 'success', usage: { input_tokens: 3, cache_read_input_tokens: 'many', output_tokens: 7 } }));
+    expect(bad).toMatchObject({ data: { input_tokens: null, unknown_fields: expect.arrayContaining(['input_tokens']) } });
+  });
+  test('per-message, per-turn and session usage are told apart', () => {
+    const msg = valid(normalizeClaude({ type: 'assistant', message: { content: [], usage: { input_tokens: 1, output_tokens: 1 } } }));
+    expect(msg[0]).toMatchObject({ kind: 'usage', data: { scope: 'message' } });
+    expect(valid(normalizeCodex({ method: 'thread/tokenUsage/updated', params: { tokenUsage: { total: { inputTokens: 1, outputTokens: 1 } } } }))[0]).toMatchObject({ data: { scope: 'session' } });
+  });
+  test('the contract ties null fields to unknown_fields', () => {
+    const base = { schema_version: 1, provider: 'claude_agent', kind: 'usage' };
+    expect(validateProviderEvent({ ...base, data: { scope: 'turn', input_tokens: null, output_tokens: 1, cost_usd_estimate: null, context_window: null, unknown_fields: ['cost_usd_estimate', 'context_window'] } }).ok).toBe(false);
+    expect(validateProviderEvent({ ...base, data: { scope: 'turn', input_tokens: 1, output_tokens: 1, cost_usd_estimate: null, context_window: null, unknown_fields: ['input_tokens', 'cost_usd_estimate', 'context_window'] } }).ok).toBe(false);
+    expect(validateProviderEvent({ ...base, data: { scope: 'turn', input_tokens: 1, output_tokens: 1, cost_usd_estimate: null, context_window: null, unknown_fields: ['cost_usd_estimate', 'context_window'] } }).ok).toBe(true);
+  });
+});

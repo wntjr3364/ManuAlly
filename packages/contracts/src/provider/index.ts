@@ -14,7 +14,7 @@ export type ProviderEventData = {
   text_delta: { text: string };
   message_completed: { text: string };
   tool_requested: { tool: string; call_id: string | null; input: unknown };
-  usage: { input_tokens: number | null; output_tokens: number | null; cost_usd_estimate: number | null; context_window: number | null; unknown_fields: UsageField[] };
+  usage: { scope: 'message' | 'turn' | 'session'; input_tokens: number | null; output_tokens: number | null; cost_usd_estimate: number | null; context_window: number | null; unknown_fields: UsageField[] };
   quota: { status: 'allowed' | 'warning' | 'rejected' | 'unknown'; used_percent: number | null; resets_at: string | null; raw_resets_at: string | null; unknown_reason: string | null; source: 'official_adapter_event' };
   turn_completed: { outcome: 'success' | 'error' | 'interrupted' | 'unknown'; stop_reason: string | null };
   compacted: Record<string, never>;

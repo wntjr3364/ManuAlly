@@ -1,0 +1,6 @@
+KILLED  live evidence that did not pass accepted :: Tests  1 failed | 18 passed (19)
+KILLED  live evidence for another CLI version accepted :: Tests  1 failed | 18 passed (19)
+KILLED  multi-user/API key enabled :: Tests  1 failed | 18 passed (19)
+KILLED  duplicate keys :: Tests  1 failed | 18 passed (19)
+KILLED  cached tokens ignored :: Tests  1 failed | 18 passed (19)
+KILLED  null/unknown_fields tie one-way only (schema "else" removed) :: Tests  1 failed | 18 passed (19)

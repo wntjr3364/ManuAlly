@@ -49,16 +49,36 @@ function checkEntry(e: unknown, i: number): RegistryEntry {
   if (!f || FEATURES.some((k) => !STATES.includes(f[k] as FeatureState)) || Object.keys(f).some((k) => !FEATURES.includes(k as Feature))) throw bad(`features must be exactly ${FEATURES.join(', ')} with a known state`);
   const ev = (e as RegistryEntry).evidence;
   if (!ev || typeof ev !== 'object') throw bad('evidence is required');
-  // the P00 rule: approved only for the mock, or with live evidence from the user's own machine
-  if (c.admission === 'approved' && c.provider !== 'mock' && !ev.live_evidence) throw bad('approved needs live_evidence from the user\'s machine');
-  if (c.provider !== 'mock' && !ev.live_evidence && FEATURES.some((k) => f[k] === 'verified')) throw bad('a verified feature needs live_evidence');
+  // v1 policy (RFC-001, ADR-012): no hosted multi-user use and no API keys — those rows stay disabled
+  if ((c.deployment_profile === 'MULTIUSER_HOSTED' || c.auth_mode === 'api_key') && c.admission !== 'disabled') throw bad(`${c.deployment_profile}/${c.auth_mode} must stay disabled in v1`);
+  // the P00 rule: approved (or a verified feature) only for the mock, or with structured live evidence
+  // from the user's own machine: when, which CLI version, where, which tests, and that they passed
+  const needsLive = c.provider !== 'mock' && (c.admission === 'approved' || FEATURES.some((k) => f[k] === 'verified'));
+  if (needsLive && !liveEvidenceOk(ev.live_evidence, c.version)) throw bad('approved or verified needs live_evidence {checked_at, cli_version (= version), host, tests[], passed: true} from the user\'s machine');
   return e as RegistryEntry;
+}
+
+function liveEvidenceOk(v: unknown, version: string): boolean {
+  const l = v as { checked_at?: unknown; cli_version?: unknown; host?: unknown; tests?: unknown; passed?: unknown } | null;
+  return !!l && typeof l === 'object'
+    && typeof l.checked_at === 'string' && !Number.isNaN(Date.parse(l.checked_at))
+    && typeof l.cli_version === 'string' && l.cli_version === version
+    && typeof l.host === 'string' && l.host.length > 0
+    && Array.isArray(l.tests) && l.tests.length > 0 && l.tests.every((t) => typeof t === 'string' && t)
+    && l.passed === true;
 }
 
 export function loadRegistry(source: unknown = registryFile): Registry {
   const entries = (source as { entries?: unknown })?.entries;
   if (!Array.isArray(entries)) throw new Error('registry: entries must be a list');
-  return { entries: entries.map(checkEntry) };
+  const out = entries.map(checkEntry);
+  const keys = new Set<string>();
+  for (const { capability: c } of out) {
+    const k = [c.provider, c.version, c.auth_mode, c.deployment_profile].join('|');
+    if (keys.has(k)) throw new Error(`registry: capability ${k} appears twice`);
+    keys.add(k);
+  }
+  return { entries: out };
 }
 
 const same = (a: CapabilityKey, b: CapabilityKey) => a.provider === b.provider && a.version === b.version && a.auth_mode === b.auth_mode && a.deployment_profile === b.deployment_profile;

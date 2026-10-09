@@ -31,3 +31,7 @@ KILLED settled_facts_only
 KILLED base_is_parent
 KILLED ui_stale_disabled
 KILLED settled_excludes_withheld
+# re-review MINOR + nits (Fri Oct  9 20:36:04 UTC 2026) — unit numbers
+KILLED capital_units
+KILLED prefix_multiplier
+KILLED compound_words

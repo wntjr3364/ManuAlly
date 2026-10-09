@@ -97,3 +97,12 @@ PW-040: Detailed outline·영향 추적
 - mutation(`mutation.log` 하단): 12종 모두 탐지.
 - 회귀: `pnpm test` exit 0 — unit 281, integration 399, contracts 17, 브라우저 88 (`pnpm-test-review.log`)
 - 남은 위험(갱신): 수치 읽기는 넓게 막는 쪽이다. 사용자가 쓰지 않은 표지성 숫자(예: "Experiment 2")는 근거에 없으면 막힌다. 그런 안은 사용자가 직접 고쳐 쓰면 된다.
+
+## 재리뷰 (14b7d08): 작은 MINOR 하나를 닫으면 approve
+- MINOR: 숫자 뒤에 붙은 대문자를 모두 표지로 보아 단위를 놓쳤다("5M NaCl", "37C", "10K"). 이제 "2D"·"3D"만 표지로 본다. 패널 글자는 앞의 "Fig."/"panel" 문맥으로 이미 거른다. 나머지 대문자는 단위이고 수치로 센다.
+- nit 반영
+  - 앞에 붙은 곱셈 기호("x2", "×3")
+  - "million", "billion"
+  - "twenty-five", "twenty-one" 같은 합성어
+- 시험: unit 4(새 시험 1). mutation 3종 탐지(대문자 단위, 앞 곱셈, 합성어).
+- 회귀: unit 282, integration 399(작업 중인 PW-040 제외). 브라우저는 PW-039 1개를 돌렸다. 바뀐 것은 수치 읽기 함수뿐이다.

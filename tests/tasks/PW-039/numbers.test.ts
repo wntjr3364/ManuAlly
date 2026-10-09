@@ -28,4 +28,11 @@ describe('numbersIn', () => {
     expect(numbersIn('½ of plants')).toEqual([0.5]);
     expect(numbersIn('one possibility; a single genotype')).toEqual([]);
   });
+  test('re-review: capitals glued as units, prefix multipliers, large and compound number words', () => {
+    expect(numbersIn('treated with 5M NaCl, 0.5M HCl, at 37C, 10K')).toEqual([5, 0.5, 37, 10]);
+    expect(numbersIn('in 2D and 3D culture; Fig. 2B; panel 5A')).toEqual([]);
+    expect(numbersIn('an x2 increase, ×3 more')).toEqual([2, 3]);
+    expect(numbersIn('a million cells, two billion reads')).toEqual([1e6, 2, 1e9]);
+    expect(numbersIn('twenty-five plants and thirty, twenty-one days')).toEqual([25, 30, 21]);
+  });
 });

@@ -56,8 +56,9 @@ const FRACTIONS: Record<string, number> = { '½': 0.5, '⅓': 1 / 3, '⅔': 2 / 
 const WORDS: Record<string, number> = {
   two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
   sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
-  hundred: 100, thousand: 1000, twice: 2, double: 2, doubled: 2, doubling: 2, triple: 3, tripled: 3, quadruple: 4, quadrupled: 4, half: 0.5, halved: 0.5, quarter: 0.25,
+  hundred: 100, thousand: 1000, million: 1e6, billion: 1e9, twice: 2, double: 2, doubled: 2, doubling: 2, triple: 3, tripled: 3, quadruple: 4, quadrupled: 4, half: 0.5, halved: 0.5, quarter: 0.25,
 };
+const TENS = new Set(['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']);
 const WORD_RE = new RegExp(`(?<![\\p{L}])(${Object.keys(WORDS).join('|')})(?:-?fold)?(?![\\p{L}])`, 'giu');
 export function numbersIn(raw: string): number[] {
   // superscripts → ^n; unicode minus → -; a middle dot between digits is a decimal point
@@ -69,7 +70,8 @@ export function numbersIn(raw: string): number[] {
     const start = m.index;
     const before = s[start - 1] ?? '';
     const before2 = s[start - 2] ?? '';
-    if (/[\p{L}_]/u.test(before)) continue; // a name: ABC1, H2O
+    // a name (ABC1, H2O) — but an x/× right before a number is a multiplier ("x2"; re-review nit)
+    if (/[\p{L}_]/u.test(before) && !(/[x×]/i.test(before) && !/[\p{L}\p{N}]/u.test(before2))) continue;
     if (before === '.' && /\d/.test(before2)) continue;
     if (/(?:fig(?:ure)?s?\.?|tables?|panels?|supplementary|suppl\.?|ref\.?|eq\.?|equation)\s*$/i.test(s.slice(Math.max(0, start - 16), start))) continue;
     const tok = m[1]!;
@@ -85,11 +87,19 @@ export function numbersIn(raw: string): number[] {
     if (times) { value *= 10 ** Number(times[1] ?? times[2]); end += times[0].length; re.lastIndex = end; }
     const after = s.slice(end);
     if (/^(st|nd|rd|th)(?![\p{L}])/iu.test(after)) continue; // an ordinal
-    if (/^[A-Z](?![\p{L}\p{N}])/u.test(after)) continue; // a label: 2D, 5A
+    // a dimension label (2D, 3D); other glued capitals are units (5M, 37C, 10K) and count (re-review);
+    // panel letters follow "Fig."/"panel", which are skipped above
+    if (/^D(?![\p{L}\p{N}])/u.test(after) && (value === 2 || value === 3)) continue;
     out.push(value);
   }
   for (const [c, v] of Object.entries(FRACTIONS)) if (s.includes(c)) out.push(v);
-  for (let m = WORD_RE.exec(s); m; m = WORD_RE.exec(s)) out.push(WORDS[m[1]!.toLowerCase()]!);
+  for (let m = WORD_RE.exec(s); m; m = WORD_RE.exec(s)) {
+    const w = m[1]!.toLowerCase();
+    // a compound: twenty-five → 25 (re-review nit)
+    const unit = TENS.has(w) ? /^-(one|two|three|four|five|six|seven|eight|nine)(?![\p{L}])/iu.exec(s.slice(m.index + m[0].length)) : null;
+    if (unit) { out.push(WORDS[w]! + (unit[1]!.toLowerCase() === 'one' ? 1 : WORDS[unit[1]!.toLowerCase()]!)); WORD_RE.lastIndex = m.index + m[0].length + unit[0].length; continue; }
+    out.push(WORDS[w]!);
+  }
   return out.map((n) => (Number.isInteger(n) ? n : Number(n.toPrecision(12))));
 }
 

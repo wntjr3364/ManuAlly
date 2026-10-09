@@ -10,6 +10,7 @@ import { EDITOR_SCHEMA_VERSION, ReplacementError, atomNodesIn, blockHash, buildR
 import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
 import { enqueueJob } from '../jobs/index.ts';
 import { checkDraftGate } from '../outlines/index.ts';
+import { unresolvedNodes } from '../outline-impact/index.ts';
 import { contentHash } from '../revisions/index.ts';
 
 export const WRITER_MODES = ['draft', 'conservative', 'rewrite'] as const;
@@ -18,13 +19,13 @@ type PMNode = ReturnType<typeof parseDocument>;
 
 export interface ParagraphProposal {
   id: string; paper_id: string; job_id: string; document_id: string; base_revision_id: string; outline_revision_id: string; node_id: string;
-  mode: WriterMode; after_block_id: string | null; block_id: string | null; expected_block_hash: string | null;
+  mode: WriterMode; after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null;
   contract: Record<string, unknown>; contract_hash: string; paragraph: Record<string, unknown> | null; missing: string[];
   checks: { check: string; result: string; details?: string }[]; warnings: string[]; claim_ids: string[]; fact_ids: string[];
   generator: string; generator_label: string | null; proposal_hash: string; status: string; status_reason: string | null;
   applied_revision_id: string | null; new_block_id: string | null; decided_at: string | null; created_at: string;
 }
-const COLUMNS = `id, paper_id, job_id, document_id, base_revision_id, outline_revision_id, node_id, mode, after_block_id, block_id, expected_block_hash, contract, contract_hash,
+const COLUMNS = `id, paper_id, job_id, document_id, base_revision_id, outline_revision_id, node_id, mode, after_block_id, after_block_hash, block_id, expected_block_hash, contract, contract_hash,
   paragraph, missing, checks, warnings, claim_ids, fact_ids, generator, generator_label, proposal_hash, status, status_reason, applied_revision_id, new_block_id, decided_at, created_at`;
 
 export async function documentAt(db: Queryable, paperId: string, documentId: string, revisionId: string): Promise<PMNode | null> {
@@ -90,15 +91,16 @@ export async function requestParagraph(pool: TxPool, a: { paperId: string; owner
     if (!n) throw new DomainError('INVALID', `${field} is not a block of this revision`, field);
     return n;
   };
-  let place: { after_block_id: string | null; block_id: string | null; expected_block_hash: string | null };
+  let place: { after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null };
   if (mode === 'draft') {
     if (b.block_id !== undefined && b.block_id !== null) throw new DomainError('INVALID', 'a new paragraph is placed with after_block_id', 'block_id');
-    place = { after_block_id: b.after_block_id === undefined || b.after_block_id === null ? null : (id(b.after_block_id, 'after_block_id').attrs.id as string), block_id: null, expected_block_hash: null };
+    const after = b.after_block_id === undefined || b.after_block_id === null ? null : id(b.after_block_id, 'after_block_id');
+    place = { after_block_id: after ? (after.attrs.id as string) : null, after_block_hash: after ? await blockHash(after) : null, block_id: null, expected_block_hash: null };
   } else {
     if (b.after_block_id !== undefined && b.after_block_id !== null) throw new DomainError('INVALID', 'a correction names the paragraph with block_id', 'after_block_id');
     const n = id(b.block_id, 'block_id');
     if (n.type.name !== 'paragraph') throw new DomainError('INVALID', 'only a paragraph can be corrected or rewritten here', 'block_id');
-    place = { after_block_id: null, block_id: n.attrs.id as string, expected_block_hash: await blockHash(n) };
+    place = { after_block_id: null, after_block_hash: null, block_id: n.attrs.id as string, expected_block_hash: await blockHash(n) };
   }
   return enqueueJob(pool, {
     paperId: a.paperId, ownerId: a.ownerId, intent: 'draft_paragraph', idempotencyKey: b.idempotency_key,
@@ -107,12 +109,12 @@ export async function requestParagraph(pool: TxPool, a: { paperId: string; owner
 }
 
 export async function insertParagraphProposalIn(tx: Queryable, p: Omit<ParagraphProposal, 'id' | 'proposal_hash' | 'status' | 'status_reason' | 'applied_revision_id' | 'new_block_id' | 'decided_at' | 'created_at'> & { status: 'PENDING' | 'CHECK_FAILED' | 'NEEDS_EVIDENCE' | 'NO_CHANGE' | 'STALE'; status_reason: string | null }) {
-  const proposalHash = contentHash({ mode: p.mode, document_id: p.document_id, base_revision_id: p.base_revision_id, after_block_id: p.after_block_id, block_id: p.block_id, expected_block_hash: p.expected_block_hash, contract_hash: p.contract_hash, paragraph: p.paragraph, checks: p.checks });
+  const proposalHash = contentHash({ mode: p.mode, document_id: p.document_id, base_revision_id: p.base_revision_id, after_block_id: p.after_block_id, after_block_hash: p.after_block_hash, block_id: p.block_id, expected_block_hash: p.expected_block_hash, contract_hash: p.contract_hash, paragraph: p.paragraph, checks: p.checks });
   return (await tx.query<ParagraphProposal>(
-    `INSERT INTO paragraph_proposals (paper_id, job_id, document_id, base_revision_id, outline_revision_id, node_id, mode, after_block_id, block_id, expected_block_hash, contract, contract_hash,
+    `INSERT INTO paragraph_proposals (paper_id, job_id, document_id, base_revision_id, outline_revision_id, node_id, mode, after_block_id, after_block_hash, block_id, expected_block_hash, contract, contract_hash,
        paragraph, missing, checks, warnings, claim_ids, fact_ids, generator, generator_label, proposal_hash, status, status_reason)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING ${COLUMNS}`,
-    [p.paper_id, p.job_id, p.document_id, p.base_revision_id, p.outline_revision_id, p.node_id, p.mode, p.after_block_id, p.block_id, p.expected_block_hash, JSON.stringify(p.contract), p.contract_hash,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING ${COLUMNS}`,
+    [p.paper_id, p.job_id, p.document_id, p.base_revision_id, p.outline_revision_id, p.node_id, p.mode, p.after_block_id, p.after_block_hash, p.block_id, p.expected_block_hash, JSON.stringify(p.contract), p.contract_hash,
       p.paragraph ? JSON.stringify(p.paragraph) : null, JSON.stringify(p.missing), JSON.stringify(p.checks), p.warnings, p.claim_ids, p.fact_ids, p.generator, p.generator_label, proposalHash, p.status, p.status_reason])).rows[0]!;
 }
 
@@ -125,6 +127,35 @@ export async function getParagraphProposal(db: Queryable, paperId: string, id: s
   return (await db.query<ParagraphProposal>(`SELECT ${COLUMNS} FROM paragraph_proposals WHERE paper_id = $1 AND id = $2`, [paperId, id])).rows[0] ?? null;
 }
 
+// Whether the proposal's place is as it was when it was asked for (review MINOR 3): the paragraph it
+// corrects, or the block a new paragraph follows, unchanged. Edits elsewhere do not matter; the
+// proposal's own place is never rebased.
+export async function placeHolds(doc: PMNode, p: Pick<ParagraphProposal, 'mode' | 'after_block_id' | 'after_block_hash' | 'block_id' | 'expected_block_hash'>): Promise<boolean> {
+  const id = p.mode === 'draft' ? p.after_block_id : p.block_id;
+  if (id === null) return true; // appended at the end
+  const n = topBlock(doc, id);
+  return !!n && (await blockHash(n)) === (p.mode === 'draft' ? p.after_block_hash : p.expected_block_hash);
+}
+
+// The draft gate's conditions read inside the caller's transaction (review NIT): the paper row held,
+// the story approved and active, this outline the active approved one on that story, the node
+// approved, no unreviewed impact on it.
+async function gateHoldsIn(tx: Queryable, paperId: string, outlineRevisionId: string, nodeId: string) {
+  await tx.query('SELECT 1 FROM paper_projects WHERE id = $1 FOR SHARE', [paperId]);
+  const r = (await tx.query<{ story_ok: boolean; outline_ok: boolean; node_ok: boolean }>(
+    `SELECT (s.status = 'APPROVED') AS story_ok,
+            (o.id = p.active_outline_revision_id AND o.status = 'APPROVED' AND o.story_revision_id = p.active_story_revision_id) AS outline_ok,
+            EXISTS (SELECT 1 FROM outline_node_approvals a WHERE a.outline_revision_id = o.id AND a.node_id = $3) AS node_ok
+     FROM paper_projects p LEFT JOIN story_revisions s ON s.id = p.active_story_revision_id LEFT JOIN outline_revisions o ON o.id = $2 AND o.paper_id = p.id
+     WHERE p.id = $1`, [paperId, outlineRevisionId, nodeId])).rows[0];
+  const reasons: string[] = [];
+  if (!r?.story_ok) reasons.push('story_not_approved');
+  if (!r?.outline_ok) reasons.push('outline_not_active');
+  if (!r?.node_ok) reasons.push('node_not_approved');
+  if ((await unresolvedNodes(tx, paperId, outlineRevisionId)).has(nodeId)) reasons.push('impact_review_required');
+  if (reasons.length) throw new DomainError('CONFLICT', 'this paragraph plan cannot be written to now', undefined, { details: { reasons } });
+}
+
 const HEX64 = /^[0-9a-f]{64}$/;
 export async function applyParagraphProposal(pool: TxPool, a: { paperId: string; ownerId: string; proposalId: string; body: unknown }) {
   const b = (a.body ?? {}) as Record<string, unknown>;
@@ -134,8 +165,6 @@ export async function applyParagraphProposal(pool: TxPool, a: { paperId: string;
   if (typeof b.expected_revision_id !== 'string' || !UUID_RE.test(b.expected_revision_id)) throw new DomainError('INVALID', 'expected_revision_id is required', 'expected_revision_id');
   const p0 = await getParagraphProposal(pool, a.paperId, a.proposalId);
   if (!p0) throw new DomainError('NOT_FOUND', 'proposal not found');
-  // the node may be written to only while its gate still passes (an impact may have appeared since)
-  if (p0.status === 'PENDING') await checkDraftGate(pool, a.paperId, { instruction: 'apply paragraph', node_id: p0.node_id, outline_revision_id: p0.outline_revision_id });
   const out = await inTransaction(pool, async (tx) => {
     await tx.query("SELECT set_config('pw.actor', $1, true)", [`owner:${a.ownerId}`]);
     const head = (await tx.query<{ head_revision_id: string }>('SELECT head_revision_id FROM documents WHERE paper_id = $1 AND id = $2 FOR UPDATE', [a.paperId, p0.document_id])).rows[0]!.head_revision_id;
@@ -143,12 +172,14 @@ export async function applyParagraphProposal(pool: TxPool, a: { paperId: string;
     if (p.status !== 'PENDING') throw new DomainError('CONFLICT', `the proposal is ${p.status} and cannot be applied${p.status_reason ? ` (${p.status_reason})` : ''}`, undefined, { details: { reason: p.status } });
     if (b.proposal_hash !== p.proposal_hash) throw new DomainError('CONFLICT', 'the proposal differs from the one shown; reload it', 'proposal_hash', { details: { reason: 'PROPOSAL_CHANGED' } });
     if (b.expected_revision_id !== p.base_revision_id) throw new DomainError('CONFLICT', 'expected_revision_id is not the revision this proposal was made for', 'expected_revision_id', { details: { reason: 'EXPECTED_REVISION_MISMATCH' } });
-    if (head !== p.base_revision_id) {
-      // never rebased: the manuscript moved on, so the proposal is stale for good (kept, not overwritten)
-      await tx.query("UPDATE paragraph_proposals SET status = 'STALE', status_reason = 'the manuscript changed after the proposal was made' WHERE id = $1", [p.id]);
+    // the node may be written to only while its gate holds (an impact may have appeared since)
+    await gateHoldsIn(tx, a.paperId, p.outline_revision_id, p.node_id);
+    const doc = (await documentAt(tx, a.paperId, p.document_id, head))!;
+    if (head !== p.base_revision_id && !(await placeHolds(doc, p))) {
+      // its own place changed: stale for good (kept, never rebased onto the new text)
+      await tx.query("UPDATE paragraph_proposals SET status = 'STALE', status_reason = 'the paragraph it was made for changed' WHERE id = $1", [p.id]);
       return { stale: true as const };
     }
-    const doc = (await documentAt(tx, a.paperId, p.document_id, head))!;
     const newId = p.mode === 'draft' ? randomUUID() : p.block_id!;
     const paragraph = schema.nodeFromJSON({ ...p.paragraph!, attrs: { id: newId } });
     const blocks: PMNode[] = [];

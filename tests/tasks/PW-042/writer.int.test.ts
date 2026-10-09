@@ -305,6 +305,68 @@ describe('TST-042B: no invented evidence; one paragraph only', () => {
     // somewhat over the budget is a warning, not a refusal
     const words = Array.from({ length: 70 }, () => 'roots').join(' ');
     const r = await run(w, spy((c) => ({ ...good(c), paragraph: [{ type: 'text', text: `ABC1 rose 2.4-fold ${words}.` }] })));
-    expect(r.proposal).toMatchObject({ status: 'PENDING', warnings: ['longer_than_target'] });
+    expect(r.proposal).toMatchObject({ status: 'PENDING' });
+    expect(r.proposal!.warnings).toContain('longer_than_target');
+  });
+});
+
+describe('review fixes (43b8f5d)', () => {
+  test('MINOR 1: a citation locator is a short page or figure label, never free text', async () => {
+    const w = await world();
+    const withLocator = (locator: string) => (c: ParagraphContract) => ({ ...good(c), paragraph: [{ type: 'text', text: 'ABC1 was induced 2.4-fold in roots (n = 3) ' }, { type: 'citation', reference_id: c.citable_references[0]!.reference_id, locator }, { type: 'text', text: '.' }] });
+    for (const bad of ['Smith et al. 2020 reported a 50-fold rise', 'see the second table of the supplement', 'doi:10.1/x']) {
+      const r = await run(w, spy(withLocator(bad)));
+      expect(r.job.status, bad).toBe('FAILED');
+      expect(r.proposal).toBeNull();
+    }
+    for (const ok of ['p. 12', 'pp. 3–5', 'Fig. 2A', 'Table S1', 'Suppl. 4']) expect((await run(w, spy(withLocator(ok)))).proposal, ok).toMatchObject({ status: 'PENDING' });
+  });
+
+  test('MINOR 2: a reference the library knows as retracted cannot be cited; a citation outside the node\'s sources is flagged', async () => {
+    const w = await world();
+    const g = spy((c) => good(c));
+    const first = await run(w, g);
+    expect(g.seen[0]!.citable_references).toEqual([{ reference_id: w.ref.id, label: expect.stringContaining('Earlier root study'), linked_to_node: false, retracted: false }]);
+    expect(g.seen[0]!.citable_references_truncated).toBe(false);
+    expect(first.proposal!.warnings).toContain('citation_not_linked_to_node');
+    await pool.query("INSERT INTO reference_relations (owner_id, from_reference_id, relation, source) VALUES ($1, $2, 'flagged_retracted', 'manual')", [w.owner, w.ref.id]);
+    const g2 = spy((c) => good(c));
+    const { proposal } = await run(w, g2);
+    expect(g2.seen[0]!.citable_references[0]!.retracted).toBe(true);
+    expect(proposal).toMatchObject({ status: 'CHECK_FAILED' });
+    expect(proposal!.checks).toContainEqual(expect.objectContaining({ check: 'citation_retracted', result: 'fail', details: w.ref.id }));
+  });
+
+  test('MINOR 3: an edit elsewhere in the manuscript does not make a proposal stale; an edit of its place does', async () => {
+    const w0 = await world();
+    const P2 = randomUUID();
+    const doc = (t1: string, t2: string) => ({ type: 'doc', content: [{ type: 'paragraph', attrs: { id: P1 }, content: [{ type: 'text', text: t1 }] }, { type: 'paragraph', attrs: { id: P2 }, content: [{ type: 'text', text: t2 }] }] });
+    const save = async (w: W, content: unknown) => (await call('alice', 'POST', `/api/papers/${w.paperId}/documents/${w.documentId}/saves`, { expected_head_revision_id: await head(w), content_json: content, schema_version: 1, reason: 'autosave' })).json().id as string;
+    const w = { ...w0, head: await save(w0, doc(ORIGINAL, 'Leaves next.')) };
+    // a new paragraph after P1; the user keeps typing in P2 — before the answer and before applying
+    const r = await request(w);
+    await save(w, doc(ORIGINAL, 'Leaves next, edited.'));
+    await processDelivery(pool, { job_id: r.json().job.id, paper_id: w.paperId, intent: 'draft_paragraph' }, { workerId: 'w1', leaseMs: 60_000, handlers: writerHandlers(pool, spy((c) => good(c))) });
+    const p = (await call('alice', 'GET', `/api/papers/${w.paperId}/writer/proposals?document_id=${w.documentId}`)).json()[0];
+    expect(p.status).toBe('PENDING');
+    await save(w, doc(ORIGINAL, 'Leaves next,  edited twice'));
+    const applied = await apply(w, p);
+    expect(applied.statusCode, applied.body).toBe(200);
+    const after = (await pool.query('SELECT content_json FROM document_revisions WHERE id = $1', [await head(w)])).rows[0].content_json;
+    expect(after.content.map((n: { attrs: { id: string } }) => n.attrs.id)).toEqual([P1, applied.json().block_id, P2]);
+    expect(after.content[2].content[0].text).toBe('Leaves next,  edited twice'); // the user's edit is kept
+    // a correction of P2 while P1 changes: still applicable; a correction of P2 after P2 changed: STALE
+    const at = await head(w);
+    const fix = await run({ ...w, head: at }, createMockWriter(), { mode: 'conservative', after_block_id: undefined, block_id: P2, base_revision_id: at });
+    const cur = (await pool.query('SELECT content_json FROM document_revisions WHERE id = $1', [at])).rows[0].content_json;
+    await save(w, { ...cur, content: [{ ...cur.content[0], content: [{ type: 'text', text: 'P1 edited.' }] }, ...cur.content.slice(1)] });
+    expect((await apply(w, fix.proposal!)).statusCode).toBe(200);
+    const at2 = await head(w);
+    const fix2 = await run({ ...w, head: at2 }, spy(() => ({ status: 'draft', paragraph: [{ type: 'text', text: 'Leaves next, edited twice' }], claim_ids: [], fact_ids: [] })), { mode: 'conservative', after_block_id: undefined, block_id: P2, base_revision_id: at2 });
+    const cur2 = (await pool.query('SELECT content_json FROM document_revisions WHERE id = $1', [at2])).rows[0].content_json;
+    await save(w, { ...cur2, content: cur2.content.map((n: { attrs: { id: string } }) => (n.attrs.id === P2 ? { ...n, content: [{ type: 'text', text: 'P2 rewritten by hand.' }] } : n)) });
+    const stale = await apply(w, fix2.proposal!);
+    expect(stale.statusCode).toBe(409);
+    expect((await call('alice', 'GET', `/api/papers/${w.paperId}/writer/proposals/${fix2.proposal!.id}`)).json().status).toBe('STALE');
   });
 });

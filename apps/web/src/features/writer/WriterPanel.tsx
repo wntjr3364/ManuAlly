@@ -19,11 +19,11 @@ const STATUS: Record<string, string> = {
   PENDING: '적용 가능', CHECK_FAILED: '검사 실패', NEEDS_EVIDENCE: '근거 부족', NO_CHANGE: '바꿀 것 없음', STALE: '원고가 바뀜', APPLIED: '적용됨', REJECTED: '거절함',
 };
 const CHECK: Record<string, string> = {
-  number_not_in_contract: '계획의 사실에 없는 수치', mandatory_claim: '계획의 주장이 빠짐', avoided_term: '피하기로 한 용어',
+  number_not_in_contract: '계획의 사실·주장에 없는 수치(앞 문단에 쓴 수치라도 검증된 사실로 등록되어 있어야 씁니다)', citation_retracted: '철회된 문헌을 인용함', mandatory_claim: '계획의 주장이 빠짐', avoided_term: '피하기로 한 용어',
   numbers: '원문의 수치가 바뀜', negations: '부정어가 바뀜', directions: '증감 방향이 바뀜', citations: '인용이 바뀜', citation_positions: '인용 위치가 바뀜',
   protected_atoms: '수식·그림 참조가 바뀜', formatted_runs: '서식이 바뀜',
 };
-const WARN: Record<string, string> = { longer_than_target: '목표 분량보다 깁니다', shorter_than_target: '목표 분량보다 짧습니다' };
+const WARN: Record<string, string> = { longer_than_target: '목표 분량보다 깁니다', shorter_than_target: '목표 분량보다 짧습니다', citation_not_linked_to_node: '이 계획의 근거와 연결되지 않은 문헌을 인용했습니다 — 맞는 인용인지 확인하세요' };
 const textOf = (p: Proposal) => (p.paragraph?.content ?? []).map((n) => (n.type === 'text' ? n.text : n.type === 'citation' ? '[인용]' : '[…]')).join('');
 
 // headId: the editor's saved head (autosave moves it); the paragraphs offered are read from that revision

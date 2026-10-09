@@ -97,3 +97,19 @@
 
 ## 다음
 PW-043: scientific reviewer / 검증 층
+
+## 리뷰 반영 (1차, changes requested — MINOR 3, NIT 3)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MINOR 1: 인용 locator에 자유 글(지어낸 결과, 서지)이 실려 검사를 빠져나감 | 생성기가 붙이는 locator는 짧은 표지만 허용한다: p./pp./Fig./Figure/Table/Suppl./Sect./Chapter/Eq./para. + 짧은 번호, 30자 이하. 원문 문단에 이미 있던 같은 참고문헌의 locator는 그대로 둘 수 있다. 그 밖은 거부한다(`bad_locator`, FAILED, 저장 없음) | 통합: "Smith et al. 2020 reported a 50-fold rise", 자유 글, DOI → FAILED. "p. 12", "pp. 3–5", "Fig. 2A", "Table S1", "Suppl. 4" → PENDING. unit: 허용 10, 거부 6, 원문 locator 유지 |
+| MINOR 2: 철회된 문헌·node와 무관한 문헌을 인용해도 표시 없음 | 계약의 참고문헌에 `retracted`를 붙인다(서재의 철회 표시·고지). 철회된 문헌을 인용하면 `citation_retracted`로 CHECK_FAILED다. node 근거와 연결되지 않은 문헌 인용은 경고 `citation_not_linked_to_node`다(배경 인용일 수 있어 막지 않고 사용자가 판단). `citable_references_truncated`로 200개 넘음을 알린다(NIT 3) | 철회 표시 → 계약에 retracted: true, 제안 CHECK_FAILED. 연결 없는 인용 → 경고. truncated false |
+| MINOR 3: 원고 어디든 고치면 모든 제안이 STALE | 제안은 **자기 자리**에만 묶인다. 교정·재작성은 그 문단의 hash, 새 문단은 앞 block의 hash(migration `pw_042_0002`, `after_block_hash`)로 판단한다. 다른 곳이 바뀌어도 적용할 수 있고, 지금 head 위에 적용해 사용자의 다른 편집을 지킨다. 자리가 바뀌거나 없어지면 STALE이다(rebase 없음). worker의 늦은 답도 같은 규칙이다 | 요청 뒤 P2 편집 → 제안 PENDING. 또 P2 편집 → 적용 200, 새 문단은 P1과 P2 사이, P2의 편집 유지. P2 교정 중 P1 편집 → 적용 200. P2 교정 중 P2를 직접 고침 → 409, STALE |
+| NIT: gate를 적용 트랜잭션 밖에서 봄 | 적용 트랜잭션 안에서 paper 행을 잡고 본다(`gateHoldsIn`): story 승인, 활성 승인 개요, node 승인, 미검토 영향 없음 | 영향 → 적용 409(reasons에 impact_review_required) |
+| NIT: 앞 문단의 수치가 허용되지 않는 이유가 화면에 없음 | 검사 문구: "계획의 사실·주장에 없는 수치(앞 문단에 쓴 수치라도 검증된 사실로 등록되어 있어야 씁니다)" | — |
+| NIT: 200개 잘림이 조용함 | `citable_references_truncated` | 통합 |
+
+- RED(`red-review.log`): 43b8f5d 구현으로 새 시험 3개가 실패한다.
+- GREEN: 통합 12, unit 36, 브라우저 1.
+- mutation(`mutation.log` 하단): 13종 모두 탐지.
+- 회귀: `pnpm test` exit 0 — unit 326, integration 433, contracts 17, 브라우저 91 (`pnpm-test-review.log`).
+- 남은 위험(추가): 새 문단은 앞 block만 같으면 적용된다. 뒤 문단이 바뀌어 전환이 어색해질 수 있지만, 이것은 사용자가 보고 적용하는 diff 범위다.

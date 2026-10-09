@@ -19,7 +19,8 @@ import { checkDraftGate } from '@pw/domain/outlines/index.ts';
 import { activeProfile } from '@pw/domain/writing-profile/index.ts';
 import { listReferences } from '@pw/domain/references/index.ts';
 import { checkReplacement } from '@pw/domain/proposals/guard.ts';
-import { blockText, buildParagraph, documentAt, insertParagraphProposalIn, paragraphItems, type WriterMode } from '@pw/domain/writer/index.ts';
+import { blockText, buildParagraph, documentAt, insertParagraphProposalIn, paragraphItems, placeHolds, type WriterMode } from '@pw/domain/writer/index.ts';
+import { noticesOf } from '@pw/domain/literature/index.ts';
 import { nodeScopeFor } from '@pw/search/retrieval/index.ts';
 import { AnswerRefused, CONTRACT_VERSION, parseWriterAnswer, wordsIn, type ParagraphContract, type ParagraphItem } from '@pw/contracts/writing';
 import { numbersIn } from '../story/index.ts';
@@ -27,9 +28,10 @@ import { JobOutcomeError, type JobHandler } from '../queue/index.ts';
 
 export interface Writer { id: 'mock' | 'claude_agent' | 'codex'; label: string | null; write(contract: ParagraphContract): Promise<unknown> }
 type Check = { check: string; result: 'pass' | 'fail' | 'unknown' | 'not_applicable'; details?: string };
-interface Payload { mode: WriterMode; outline_revision_id: string; node_id: string; document_id: string; base_revision_id: string; after_block_id: string | null; block_id: string | null; expected_block_hash: string | null; instruction: string }
+interface Payload { mode: WriterMode; outline_revision_id: string; node_id: string; document_id: string; base_revision_id: string; after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null; instruction: string }
 
 const CONTEXT_CHARS = 1500;
+const MAX_CITABLE = 200;
 const clip = (s: string) => (s.length > CONTEXT_CHARS ? `${s.slice(0, CONTEXT_CHARS)}…` : s);
 function factText(f: { entity: string; metric: string; value_text: string; unit: string; group_label: string; comparison: string; n: number | null }, stats: { kind: string; value_text: string }[]) {
   const s = stats.map((x) => `${x.kind}=${x.value_text}`).join(', ');
@@ -40,7 +42,7 @@ function payloadOf(job: Job): Payload {
   const p = job.payload as Record<string, unknown>;
   const uuid = (v: unknown) => typeof v === 'string' && UUID_RE.test(v);
   if (!['draft', 'conservative', 'rewrite'].includes(p.mode as string) || !uuid(p.outline_revision_id) || !uuid(p.node_id) || !uuid(p.document_id) || !uuid(p.base_revision_id)
-    || (p.after_block_id !== null && !uuid(p.after_block_id)) || (p.block_id !== null && !uuid(p.block_id)) || typeof p.instruction !== 'string') {
+    || (p.after_block_id !== null && !uuid(p.after_block_id)) || (p.after_block_id !== null) !== (typeof p.after_block_hash === 'string') || (p.block_id !== null && !uuid(p.block_id)) || typeof p.instruction !== 'string') {
     throw new JobOutcomeError('writer payload is malformed', 'FAILED');
   }
   return p as unknown as Payload;
@@ -63,7 +65,12 @@ async function buildContract(db: Queryable, job: Job, p: Payload, provider: stri
   const pc = profile?.content;
   const role = pc?.section_roles.filter((r) => r.section === scope.node.section) ?? [];
   const evidenceRefs = new Set((await db.query<{ reference_id: string }>('SELECT reference_id FROM evidence_records WHERE paper_id = $1 AND id = ANY($2::uuid[]) AND reference_id IS NOT NULL', [job.paper_id, scope.evidence.map((e) => e.id)])).rows.map((r) => r.reference_id));
-  const refs = (await listReferences(db, job.paper_id)).slice(0, 200);
+  const all = await listReferences(db, job.paper_id);
+  const refs = all.slice(0, MAX_CITABLE);
+  // works the owner's library knows as retracted (own flag or a notice about them)
+  const owner = (await db.query<{ owner_id: string }>('SELECT owner_id FROM paper_projects WHERE id = $1', [job.paper_id])).rows[0]!.owner_id;
+  const retracted = new Set<string>();
+  for (const r of refs) if ((await noticesOf(db, owner, r.id)).some((n) => n.kind === 'retracted')) retracted.add(r.id);
   const contract: ParagraphContract = {
     contract_version: CONTRACT_VERSION,
     paper_id: job.paper_id,
@@ -93,12 +100,15 @@ async function buildContract(db: Queryable, job: Job, p: Payload, provider: stri
     },
     target_length: { min_words: scope.node.word_budget_min, max_words: scope.node.word_budget_max },
     operation: { mode: p.mode, document_id: p.document_id, base_revision_id: p.base_revision_id, after_block_id: p.after_block_id, block_id: p.block_id, original: original ? (paragraphItems(original) as ParagraphItem[]) : null },
-    citable_references: refs.map((r) => ({ reference_id: r.id, label: `${r.authors[0]?.family ?? '?'}${r.authors.length > 1 ? ' et al.' : ''} ${r.year ?? 'n.d.'}: ${r.title}`.slice(0, 300), linked_to_node: evidenceRefs.has(r.id) })),
+    citable_references: refs.map((r) => ({ reference_id: r.id, label: `${r.authors[0]?.family ?? '?'}${r.authors.length > 1 ? ' et al.' : ''} ${r.year ?? 'n.d.'}: ${r.title}`.slice(0, 300), linked_to_node: evidenceRefs.has(r.id), retracted: retracted.has(r.id) })),
+    citable_references_truncated: all.length > MAX_CITABLE,
     instruction: p.instruction,
     transmission: { provider, withheld: scope.excluded.length },
   };
   return { contract, original };
 }
+
+const citedIn = (paragraph: ReturnType<typeof buildParagraph>) => { const ids: string[] = []; paragraph.forEach((n) => { if (n.type.name === 'citation') ids.push(n.attrs.referenceId as string); }); return ids; };
 
 // the deterministic checks of an answer (layer A); none of them needs the writer's word for anything
 function checksOf(contract: ParagraphContract, paragraph: ReturnType<typeof buildParagraph>, original: ReturnType<typeof buildParagraph> | null, claimIds: string[]): Check[] {
@@ -113,6 +123,10 @@ function checksOf(contract: ParagraphContract, paragraph: ReturnType<typeof buil
     const missing = contract.mandatory_claims.filter((c) => !claimIds.includes(c.id));
     if (missing.length) for (const c of missing) checks.push({ check: 'mandatory_claim', result: 'fail', details: c.id });
     else checks.push({ check: 'mandatory_claim', result: 'pass' });
+    // a work the library knows as retracted is not cited by the writer (review MINOR 2)
+    const bad = [...new Set(citedIn(paragraph).filter((id) => contract.citable_references.find((r) => r.reference_id === id)?.retracted))];
+    if (bad.length) for (const id of bad) checks.push({ check: 'citation_retracted', result: 'fail', details: id });
+    else checks.push({ check: 'citation_retracted', result: 'pass' });
   } else {
     const kids = (n: typeof paragraph) => { const out: (typeof paragraph)[] = []; n.forEach((c) => out.push(c)); return out; };
     checks.push(...(checkReplacement(kids(original!), kids(paragraph), contract.operation.mode === 'conservative' ? 'grammar' : 'rewrite') as Check[]));
@@ -180,7 +194,7 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
       }
       const base = {
         paper_id: job.paper_id, job_id: job.id, document_id: p.document_id, base_revision_id: p.base_revision_id, outline_revision_id: p.outline_revision_id, node_id: p.node_id,
-        mode: p.mode, after_block_id: p.after_block_id, block_id: p.block_id, expected_block_hash: p.expected_block_hash, contract: contract as unknown as Record<string, unknown>, contract_hash: contractHash,
+        mode: p.mode, after_block_id: p.after_block_id, after_block_hash: p.after_block_hash, block_id: p.block_id, expected_block_hash: p.expected_block_hash, contract: contract as unknown as Record<string, unknown>, contract_hash: contractHash,
         generator: writer.id, generator_label: writer.label,
       };
       let row: Parameters<typeof insertParagraphProposalIn>[1];
@@ -192,6 +206,8 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
         const words = wordsIn(answer.paragraph);
         if (contract.target_length.max_words && words > contract.target_length.max_words) warnings.push('longer_than_target');
         if (contract.target_length.min_words && words < contract.target_length.min_words) warnings.push('shorter_than_target');
+        // a citation none of the plan's evidence comes from: shown for the owner to judge (review MINOR 2)
+        if (p.mode === 'draft' && citedIn(paragraph!).some((id) => !contract.citable_references.find((r) => r.reference_id === id)?.linked_to_node)) warnings.push('citation_not_linked_to_node');
         const unchanged = original && canonicalJson(original.toJSON()) === canonicalJson(paragraph!.toJSON());
         const failed = checks.filter((c) => c.result === 'fail');
         const json = paragraph!.toJSON() as Record<string, unknown>;
@@ -207,8 +223,8 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
         // stored only with the job's completion (fenced): a cancelled or taken-over run leaves nothing
         apply: async (tx) => {
           const head = (await tx.query<{ head_revision_id: string }>('SELECT head_revision_id FROM documents WHERE paper_id = $1 AND id = $2', [job.paper_id, p.document_id])).rows[0]!.head_revision_id;
-          // a late answer for a manuscript that moved on is kept, but STALE
-          const late = head !== p.base_revision_id && ['PENDING', 'CHECK_FAILED'].includes(row.status);
+          // a late answer whose own place changed meanwhile is kept, but STALE (edits elsewhere do not count)
+          const late = head !== p.base_revision_id && ['PENDING', 'CHECK_FAILED'].includes(row.status) && !(await placeHolds((await documentAt(tx, job.paper_id, p.document_id, head))!, row));
           const stored = await insertParagraphProposalIn(tx, late ? { ...row, status: 'STALE', status_reason: 'the manuscript changed while the paragraph was written' } : row);
           result.proposal_id = stored.id;
           result.status = stored.status;

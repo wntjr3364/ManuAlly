@@ -1,6 +1,6 @@
 // PW-042 — the pure rules of the Writer's answer (packages/contracts/src/writing).
 import { describe, expect, test } from 'vitest';
-import { AnswerRefused, bibliographyString, hardWordCap, parseWriterAnswer, wordsIn, type ParagraphContract } from '../../../packages/contracts/src/writing/index.ts';
+import { AnswerRefused, bibliographyString, hardWordCap, parseWriterAnswer, wordsIn, writerLocator, type ParagraphContract } from '../../../packages/contracts/src/writing/index.ts';
 
 const REF = '11111111-1111-4111-8111-111111111111';
 const CLAIM = '22222222-2222-4222-8222-222222222222';
@@ -46,3 +46,14 @@ describe('parseWriterAnswer', () => {
     expect(wordsIn([{ type: 'text', text: 'ABC1 rose 2.4-fold ( n = 3 ) .' }])).toBe(5); // punctuation alone is not a word
   });
 });
+
+describe('review MINOR 1: writer locators are short labels', () => {
+  test.each(['p. 12', 'pp. 3–5', 'Fig. 2A', 'Figs. 2–3', 'Figure 4', 'Table S1', 'Suppl. 4', 'Sect. 3', 'Chapter 2', 'Eq. 5'])('allowed: %s', (l) => expect(writerLocator(l)).toBe(true));
+  test.each(['Smith et al. 2020', 'p. 12 shows a 50-fold rise', 'page twelve', 'doi:10.1/x', '12', 'Fig.'])('refused: %s', (l) => expect(writerLocator(l)).toBe(false));
+  test('a locator the original already had for that reference is kept as it was', () => {
+    const c = contract({ operation: { mode: 'conservative', document_id: '', base_revision_id: '', after_block_id: null, block_id: 'b', original: [{ type: 'citation', reference_id: REF, locator: 'as reviewed in the appendix' }] } });
+    expect(refused({ status: 'draft', paragraph: [{ type: 'citation', reference_id: REF, locator: 'as reviewed in the appendix' }], claim_ids: [], fact_ids: [] }, c)).toBeNull();
+    expect(refused({ status: 'draft', paragraph: [{ type: 'citation', reference_id: REF, locator: 'as reviewed elsewhere' }], claim_ids: [], fact_ids: [] }, c)).toBe('bad_locator');
+  });
+});
+

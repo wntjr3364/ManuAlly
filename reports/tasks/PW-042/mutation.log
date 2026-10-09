@@ -27,3 +27,18 @@ KILLED request names a missing block
 KILLED headings accepted
 KILLED draft inserted at the end
 KILLED line breaks accepted
+
+# review fixes (43b8f5d review: MINOR 1–3, NITs)
+KILLED free-text locator accepted
+KILLED original locator not kept
+KILLED locator pattern loose
+KILLED retracted citation allowed
+KILLED retracted not marked
+KILLED not-linked warning dropped
+KILLED truncation flag false
+KILLED apply: any head change is STALE
+KILLED apply: changed place not STALE
+KILLED worker: any head change is STALE
+KILLED placeHolds ignores the hash
+KILLED in-tx gate dropped
+KILLED in-tx gate ignores impacts

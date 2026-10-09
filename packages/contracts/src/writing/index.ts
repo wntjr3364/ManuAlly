@@ -40,7 +40,9 @@ export interface ParagraphContract {
   };
   target_length: { min_words: number | null; max_words: number | null };
   operation: { mode: WriterMode; document_id: string; base_revision_id: string; after_block_id: string | null; block_id: string | null; original: ParagraphItem[] | null };
-  citable_references: { reference_id: string; label: string; linked_to_node: boolean }[];
+  // this paper's references (RFC-008); retracted ones are listed so the writer knows, but citing one fails a check
+  citable_references: { reference_id: string; label: string; linked_to_node: boolean; retracted: boolean }[];
+  citable_references_truncated: boolean;
   instruction: string;
   transmission: { provider: string; withheld: number };
 }
@@ -50,7 +52,7 @@ export type WriterAnswer =
   | { status: 'needs_evidence'; missing: string[]; note: string | null };
 
 // Why an answer is refused as a whole (nothing is stored).
-export type RefusalReason = 'malformed' | 'unknown fields' | 'claim_not_in_contract' | 'fact_not_in_contract' | 'citation_not_in_paper' | 'bibliography_string' | 'scope_exceeded';
+export type RefusalReason = 'malformed' | 'unknown fields' | 'claim_not_in_contract' | 'fact_not_in_contract' | 'citation_not_in_paper' | 'bibliography_string' | 'bad_locator' | 'scope_exceeded';
 export class AnswerRefused extends Error {
   readonly reason: RefusalReason;
   constructor(reason: RefusalReason, message: string) {
@@ -70,6 +72,11 @@ const BIBLIOGRAPHY: RegExp[] = [
   /\b10\.\d{4,9}\/\S+/,
 ];
 export const bibliographyString = (text: string) => BIBLIOGRAPHY.some((re) => re.test(text));
+// A citation locator a writer may add: a page, figure, table, supplement, section, chapter or equation
+// label with a short number (review MINOR 1: never free text, which the number and bibliography checks
+// would not see).
+const LOCATOR = /^(?:pp?\.|figs?\.|figures?|tables?|suppl\.|supplementary|sect\.|sections?|ch\.|chapter|eqs?\.|para\.)\s*[A-Z]?\d{1,4}[A-Za-z]?(?:\s*[-–,]\s*[A-Z]?\d{1,4}[A-Za-z]?)?$/i;
+export const writerLocator = (v: string) => v.length <= 30 && LOCATOR.test(v.trim());
 
 export const wordsIn = (items: ParagraphItem[]) => items.filter((i) => i.type === 'text').map((i) => (i as { text: string }).text).join(' ').split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 // A paragraph request never becomes a manuscript: one block of prose, at most about twice its budget.
@@ -128,6 +135,11 @@ export function parseWriterAnswer(raw: unknown, c: ParagraphContract): WriterAns
     if (it.type === 'citation') {
       only(it, ['type', 'reference_id', 'locator'], `paragraph[${i}]`);
       if (typeof it.reference_id !== 'string' || !citable.has(it.reference_id.toLowerCase())) throw new AnswerRefused('citation_not_in_paper', String(it.reference_id));
+      // a locator is a short label; one the original paragraph already had for that reference is kept as is
+      if (it.locator !== undefined && it.locator !== null) {
+        const kept = (c.operation.original ?? []).some((o) => o.type === 'citation' && o.reference_id === (it.reference_id as string).toLowerCase() && o.locator === it.locator);
+        if (typeof it.locator !== 'string' || (!kept && !writerLocator(it.locator))) throw new AnswerRefused('bad_locator', 'a citation locator is a page, figure, table or section label such as "p. 12" or "Fig. 2A"');
+      }
       return { ...(it as { type: 'citation'; reference_id: string; locator?: string | null }), reference_id: it.reference_id.toLowerCase() };
     }
     if (it.type === 'preserve_atom') {

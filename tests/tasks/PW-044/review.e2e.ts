@@ -49,8 +49,9 @@ test('TST-044A/B: a finding with its span and source, accepted by the user, repa
   const panel = page.getByTestId('review');
   await panel.getByLabel('검토할 문단').selectOption({ index: 1 });
   await panel.getByRole('button', { name: '검토 요청' }).click();
-  const finding = panel.getByTestId('review-finding');
-  await expect(finding).toHaveCount(1);
+  // the causal finding (the gate's failure on the same sentence is a second finding, PW-045)
+  await expect(panel.getByTestId('review-finding')).toHaveCount(2);
+  const finding = panel.getByTestId('review-finding').filter({ hasText: '인과 단정' });
   await expect(finding).toContainText('과학 · 인과 단정');
   await expect(finding).toContainText('demonstrates that ABC1 causes tolerance');
   await expect(finding).toContainText('근거: 승인된 주장');

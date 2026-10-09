@@ -111,7 +111,9 @@ describe('TST-044A: findings with span, reason, source, confidence and alternati
     expect(input).toMatchObject({ section: 'Results', purpose: 'Root induction' });
     expect(input.claims.map((c) => c.id)).toEqual([w.c1.id]);
     expect(input.facts.map((f) => f.id)).toEqual([w.f.id]);
-    expect(input.gate.status).toBe('VERIFIED');
+    // the causal wording over the observation is also caught deterministically (PW-045 SCI-004)
+    expect(input.gate.status).toBe('FAILED');
+    expect(input.gate.findings).toContainEqual(expect.objectContaining({ check: 'claim', verdict: 'fail', reason: 'causal_overstatement' }));
     expect(run).toMatchObject({ status: 'DONE', independence: 'human_written', generator_label: 'MOCK', dropped: [], repair: null });
     expect(run!.findings).toEqual([expect.objectContaining({
       kind: 'scientific', category: 'causal_language', quote: OVERCLAIM, start: TEXT.indexOf(OVERCLAIM), end: TEXT.indexOf(OVERCLAIM) + OVERCLAIM.length,
@@ -189,7 +191,8 @@ describe('TST-044B: no score, no blacklist, labelled self-review, one repair', (
     expect((await review(plain)).run!.findings).toEqual([]);
     const w = await world();
     const { run } = await review(w);
-    expect(run!.findings.map((f) => [f.category, f.source?.kind])).toEqual([['causal_language', 'claim']]);
+    // its own causal finding, and the deterministic gate's failure on the same sentence (PW-045)
+    expect(run!.findings.map((f) => [f.category, f.source?.kind])).toEqual([['causal_language', 'claim'], ['evidence_mismatch', 'gate']]);
   });
 
   test('a review by the model that wrote the paragraph is labelled same_model', async () => {

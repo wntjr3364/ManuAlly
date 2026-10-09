@@ -21,7 +21,7 @@ import { listReferences } from '@pw/domain/references/index.ts';
 import { checkReplacement } from '@pw/domain/proposals/guard.ts';
 import { blockText, buildParagraph, documentAt, insertParagraphProposalIn, paragraphItems, placeHolds, type WriterMode } from '@pw/domain/writer/index.ts';
 import { noticesOf } from '@pw/domain/literature/index.ts';
-import { scientificGate, type Finding } from '@pw/domain/scientific-checks/index.ts';
+import { proseSignals, scientificGate, type Finding } from '@pw/domain/scientific-checks/index.ts';
 import { gateFacts } from '@pw/domain/scientific-checks/records.ts';
 import { nodeScopeFor } from '@pw/search/retrieval/index.ts';
 import { AnswerRefused, CONTRACT_VERSION, parseWriterAnswer, wordsIn, type ParagraphContract, type ParagraphItem } from '@pw/contracts/writing';
@@ -218,6 +218,8 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
         const words = wordsIn(answer.paragraph);
         if (contract.target_length.max_words && words > contract.target_length.max_words) warnings.push('longer_than_target');
         if (contract.target_length.min_words && words < contract.target_length.min_words) warnings.push('shorter_than_target');
+        // an enumerated list where prose is asked for (PW-045 SCI-018); Methods may enumerate
+        if (p.mode === 'draft') warnings.push(...proseSignals(blockText(paragraph!), contract.section));
         // a citation none of the plan's evidence comes from: shown for the owner to judge (review MINOR 2)
         if (p.mode === 'draft' && citedIn(paragraph!).some((id) => !contract.citable_references.find((r) => r.reference_id === id)?.linked_to_node)) warnings.push('citation_not_linked_to_node');
         const unchanged = original && canonicalJson(original.toJSON()) === canonicalJson(paragraph!.toJSON());

@@ -1,0 +1,305 @@
+{
+  "generated_by": "tests/scientific/report.ts",
+  "suite": {
+    "results": [
+      {
+        "id": "SCI-001",
+        "name": "invented_n",
+        "layer": "gate",
+        "expected": "NEEDS_EVIDENCE",
+        "actual": "NEEDS_EVIDENCE",
+        "detail": "sample_size:unknown:no_n_recorded",
+        "status": "match"
+      },
+      {
+        "id": "SCI-002",
+        "name": "p_significance",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "statistic:fail:significance_misstated",
+        "status": "match"
+      },
+      {
+        "id": "SCI-003",
+        "name": "q_as_p",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "statistic:fail:p_q_mismatch",
+        "status": "match"
+      },
+      {
+        "id": "SCI-004",
+        "name": "causal_jump",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "claim:fail:causal_overstatement",
+        "status": "match"
+      },
+      {
+        "id": "SCI-005",
+        "name": "novelty_first",
+        "layer": "gate",
+        "expected": "NEEDS_EVIDENCE",
+        "actual": "NEEDS_EVIDENCE",
+        "detail": "claim:unknown:priority_claim",
+        "status": "match"
+      },
+      {
+        "id": "SCI-006",
+        "name": "invented_method",
+        "layer": "gate",
+        "expected": "NEEDS_EVIDENCE",
+        "actual": "NEEDS_EVIDENCE",
+        "detail": "quantity:unknown:no_matching_fact",
+        "status": "match"
+      },
+      {
+        "id": "SCI-007",
+        "name": "unit_shift",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "quantity:fail:unit_mismatch",
+        "status": "match"
+      },
+      {
+        "id": "SCI-008",
+        "name": "sign_flip",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "quantity:fail:sign_mismatch",
+        "status": "match"
+      },
+      {
+        "id": "SCI-009",
+        "name": "group_swap",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "comparison:fail:comparison_contradicts_facts",
+        "status": "match"
+      },
+      {
+        "id": "SCI-010",
+        "name": "figure_wrong",
+        "layer": "not_deterministic",
+        "expected": "BLOCK",
+        "actual": null,
+        "detail": "not_run: figure numbers written as plain text are not mapped to figure records; figure references are atoms — decided by figure cross-reference check (PW-019 figure_ref atoms; PW-058 export) + user",
+        "status": "not_run"
+      },
+      {
+        "id": "SCI-011",
+        "name": "fake_citation",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "citation:fail:citation_not_found",
+        "status": "match"
+      },
+      {
+        "id": "SCI-012",
+        "name": "abstract_style",
+        "layer": "profile",
+        "expected": "NEEDS_EVIDENCE",
+        "actual": "NEEDS_EVIDENCE",
+        "detail": "section_not_read",
+        "status": "match"
+      },
+      {
+        "id": "SCI-013",
+        "name": "table_uncertain",
+        "layer": "gate",
+        "expected": "NEEDS_EVIDENCE",
+        "actual": "NEEDS_EVIDENCE",
+        "detail": "quantity:unknown:no_matching_fact",
+        "status": "match"
+      },
+      {
+        "id": "SCI-014",
+        "name": "negation_flip",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "claim:fail:negation_changed",
+        "status": "match"
+      },
+      {
+        "id": "SCI-015",
+        "name": "correlation_round",
+        "layer": "gate",
+        "expected": "ALLOW",
+        "actual": "NEEDS_EVIDENCE",
+        "detail": "quantity:unknown:no_matching_fact",
+        "status": "known_deviation"
+      },
+      {
+        "id": "SCI-016",
+        "name": "round_to_zero",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "statistic:fail:impossible_probability",
+        "status": "match"
+      },
+      {
+        "id": "SCI-017",
+        "name": "missing_limitation",
+        "layer": "not_deterministic",
+        "expected": "WARN",
+        "actual": null,
+        "detail": "not_run: whether a required limitation is missing needs the plan and a reading of the whole Discussion — decided by PW-044 reviewer (section_role / missing_counterevidence) + user",
+        "status": "not_run"
+      },
+      {
+        "id": "SCI-018",
+        "name": "report_bullets",
+        "layer": "prose",
+        "expected": "WARN",
+        "actual": "WARN",
+        "detail": "enumerated_list",
+        "status": "match"
+      },
+      {
+        "id": "SCI-019",
+        "name": "legitimate_methods_list",
+        "layer": "prose",
+        "expected": "ALLOW",
+        "actual": "ALLOW",
+        "detail": "no signal",
+        "status": "match"
+      },
+      {
+        "id": "SCI-020",
+        "name": "empty_hype",
+        "layer": "not_deterministic",
+        "expected": "WARN",
+        "actual": null,
+        "detail": "not_run: hype is a judgement about this paragraph; the product keeps no word blacklist (spec 06) — decided by PW-044 reviewer (overclaim) + user",
+        "status": "not_run"
+      },
+      {
+        "id": "SCI-021",
+        "name": "transition_ok",
+        "layer": "gate",
+        "expected": "ALLOW",
+        "actual": "ALLOW",
+        "detail": "NOT_APPLICABLE",
+        "status": "match"
+      },
+      {
+        "id": "SCI-022",
+        "name": "scope_expand",
+        "layer": "writer",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "scope_exceeded: the answer must be one paragraph (no line breaks or headings)",
+        "status": "match"
+      },
+      {
+        "id": "SCI-023",
+        "name": "citation_atomic",
+        "layer": "guard",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "citations, citation_positions",
+        "status": "match"
+      },
+      {
+        "id": "SCI-024",
+        "name": "entity_change",
+        "layer": "not_deterministic",
+        "expected": "BLOCK",
+        "actual": null,
+        "detail": "not_run: organism names are not recorded identifiers the gate can contradict; a fact without a number is not checked — decided by PW-044 reviewer + user",
+        "status": "not_run"
+      },
+      {
+        "id": "SCI-025",
+        "name": "statistical_unit",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "sample_size:fail:n_mismatch",
+        "status": "match"
+      },
+      {
+        "id": "SCI-026",
+        "name": "technical_absence",
+        "layer": "gate",
+        "expected": "NEEDS_EVIDENCE",
+        "actual": "NEEDS_EVIDENCE",
+        "detail": "quantity:unknown:no_matching_fact",
+        "status": "match"
+      },
+      {
+        "id": "SCI-027",
+        "name": "source_contradiction",
+        "layer": "not_deterministic",
+        "expected": "BLOCK",
+        "actual": null,
+        "detail": "not_run: whether a cited source supports the statement needs that source's text and a reading of it — decided by literature evidence (PW-036/037) + PW-044 reviewer + user",
+        "status": "not_run"
+      },
+      {
+        "id": "SCI-028",
+        "name": "retracted_reference",
+        "layer": "gate",
+        "expected": "WARN",
+        "actual": "BLOCK",
+        "detail": "citation:fail:citation_retracted",
+        "status": "known_deviation"
+      },
+      {
+        "id": "SCI-029",
+        "name": "hypothesis_as_result",
+        "layer": "gate",
+        "expected": "BLOCK",
+        "actual": "BLOCK",
+        "detail": "claim:fail:certainty_overstatement",
+        "status": "match"
+      },
+      {
+        "id": "SCI-030",
+        "name": "copying_style",
+        "layer": "copy",
+        "expected": "WARN",
+        "actual": "WARN",
+        "detail": "copied_from_source",
+        "status": "match"
+      }
+    ],
+    "summary": {
+      "total": 30,
+      "match": 23,
+      "known_deviation": 2,
+      "stricter": 0,
+      "unsafe": 0,
+      "not_run": 5
+    }
+  },
+  "human_rubric": {
+    "file": "evals/human-rubric.results.json",
+    "status": "not_run",
+    "reason": "권리와 외부 전송이 확인된 실제 문단이 아직 없다(최소 10개 필요). 사용자가 문단을 제공하고 사람이 blind로 평가해야 한다. 모델 자체평가나 AI 탐지 점수로 대신하지 않는다.",
+    "errors": [],
+    "summary": {
+      "rated_paragraphs": 0,
+      "held_out": 0,
+      "raters": 0,
+      "critical": 0
+    }
+  },
+  "release_quality": {
+    "declared_pass": false,
+    "outcome": "not_ready",
+    "reasons": [
+      "hard cases: 5 need AI review and the user (not run here)",
+      "human rubric: not run (no rights-cleared paragraphs yet)"
+    ]
+  }
+}

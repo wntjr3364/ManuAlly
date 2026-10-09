@@ -1467,7 +1467,7 @@
       "id": "PW-045",
       "phase": "P05",
       "title": "과학적 부정 fixture·rubric gate",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-044"
       ],

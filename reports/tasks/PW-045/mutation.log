@@ -1,0 +1,27 @@
+# PW-045 mutations (each applied alone, then restored)
+KILLED significance not checked
+KILLED 'not significant' flagged
+KILLED impossible p accepted
+KILLED word comparators not read
+KILLED p/q fallback dropped
+KILLED replicates not n
+REMOVED technical replicates as n (dead condition: REPLICATES_AFTER never matches "technical"; condition deleted, test "2 technical replicates" still passes)
+KILLED n fallback dropped
+KILLED molar units missing
+KILLED causal over observation passes
+KILLED certainty over hypothesis passes
+KILLED priority claim not flagged
+KILLED wordless comparison not checked
+KILLED short labels case-insensitive
+KILLED enumerated list not flagged
+KILLED Methods lists flagged
+KILLED runner: looser result not unsafe
+KILLED runner: any deviation accepted
+KILLED quality: model raters accepted
+KILLED quality: unblinded accepted
+KILLED quality: rights not required
+KILLED quality: critical flags offset
+KILLED quality: AI scores count
+KILLED quality: extra rubric fields accepted
+KILLED quality: declares pass
+KILLED quality: too few paragraphs accepted

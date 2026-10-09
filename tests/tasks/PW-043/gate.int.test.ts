@@ -84,7 +84,7 @@ describe('TST-043A/B on the paper\'s records', () => {
     const r = await check(w, P1);
     expect(r.statusCode, r.body).toBe(201);
     const run = r.json();
-    expect(run).toMatchObject({ status: 'VERIFIED', gate_version: 'pw-sci-gate-1', block_id: P1, revision_id: w.head });
+    expect(run).toMatchObject({ status: 'VERIFIED', gate_version: 'pw-sci-gate-2', block_id: P1, revision_id: w.head });
     expect(run.findings).toContainEqual(expect.objectContaining({ check: 'quantity', verdict: 'pass', fact_id: w.f.id, evidence_id: w.e.id, evidence_label: 'roots qPCR', locator: { note: 'qPCR plate 3' } }));
     expect(run.findings).toContainEqual(expect.objectContaining({ check: 'statistic', verdict: 'pass', statistic: 'p_value', fact_id: w.f.id }));
     expect(run.findings).toContainEqual(expect.objectContaining({ check: 'citation', verdict: 'pass', reference_id: w.ref.id, locator: 'p. 4' }));
@@ -98,8 +98,9 @@ describe('TST-043A/B on the paper\'s records', () => {
     const run = (await check(w, P2)).json();
     expect(run.status).toBe('FAILED');
     expect(run.findings).toContainEqual(expect.objectContaining({ check: 'claim', verdict: 'fail', reason: 'negation_changed', claim_id: w.c1.id }));
-    // q = 0.003 is the p-value; with no quantity in the sentence, the paragraph's fact is not known → unknown, not pass
-    expect(run.findings.find((x: { check: string }) => x.check === 'statistic')).toMatchObject({ verdict: 'unknown' });
+    // q = 0.003 is the recorded p-value and no q of 0.003 is recorded anywhere: a p/q swap even without a
+    // matched quantity (PW-045 SCI-003 tightened this from unknown to fail)
+    expect(run.findings.find((x: { check: string }) => x.check === 'statistic')).toMatchObject({ verdict: 'fail', reason: 'p_q_mismatch' });
   });
 
   test('a fact that is no longer settled is not used: a retracted fact leaves its number unknown; a retracted reference fails', async () => {

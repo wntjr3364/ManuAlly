@@ -43,7 +43,7 @@ PW-041,P05,WritingProfile 생성·승인,in_review,PW-040,REQ-041,"TST-041A,TST-
 PW-042,P05,ParagraphContract·Writer,in_review,PW-041,REQ-042,"TST-042A,TST-042B",apps/worker/src/writer/**;packages/contracts/src/writing/**;tests/tasks/PW-042/**;reports/tasks/PW-042/**;db/migrations/pw_042_*
 PW-043,P05,Deterministic scientific gate,in_review,PW-042,REQ-043,"TST-043A,TST-043B",packages/domain/src/scientific-checks/**;tests/tasks/PW-043/**;reports/tasks/PW-043/**;db/migrations/pw_043_*
 PW-044,P05,문체·과학 검토와 human review,in_review,PW-043,REQ-044,"TST-044A,TST-044B",apps/worker/src/reviewer/**;apps/web/src/features/scientific-review/**;tests/tasks/PW-044/**;reports/tasks/PW-044/**;db/migrations/pw_044_*
-PW-045,P05,과학적 부정 fixture·rubric gate,planned,PW-044,REQ-045,"TST-045A,TST-045B",evals/**;tests/scientific/**;tests/tasks/PW-045/**;reports/tasks/PW-045/**;db/migrations/pw_045_*
+PW-045,P05,과학적 부정 fixture·rubric gate,in_review,PW-044,REQ-045,"TST-045A,TST-045B",evals/**;tests/scientific/**;tests/tasks/PW-045/**;reports/tasks/PW-045/**;db/migrations/pw_045_*
 PW-046,P05,개요→집필 연구자 workflow,planned,PW-045,REQ-046,"TST-046A,TST-046B",tests/e2e/scientific-workflow/**;reports/p05/**;tests/tasks/PW-046/**;reports/tasks/PW-046/**;db/migrations/pw_046_*
 PW-047,P06,Checkpoint·영구기억 재수화,planned,PW-046,REQ-047,"TST-047A,TST-047B",apps/worker/src/checkpoints/**;packages/domain/src/checkpoints/**;tests/tasks/PW-047/**;reports/tasks/PW-047/**;db/migrations/pw_047_*
 PW-048,P06,Context budget·compact 전환,planned,PW-047,REQ-048,"TST-048A,TST-048B",apps/worker/src/context/**;tests/tasks/PW-048/**;reports/tasks/PW-048/**;db/migrations/pw_048_*

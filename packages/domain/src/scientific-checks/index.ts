@@ -12,7 +12,9 @@
 // an unstated group, two facts it cannot tell apart — is unknown, never verified (spec 06 A: "정확한
 // mapping이 불가능하면 UNKNOWN이지 통과 아님"). English-centred heuristics; the limits are in the report.
 
-export const GATE_VERSION = 'pw-sci-gate-1';
+export const GATE_VERSION = 'pw-sci-gate-2'; // 2: PW-045 hard cases (significance, p = 0, molar units, replicates, wordless group comparisons, claim strength, priority)
+// the significance level assumed when the text calls a result significant (no per-paper alpha is recorded)
+export const ALPHA = 0.05;
 
 export interface GateFact {
   id: string; evidence_id: string; evidence_label: string; locator: unknown;
@@ -20,7 +22,7 @@ export interface GateFact {
   statistics: { kind: string; value_text: string }[];
 }
 export interface GateReference { id: string; label: string; retracted: boolean }
-export interface GateClaim { id: string; text: string }
+export interface GateClaim { id: string; text: string; kind?: string }
 type Inline = { type: string; text?: string; attrs?: Record<string, unknown> };
 export interface GateInput {
   paragraph: { content?: Inline[] };
@@ -34,7 +36,7 @@ export interface GateInput {
 }
 export type Verdict = 'pass' | 'fail' | 'unknown';
 export interface Finding {
-  check: 'quantity' | 'statistic' | 'sample_size' | 'citation' | 'protected_span' | 'claim';
+  check: 'quantity' | 'statistic' | 'sample_size' | 'citation' | 'protected_span' | 'claim' | 'comparison';
   verdict: Verdict; text: string; reason?: string;
   fact_id?: string; evidence_id?: string; evidence_label?: string; locator?: unknown; candidates?: string[]; statistic?: string;
   reference_id?: string; label?: string; claim_id?: string;
@@ -62,13 +64,15 @@ function sentencesOf(prose: string): string[] {
 
 // a number as written: thousands groups ("2,400") are one number; a sign counts only where it is one
 const NUMBER = /(?<![\p{L}\p{N}_.,])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?:\s*(?:[eE]|[×x]\s*10\^?)\s*([-−]?\d+))?/gu;
-const UNIT = /^(?:\s*-\s*|\s*)(%|fold|[×x](?![\p{L}])|[µμu]M|mM|nM|pM|mg\/kg|mg\/mL|mg\/L|mg|[µμ]g|ng|kg|g|mL|[µμ]L|L|°C|h|min|s|d|days?|weeks?|bp|kb|kDa|cm|mm|[µμ]m|nm|M)(?![\p{L}\p{N}])/u;
+const UNIT = /^(?:\s*-\s*|\s*)(%|fold|[×x](?![\p{L}])|[µμu]mol\/L|mmol\/L|nmol\/L|pmol\/L|mol\/L|[µμu]mol|mmol|nmol|mol|[µμu]M|mM|nM|pM|mg\/kg|mg\/mL|mg\/L|mg|[µμ]g|ng|kg|g|mL|[µμ]L|L|°C|h|min|s|d|days?|weeks?|bp|kb|kDa|cm|mm|[µμ]m|nm|M)(?![\p{L}\p{N}])/u;
 // "2.4 ± 0.3-fold", "2–3-fold", "2 to 3 h": the unit after the pair belongs to the first number too
 const PAIR_AFTER = /^\s*(?:±|\+\/-|[–-]|to)\s*\d+(?:\.\d+)?/;
 const SPREAD_BEFORE = /(?:±|\+\/-)\s*$/;
 const APPROX_BEFORE = /(?:[~≈∼]|\b(?:about|approximately|approx\.?|nearly|roughly|around|circa|ca\.?|almost))\s*$/i;
 const NOT_A_QUANTITY_BEFORE = /(?:fig(?:ure)?s?\.?|tables?|panels?|eqs?\.?|equations?|ref\.?|suppl(?:ementary)?\.?|chapters?|sections?|sect\.?|days?\s+of|lines?)\s*$/i;
-const LABEL_BEFORE = /(?:^|[^\p{L}\p{N}])(p|q|fdr|padj|p\.adj|adj(?:usted)?\.?\s*p|n)(?:[- ]?values?)?\s*(<=|>=|[<>≤≥=])\s*$/iu;
+const LABEL_BEFORE = /(?:^|[^\p{L}\p{N}])(p|q|fdr|padj|p\.adj|adj(?:usted)?\.?\s*p|n)(?:[- ]?values?)?\s*(<=|>=|[<>≤≥=]|(?:was|were|is|of)(?![\p{L}]))\s*$/iu;
+// "6 independent biological replicates" states n (SCI-025); technical replicates are not n
+const REPLICATES_AFTER = /^\s+(?:independent\s+)?(?:biological\s+)?(?:replicates?|plants|animals|mice|patients|individuals|subjects)(?![\p{L}])/iu;
 const normUnit = (u: string) => {
   const s = u.replace(/^[\s-]+/, '').replace(/μ/g, 'µ').trim();
   if (/^(fold|[×x])$/.test(s)) return 'fold';
@@ -114,7 +118,14 @@ function mentionsOf(sentences: string[]): Mention[] {
         const kind = l === 'n' ? 'n' : l === 'p' ? 'p' : 'q';
         // the mention starts at the label itself (not the character before it)
         const start = before.length - label[0].length + /^[^\p{L}\p{N}]*/u.exec(label[0])![0].length;
-        out.push({ kind: kind === 'n' ? 'sample_size' : 'statistic', text: s.slice(start, m.index! + m[0].length).trim(), value, unit: '', label: kind, comparator: label[2]!.replace('<=', '≤').replace('>=', '≥'), sentence: si, approximate });
+        const comparator = /^[a-z]/i.test(label[2]!) ? '=' : label[2]!.replace('<=', '≤').replace('>=', '≥');
+        out.push({ kind: kind === 'n' ? 'sample_size' : 'statistic', text: s.slice(start, m.index! + m[0].length).trim(), value, unit: '', label: kind, comparator, sentence: si, approximate });
+        continue;
+      }
+      const reps = REPLICATES_AFTER.exec(rest);
+      // ("2 technical replicates" does not match REPLICATES_AFTER: technical replicates are not n)
+      if (reps) {
+        out.push({ kind: 'sample_size', text: `${m[0]}${reps[0]}`, value, unit: '', label: 'n', comparator: '=', sentence: si, approximate });
         continue;
       }
       if (SPREAD_BEFORE.test(before)) {
@@ -139,7 +150,10 @@ const stem = (w: string) => (w.length > 4 && w.endsWith('ed') ? w.slice(0, -2) :
 const wordsOf = (s: string) => new Set((s.toLowerCase().replace(NEGATION, ' ').replace(DIRECTION, ' ').match(/[\p{L}\p{N}]{3,}/gu) ?? []).filter((w) => !STOP.has(w)).map(stem));
 const labelRe = (label: string) => {
   const l = label.trim().toLowerCase().replace(/\s+/g, ' ');
-  return l ? new RegExp(`(?<![\\p{L}\\p{N}])${l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+')}s?(?![\\p{L}\\p{N}])`, 'giu') : null;
+  // short labels ("A", "WT") are matched as written, so the article "a" is not group A
+  const short = l.length <= 3;
+  const src = short ? label.trim() : l;
+  return l ? new RegExp(`(?<![\\p{L}\\p{N}])${src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+')}${short ? '' : 's?'}(?![\\p{L}\\p{N}])`, short ? 'gu' : 'giu') : null;
 };
 const labelAt = (text: string, label: string) => { const re = labelRe(label); const m = re ? re.exec(text) : null; return m ? m.index : -1; };
 const withoutLabels = (text: string, labels: string[]) => labels.reduce((t, l) => { const re = labelRe(l); return re ? t.replace(re, ' ') : t; }, text);
@@ -150,6 +164,14 @@ const NOT_IDS = new Set(['log2', 'log10', 'ln2', 'h2o', 'co2', 'o2', 'n2']);
 const idTokens = (s: string) => new Set((s.toLowerCase().replace(/(?:fig(?:ure)?s?\.?|tables?|panels?|suppl\w*\.?)\s*[a-z]?\d+[a-z]?/gi, ' ').match(ID_TOKEN) ?? []).filter((t) => !NOT_IDS.has(t)));
 // Comparative words between the group and its comparison: "X than Y", "X compared with Y", "X vs Y"
 const COMPARATIVE = /\b(?:than|compared\s+(?:with|to)|relative\s+to|versus|vs\.?|over)(?![\p{L}])/giu;
+
+const CAUSAL = /\b(?:caused?|causes|causing|leads? to|led to|results? in|resulted in|drives?|drove|is responsible for|demonstrat(?:e|es|ed) that)\b/i;
+const CERTAIN = /\b(?:confirm(?:s|ed)?|prove[sdn]?|proven|demonstrat(?:e|es|ed)|establish(?:es|ed)|conclusively|definitively|unequivocally)\b/i;
+// a claim of priority needs a systematic search behind it (PW-045 SCI-005): never verified here
+const PRIORITY = /\b(?:for the first time|first (?:study|report|demonstration|evidence|time)|never (?:before|been) (?:shown|reported|described)|unprecedented)\b/i;
+// "B exceeded A", "A was lower than B": a comparison of two recorded groups without numbers (SCI-009)
+const HIGHER = /\b(?:exceed(?:ed|s)?|outperform(?:ed|s)?|(?:higher|greater|larger|more)\s+than)\b/i;
+const LOWER = /\b(?:(?:lower|smaller|less|fewer)\s+than|fell short of)\b/i;
 
 // ---- the gate ----------------------------------------------------------------------------------------
 export function scientificGate(input: GateInput): GateResult {
@@ -228,7 +250,31 @@ export function scientificGate(input: GateInput): GateResult {
   for (const m of mentions.filter((x) => x.kind === 'statistic' || x.kind === 'sample_size' || x.kind === 'dispersion')) {
     const facts = matched.get(m.sentence) ?? [];
     const kind = m.kind === 'sample_size' ? 'sample_size' : 'statistic';
-    if (!facts.length) { findings.push({ check: kind, verdict: 'unknown', text: m.text, reason: 'no_matched_fact' }); continue; }
+    // what the text itself gets wrong, whatever the facts (PW-045 SCI-002, SCI-016)
+    if (m.kind === 'statistic') {
+      if (m.comparator === '=' && (m.value <= 0 || m.value > 1)) { findings.push({ check: 'statistic', verdict: 'fail', text: m.text, reason: 'impossible_probability' }); continue; }
+      const s = sentences[m.sentence]!;
+      const significant = /\bsignificant(?:ly)?\b/i.test(s) && !/\b(?:not|no|non-?|in)\s*significant|\bnon-?significant/i.test(s);
+      if (m.label === 'p' && significant && ['=', '>', '≥'].includes(m.comparator) && m.value >= ALPHA) { findings.push({ check: 'statistic', verdict: 'fail', text: m.text, reason: 'significance_misstated' }); continue; }
+    }
+    if (!facts.length) {
+      // nothing matched in this sentence: never a pass from elsewhere, but a contradiction with every
+      // recorded value is a failure (the safe direction; PW-045 SCI-003, SCI-025)
+      const family = (k: string) => (k === 'p_value' ? 'p' : k === 'q_value' || k === 'adjusted_p_value' ? 'q' : null);
+      if (m.kind === 'statistic' && m.comparator === '=') {
+        const stats = input.facts.flatMap((f) => f.statistics);
+        const same = stats.some((x) => family(x.kind) === m.label && numberOf(x.value_text) === m.value);
+        const other = stats.some((x) => family(x.kind) !== null && family(x.kind) !== m.label && numberOf(x.value_text) === m.value);
+        if (!same && other) { findings.push({ check: 'statistic', verdict: 'fail', text: m.text, reason: 'p_q_mismatch' }); continue; }
+      }
+      if (m.kind === 'sample_size') {
+        const recorded = input.facts.filter((f) => f.n !== null);
+        if (recorded.length && !recorded.some((f) => f.n === m.value)) { findings.push({ check: 'sample_size', verdict: 'fail', text: m.text, reason: 'n_mismatch', candidates: recorded.map((f) => f.id) }); continue; }
+        if (!recorded.length) { findings.push({ check: 'sample_size', verdict: 'unknown', text: m.text, reason: 'no_n_recorded' }); continue; }
+      }
+      findings.push({ check: kind, verdict: 'unknown', text: m.text, reason: 'no_matched_fact' });
+      continue;
+    }
     if (m.kind === 'dispersion') {
       const spreads = facts.flatMap((f) => f.statistics.filter((x) => x.kind === 'sd' || x.kind === 'se').map((x) => ({ f, x })));
       const hit = spreads.find(({ x }) => numberOf(x.value_text) === m.value);
@@ -300,9 +346,42 @@ export function scientificGate(input: GateInput): GateResult {
     const sd = dirs(top.s);
     if (neg(c.text) !== neg(top.s)) findings.push({ check: 'claim', verdict: 'fail', text: top.s, reason: 'negation_changed', claim_id: c.id });
     else if (cd.size && sd.size && ![...cd].some((d) => sd.has(d))) findings.push({ check: 'claim', verdict: 'fail', text: top.s, reason: 'direction_changed', claim_id: c.id });
+    // stronger than the approved claim: a cause stated over an observation, certainty over a hypothesis
+    // or interpretation (PW-045 SCI-004, SCI-029) — measured against the claim's kind, not a word list
+    else if (c.kind === 'observation' && CAUSAL.test(top.s) && !CAUSAL.test(c.text)) findings.push({ check: 'claim', verdict: 'fail', text: top.s, reason: 'causal_overstatement', claim_id: c.id });
+    else if ((c.kind === 'hypothesis' || c.kind === 'interpretation') && CERTAIN.test(top.s) && !CERTAIN.test(c.text)) findings.push({ check: 'claim', verdict: 'fail', text: top.s, reason: 'certainty_overstatement', claim_id: c.id });
     else findings.push({ check: 'claim', verdict: 'pass', text: top.s, claim_id: c.id });
+  }
+
+  for (const s of sentences) {
+    const pr = PRIORITY.exec(s);
+    if (pr) findings.push({ check: 'claim', verdict: 'unknown', text: pr[0], reason: 'priority_claim' });
+  }
+  // comparisons of two groups of the same measurement, stated without numbers
+  const pairs = input.facts.flatMap((a, i) => input.facts.slice(i + 1).filter((b) => a.entity === b.entity && a.metric === b.metric && normUnit(a.unit) === normUnit(b.unit) && a.group_label.trim() && b.group_label.trim() && a.group_label !== b.group_label).map((b) => [a, b] as const));
+  for (const s of sentences) {
+    for (const [a, b] of pairs) {
+      const ia = labelAt(s, a.group_label);
+      const ib = labelAt(s, b.group_label);
+      if (ia < 0 || ib < 0) continue;
+      const [first, second] = ia < ib ? [a, b] : [b, a];
+      const between = s.slice(Math.min(ia, ib), Math.max(ia, ib));
+      const claimed = HIGHER.test(between) ? 1 : LOWER.test(between) ? -1 : 0;
+      if (!claimed) continue;
+      const actual = Math.sign(numberOf(first.value_text) - numberOf(second.value_text));
+      findings.push(actual === claimed
+        ? { check: 'comparison', verdict: 'pass', text: s, ...located(first), candidates: [first.id, second.id] }
+        : { check: 'comparison', verdict: 'fail', text: s, reason: 'comparison_contradicts_facts', candidates: [first.id, second.id] });
+    }
   }
 
   const status = findings.some((f) => f.verdict === 'fail') ? 'FAILED' : findings.some((f) => f.verdict === 'unknown') ? 'UNKNOWN' : findings.length ? 'VERIFIED' : 'NOT_APPLICABLE';
   return { version: GATE_VERSION, status, findings };
+}
+
+// Prose signals a Writer proposal carries as warnings (PW-045, SCI-018/019): an enumerated list
+// ("1. … 2. …") where a paragraph of prose is asked for. Methods may enumerate a protocol.
+export function proseSignals(text: string, section: string | null): string[] {
+  const items = text.match(/(?:^|\s)\(?\d{1,2}[.)]\s+\p{Lu}/gu) ?? [];
+  return items.length >= 2 && section !== 'Methods' ? ['enumerated_list'] : [];
 }

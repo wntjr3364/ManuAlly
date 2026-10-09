@@ -42,8 +42,8 @@ export async function checkManuscriptParagraph(db: Queryable, a: { paperId: stri
   if (!block || (block as { type: { name: string } }).type.name !== 'paragraph') throw new DomainError('INVALID', 'block_id must name a paragraph of that revision', 'block_id');
   const blockId = (b.block_id as string).toLowerCase();
   // the approved, settled claims of the plans this paragraph belongs to (in the active outline)
-  const claims = (await db.query<{ id: string; text: string }>(
-    `SELECT DISTINCT c.id, c.text FROM outline_node_paragraphs l
+  const claims = (await db.query<{ id: string; text: string; kind: string }>(
+    `SELECT DISTINCT c.id, c.text, c.kind FROM outline_node_paragraphs l
      JOIN paper_projects p ON p.id = l.paper_id AND p.active_outline_revision_id = l.outline_revision_id
      JOIN outline_nodes n ON n.outline_revision_id = l.outline_revision_id AND n.node_id = l.node_id
      JOIN claims c ON c.paper_id = l.paper_id AND c.id::text = ANY(n.claim_ids) AND c.approval_state = 'APPROVED'

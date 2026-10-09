@@ -1,0 +1,300 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/scientific/hard-cases.test.ts (0 test)
+ ❯ tests/tasks/PW-045/quality.test.ts (8 tests | 3 failed) 38ms
+   ❯ TST-045A: results, not-run cases and regressions are recorded (4)
+     × every case has a result; the ones no deterministic layer decides are recorded as not run, with who decides them 18ms
+     × a regression shows: a product change that lets a case through is "unsafe"; an unexplained stricter result is "stricter" 12ms
+   ❯ TST-045B: no release "pass" from AI-detector scores, self-evaluation or averages (4)
+     × the current state of this product: not ready (unsafe 0, but the human rubric was not run) 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts [ tests/scientific/hard-cases.test.ts ]
+TypeError: proseSignals is not a function
+ ❯ decide tests/scientific/runner.ts:73:17
+     71|       return copies(r.text, copyIndex(r.sources)) ? { actual: 'WARN', …
+     72|     case 'prose': {
+     73|       const w = proseSignals(r.text, r.section);
+       |                 ^
+     74|       return { actual: w.length ? 'WARN' : 'ALLOW', detail: w.join(', …
+     75|     }
+ ❯ runCase tests/scientific/runner.ts:84:30
+ ❯ runSuite tests/scientific/runner.ts:94:25
+ ❯ tests/scientific/hard-cases.test.ts:9:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-045/quality.test.ts > TST-045A: results, not-run cases and regressions are recorded > every case has a result; the ones no deterministic layer decides are recorded as not run, with who decides them
+TypeError: proseSignals is not a function
+ ❯ decide tests/scientific/runner.ts:73:17
+     71|       return copies(r.text, copyIndex(r.sources)) ? { actual: 'WARN', …
+     72|     case 'prose': {
+     73|       const w = proseSignals(r.text, r.section);
+       |                 ^
+     74|       return { actual: w.length ? 'WARN' : 'ALLOW', detail: w.join(', …
+     75|     }
+ ❯ runCase tests/scientific/runner.ts:84:30
+ ❯ runSuite tests/scientific/runner.ts:94:25
+ ❯ tests/tasks/PW-045/quality.test.ts:19:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/tasks/PW-045/quality.test.ts > TST-045A: results, not-run cases and regressions are recorded > a regression shows: a product change that lets a case through is "unsafe"; an unexplained stricter result is "stricter"
+AssertionError: expected { id: 'SCI-007', …(6) } to match object { status: 'unsafe', …(2) }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "actual": "ALLOW",
++   "actual": "NEEDS_EVIDENCE",
+    "expected": "BLOCK",
+    "status": "unsafe",
+  }
+
+ ❯ tests/tasks/PW-045/quality.test.ts:30:30
+     28|     // the same case with the unit the fact really has: the product al…
+     29|     const allowed: HardCase = { ...c, run: { ...c.run, text: 'The conc…
+     30|     expect(runCase(allowed)).toMatchObject({ status: 'unsafe', actual:…
+       |                              ^
+     31|     const strict: HardCase = { ...c, expected: 'NEEDS_EVIDENCE' };
+     32|     expect(runCase(strict).status).toBe('stricter');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/tasks/PW-045/quality.test.ts > TST-045B: no release "pass" from AI-detector scores, self-evaluation or averages > the current state of this product: not ready (unsafe 0, but the human rubric was not run)
+TypeError: proseSignals is not a function
+ ❯ decide tests/scientific/runner.ts:73:17
+     71|       return copies(r.text, copyIndex(r.sources)) ? { actual: 'WARN', …
+     72|     case 'prose': {
+     73|       const w = proseSignals(r.text, r.section);
+       |                 ^
+     74|       return { actual: w.length ? 'WARN' : 'ALLOW', detail: w.join(', …
+     75|     }
+ ❯ runCase tests/scientific/runner.ts:84:30
+ ❯ runSuite tests/scientific/runner.ts:94:25
+ ❯ tests/tasks/PW-045/quality.test.ts:72:30
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 5 passed (8)
+   Start at  23:35:11
+   Duration  773ms (transform 78%, import 14%, tests 6%, worker 1%)
+
+exit 1
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/scientific/hard-cases.test.ts (32 tests | 10 failed) 21ms
+   ❯ scientific hard cases (32)
+     × SCI-002 3ms
+     × SCI-003 1ms
+     × SCI-004 0ms
+     × SCI-005 0ms
+     × SCI-007 0ms
+     × SCI-009 1ms
+     × SCI-016 0ms
+     × SCI-025 0ms
+     × SCI-029 0ms
+     × the summary: what matches, what is stricter on purpose, what needs AI review and the user 4ms
+ ❯ tests/tasks/PW-045/quality.test.ts (8 tests | 2 failed) 40ms
+   ❯ TST-045A: results, not-run cases and regressions are recorded (4)
+     × a regression shows: a product change that lets a case through is "unsafe"; an unexplained stricter result is "stricter" 11ms
+   ❯ TST-045B: no release "pass" from AI-detector scores, self-evaluation or averages (4)
+     × the current state of this product: not ready (unsafe 0, but the human rubric was not run) 3ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > SCI-002
+AssertionError: p_significance: expected BLOCK, product NEEDS_EVIDENCE (statistic:unknown:no_matched_fact): expected 'unsafe' not to be 'unsafe' // Object.is equality
+ ❯ tests/scientific/hard-cases.test.ts:15:111
+     13|   });
+     14|   test.each(suite.results.map((r) => [r.id, r] as const))('%s', (_id, …
+     15|     expect(r.status, `${r.name}: expected ${r.expected}, product ${r.a…
+       |                                                                                                               ^
+     16|     expect(r.status, `${r.name}: an undeclared deviation (${r.actual})…
+     17|     if (r.layer === 'not_deterministic') expect(r.status).toBe('not_ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > SCI-003
+AssertionError: q_as_p: expected BLOCK, product NEEDS_EVIDENCE (quantity:unknown:no_matching_fact): expected 'unsafe' not to be 'unsafe' // Object.is equality
+ ❯ tests/scientific/hard-cases.test.ts:15:111
+     13|   });
+     14|   test.each(suite.results.map((r) => [r.id, r] as const))('%s', (_id, …
+     15|     expect(r.status, `${r.name}: expected ${r.expected}, product ${r.a…
+       |                                                                                                               ^
+     16|     expect(r.status, `${r.name}: an undeclared deviation (${r.actual})…
+     17|     if (r.layer === 'not_deterministic') expect(r.status).toBe('not_ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/12]⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > SCI-004
+AssertionError: causal_jump: expected BLOCK, product ALLOW (VERIFIED): expected 'unsafe' not to be 'unsafe' // Object.is equality
+ ❯ tests/scientific/hard-cases.test.ts:15:111
+     13|   });
+     14|   test.each(suite.results.map((r) => [r.id, r] as const))('%s', (_id, …
+     15|     expect(r.status, `${r.name}: expected ${r.expected}, product ${r.a…
+       |                                                                                                               ^
+     16|     expect(r.status, `${r.name}: an undeclared deviation (${r.actual})…
+     17|     if (r.layer === 'not_deterministic') expect(r.status).toBe('not_ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/12]⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > SCI-005
+AssertionError: novelty_first: expected NEEDS_EVIDENCE, product ALLOW (NOT_APPLICABLE): expected 'unsafe' not to be 'unsafe' // Object.is equality
+ ❯ tests/scientific/hard-cases.test.ts:15:111
+     13|   });
+     14|   test.each(suite.results.map((r) => [r.id, r] as const))('%s', (_id, …
+     15|     expect(r.status, `${r.name}: expected ${r.expected}, product ${r.a…
+       |                                                                                                               ^
+     16|     expect(r.status, `${r.name}: an undeclared deviation (${r.actual})…
+     17|     if (r.layer === 'not_deterministic') expect(r.status).toBe('not_ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/12]⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > SCI-007
+AssertionError: unit_shift: expected BLOCK, product NEEDS_EVIDENCE (quantity:unknown:unit_not_stated): expected 'unsafe' not to be 'unsafe' // Object.is equality
+ ❯ tests/scientific/hard-cases.test.ts:15:111
+     13|   });
+     14|   test.each(suite.results.map((r) => [r.id, r] as const))('%s', (_id, …
+     15|     expect(r.status, `${r.name}: expected ${r.expected}, product ${r.a…
+       |                                                                                                               ^
+     16|     expect(r.status, `${r.name}: an undeclared deviation (${r.actual})…
+     17|     if (r.layer === 'not_deterministic') expect(r.status).toBe('not_ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/12]⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > SCI-009
+AssertionError: group_swap: expected BLOCK, product ALLOW (NOT_APPLICABLE): expected 'unsafe' not to be 'unsafe' // Object.is equality
+ ❯ tests/scientific/hard-cases.test.ts:15:111
+     13|   });
+     14|   test.each(suite.results.map((r) => [r.id, r] as const))('%s', (_id, …
+     15|     expect(r.status, `${r.name}: expected ${r.expected}, product ${r.a…
+       |                                                                                                               ^
+     16|     expect(r.status, `${r.name}: an undeclared deviation (${r.actual})…
+     17|     if (r.layer === 'not_deterministic') expect(r.status).toBe('not_ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/12]⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > SCI-016
+AssertionError: round_to_zero: expected BLOCK, product NEEDS_EVIDENCE (quantity:unknown:no_matching_fact): expected 'unsafe' not to be 'unsafe' // Object.is equality
+ ❯ tests/scientific/hard-cases.test.ts:15:111
+     13|   });
+     14|   test.each(suite.results.map((r) => [r.id, r] as const))('%s', (_id, …
+     15|     expect(r.status, `${r.name}: expected ${r.expected}, product ${r.a…
+       |                                                                                                               ^
+     16|     expect(r.status, `${r.name}: an undeclared deviation (${r.actual})…
+     17|     if (r.layer === 'not_deterministic') expect(r.status).toBe('not_ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/12]⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > SCI-025
+AssertionError: statistical_unit: expected BLOCK, product NEEDS_EVIDENCE (quantity:unknown:no_matching_fact): expected 'unsafe' not to be 'unsafe' // Object.is equality
+ ❯ tests/scientific/hard-cases.test.ts:15:111
+     13|   });
+     14|   test.each(suite.results.map((r) => [r.id, r] as const))('%s', (_id, …
+     15|     expect(r.status, `${r.name}: expected ${r.expected}, product ${r.a…
+       |                                                                                                               ^
+     16|     expect(r.status, `${r.name}: an undeclared deviation (${r.actual})…
+     17|     if (r.layer === 'not_deterministic') expect(r.status).toBe('not_ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/12]⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > SCI-029
+AssertionError: hypothesis_as_result: expected BLOCK, product ALLOW (VERIFIED): expected 'unsafe' not to be 'unsafe' // Object.is equality
+ ❯ tests/scientific/hard-cases.test.ts:15:111
+     13|   });
+     14|   test.each(suite.results.map((r) => [r.id, r] as const))('%s', (_id, …
+     15|     expect(r.status, `${r.name}: expected ${r.expected}, product ${r.a…
+       |                                                                                                               ^
+     16|     expect(r.status, `${r.name}: an undeclared deviation (${r.actual})…
+     17|     if (r.layer === 'not_deterministic') expect(r.status).toBe('not_ru…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/12]⎯
+
+ FAIL  tests/scientific/hard-cases.test.ts > scientific hard cases > the summary: what matches, what is stricter on purpose, what needs AI review and the user
+AssertionError: expected { total: 30, match: 14, …(4) } to deeply equal { total: 30, match: 23, …(4) }
+
+- Expected
++ Received
+
+  {
+    "known_deviation": 2,
+-   "match": 23,
++   "match": 14,
+    "not_run": 5,
+    "stricter": 0,
+    "total": 30,
+-   "unsafe": 0,
++   "unsafe": 9,
+  }
+
+ ❯ tests/scientific/hard-cases.test.ts:21:27
+     19|   });
+     20|   test('the summary: what matches, what is stricter on purpose, what n…
+     21|     expect(suite.summary).toEqual({ total: 30, match: 23, known_deviat…
+       |                           ^
+     22|   });
+     23| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/12]⎯
+
+ FAIL  tests/tasks/PW-045/quality.test.ts > TST-045A: results, not-run cases and regressions are recorded > a regression shows: a product change that lets a case through is "unsafe"; an unexplained stricter result is "stricter"
+AssertionError: expected { id: 'SCI-007', …(6) } to match object { status: 'unsafe', …(2) }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "actual": "ALLOW",
++   "actual": "NEEDS_EVIDENCE",
+    "expected": "BLOCK",
+    "status": "unsafe",
+  }
+
+ ❯ tests/tasks/PW-045/quality.test.ts:30:30
+     28|     // the same case with the unit the fact really has: the product al…
+     29|     const allowed: HardCase = { ...c, run: { ...c.run, text: 'The conc…
+     30|     expect(runCase(allowed)).toMatchObject({ status: 'unsafe', actual:…
+       |                              ^
+     31|     const strict: HardCase = { ...c, expected: 'NEEDS_EVIDENCE' };
+     32|     expect(runCase(strict).status).toBe('stricter');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/12]⎯
+
+ FAIL  tests/tasks/PW-045/quality.test.ts > TST-045B: no release "pass" from AI-detector scores, self-evaluation or averages > the current state of this product: not ready (unsafe 0, but the human rubric was not run)
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/tasks/PW-045/quality.test.ts:74:57
+     72|     const q = releaseQuality(runSuite(), rubricFile());
+     73|     expect(q.outcome).toBe('not_ready');
+     74|     expect(q.reasons.some((r) => r.includes('unsafe'))).toBe(false);
+       |                                                         ^
+     75|   });
+     76| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/12]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  12 failed | 28 passed (40)
+   Start at  23:35:20
+   Duration  680ms (transform 75%, import 17%, tests 7%, worker 1%)
+
+exit 1

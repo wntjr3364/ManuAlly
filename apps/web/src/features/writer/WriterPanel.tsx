@@ -24,7 +24,8 @@ const GATE_REASON: Record<string, string> = {
   citation_not_found: '이 논문의 참고문헌이 아님', citation_retracted: '철회된 문헌', protected_span_changed: '수식·그림 참조가 바뀜',
   negation_changed: '주장의 부정이 바뀜', direction_changed: '주장의 증감 방향이 바뀜', claim_not_found: '주장이 문단에 보이지 않음',
   entity_mismatch: '다른 대상(유전자·계통 이름)에 붙임', entity_not_stated: '어느 대상인지 없음', comparison_order_unclear: '어느 쪽이 대조군인지 분명하지 않음',
-  sign_mismatch: '부호가 반대', ambiguous_number: '쉼표 때문에 수를 하나로 읽을 수 없음', dispersion_not_recorded: '편차(SD·SE)가 기록되지 않음',
+  sign_mismatch: '부호가 반대', impossible_probability: '0 이하이거나 1보다 큰 확률', significance_misstated: '유의 수준(0.05)을 넘는 p를 유의하다고 씀',
+  causal_overstatement: '관찰 주장을 인과로 씀', certainty_overstatement: '가설·해석을 확정된 것처럼 씀', priority_claim: '최초·전례 없음 주장(체계적 검토 필요)', comparison_contradicts_facts: '그룹 비교가 기록된 값과 반대', ambiguous_number: '쉼표 때문에 수를 하나로 읽을 수 없음', dispersion_not_recorded: '편차(SD·SE)가 기록되지 않음',
 };
 function FindingLine({ f }: { f: Finding }) {
   const mark = f.verdict === 'pass' ? '✓' : f.verdict === 'fail' ? '✗' : '?';
@@ -41,7 +42,7 @@ const CHECK: Record<string, string> = {
   numbers: '원문의 수치가 바뀜', negations: '부정어가 바뀜', directions: '증감 방향이 바뀜', citations: '인용이 바뀜', citation_positions: '인용 위치가 바뀜',
   protected_atoms: '수식·그림 참조가 바뀜', formatted_runs: '서식이 바뀜',
 };
-const WARN: Record<string, string> = { longer_than_target: '목표 분량보다 깁니다', shorter_than_target: '목표 분량보다 짧습니다', citation_not_linked_to_node: '이 계획의 근거와 연결되지 않은 문헌을 인용했습니다 — 맞는 인용인지 확인하세요' };
+const WARN: Record<string, string> = { longer_than_target: '목표 분량보다 깁니다', shorter_than_target: '목표 분량보다 짧습니다', citation_not_linked_to_node: '이 계획의 근거와 연결되지 않은 문헌을 인용했습니다 — 맞는 인용인지 확인하세요', enumerated_list: '문단 대신 번호 목록입니다' };
 const textOf = (p: Proposal) => (p.paragraph?.content ?? []).map((n) => (n.type === 'text' ? n.text : n.type === 'citation' ? '[인용]' : '[…]')).join('');
 
 // headId: the editor's saved head (autosave moves it); the paragraphs offered are read from that revision

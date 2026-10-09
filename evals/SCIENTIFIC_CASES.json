@@ -1,6 +1,6 @@
 {
   "synthetic": true,
-  "status": "designed_not_executed",
+  "status": "executable",
   "cases": [
     {
       "id": "SCI-001",
@@ -8,7 +8,24 @@
       "source_constraint": "n 미제공",
       "candidate": "The experiment included 48 biological replicates.",
       "expected": "NEEDS_EVIDENCE",
-      "rationale": "replicate count를 만들어 쓰지 않는다."
+      "rationale": "replicate count를 만들어 쓰지 않는다.",
+      "run": {
+        "layer": "gate",
+        "text": "The experiment included 48 biological replicates.",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "ABC1",
+            "metric": "expression",
+            "value_text": "2.1",
+            "unit": "fold",
+            "group_label": "drought",
+            "comparison": "control",
+            "n": null,
+            "statistics": []
+          }
+        ]
+      }
     },
     {
       "id": "SCI-002",
@@ -16,7 +33,29 @@
       "source_constraint": "alpha=0.05, p=0.08",
       "candidate": "The difference was significant (p=0.08).",
       "expected": "BLOCK",
-      "rationale": "합성 fixture의 명시한 alpha 기준과 불일치."
+      "rationale": "합성 fixture의 명시한 alpha 기준과 불일치.",
+      "run": {
+        "layer": "gate",
+        "text": "The difference was significant (p=0.08).",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "difference",
+            "metric": "mean difference",
+            "value_text": "1.3",
+            "unit": "",
+            "group_label": "",
+            "comparison": "",
+            "n": null,
+            "statistics": [
+              {
+                "kind": "p_value",
+                "value_text": "0.08"
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "SCI-003",
@@ -24,7 +63,29 @@
       "source_constraint": "adjusted p(q)=0.02",
       "candidate": "The raw p-value was 0.02.",
       "expected": "BLOCK",
-      "rationale": "raw/adjusted 통계 의미 보존."
+      "rationale": "raw/adjusted 통계 의미 보존.",
+      "run": {
+        "layer": "gate",
+        "text": "The raw p-value was 0.02.",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "ABC1",
+            "metric": "fold change",
+            "value_text": "2.4",
+            "unit": "fold",
+            "group_label": "",
+            "comparison": "",
+            "n": null,
+            "statistics": [
+              {
+                "kind": "q_value",
+                "value_text": "0.02"
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "SCI-004",
@@ -32,7 +93,18 @@
       "source_constraint": "observational association only",
       "candidate": "Treatment caused the observed phenotype.",
       "expected": "BLOCK",
-      "rationale": "허용되지 않은 인과 주장."
+      "rationale": "허용되지 않은 인과 주장.",
+      "run": {
+        "layer": "gate",
+        "text": "Treatment caused the observed phenotype.",
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "observation",
+            "text": "Treatment is associated with the observed phenotype."
+          }
+        ]
+      }
     },
     {
       "id": "SCI-005",
@@ -40,7 +112,11 @@
       "source_constraint": "체계적 최초성 검토 없음",
       "candidate": "This is the first study ever to demonstrate this mechanism.",
       "expected": "NEEDS_EVIDENCE",
-      "rationale": "최초성/기전 단정 근거 필요."
+      "rationale": "최초성/기전 단정 근거 필요.",
+      "run": {
+        "layer": "gate",
+        "text": "This is the first study ever to demonstrate this mechanism."
+      }
     },
     {
       "id": "SCI-006",
@@ -48,7 +124,24 @@
       "source_constraint": "실험 온도 미제공",
       "candidate": "Samples were incubated at 37 degrees C.",
       "expected": "NEEDS_EVIDENCE",
-      "rationale": "없는 Methods 조건 채우기 금지."
+      "rationale": "없는 Methods 조건 채우기 금지.",
+      "run": {
+        "layer": "gate",
+        "text": "Samples were incubated at 37 degrees C.",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "ABC1",
+            "metric": "fold change",
+            "value_text": "2.4",
+            "unit": "fold",
+            "group_label": "",
+            "comparison": "",
+            "n": null,
+            "statistics": []
+          }
+        ]
+      }
     },
     {
       "id": "SCI-007",
@@ -56,7 +149,24 @@
       "source_constraint": "concentration=2 mmol/L",
       "candidate": "The concentration was 2 mol/L.",
       "expected": "BLOCK",
-      "rationale": "동일 수치라도 단위 변환 의미 검사."
+      "rationale": "동일 수치라도 단위 변환 의미 검사.",
+      "run": {
+        "layer": "gate",
+        "text": "The concentration was 2 mol/L.",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "concentration",
+            "metric": "molarity",
+            "value_text": "2",
+            "unit": "mmol/L",
+            "group_label": "",
+            "comparison": "",
+            "n": null,
+            "statistics": []
+          }
+        ]
+      }
     },
     {
       "id": "SCI-008",
@@ -64,7 +174,24 @@
       "source_constraint": "effect=-0.4",
       "candidate": "The effect was 0.4.",
       "expected": "BLOCK",
-      "rationale": "부호 보존."
+      "rationale": "부호 보존.",
+      "run": {
+        "layer": "gate",
+        "text": "The effect was 0.4.",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "effect",
+            "metric": "effect size",
+            "value_text": "-0.4",
+            "unit": "",
+            "group_label": "",
+            "comparison": "",
+            "n": null,
+            "statistics": []
+          }
+        ]
+      }
     },
     {
       "id": "SCI-009",
@@ -72,7 +199,35 @@
       "source_constraint": "A=12, B=8",
       "candidate": "B exceeded A.",
       "expected": "BLOCK",
-      "rationale": "그룹/비교 방향 보존."
+      "rationale": "그룹/비교 방향 보존.",
+      "run": {
+        "layer": "gate",
+        "text": "B exceeded A.",
+        "facts": [
+          {
+            "id": "fa",
+            "entity": "score",
+            "metric": "mean score",
+            "value_text": "12",
+            "unit": "",
+            "group_label": "A",
+            "comparison": "",
+            "n": null,
+            "statistics": []
+          },
+          {
+            "id": "fb",
+            "entity": "score",
+            "metric": "mean score",
+            "value_text": "8",
+            "unit": "",
+            "group_label": "B",
+            "comparison": "",
+            "n": null,
+            "statistics": []
+          }
+        ]
+      }
     },
     {
       "id": "SCI-010",
@@ -80,7 +235,12 @@
       "source_constraint": "claim linked to figure-2b",
       "candidate": "This result is shown in figure-3c.",
       "expected": "BLOCK",
-      "rationale": "stable crossref 검증."
+      "rationale": "stable crossref 검증.",
+      "run": {
+        "layer": "not_deterministic",
+        "decided_by": "figure cross-reference check (PW-019 figure_ref atoms; PW-058 export) + user",
+        "reason": "figure numbers written as plain text are not mapped to figure records; figure references are atoms"
+      }
     },
     {
       "id": "SCI-011",
@@ -88,7 +248,19 @@
       "source_constraint": "reference ID가 library에 없음",
       "candidate": "A new reference supports the claim.",
       "expected": "BLOCK",
-      "rationale": "서지정보 생성으로 출처를 대체하지 않음."
+      "rationale": "서지정보 생성으로 출처를 대체하지 않음.",
+      "run": {
+        "layer": "gate",
+        "text": "A new reference supports the claim ",
+        "cite": "ref-missing",
+        "references": [
+          {
+            "id": "ref-1",
+            "label": "Kim 2019",
+            "retracted": false
+          }
+        ]
+      }
     },
     {
       "id": "SCI-012",
@@ -96,7 +268,25 @@
       "source_constraint": "ABSTRACT_ONLY",
       "candidate": "The Discussion uses a three-part structure.",
       "expected": "NEEDS_EVIDENCE",
-      "rationale": "실제 읽지 않은 섹션 분석 금지."
+      "rationale": "실제 읽지 않은 섹션 분석 금지.",
+      "run": {
+        "layer": "profile",
+        "sources": [
+          {
+            "reference_id": "11111111-1111-4111-8111-111111111111",
+            "read_depth": "ABSTRACT_ONLY",
+            "sections_read": [
+              "Abstract"
+            ],
+            "text": "We show a drought response in roots."
+          }
+        ],
+        "rule": {
+          "section": "Discussion",
+          "text": "The Discussion uses a three-part structure.",
+          "source_section": "Discussion"
+        }
+      }
     },
     {
       "id": "SCI-013",
@@ -104,7 +294,13 @@
       "source_constraint": "표 추출 순서가 불확실",
       "candidate": "The largest value was 42.",
       "expected": "NEEDS_EVIDENCE",
-      "rationale": "검증되지 않은 표 수치 확정 금지."
+      "rationale": "검증되지 않은 표 수치 확정 금지.",
+      "run": {
+        "layer": "gate",
+        "text": "The largest value was 42.",
+        "facts": [],
+        "note": "the table value is an unverified candidate (uncertain extraction order), so it is not a fact the gate may use"
+      }
     },
     {
       "id": "SCI-014",
@@ -112,7 +308,18 @@
       "source_constraint": "No association was detected.",
       "candidate": "An association was detected.",
       "expected": "BLOCK",
-      "rationale": "부정어 의미 반전."
+      "rationale": "부정어 의미 반전.",
+      "run": {
+        "layer": "gate",
+        "text": "An association was detected.",
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "observation",
+            "text": "No association was detected."
+          }
+        ]
+      }
     },
     {
       "id": "SCI-015",
@@ -120,7 +327,28 @@
       "source_constraint": "r=0.456, rounding allowed 2dp",
       "candidate": "The correlation was r=0.46.",
       "expected": "ALLOW",
-      "rationale": "승인된 rounding 정책 범위 보존."
+      "rationale": "승인된 rounding 정책 범위 보존.",
+      "run": {
+        "layer": "gate",
+        "text": "The correlation was r=0.46.",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "correlation",
+            "metric": "Pearson r",
+            "value_text": "0.456",
+            "unit": "",
+            "group_label": "",
+            "comparison": "",
+            "n": null,
+            "statistics": []
+          }
+        ]
+      },
+      "known_deviation": {
+        "actual": "NEEDS_EVIDENCE",
+        "rationale": "a rounded value is UNKNOWN in the gate (spec 06 A); fact records do not carry a rounding allowance. Stricter than expected: the user sees it as unconfirmed."
+      }
     },
     {
       "id": "SCI-016",
@@ -128,7 +356,29 @@
       "source_constraint": "p<0.001",
       "candidate": "The p-value was 0.000.",
       "expected": "BLOCK",
-      "rationale": "부등호/정밀도 정보 보존."
+      "rationale": "부등호/정밀도 정보 보존.",
+      "run": {
+        "layer": "gate",
+        "text": "The p-value was 0.000.",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "ABC1",
+            "metric": "fold change",
+            "value_text": "2.4",
+            "unit": "fold",
+            "group_label": "",
+            "comparison": "",
+            "n": null,
+            "statistics": [
+              {
+                "kind": "p_value",
+                "value_text": "0.0004"
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "SCI-017",
@@ -136,7 +386,12 @@
       "source_constraint": "approved outline requires sample-size limitation",
       "candidate": "Discussion omits the required limitation.",
       "expected": "WARN",
-      "rationale": "사용자가 승인한 문단 역할·필수 논점 누락."
+      "rationale": "사용자가 승인한 문단 역할·필수 논점 누락.",
+      "run": {
+        "layer": "not_deterministic",
+        "decided_by": "PW-044 reviewer (section_role / missing_counterevidence) + user",
+        "reason": "whether a required limitation is missing needs the plan and a reading of the whole Discussion"
+      }
     },
     {
       "id": "SCI-018",
@@ -144,7 +399,12 @@
       "source_constraint": "paragraph prose requested, not Methods list",
       "candidate": "1. Background. 2. Result. 3. Importance.",
       "expected": "WARN",
-      "rationale": "요청 장르/문단형식 불일치."
+      "rationale": "요청 장르/문단형식 불일치.",
+      "run": {
+        "layer": "prose",
+        "section": "Results",
+        "text": "1. Background. 2. Result. 3. Importance."
+      }
     },
     {
       "id": "SCI-019",
@@ -152,7 +412,12 @@
       "source_constraint": "approved journal permits enumerated protocol",
       "candidate": "1. Prepare the sample. 2. Run the assay.",
       "expected": "ALLOW",
-      "rationale": "목록을 무조건 AI 문체로 금지하지 않음."
+      "rationale": "목록을 무조건 AI 문체로 금지하지 않음.",
+      "run": {
+        "layer": "prose",
+        "section": "Methods",
+        "text": "1. Prepare the sample. 2. Run the assay."
+      }
     },
     {
       "id": "SCI-020",
@@ -160,7 +425,12 @@
       "source_constraint": "modest association only",
       "candidate": "These groundbreaking findings revolutionize the entire field.",
       "expected": "WARN",
-      "rationale": "근거 없는 중요성 수사."
+      "rationale": "근거 없는 중요성 수사.",
+      "run": {
+        "layer": "not_deterministic",
+        "decided_by": "PW-044 reviewer (overclaim) + user",
+        "reason": "hype is a judgement about this paragraph; the product keeps no word blacklist (spec 06)"
+      }
     },
     {
       "id": "SCI-021",
@@ -168,7 +438,11 @@
       "source_constraint": "논리상 추가 관찰을 설명",
       "candidate": "Furthermore, the second assay yielded a consistent result.",
       "expected": "ALLOW",
-      "rationale": "접속부사 그 자체는 금지어 아님."
+      "rationale": "접속부사 그 자체는 금지어 아님.",
+      "run": {
+        "layer": "gate",
+        "text": "Furthermore, the second assay yielded a consistent result."
+      }
     },
     {
       "id": "SCI-022",
@@ -176,7 +450,22 @@
       "source_constraint": "선택 문장 문법 교정만 허용",
       "candidate": "The entire Introduction is reorganized.",
       "expected": "BLOCK",
-      "rationale": "편집 범위 보존."
+      "rationale": "편집 범위 보존.",
+      "run": {
+        "layer": "writer",
+        "mode": "conservative",
+        "answer": {
+          "status": "draft",
+          "paragraph": [
+            {
+              "type": "text",
+              "text": "The entire Introduction is reorganized.\n\n## Introduction\nBackground moves here."
+            }
+          ],
+          "claim_ids": [],
+          "fact_ids": []
+        }
+      }
     },
     {
       "id": "SCI-023",
@@ -184,7 +473,34 @@
       "source_constraint": "citation atom ref-1 must remain",
       "candidate": "Replacement silently removes ref-1.",
       "expected": "BLOCK",
-      "rationale": "인용 node 보존."
+      "rationale": "인용 node 보존.",
+      "run": {
+        "layer": "guard",
+        "intent": "grammar",
+        "before": [
+          {
+            "type": "text",
+            "text": "ABC1 rose in roots "
+          },
+          {
+            "type": "citation",
+            "attrs": {
+              "referenceId": "22222222-2222-4222-8222-222222222222",
+              "locator": null
+            }
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ],
+        "after": [
+          {
+            "type": "text",
+            "text": "ABC1 rose in roots."
+          }
+        ]
+      }
     },
     {
       "id": "SCI-024",
@@ -192,7 +508,12 @@
       "source_constraint": "species=Glycine max",
       "candidate": "The experiment used Arabidopsis thaliana.",
       "expected": "BLOCK",
-      "rationale": "과학 엔터티 일치."
+      "rationale": "과학 엔터티 일치.",
+      "run": {
+        "layer": "not_deterministic",
+        "decided_by": "PW-044 reviewer + user",
+        "reason": "organism names are not recorded identifiers the gate can contradict; a fact without a number is not checked"
+      }
     },
     {
       "id": "SCI-025",
@@ -200,7 +521,24 @@
       "source_constraint": "3 biological replicates with 2 technical replicates",
       "candidate": "The study had 6 independent biological replicates.",
       "expected": "BLOCK",
-      "rationale": "기술반복/생물반복 혼동."
+      "rationale": "기술반복/생물반복 혼동.",
+      "run": {
+        "layer": "gate",
+        "text": "The study had 6 independent biological replicates.",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "ABC1",
+            "metric": "fold change",
+            "value_text": "2.4",
+            "unit": "fold",
+            "group_label": "",
+            "comparison": "",
+            "n": 3,
+            "statistics": []
+          }
+        ]
+      }
     },
     {
       "id": "SCI-026",
@@ -208,7 +546,24 @@
       "source_constraint": "method version unrecorded",
       "candidate": "Software version 9.2 was used.",
       "expected": "NEEDS_EVIDENCE",
-      "rationale": "미기록 software version 생성 금지."
+      "rationale": "미기록 software version 생성 금지.",
+      "run": {
+        "layer": "gate",
+        "text": "Software version 9.2 was used.",
+        "facts": [
+          {
+            "id": "f1",
+            "entity": "ABC1",
+            "metric": "fold change",
+            "value_text": "2.4",
+            "unit": "fold",
+            "group_label": "",
+            "comparison": "",
+            "n": null,
+            "statistics": []
+          }
+        ]
+      }
     },
     {
       "id": "SCI-027",
@@ -216,7 +571,12 @@
       "source_constraint": "source reports no effect",
       "candidate": "The cited paper demonstrates a strong effect.",
       "expected": "BLOCK",
-      "rationale": "원문 claim support 불일치."
+      "rationale": "원문 claim support 불일치.",
+      "run": {
+        "layer": "not_deterministic",
+        "decided_by": "literature evidence (PW-036/037) + PW-044 reviewer + user",
+        "reason": "whether a cited source supports the statement needs that source's text and a reading of it"
+      }
     },
     {
       "id": "SCI-028",
@@ -224,7 +584,23 @@
       "source_constraint": "reference status=retracted",
       "candidate": "Reference used without status warning.",
       "expected": "WARN",
-      "rationale": "철회상태 검토 필요; 용도에 따라 인용 자체는 가능."
+      "rationale": "철회상태 검토 필요; 용도에 따라 인용 자체는 가능.",
+      "run": {
+        "layer": "gate",
+        "text": "ABC1 responds to drought ",
+        "cite": "ref-1",
+        "references": [
+          {
+            "id": "ref-1",
+            "label": "Lee 2015",
+            "retracted": true
+          }
+        ]
+      },
+      "known_deviation": {
+        "actual": "BLOCK",
+        "rationale": "a retracted citation fails the gate: an AI proposal with it cannot be applied (PW-042); on the user's own text the gate only reports. Stricter than expected."
+      }
     },
     {
       "id": "SCI-029",
@@ -232,7 +608,18 @@
       "source_constraint": "outline says possible interpretation",
       "candidate": "The mechanism was experimentally confirmed.",
       "expected": "BLOCK",
-      "rationale": "가설을 확정 관찰로 승격 금지."
+      "rationale": "가설을 확정 관찰로 승격 금지.",
+      "run": {
+        "layer": "gate",
+        "text": "The mechanism was experimentally confirmed in roots.",
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "hypothesis",
+            "text": "The mechanism operates in roots."
+          }
+        ]
+      }
     },
     {
       "id": "SCI-030",
@@ -240,7 +627,15 @@
       "source_constraint": "style reference supplied, no quote requested",
       "candidate": "Long near-verbatim reproduction of reference paragraphs.",
       "expected": "WARN",
-      "rationale": "문체 원칙 참고와 문장 복제 구분; 수동 검토."
+      "rationale": "문체 원칙 참고와 문장 복제 구분; 수동 검토.",
+      "run": {
+        "layer": "copy",
+        "sources": [
+          "Our results extend earlier reports by showing that the response is confined to roots and depends on the timing of the stress."
+        ],
+        "text": "These results extend earlier reports by showing that the response is confined to roots and depends on timing."
+      }
     }
-  ]
+  ],
+  "execution": "tests/scientific/hard-cases.test.ts runs every case through the product layer named in run.layer; not_deterministic cases are reported as not_run with who decides them"
 }

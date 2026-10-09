@@ -67,3 +67,7 @@ User decision / reviewer:
   - 새 route 폴더 `apps/api/src/scientific-review/**`, `apps/api/src/server.ts`, `apps/worker/src/main.ts`(`review` handler, MOCK 검토자), `tests/e2e/manual-paper/harness.ts`
   - `apps/worker/src/writer/index.ts`(MOCK writer가 지시의 채택된 대안을 적용)
   - `apps/web/src/features/paper/ManuscriptTab.tsx`(검토 panel), `apps/web/src/features/writer/WriterPanel.tsx`(`refreshKey`)
+- PW-045
+  - `packages/domain/src/scientific-checks/index.ts`, `records.ts`: hard case가 드러낸 gate 구멍(유의성 오기, 불가능한 p, 낱말 비교어, p/q·n 대조, 몰 단위, 숫자 없는 그룹 비교, 주장 종류 대비 강도, 우선권 주장, prose 신호; `pw-sci-gate-2`)
+  - `apps/worker/src/writer/index.ts`(prose 경고), `apps/web/src/features/writer/WriterPanel.tsx`(문구)
+  - 기존 시험 기대값(더 엄격해진 방향): `tests/tasks/PW-043/gate.int.test.ts`, `tests/tasks/PW-044/review.int.test.ts`, `tests/tasks/PW-044/review.e2e.ts`

@@ -20,3 +20,16 @@ KILLED paper policy gate dropped
 KILLED journal rule not carried over
 KILLED feedback not given to generator
 KILLED extra top-level answer keys tolerated
+
+# review fixes (2a6af9e review: MAJOR, MINOR 1–2, NIT)
+KILLED back matter does not end a section
+KILLED copied removal stored word for word
+KILLED other removals keep copied wording
+KILLED audience not checked
+KILLED claim policy not checked
+KILLED terminology not checked
+KILLED role text not checked
+KILLED role of unread section kept
+KILLED role without rules kept
+KILLED copied article type accepted
+KILLED missing-parent message

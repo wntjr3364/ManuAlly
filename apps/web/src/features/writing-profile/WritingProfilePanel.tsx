@@ -28,6 +28,7 @@ const REMOVED: Record<string, string> = {
   source_section_is_not_the_role_section: '다른 섹션을 근거로 든 규칙',
   no_source: '출처가 없는 규칙',
   copied_from_source: '원문 문구를 그대로 옮김',
+  no_rule_left: '근거 있는 규칙이 남지 않은 섹션 역할',
 };
 const WITHHELD: Record<string, string> = {
   asset_keep_right_unknown: '보관 근거가 정해지지 않은 원문',
@@ -96,7 +97,7 @@ export function WritingProfilePanel({ paperId, visible }: { paperId: string; vis
         <h2 style={{ margin: 0 }}>글쓰기 프로필</h2>
         {view?.active ? <span className="status" data-testid="profile-active">승인된 프로필 있음</span> : <span className="status" data-testid="profile-active">승인된 프로필 없음</span>}
       </div>
-      <p className="hint">고른 참고 논문에서 실제로 읽은 섹션만 근거로 씁니다. 읽지 않은 섹션에서 나온 규칙과 원문 문구를 옮긴 규칙은 저장되지 않고 아래에 이유와 함께 남습니다. 승인은 사용자가 정확한 버전에 대해 합니다.</p>
+      <p className="hint">고른 참고 논문에서 실제로 읽은 섹션만 근거로 씁니다. 읽지 않은 섹션에서 나온 규칙과 원문을 여덟 단어 이상 그대로 옮긴 글은 저장되지 않고 아래에 이유와 함께 남습니다(옮긴 글은 앞 몇 단어만). 말을 바꾼 재현까지 찾아내지는 못합니다. 승인은 사용자가 정확한 버전에 대해 합니다.</p>
       {note && <p role="status">{note}</p>}
       {error && <p role="alert" className="error">{error}</p>}
 

@@ -12,6 +12,7 @@
 // - Every version is immutable. Approving one (the owner's act, on the exact content hash) makes it the
 //   paper's profile and supersedes the previous one. The owner's feedback is a candidate for the next
 //   proposal; it never changes a profile by itself.
+import { createHash } from 'node:crypto';
 import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
 import { enqueueJob } from '../jobs/index.ts';
 import { contentHash } from '../revisions/index.ts';
@@ -29,6 +30,8 @@ const HEADINGS: [RegExp, SectionName][] = [
   [/^discussion$/, 'Discussion'],
   [/^(conclusions?|concluding remarks)$/, 'Conclusion'],
 ];
+// Back matter ends the section before it and is not read (review MINOR 2).
+const STOP = /^(references?|bibliography|literature cited|works cited|acknowledge?ments?|funding( information| sources)?|author('?s)? contributions?|competing interests?|conflicts? of interests?|declarations?( of interests?)?|data (and code )?availability( statement)?|supplementary( materials?| information| data)?|supporting information)$/;
 // A heading is a line of its own, optionally numbered ("2.", "2.1", "IV."), optionally ending in ":".
 export function sectionsOf(text: string): { section: SectionName; text: string }[] {
   const out: { section: SectionName; text: string }[] = [];
@@ -36,7 +39,10 @@ export function sectionsOf(text: string): { section: SectionName; text: string }
   for (const line of text.split(/\r?\n/)) {
     const label = line.trim().replace(/^(?:\d+(?:\.\d+)*\.?|[IVX]+\.)\s+/, '').replace(/\s*:$/, '').replace(/\s+/g, ' ').toLowerCase();
     const hit = label.length <= 40 ? HEADINGS.find(([re]) => re.test(label)) : undefined;
-    if (hit) {
+    if (!hit && label.length <= 40 && STOP.test(label)) {
+      if (current) out.push({ section: current.section, text: current.lines.join('\n').trim() });
+      current = null;
+    } else if (hit) {
       if (current) out.push({ section: current.section, text: current.lines.join('\n').trim() });
       current = { section: hit[1], lines: [] };
     } else if (current) current.lines.push(line);
@@ -106,7 +112,7 @@ export interface ProfileContent {
   accepted_examples: { text: string; source: RuleSource | null }[];
   journal_rule_snapshot?: { text: string; source: string; checked_at: string; article_types: string[] };
 }
-export interface Removed { where: string; text: string; reason: 'section_not_read' | 'source_section_is_not_the_role_section' | 'no_source' | 'copied_from_source'; source?: RuleSource }
+export interface Removed { where: string; text: string; reason: 'section_not_read' | 'source_section_is_not_the_role_section' | 'no_source' | 'copied_from_source' | 'no_rule_left'; source?: RuleSource }
 
 export class ProfileRejected extends Error {}
 const KEYS = ['article_type', 'target_audience', 'preferred_english_variant', 'concision_preference', 'claim_strength_policy', 'terminology', 'section_roles', 'rhetoric_patterns', 'anti_examples', 'accepted_examples', 'journal_rule_snapshot'];
@@ -202,6 +208,12 @@ export function copyIndex(texts: string[]): Set<string> {
   }
   return runs;
 }
+// What a removal keeps of copied text: its first words, its length and a hash — never the copied run
+// itself (review MINOR 1).
+export function maskCopied(text: string): string {
+  const words = text.trim().split(/\s+/);
+  return `${words.slice(0, 3).join(' ')}… (${words.length} words, sha256:${createHash('sha256').update(text).digest('hex').slice(0, 12)})`;
+}
 export function copies(text: string, index: Set<string>): boolean {
   const w = wordsOf(text);
   for (let i = 0; i + COPY_RUN <= w.length; i++) if (index.has(w.slice(i, i + COPY_RUN).join(' '))) return true;
@@ -216,6 +228,13 @@ export function checkAgainstSources(c: ProfileContent, sources: ReadSource[], a:
   const removed: Removed[] = [];
   const read = new Map(sources.map((s) => [s.reference_id, new Set<string>(s.sections_read)]));
   const index = copyIndex(sources.flatMap((s) => s.sections.map((x) => x.text)));
+  // a removal listed for another reason may still hold copied wording: never kept word for word
+  const shown = (text: string) => (copies(text, index) ? maskCopied(text) : text);
+  const copied = (where: string, text: string) => {
+    if (!copies(text, index)) return false;
+    removed.push({ where, text: maskCopied(text), reason: 'copied_from_source' });
+    return true;
+  };
   const sourceProblem = (s: RuleSource, role: string | null): Removed['reason'] | null => {
     if (!read.has(s.reference_id)) throw new ProfileRejected('a source names a reference that was not part of this request');
     if (!read.get(s.reference_id)!.has(s.section)) return 'section_not_read';
@@ -225,27 +244,46 @@ export function checkAgainstSources(c: ProfileContent, sources: ReadSource[], a:
   const keepRule = (r: Rule, where: string, role: string | null): Rule | null => {
     const failed = r.sources.map((s) => ({ s, p: sourceProblem(s, role) }));
     const ok = failed.filter((f) => !f.p).map((f) => f.s);
-    if (r.sources.length && !ok.length) { removed.push({ where, text: r.text, reason: failed[0]!.p! }); return null; }
-    if (!r.sources.length && a.requireSource) { removed.push({ where, text: r.text, reason: 'no_source' }); return null; }
-    if (copies(r.text, index)) { removed.push({ where, text: r.text, reason: 'copied_from_source' }); return null; }
+    if (r.sources.length && !ok.length) { removed.push({ where, text: shown(r.text), reason: failed[0]!.p! }); return null; }
+    if (!r.sources.length && a.requireSource) { removed.push({ where, text: shown(r.text), reason: 'no_source' }); return null; }
+    if (copied(where, r.text)) return null;
     // a rule that keeps a valid source loses only the others, each listed
-    for (const f of failed) if (f.p) removed.push({ where, text: r.text, reason: f.p, source: f.s });
+    for (const f of failed) if (f.p) removed.push({ where, text: shown(r.text), reason: f.p, source: f.s });
     return { text: r.text, sources: ok };
   };
   const rules = (list: Rule[], where: string, role: string | null) => list.flatMap((r, i) => keepRule(r, `${where}[${i}]`, role) ?? []);
+  // every free-text field is checked for copied wording (review MAJOR); the article type is a label:
+  // a copied one rejects the whole content
+  if (copies(c.article_type, index)) throw new ProfileRejected('article_type copies wording from a source');
+  const readSections = new Set(sources.flatMap((s) => s.sections_read));
   const content: ProfileContent = {
     ...c,
-    section_roles: c.section_roles.map((r, i) => ({ ...r, principles: rules(r.principles, `section_roles[${i}].principles`, r.section), counterexamples: rules(r.counterexamples, `section_roles[${i}].counterexamples`, r.section) })),
+    target_audience: copied('target_audience', c.target_audience) ? '' : c.target_audience,
+    claim_strength_policy: copied('claim_strength_policy', c.claim_strength_policy) ? '' : c.claim_strength_policy,
+    // an entry goes whole if any of its fields copies (one removal listed)
+    terminology: c.terminology.filter((t, i) => {
+      const hit = [t.term, t.preferred, ...t.avoid, t.note].find((x) => copies(x, index));
+      if (hit) removed.push({ where: `terminology[${i}]`, text: maskCopied(hit), reason: 'copied_from_source' });
+      return !hit;
+    }),
+    section_roles: c.section_roles.flatMap((r, i) => {
+      const where = `section_roles[${i}]`;
+      if (copied(where, r.role)) return [];
+      // a proposed section role needs a section that was read for it, and at least one rule left
+      if (a.requireSource && ![...readSections].some((x) => sectionServes(x, r.section))) { removed.push({ where, text: shown(r.role), reason: 'section_not_read' }); return []; }
+      const role = { ...r, principles: rules(r.principles, `${where}.principles`, r.section), counterexamples: rules(r.counterexamples, `${where}.counterexamples`, r.section) };
+      if (a.requireSource && !role.principles.length && !role.counterexamples.length) { removed.push({ where, text: shown(r.role), reason: 'no_rule_left' }); return []; }
+      return [role];
+    }),
     rhetoric_patterns: rules(c.rhetoric_patterns, 'rhetoric_patterns', null),
     anti_examples: rules(c.anti_examples, 'anti_examples', null),
     accepted_examples: c.accepted_examples.flatMap((e, i) => {
       const where = `accepted_examples[${i}]`;
       if (e.source) {
         const p = sourceProblem(e.source, null);
-        if (p) { removed.push({ where, text: e.text, reason: p, source: e.source }); return []; }
+        if (p) { removed.push({ where, text: shown(e.text), reason: p, source: e.source }); return []; }
       }
-      if (copies(e.text, index)) { removed.push({ where, text: e.text, reason: 'copied_from_source' }); return []; }
-      return [e];
+      return copied(where, e.text) ? [] : [e];
     }),
   };
   return { content, removed };
@@ -311,7 +349,7 @@ export async function createOwnRevision(pool: TxPool, a: { paperId: string; owne
     await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`writing-profile:${a.paperId}`]);
     const latest = await latestId(tx, a.paperId);
     const parent = typeof b.parent_revision_id === 'string' ? b.parent_revision_id.toLowerCase() : b.parent_revision_id ?? null;
-    if (parent !== latest) throw new DomainError('CONFLICT', latest ? 'the profile changed since you opened it; start from the latest version' : 'there is no profile version yet', 'parent_revision_id');
+    if (parent !== latest) throw new DomainError('CONFLICT', latest ? 'the profile changed since you opened it; start from the latest version' : 'parent_revision_id must be null: there is no profile version yet', 'parent_revision_id');
     // the sources stay those the parent recorded; the owner's rules may cite only sections read there
     const parentSources = latest ? (await tx.query<{ sources: SourceRecord[] }>('SELECT sources FROM writing_profile_revisions WHERE id = $1', [latest])).rows[0]!.sources : [];
     const read: ReadSource[] = [];

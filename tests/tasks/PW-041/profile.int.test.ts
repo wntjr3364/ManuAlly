@@ -254,5 +254,48 @@ describe('TST-041B: no style from unread text; no copied wording', () => {
     expect((await post({ ...rev.content, accepted_examples: [{ text: 'Our results extend earlier reports by showing that the response is confined to roots.', source: null }] }, latest.id)).statusCode).toBe(422);
     expect((await post({ ...rev.content, journal_rule_snapshot: { text: 'x' } }, latest.id)).statusCode).toBe(422);
     expect((await post({ ...rev.content, extra: 1 }, latest.id)).statusCode).toBe(422);
+    // review MAJOR: the owner's free text is checked too; the refusal does not echo the copied wording
+    const refused = await post({ ...rev.content, claim_strength_policy: 'We first restate the main finding, then compare it with prior work' }, latest.id);
+    expect(refused.statusCode).toBe(422);
+    expect(JSON.stringify(refused.json())).not.toContain('restate the main finding');
+    // review NIT: a parent where there is none yet says so
+    const fresh = await world();
+    expect((await call('alice', 'POST', `/api/papers/${fresh.paperId}/writing-profile/revisions`, { parent_revision_id: rev.id, content: rev.content })).json().message).toMatch(/parent_revision_id must be null/);
+  });
+  test('review MAJOR: every free-text field is checked for copied wording, and no section role stands without a read section or a rule', async () => {
+    const w = await world();
+    const copied = 'Our results extend earlier reports by showing that the response is confined to roots';
+    const { view } = await run(w, spy((input) => {
+      const ref = (t: string) => input.sources.find((s) => s.title === t)!.reference_id;
+      const full = [{ reference_id: ref('Fully read paper'), section: 'Discussion' }];
+      return { profile: base({
+        target_audience: copied, claim_strength_policy: copied,
+        terminology: [{ term: 'ABC1', preferred: 'ABC1', avoid: [], note: copied }, { term: 'root', preferred: 'root', avoid: [], note: 'plain' }],
+        section_roles: [
+          { section: 'Discussion', role: copied, principles: [{ text: 'Compare after stating the finding', sources: full }], counterexamples: [] },
+          { section: 'Methods', role: 'state what was done', principles: [{ text: 'List conditions', sources: [{ reference_id: ref('Fully read paper'), section: 'Methods' }] }], counterexamples: [] },
+          { section: 'Introduction', role: 'narrow to the question', principles: [{ text: 'Go from gap to question', sources: [{ reference_id: ref('Abstract only paper'), section: 'Introduction' }] }], counterexamples: [] },
+          { section: 'Introduction', role: 'set the gap', principles: [{ text: 'Name the gap before the question', sources: [{ reference_id: ref('Fully read paper'), section: 'Introduction' }] }], counterexamples: [] },
+        ],
+        // copied wording in a rule removed for another reason (unread section) is not kept either
+        rhetoric_patterns: [{ text: copied, sources: [{ reference_id: ref('Abstract only paper'), section: 'Discussion' }] }],
+      }) };
+    }));
+    const c = view.latest.content;
+    expect(c.target_audience).toBe('');
+    expect(c.claim_strength_policy).toBe('');
+    expect(c.terminology.map((t: { term: string }) => t.term)).toEqual(['root']);
+    // copied role, a section nobody read (Methods), a role whose rules were all removed → gone; the read one stays
+    expect(c.section_roles.map((r: { section: string; role: string }) => [r.section, r.role])).toEqual([['Introduction', 'set the gap']]);
+    const reasons = view.latest.removed.map((r: { where: string; reason: string }) => [r.where, r.reason]);
+    expect(reasons).toEqual(expect.arrayContaining([
+      ['target_audience', 'copied_from_source'], ['claim_strength_policy', 'copied_from_source'], ['terminology[0]', 'copied_from_source'],
+      ['section_roles[0]', 'copied_from_source'], ['section_roles[1]', 'section_not_read'], ['section_roles[2]', 'no_rule_left'], ['rhetoric_patterns[0]', 'section_not_read'],
+    ]));
+    // review MINOR 1: removed copied wording is not stored word for word
+    expect(JSON.stringify(view.latest)).not.toContain('confined to roots');
+    // a copied article type fails the run
+    const bad = await run(w, spy(() => ({ profile: base({ article_type: 'results extend earlier reports by showing that the response' }) })));
+    expect((await pool.query('SELECT status FROM jobs WHERE id = $1', [bad.jobId])).rows[0].status).toBe('FAILED');
   });
 });

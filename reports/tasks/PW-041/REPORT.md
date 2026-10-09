@@ -88,3 +88,18 @@
 
 ## 다음
 PW-042: Writer(문단 생성)
+
+## 리뷰 반영 (1차, changes requested — MAJOR 1, MINOR 2, NIT 3)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR: 검사하지 않는 글 field(섹션 역할 설명, claim_strength_policy, target_audience, 용어 메모)로 원문 문구와 읽지 않은 섹션의 style이 저장됨. 규칙이 모두 빠진 섹션 역할도 남음 | 제안과 사용자 수정 모두 **모든 글 field**에 복사 검사를 한다. <br>• audience·policy: 비우고 기록 <br>• 용어 항목: 어느 칸이든 복사면 항목째 빼고 기록 <br>• 섹션 역할 설명: 복사면 역할째 뺌 <br>• article type: 복사면 답 전체 거부 <br>제안에서 어떤 자료도 읽지 않은 섹션의 역할은 `section_not_read`로 빠진다. 근거 있는 규칙이 하나도 남지 않은 역할은 `no_rule_left`로 빠진다. 사용자 수정에서는 출처 없는 역할도 선호로 허용한다 | 리뷰어 probe를 시험으로 만들었다: audience·policy 비움, 용어 1개 빠짐, 복사한 역할·Methods(아무도 안 읽음)·규칙이 다 빠진 Introduction 역할 빠짐, 읽은 역할만 남음. 복사한 article type은 FAILED. 사용자 수정의 policy 복사는 422 |
+| MINOR 1: 빠진 복사 문구가 `removed`에 그대로 저장·표시됨 | `maskCopied`: 앞 세 단어, 단어 수, sha256 앞 12자리만 남긴다. 다른 사유로 빠진 항목도 복사 문구를 담고 있으면 같은 방식으로 남긴다. 사용자 수정 거부 응답도 같다 | 저장된 버전 전체와 422 응답에 원문 구절이 없다. unit: mask 형식 |
+| MINOR 2: References·감사의 글 등이 마지막 섹션 글로 읽힘 | References, Bibliography, Literature Cited, Acknowledg(e)ments, Funding, Author contributions, Competing interests, Conflict of interest, Declarations, Data availability, Supplementary, Supporting information이 앞 섹션을 끝낸다. 그 뒤 글은 다음 섹션 제목까지 읽지 않는다 | unit: 리뷰어 probe와 back matter 제목 9종 |
+| NIT: 이전 draft를 승인하면 더 새 승인본(저널 규정)이 밀려남 | 그대로 둔다. 정확한 hash에 대한 사용자의 명시 행위다. 화면의 승인 버튼은 최근 버전에만 있다 | — |
+| NIT: 바탕이 없는데 parent를 주면 오해할 메시지 | "parent_revision_id must be null: there is no profile version yet" | 통합 |
+| NIT: 복사 검사는 말 바꾼 재현을 못 잡음 | 화면 문구를 "여덟 단어 이상 그대로 옮긴 글"로 바꾸고, 말을 바꾼 재현은 못 찾는다고 적었다 | — |
+
+- RED(`red-review.log`): 2a6af9e 구현으로 새·바뀐 시험 4개가 실패한다(통합 2, unit 2).
+- GREEN: 통합 9, unit 8, 브라우저 1.
+- mutation(`mutation.log` 하단): 11종 모두 탐지.
+- 회귀: `pnpm test` exit 0 — unit 290, integration 421, contracts 17, 브라우저 90 (`pnpm-test-review.log`).

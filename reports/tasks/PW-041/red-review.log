@@ -1,0 +1,113 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-041/profile.int.test.ts (9 tests | 2 failed) 2244ms
+   ❯ TST-041B: no style from unread text; no copied wording (6)
+     × the owner's own edit: based on the latest version, sources only from sections that were read, and no copied wording 144ms
+     × review MAJOR: every free-text field is checked for copied wording, and no section role stands without a read section or a rule 54ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041B: no style from unread text; no copied wording > the owner's own edit: based on the latest version, sources only from sections that were read, and no copied wording
+AssertionError: expected 201 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 201
+
+ ❯ tests/tasks/PW-041/profile.int.test.ts:259:32
+    257|     // review MAJOR: the owner's free text is checked too; the refusal…
+    258|     const refused = await post({ ...rev.content, claim_strength_policy…
+    259|     expect(refused.statusCode).toBe(422);
+       |                                ^
+    260|     expect(JSON.stringify(refused.json())).not.toContain('restate the …
+    261|     // review NIT: a parent where there is none yet says so
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-041/profile.int.test.ts > TST-041B: no style from unread text; no copied wording > review MAJOR: every free-text field is checked for copied wording, and no section role stands without a read section or a rule
+AssertionError: expected 'Our results extend earlier reports by…' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ Our results extend earlier reports by showing that the response is confined to roots
+
+ ❯ tests/tasks/PW-041/profile.int.test.ts:283:31
+    281|     }));
+    282|     const c = view.latest.content;
+    283|     expect(c.target_audience).toBe('');
+       |                               ^
+    284|     expect(c.claim_strength_policy).toBe('');
+    285|     expect(c.terminology.map((t: { term: string }) => t.term)).toEqual…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 7 passed (9)
+   Start at  21:29:58
+   Duration  3.99s (tests 59%, transform 32%, import 9%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-041/sections.test.ts (8 tests | 2 failed) 20ms
+   ❯ sectionsOf: headings on a line of their own (5)
+     × review MINOR 2: back matter ends a section and is not read 9ms
+   ❯ maskCopied: what is kept of a removed copy (1)
+     × a few opening words and a hash, never the copied run 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-041/sections.test.ts > sectionsOf: headings on a line of their own > review MINOR 2: back matter ends a section and is not read
+AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]
+
+- Expected
++ Received
+
+@@ -3,11 +3,17 @@
+      "section": "Introduction",
+      "text": "Why.",
+    },
+    {
+      "section": "Discussion",
+-     "text": "It matters.",
++     "text": "It matters.
++ References
++ 1. Smith J. A paper. Nature 2020.
++ Acknowledgements
++ We thank X.
++ Funding
++ Grant 1.",
+    },
+    {
+      "section": "Conclusion",
+      "text": "Done.",
+    },
+
+ ❯ tests/tasks/PW-041/sections.test.ts:19:27
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-041/sections.test.ts > maskCopied: what is kept of a removed copy > a few opening words and a hash, never the copied run
+TypeError: maskCopied is not a function
+ ❯ tests/tasks/PW-041/sections.test.ts:49:15
+     47| describe('maskCopied: what is kept of a removed copy', () => {
+     48|   test('a few opening words and a hash, never the copied run', () => {
+     49|     const m = maskCopied('Our results extend earlier reports by showin…
+       |               ^
+     50|     expect(m).toMatch(/^Our results extend… \(\d+ words, sha256:[0-9a-…
+     51|     expect(m).not.toContain('confined');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 6 passed (8)
+   Start at  21:30:03
+   Duration  563ms (transform 67%, import 25%, tests 6%, worker 3%)
+

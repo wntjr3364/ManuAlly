@@ -91,3 +91,8 @@ PW-041: WritingProfile 생성·승인
   - 동시 검토: 결정적 재현으로 바꾼 뒤 탐지
   - scope의 주장·사실 gate, retrieval 보류
 - 회귀: `pnpm test` exit 0 — unit 282, integration 412, contracts 17, 브라우저 89 (`pnpm-test-review.log`)
+
+## 재리뷰 (5f4dc1f): approve
+
+- 확인: MAJOR, MINOR 2개, NIT 전부 닫힘. 리뷰어 실행: 통합 PW-011·037·039·040 74/74, 브라우저 PW-040 1/1.
+- 남은 NIT: `nodeScope`는 호출자가 넘긴 `settledMaterial`을 믿는다. PW-042에서 search 쪽에 공급자를 받아 직접 `settled`를 만드는 helper(`nodeScopeFor`)를 두고 그 경로만 쓰게 한다.

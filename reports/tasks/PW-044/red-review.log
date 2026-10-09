@@ -1,0 +1,74 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-044/review.int.test.ts (12 tests | 3 failed) 3008ms
+   ❯ review fixes (5119f09) (3)
+     × MINOR: AI edits through selection proposals count for authorship; unknown generators are not "human_written" 115ms
+     × NIT: a scientific finding must rest on a record; a writing finding may not 70ms
+     × NIT: a run on an older version of the paragraph is marked outdated; a reused key for another repair says so 70ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > review fixes (5119f09) > MINOR: AI edits through selection proposals count for authorship; unknown generators are not "human_written"
+AssertionError: expected 'human_written' to be 'same_model' // Object.is equality
+
+Expected: "same_model"
+Received: "human_written"
+
+ ❯ tests/tasks/PW-044/review.int.test.ts:258:125
+    256|   test('MINOR: AI edits through selection proposals count for authorsh…
+    257|     const same = await world();
+    258|     expect((await review(same, createMockReviewer(), await selectionEd…
+       |                                                                                                                             ^
+    259|     const other = await world();
+    260|     expect((await review(other, createMockReviewer(), await selectionE…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > review fixes (5119f09) > NIT: a scientific finding must rest on a record; a writing finding may not
+AssertionError: expected [] to deeply equal [ 'no_source' ]
+
+- Expected
++ Received
+
+- [
+-   "no_source",
+- ]
++ []
+
+ ❯ tests/tasks/PW-044/review.int.test.ts:271:47
+    269|       { ...overclaim(i), kind: 'writing', category: 'concision', sourc…
+    270|     ] })));
+    271|     expect(run!.dropped.map((d) => d.reason)).toEqual(['no_source']);
+       |                                               ^
+    272|     expect(run!.findings.map((f) => f.kind)).toEqual(['writing']);
+    273|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/tasks/PW-044/review.int.test.ts > review fixes (5119f09) > NIT: a run on an older version of the paragraph is marked outdated; a reused key for another repair says so
+AssertionError: expected undefined to be false // Object.is equality
+
+- Expected:
+false
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-044/review.int.test.ts:278:59
+    276|     const w = await world();
+    277|     const { run } = await review(w, spy((i) => ({ findings: [overclaim…
+    278|     expect((run as Run & { outdated: boolean }).outdated).toBe(false);
+       |                                                           ^
+    279|     const content = { type: 'doc', content: [{ type: 'paragraph', attr…
+    280|     await call('alice', 'POST', `/api/papers/${w.paperId}/documents/${…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 9 passed (12)
+   Start at  23:19:51
+   Duration  5.10s (tests 61%, transform 31%, import 8%)
+
+exit 1

@@ -10,7 +10,7 @@ interface Finding {
   confidence: 'low' | 'medium' | 'high'; alternative: string | null; warnings: string[]; decision: 'open' | 'accepted' | 'dismissed'; note: string | null;
 }
 interface Run {
-  id: string; job_id: string; independence: 'human_written' | 'same_model' | 'different_model'; generator_label: string | null; created_at: string;
+  id: string; job_id: string; independence: 'human_written' | 'same_model' | 'different_model' | 'unknown_authorship'; generator_label: string | null; created_at: string; outdated: boolean;
   findings: Finding[]; dropped: { quote: string; reason: string }[];
   repair: null | { job_status: string; proposal_id: string | null; proposal_status: string | null; needs_user: boolean };
 }
@@ -26,8 +26,9 @@ const INDEPENDENCE: Record<string, string> = {
   human_written: '사용자가 쓴 문단의 검토',
   same_model: '이 문단을 쓴 모델과 같은 모델의 검토 — 독립적인 사실 검증이 아닙니다',
   different_model: '다른 모델이 쓴 문단의 검토',
+  unknown_authorship: 'AI가 고친 적이 있으나 어느 모델인지 알 수 없는 문단의 검토 — 같은 모델일 수 있습니다',
 };
-const DROPPED: Record<string, string> = { span_not_found: '문단에 없는 문구', span_ambiguous: '문단에 여러 번 나오는 문구', unknown_source: '주어지지 않은 근거' };
+const DROPPED: Record<string, string> = { span_not_found: '문단에 없는 문구', span_ambiguous: '문단에 여러 번 나오는 문구', unknown_source: '주어지지 않은 근거', no_source: '근거를 대지 않은 과학 지적' };
 
 export function ReviewPanel({ paperId, documentId, headId, clean, onRepair }: { paperId: string; documentId: string; headId: string; clean: boolean; onRepair: () => void }) {
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -107,6 +108,7 @@ export function ReviewPanel({ paperId, documentId, headId, clean, onRepair }: { 
 
       {run && (
         <div data-testid="review-run">
+          {run.outdated && <p className="error" data-testid="review-outdated">이 검토 뒤에 문단이 바뀌었습니다. 아래 문구는 이전 글 기준이며, 채택·고쳐 쓰기는 다시 검토한 뒤에 하세요.</p>}
           <p className="hint" data-testid="review-independence">{INDEPENDENCE[run.independence]}{run.generator_label ? ` · ${run.generator_label}` : ''}</p>
           {!run.findings.length && <p data-testid="review-empty">지적이 없습니다.</p>}
           <ul style={{ listStyle: 'none', padding: 0 }}>
@@ -118,17 +120,17 @@ export function ReviewPanel({ paperId, documentId, headId, clean, onRepair }: { 
                 {f.source && <p className="hint">근거: {SOURCE[f.source.kind] ?? f.source.kind}</p>}
                 {f.alternative && <p data-testid="review-alternative">대안: {f.alternative}</p>}
                 {f.warnings.map((x) => <p key={x} className="error">대안에 근거에 없는 수치가 있습니다: {x.split(':')[1]}</p>)}
-                {f.decision === 'open' ? (
+                {f.decision === 'open' && !run.outdated ? (
                   <div className="toolbar">
                     <button type="button" onClick={() => void decide(f, 'accepted')}>채택</button>
                     <button type="button" onClick={() => void decide(f, 'dismissed')}>기각</button>
                   </div>
-                ) : <p className="status" data-testid="review-decision">{f.decision === 'accepted' ? '채택함' : '기각함'}</p>}
+                ) : f.decision !== 'open' ? <p className="status" data-testid="review-decision">{f.decision === 'accepted' ? '채택함' : '기각함'}</p> : null}
               </li>
             ))}
           </ul>
           {run.dropped.length > 0 && <p className="hint">버린 지적 {run.dropped.length}개: {run.dropped.map((d) => DROPPED[d.reason] ?? d.reason).join(', ')}</p>}
-          {!run.repair && (
+          {!run.repair && !run.outdated && (
             <button type="button" disabled={!run.findings.some((f) => f.decision === 'accepted') || !clean} onClick={() => void repair(run)}>채택한 지적으로 고쳐 쓰기 (한 번)</button>
           )}
           {run.repair && (

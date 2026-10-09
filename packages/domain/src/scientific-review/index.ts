@@ -54,10 +54,15 @@ export async function reviewView(db: Queryable, paperId: string, documentId: unk
     `SELECT r.run_id, r.job_id, j.status AS job_status, p.id AS proposal_id, p.status AS proposal_status
      FROM review_repairs r JOIN jobs j ON j.id = r.job_id LEFT JOIN paragraph_proposals p ON p.job_id = r.job_id
      WHERE r.paper_id = $1 AND r.run_id = ANY($2::uuid[])`, [paperId, runs.map((r) => r.id)])).rows;
+  // a run on an older version of the paragraph: its spans point at text that is no longer there (review NIT)
+  const head = (await db.query<{ head_revision_id: string }>('SELECT head_revision_id FROM documents WHERE paper_id = $1 AND id = $2', [paperId, documentId.toLowerCase()])).rows[0];
+  const now = head ? await documentAt(db, paperId, documentId.toLowerCase(), head.head_revision_id) : null;
+  const current = now ? topBlock(now, blockId.toLowerCase()) : null;
+  const currentHash = current ? await blockHash(current) : null;
   return runs.map((r) => {
     const rep = repairs.find((x) => x.run_id === r.id);
     return {
-      ...r, status: 'DONE',
+      ...r, status: 'DONE', outdated: r.block_hash !== currentHash,
       findings: findings.filter((f) => f.run_id === r.id).map(findingView),
       // a repair whose proposal cannot be applied as it is goes back to the owner (no further attempt)
       repair: rep ? {
@@ -114,6 +119,8 @@ export async function requestRepair(pool: TxPool, a: { paperId: string; ownerId:
         paperId: a.paperId, ownerId: a.ownerId, intent: 'draft_paragraph', idempotencyKey: b.idempotency_key,
         payload: { mode: 'rewrite', outline_revision_id: plan.outline_revision_id, node_id: plan.node_id, document_id: run.document_id, base_revision_id: head, after_block_id: null, after_block_hash: null, block_id: run.block_id, expected_block_hash: run.block_hash, instruction },
       });
+      // the key named an existing job (another repair's): say so, rather than "already repaired" (review NIT)
+      if (!out.created) throw new DomainError('CONFLICT', 'this idempotency key was already used for another request', 'idempotency_key');
       await tx.query('INSERT INTO review_repairs (run_id, paper_id, job_id, finding_ids, created_by) VALUES ($1, $2, $3, $4, $5)', [run.id, a.paperId, out.job.id, accepted.map((f) => f.id), a.ownerId]);
       return out;
     });

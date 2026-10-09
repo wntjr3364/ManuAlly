@@ -79,6 +79,8 @@ export function checkFindings(raw: unknown, input: ReviewInput): { findings: Che
     if (first < 0) { dropped.push({ quote: f.quote.slice(0, 200), reason: 'span_not_found' }); return; }
     if (input.paragraph_text.indexOf(f.quote, first + 1) >= 0) { dropped.push({ quote: f.quote.slice(0, 200), reason: 'span_ambiguous' }); return; }
     if (source && !known.has(`${source.kind}:${source.id}`)) { dropped.push({ quote: f.quote.slice(0, 200), reason: 'unknown_source' }); return; }
+    // a scientific finding rests on a record (review NIT); a writing finding may be about wording alone
+    if (!source && kind === 'scientific') { dropped.push({ quote: f.quote.slice(0, 200), reason: 'no_source' }); return; }
     const alternative = typeof f.alternative === 'string' && f.alternative.trim() ? f.alternative.trim() : null;
     const warnings = alternative ? [...new Set(numbersIn(alternative).filter((n) => !evidenceNumbers.has(n)))].map((n) => `alternative_number_not_in_evidence:${n}`) : [];
     findings.push({ position: findings.length + 1, kind, category: f.category as string, quote: f.quote, span_start: first, span_end: first + f.quote.length, reason: f.reason.trim(), source_kind: source?.kind ?? null, source_id: source?.id ?? null, confidence: f.confidence as string, alternative, warnings });
@@ -117,6 +119,24 @@ export function createMockReviewer(): Reviewer {
       return { findings };
     },
   };
+}
+
+// Who has written into this paragraph (review MINOR): every applied Writer proposal on the block and
+// every applied selection proposal (PW-017) inside it, by their generator. The reviewer being one of
+// them → same_model; an AI edit whose generator cannot be told → unknown_authorship (never
+// "human_written"); only other generators → different_model.
+const ORIGIN = /^worker:(?:provider\.|tool-gateway:)(mock|claude_agent|codex)$/;
+export async function authorshipOf(db: Queryable, paperId: string, documentId: string, blockId: string, reviewer: string) {
+  const writers = (await db.query<{ generator: string }>(
+    "SELECT generator FROM paragraph_proposals WHERE paper_id = $1 AND document_id = $2 AND (new_block_id = $3 OR block_id = $3) AND status = 'APPLIED'", [paperId, documentId, blockId])).rows.map((r) => r.generator);
+  const edits = (await db.query<{ origin: string }>(
+    `SELECT e.origin FROM edit_proposals e JOIN selection_handles h ON h.id = e.selection_handle_id
+     WHERE e.paper_id = $1 AND e.document_id = $2 AND h.block_id = $3 AND e.status = 'APPLIED'`, [paperId, documentId, blockId])).rows.map((r) => ORIGIN.exec(r.origin)?.[1] ?? null);
+  const all = [...writers, ...edits];
+  if (!all.length) return 'human_written';
+  if (all.includes(reviewer)) return 'same_model';
+  if (all.includes(null)) return 'unknown_authorship';
+  return 'different_model';
 }
 
 function payloadOf(job: Job) {
@@ -187,11 +207,7 @@ export function reviewerHandlers(pool: TxPool, reviewer: Reviewer): Record<'revi
         if (e instanceof Rejected) throw new JobOutcomeError(`review answer rejected: ${e.message}`.slice(0, 1000), 'FAILED');
         throw e;
       }
-      // who wrote the paragraph: the generator of the Writer proposal that put it there, if any
-      const writer = (await pool.query<{ generator: string }>(
-        "SELECT generator FROM paragraph_proposals WHERE paper_id = $1 AND document_id = $2 AND new_block_id = $3 AND status = 'APPLIED' ORDER BY decided_at DESC LIMIT 1",
-        [job.paper_id, p.document_id, p.block_id])).rows[0];
-      const independence = !writer ? 'human_written' : writer.generator === reviewer.id ? 'same_model' : 'different_model';
+      const independence = await authorshipOf(pool, job.paper_id, p.document_id, p.block_id, reviewer.id);
       const result: Record<string, unknown> = { kind: 'review', generator: reviewer.id, findings: checked.findings.length, dropped: checked.dropped.length, independence };
       return {
         result,

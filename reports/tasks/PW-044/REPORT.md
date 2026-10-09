@@ -76,3 +76,17 @@
 
 ## 다음
 PW-045: 과학적 부정 fixture·rubric gate
+
+## 리뷰 반영 (1차 — MINOR 1, NIT 4)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MINOR: 선택 범위 제안(PW-017)으로 AI가 고친 문단이 `human_written`으로 표시됨 | `authorshipOf`가 그 block에 적용된 **모든** Writer 제안(새 문단·교정)과 그 block 안의 적용된 선택 범위 제안을 본다(origin `worker:provider.<id>` / `worker:tool-gateway:<id>`). 검토자가 그중 하나면 `same_model`이다. 생성기를 알 수 없는 AI 편집이 있으면 `unknown_authorship`(새 값, migration `pw_044_0002`; 화면에 "같은 모델일 수 있습니다")이다. 다른 생성기뿐이면 `different_model`이다 | 선택 범위 제안: origin mock → same_model, tool-gateway:codex → different_model, 알 수 없는 origin → unknown_authorship |
+| NIT: 출처 없는 과학 지적 | 과학 지적은 근거가 있어야 한다. 없으면 `no_source`로 버린다(문체 지적은 근거 없이 가능) | 과학 null → 버림, 문체 null → 저장 |
+| NIT: 이전 글의 검토가 그대로 보임 | `reviewView`가 지금 head의 block hash와 비교해 `outdated`를 붙인다. 화면은 경고를 띄우고 채택·기각·고쳐 쓰기 버튼을 숨긴다(고쳐 쓰기는 서버도 409) | 고친 뒤 outdated true |
+| NIT: 다른 고쳐 쓰기에 쓴 key 재사용 시 메시지가 틀림 | `enqueueJob`이 기존 job을 돌려주면(`created: false`) `idempotency_key` CONFLICT로 알린다 | 두 검토, 같은 key → 두 번째 409, field idempotency_key |
+| NIT: 위치는 `blockText` 기준(atom은 공백) | 화면은 위치로 편집기 글을 강조하지 않고 저장된 문구만 보여 준다. 위치는 그 글 기준이다(시험: start/end가 문구와 맞음) | 기존 시험 |
+
+- RED(`red-review.log`): 5119f09 구현으로 새 시험 3개가 실패한다.
+- GREEN: 통합 12, 브라우저 1.
+- mutation(`mutation.log` 하단): 6종 모두 탐지.
+- 회귀: `pnpm test` exit 0 — unit 344, integration 451, contracts 17, 브라우저 93 (`pnpm-test-review.log`).

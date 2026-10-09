@@ -63,6 +63,7 @@ User decision / reviewer:
   - 리뷰 반영: `packages/search/src/retrieval/index.ts` `LOCAL` gate 모드(전송 허가를 보지 않는 로컬 검사용; PW-037 module)
 - PW-044
   - 새 도메인 폴더 `packages/domain/src/scientific-review/**`(요청·보기·결정·한 번의 고쳐 쓰기), `packages/domain/src/writer/index.ts` `paragraphHash`
+  - migration `pw_044_0002_review_authorship.sql`(리뷰 MINOR: unknown_authorship)
   - 새 route 폴더 `apps/api/src/scientific-review/**`, `apps/api/src/server.ts`, `apps/worker/src/main.ts`(`review` handler, MOCK 검토자), `tests/e2e/manual-paper/harness.ts`
   - `apps/worker/src/writer/index.ts`(MOCK writer가 지시의 채택된 대안을 적용)
   - `apps/web/src/features/paper/ManuscriptTab.tsx`(검토 panel), `apps/web/src/features/writer/WriterPanel.tsx`(`refreshKey`)

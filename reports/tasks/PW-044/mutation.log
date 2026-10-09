@@ -18,3 +18,11 @@ KILLED repair without a plan
 KILLED failed repair not returned to the user
 KILLED repair instruction drops the findings
 KILLED repair unbounded (pre-check removed and conflict mapping removed)
+
+# review fixes (5119f09 review: MINOR, NITs)
+KILLED selection edits ignored
+KILLED unknown generator treated as human
+KILLED same model not preferred
+KILLED scientific finding without source kept
+KILLED outdated never set
+KILLED reused key misreported

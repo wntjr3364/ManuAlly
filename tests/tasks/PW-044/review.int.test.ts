@@ -239,3 +239,57 @@ describe('TST-044B: no score, no blacklist, labelled self-review, one repair', (
     expect(real.seen).toHaveLength(0);
   });
 });
+
+describe('review fixes (5119f09)', () => {
+  // an applied selection proposal (PW-017) on P1 with the given origin
+  async function selectionEdit(w: W, origin: string) {
+    const { snapshotSelection, parseDocument } = await import('../../../packages/editor-core/src/index.ts');
+    const { createProposal, applyProposal } = await import('../../../packages/domain/src/proposals/index.ts');
+    const content = { type: 'doc', content: [{ type: 'paragraph', attrs: { id: P1 }, content: [{ type: 'text', text: TEXT }] }] };
+    const from = TEXT.indexOf('causes');
+    const selection = await snapshotSelection(parseDocument(content, 1), { blockId: P1, from, to: from + 'causes'.length });
+    const h = (await call('alice', 'POST', `/api/papers/${w.paperId}/documents/${w.documentId}/selection-handles`, { base_revision_id: w.head, selection })).json();
+    const p = await createProposal(pool, { paperId: w.paperId, handleId: h.id, intent: 'grammar', replacement: [{ type: 'text', text: 'contributes to' }], origin });
+    const applied = await applyProposal(pool, { paperId: w.paperId, proposalId: p.id, ownerId: w.owner, proposalHash: p.proposal_hash, expectedRevisionId: w.head, idempotencyKey: randomUUID().replaceAll('-', '') });
+    return applied.revision.id as string;
+  }
+  test('MINOR: AI edits through selection proposals count for authorship; unknown generators are not "human_written"', async () => {
+    const same = await world();
+    expect((await review(same, createMockReviewer(), await selectionEdit(same, 'worker:provider.mock'))).run!.independence).toBe('same_model');
+    const other = await world();
+    expect((await review(other, createMockReviewer(), await selectionEdit(other, 'worker:tool-gateway:codex'))).run!.independence).toBe('different_model');
+    const unknown = await world();
+    expect((await review(unknown, createMockReviewer(), await selectionEdit(unknown, 'worker:legacy-import'))).run!.independence).toBe('unknown_authorship');
+  });
+
+  test('NIT: a scientific finding must rest on a record; a writing finding may not', async () => {
+    const w = await world();
+    const { run } = await review(w, spy((i) => ({ findings: [
+      { ...overclaim(i), source: null },
+      { ...overclaim(i), kind: 'writing', category: 'concision', source: null },
+    ] })));
+    expect(run!.dropped.map((d) => d.reason)).toEqual(['no_source']);
+    expect(run!.findings.map((f) => f.kind)).toEqual(['writing']);
+  });
+
+  test('NIT: a run on an older version of the paragraph is marked outdated; a reused key for another repair says so', async () => {
+    const w = await world();
+    const { run } = await review(w, spy((i) => ({ findings: [overclaim(i)] })));
+    expect((run as Run & { outdated: boolean }).outdated).toBe(false);
+    const content = { type: 'doc', content: [{ type: 'paragraph', attrs: { id: P1 }, content: [{ type: 'text', text: `${TEXT} More.` }] }] };
+    await call('alice', 'POST', `/api/papers/${w.paperId}/documents/${w.documentId}/saves`, { expected_head_revision_id: w.head, content_json: content, schema_version: 1, reason: 'manual' });
+    const after = ((await call('alice', 'GET', `/api/papers/${w.paperId}/reviews?document_id=${w.documentId}&block_id=${P1}`)).json() as (Run & { outdated: boolean })[])[0]!;
+    expect(after.outdated).toBe(true);
+    // two reviews of the current text; one key used for the first one's repair cannot start the second's
+    const w2 = await world();
+    const a = (await review(w2, spy((i) => ({ findings: [overclaim(i)] })))).run!;
+    const b = (await review(w2, spy((i) => ({ findings: [overclaim(i)] })))).run!;
+    await decide(w2, a.findings[0]!, 'accepted');
+    await decide(w2, b.findings[0]!, 'accepted');
+    const key = randomUUID();
+    expect((await call('alice', 'POST', `/api/papers/${w2.paperId}/reviews/${a.id}/repair`, { intent: 'repair_paragraph', idempotency_key: key })).statusCode).toBe(201);
+    const reused = await call('alice', 'POST', `/api/papers/${w2.paperId}/reviews/${b.id}/repair`, { intent: 'repair_paragraph', idempotency_key: key });
+    expect(reused.statusCode).toBe(409);
+    expect(reused.json().field).toBe('idempotency_key');
+  });
+});

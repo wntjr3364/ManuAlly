@@ -984,7 +984,7 @@
       "id": "PW-030",
       "phase": "P03",
       "title": "실제 provider 통합 gate",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-029"
       ],

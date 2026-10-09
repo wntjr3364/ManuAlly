@@ -28,7 +28,7 @@ PW-026,P03,Isolated runner·입출력 mount,in_review,PW-025,REQ-026,"TST-026A,T
 PW-027,P03,Typed tool gateway·scope,in_review,PW-026,REQ-027,"TST-027A,TST-027B",apps/api/src/agent-tools/**;packages/domain/src/tool-policy/**;tests/tasks/PW-027/**;reports/tasks/PW-027/**;db/migrations/pw_027_*
 PW-028,P03,Interrupt·취소·재연결,in_review,PW-027,REQ-028,"TST-028A,TST-028B",apps/worker/src/lifecycle/**;apps/web/src/features/runs/**;tests/tasks/PW-028/**;reports/tasks/PW-028/**;db/migrations/pw_028_*
 PW-029,P03,Usage·quota 관측 기본,in_review,PW-028,REQ-029,"TST-029A,TST-029B",packages/domain/src/usage/**;apps/web/src/features/usage/**;tests/tasks/PW-029/**;reports/tasks/PW-029/**;db/migrations/pw_029_*
-PW-030,P03,실제 provider 통합 gate,planned,PW-029,REQ-030,"TST-030A,TST-030B",tests/integration/providers/**;reports/p03/**;tests/tasks/PW-030/**;reports/tasks/PW-030/**;db/migrations/pw_030_*
+PW-030,P03,실제 provider 통합 gate,in_review,PW-029,REQ-030,"TST-030A,TST-030B",tests/integration/providers/**;reports/p03/**;tests/tasks/PW-030/**;reports/tasks/PW-030/**;db/migrations/pw_030_*
 PW-031,P04,서지 검색 adapter,planned,PW-030,REQ-031,"TST-031A,TST-031B",packages/search/src/bibliographic/**;tests/tasks/PW-031/**;reports/tasks/PW-031/**;db/migrations/pw_031_*
 PW-032,P04,서지 정규화·출판본 관계,planned,PW-031,REQ-032,"TST-032A,TST-032B",packages/domain/src/literature/**;tests/tasks/PW-032/**;reports/tasks/PW-032/**;db/migrations/pw_032_*
 PW-033,P04,AI 문헌 후보 선정,planned,PW-032,REQ-033,"TST-033A,TST-033B",apps/worker/src/curation/**;apps/web/src/features/curation/**;tests/tasks/PW-033/**;reports/tasks/PW-033/**;db/migrations/pw_033_*

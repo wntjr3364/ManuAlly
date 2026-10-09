@@ -15,7 +15,8 @@ import { INTENTS, MAX_INSTRUCTION, buildSelectionRequest, describeQuote, freezeS
 import { frozenRange, setFrozenRange } from './frozen-highlight.ts';
 
 type BlockTarget = Extract<SelectionTarget, { kind: 'block' }>;
-interface Frozen { intent: Intent; target: BlockTarget; selection: SelectionSnapshot; baseRevisionId: string }
+type Mode = Intent | 'comment';
+interface Frozen { intent: Mode; target: BlockTarget; selection: SelectionSnapshot; baseRevisionId: string }
 
 export interface SelectionChatProps {
   editor: Editor | null;
@@ -26,12 +27,14 @@ export interface SelectionChatProps {
   outlineApproved: boolean;
   // sends the request (e.g. stores the selection handle on the server); the text is shown with it
   onRequest?: (req: SelectionRequest) => Promise<string>;
+  // starts a comment thread on the frozen selection (PW-018); resolves to an error text or ''
+  onComment?: (target: { document_id: string; base_revision_id: string; selection: SelectionSnapshot }, body: string) => Promise<string>;
 }
 
 const blockLabel = (t: BlockTarget) => `${t.blockType === 'heading' ? '제목' : '문단'} ${t.blockIndex + 1}`;
 const excerpt = (q: string) => (q.length > 80 ? `${q.slice(0, 77)}…` : q);
 
-export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, outlineApproved, onRequest }: SelectionChatProps) {
+export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, outlineApproved, onRequest, onComment }: SelectionChatProps) {
   const [target, setTarget] = useState<SelectionTarget>({ kind: 'none' });
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [frozen, setFrozen] = useState<Frozen | null>(null);
@@ -79,7 +82,7 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
     return () => dom.removeEventListener('keydown', onKey);
   }, [editor]);
 
-  const open = useCallback(async (intent: Intent) => {
+  const open = useCallback(async (intent: Mode) => {
     if (!editor || target.kind !== 'block' || !canRequest) return;
     const t = target; // frozen now, before anything else can change
     const json = editor.getJSON();
@@ -110,6 +113,15 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
 
   const submit = () => {
     if (!frozen) return;
+    if (frozen.intent === 'comment') {
+      const body = instruction.trim();
+      if (!body) { setMessage('코멘트 내용을 입력하세요'); return; }
+      if (body.length > 10000) { setMessage('코멘트는 10000자 이하로 써 주세요'); return; }
+      const target = { document_id: documentId, base_revision_id: frozen.baseRevisionId, selection: frozen.selection };
+      close();
+      void onComment?.(target, body).then((err) => { if (err) setMessage(err); });
+      return;
+    }
     const r = buildSelectionRequest({ documentId, baseRevisionId: frozen.baseRevisionId, selection: frozen.selection }, frozen.intent, instruction);
     if (!r.ok) { setMessage(r.error); return; }
     const index = requests.length;
@@ -147,13 +159,16 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
                     onMouseDown={(e) => e.preventDefault()} onClick={() => void open(i)}>{INTENTS[i].label}</button>
                 );
               })}
+              {onComment && (
+                <button type="button" disabled={!canRequest} title={hint || undefined} onMouseDown={(e) => e.preventDefault()} onClick={() => void open('comment')}>코멘트</button>
+              )}
               {hint && <span className="hint">{hint}</span>}
             </>
           )}
         </div>
       )}
       {frozen && (
-        <div role="dialog" aria-label={`${INTENTS[frozen.intent].label} 요청`} className="selection-popup card" data-testid="selection-popup">
+        <div role="dialog" aria-label={frozen.intent === 'comment' ? '코멘트' : `${INTENTS[frozen.intent].label} 요청`} className="selection-popup card" data-testid="selection-popup">
           <p className="hint" data-testid="selection-scope">
             {(() => {
               const q = describeQuote(frozen.target.quote, frozen.selection.atoms); // the target quote keeps a placeholder per atom
@@ -161,13 +176,15 @@ export function SelectionChat({ editor, documentId, baseRevisionId, canRequest, 
             })()}
           </p>
           <p className="hint">
-            {INTENTS[frozen.intent].edits
-              ? '이 선택 범위만 바꾸는 제안을 만듭니다. 원고는 diff를 확인하고 적용할 때만 바뀝니다.'
-              : '질문에 답만 합니다. 원고는 바뀌지 않습니다.'}
+            {frozen.intent === 'comment'
+              ? '이 선택에 코멘트를 남깁니다. 원고는 바뀌지 않습니다.'
+              : INTENTS[frozen.intent].edits
+                ? '이 선택 범위만 바꾸는 제안을 만듭니다. 원고는 diff를 확인하고 적용할 때만 바뀝니다.'
+                : '질문에 답만 합니다. 원고는 바뀌지 않습니다.'}
           </p>
           <label>
-            {frozen.intent === 'ask' ? '질문' : '지시(선택)'}
-            <textarea ref={inputRef} value={instruction} maxLength={MAX_INSTRUCTION} rows={3} onChange={(e) => setInstruction(e.target.value)} onKeyDown={onInputKey} />
+            {frozen.intent === 'comment' ? '코멘트' : frozen.intent === 'ask' ? '질문' : '지시(선택)'}
+            <textarea ref={inputRef} value={instruction} maxLength={frozen.intent === 'comment' ? 10000 : MAX_INSTRUCTION} rows={3} onChange={(e) => setInstruction(e.target.value)} onKeyDown={onInputKey} />
           </label>
           {message && <p role="alert" className="error">{message}</p>}
           <div className="toolbar">

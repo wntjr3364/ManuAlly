@@ -70,4 +70,10 @@ User decision / reviewer:
   - `apps/web/src/editor/autosave.ts`: `adopt()`(화면이 서버의 새 head와 같을 때만)
   - `apps/web/src/features/selection-chat/SelectionChat.tsx`: `onRequest` 결과 표시
   - `apps/web/src/app/styles.css`: diff 표시
+- PW-018
+  - `apps/api/src/comments/**`(새 route 폴더; Task 범위에 API 경로가 없음)과 `apps/api/src/server.ts` 등록
+  - `apps/web/src/editor/ManuscriptEditor.tsx`: 코멘트 패널, 강조 extension, 코멘트 보내기·다시 연결용 선택 고정, 개발용 `moveBlock`
+  - `apps/web/src/features/selection-chat/SelectionChat.tsx`: "코멘트" 동작
+  - `packages/domain/src/proposals/index.ts`: `verifySelection` 공용화
+  - `apps/web/src/app/styles.css`
 

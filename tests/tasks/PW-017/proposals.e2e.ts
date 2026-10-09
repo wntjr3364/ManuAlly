@@ -153,3 +153,22 @@ test('rejecting a proposal keeps the text and removes it from the list', async (
   await expect(editor(page).locator('p').first()).toHaveText('It was very very clear at 2.4-fold.');
   expect((await h.pool.query('SELECT status FROM edit_proposals WHERE id = $1', [p.id])).rows[0].status).toBe('REJECTED');
 });
+
+test('re-review MINOR: a retry refused with 401 after a lost answer still finds out that it was applied', async ({ page }) => {
+  const s = await prepare(page, 'Expired retry paper', 'very very clear');
+  await propose(s, 'clear');
+  await panel(page).getByRole('button', { name: '새로고침' }).click();
+  let calls = 0;
+  await page.route('**/apply', async (route) => {
+    calls += 1;
+    if (calls === 1) { await route.fetch(); await route.abort('failed'); return; } // applied, answer lost
+    await route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"unauthenticated"}' }); // the retry is refused
+  });
+  await panel(page).getByRole('button', { name: '적용' }).click();
+  await expect(status(page)).toHaveText('수정 제안 적용 확인 중 — 편집 잠김');
+  await panel(page).getByRole('button', { name: '다시 시도' }).click();
+  // the proposal is read: it was applied and is the head, so its result is put on screen
+  await expect(editor(page).locator('p').first()).toHaveText('It was clear at 2.4-fold.');
+  await expect(status(page)).toHaveText('저장됨');
+  await expect(editor(page)).toHaveAttribute('contenteditable', 'true');
+});

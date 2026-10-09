@@ -1,0 +1,36 @@
+
+Running 1 test using 1 worker
+
+[1/1] tests/tasks/PW-017/proposals.e2e.ts:157:1 › re-review MINOR: a retry refused with 401 after a lost answer still finds out that it was applied
+  1) tests/tasks/PW-017/proposals.e2e.ts:157:1 › re-review MINOR: a retry refused with 401 after a lost answer still finds out that it was applied 
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator:  getByTestId('editor').locator('.ProseMirror').locator('p').first()
+    Expected: "It was clear at 2.4-fold."
+    Received: "It was very very clear at 2.4-fold."
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveText" getByTestId('editor').locator('.ProseMirror').locator('p').first() with timeout 5000ms
+      - waiting for getByTestId('editor').locator('.ProseMirror').locator('p').first()
+        14 × locator resolved to <p data-block-id="6989389f-e147-455b-8a16-64e8be24494e">It was very very clear at 2.4-fold.</p>
+           - unexpected value "It was very very clear at 2.4-fold."
+
+
+      169 |   await panel(page).getByRole('button', { name: '다시 시도' }).click();
+      170 |   // the proposal is read: it was applied and is the head, so its result is put on screen
+    > 171 |   await expect(editor(page).locator('p').first()).toHaveText('It was clear at 2.4-fold.');
+          |                                                   ^
+      172 |   await expect(status(page)).toHaveText('저장됨');
+      173 |   await expect(editor(page)).toHaveAttribute('contenteditable', 'true');
+      174 | });
+        at /home/user/ManuAlly/tests/tasks/PW-017/proposals.e2e.ts:171:51
+
+    Error Context: packages/config/test-results/tasks-PW-017-proposals.e2e-6029a-nds-out-that-it-was-applied/error-context.md
+
+    Error Context: packages/config/test-results/tasks-PW-017-proposals.e2e-6029a-nds-out-that-it-was-applied/error-context.md
+
+
+  1 failed
+    tests/tasks/PW-017/proposals.e2e.ts:157:1 › re-review MINOR: a retry refused with 401 after a lost answer still finds out that it was applied 

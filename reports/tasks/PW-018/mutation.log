@@ -1,0 +1,8 @@
+killed: ambiguous candidates: take the first [1 failed]
+killed: ambiguous candidates: take the first (browser) [1 failed]
+killed: search other blocks when the block is gone [1 failed]
+killed: surroundings ignored [3 failed]
+killed: changed text stays attached at the old place [2 failed]
+killed: resolved comments highlighted [1 failed]
+killed: thread fields other than state may change [1 failed]
+control (expected to survive): same call

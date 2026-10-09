@@ -26,6 +26,11 @@ import { SelectionChat } from '../features/selection-chat/SelectionChat.tsx';
 import { FrozenSelection } from '../features/selection-chat/frozen-highlight.ts';
 import type { SelectionRequest } from '../features/selection-chat/request.ts';
 import { ProposalPanel, type AppliedRevision } from '../features/diff/ProposalPanel.tsx';
+import { CommentsPanel } from '../features/comments/CommentsPanel.tsx';
+import { CommentHighlights } from '../features/comments/comment-highlights.ts';
+import { selectionTarget } from '../features/selection-chat/target.ts';
+import { freezeSelection } from '../features/selection-chat/request.ts';
+import type { SelectionSnapshot } from '@pw/editor-core';
 
 export interface Revision { id: string; content_json: JSONContent; schema_version: number }
 export interface DocInfo { document: { id: string; kind: string; head_revision_id: string }; head: Revision }
@@ -46,7 +51,7 @@ function findOffers(info: DocInfo, tabId: string, openTabs: Set<string> | null):
   });
 }
 
-const extensions = [...editorExtensions, FrozenSelection];
+const extensions = [...editorExtensions, FrozenSelection, CommentHighlights];
 
 export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { paperId: string; info: DocInfo; outlineApproved?: boolean }) {
   const [save, dispatch] = useReducer(saveReducer, info.head.id, initialSaveState);
@@ -110,6 +115,7 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
   // an apply request is in flight: no typing until its result is on screen
   const [applying, setApplying] = useState(false);
   const [proposalRefresh, setProposalRefresh] = useState(0);
+  const [commentRefresh, setCommentRefresh] = useState(0);
   const locked = tabId === null || applying || offers.some((d) => d.tabId === tabId);
   useEffect(() => { editor?.setEditable(!locked); }, [editor, locked]);
 
@@ -264,6 +270,16 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
         if (found) editor.chain().focus().setTextSelection(found).run();
         return found;
       },
+      // moves block i after block j, as drag and drop does (the block keeps its attributes)
+      moveBlock: (i: number, j: number) => {
+        const starts: number[] = [];
+        editor.state.doc.forEach((_n, offset) => starts.push(offset));
+        const node = editor.state.doc.child(i);
+        const tr = editor.state.tr.delete(starts[i]!, starts[i]! + node.nodeSize);
+        const target = editor.state.doc.child(j);
+        tr.insert(tr.mapping.map(starts[j]! + target.nodeSize), node);
+        editor.view.dispatch(tr);
+      },
     };
   }, [editor]);
 
@@ -317,6 +333,27 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
     }
   };
 
+  const sendComment = async (target: { base_revision_id: string; selection: SelectionSnapshot }, body: string): Promise<string> => {
+    try {
+      await api('POST', `/api/papers/${paperId}/documents/${info.document.id}/comments`, { base_revision_id: target.base_revision_id, selection: target.selection, body });
+      setCommentRefresh((n) => n + 1);
+      return '';
+    } catch (e) {
+      return `코멘트를 남기지 못했습니다: ${e instanceof ApiError ? (e.body?.message ?? `서버 응답 ${e.status}`) : '네트워크 오류'}`;
+    }
+  };
+  // the current editor selection frozen against the stored head (for attaching a comment again)
+  const currentSelection = async (): Promise<{ base_revision_id: string; selection: unknown } | { error: string }> => {
+    if (!editor || save.status !== 'saved' || locked) return { error: '저장된 뒤 다시 연결할 수 있습니다' };
+    const t = selectionTarget(editor.state.doc, editor.state.selection.from, editor.state.selection.to);
+    if (t.kind !== 'block') return { error: t.kind === 'multi' ? '한 문단 안에서 선택하세요' : '먼저 연결할 문장을 선택하세요' };
+    try {
+      return { base_revision_id: save.headRevisionId, selection: await freezeSelection(editor.getJSON(), t) };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) };
+    }
+  };
+
   if (contentError) return <ReadOnlyDocument content={info.head.content_json} reason={`편집기가 읽을 수 없는 내용(${contentError})`} />;
   // a mouse click on a formatting button leaves focus and selection in the text, so the next key
   // goes to the editor (not to the button, where Space would press it again); keyboard users can
@@ -349,10 +386,10 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
         {mark('superscript', '위첨자')}
         <button type="button" disabled={locked} onMouseDown={keepFocus} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>제목</button>
         <button type="button" className="primary" onClick={saveNow} disabled={save.status === 'saving' || locked}>저장</button>
-        <span role="status" data-testid="save-status" className={`save-status ${unsaved ? 'unsaved' : 'saved'}`}>{saveLabel(save)}</span>
+        <span role="status" data-testid="save-status" className={`save-status ${unsaved || applying ? 'unsaved' : 'saved'}`}>{applying ? '수정 제안 적용 확인 중 — 편집 잠김' : saveLabel(save)}</span>
       </div>
       {problems.length > 0 && <ul role="alert" className="error">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
-      <SelectionChat editor={editor} documentId={info.document.id} baseRevisionId={save.headRevisionId} canRequest={save.status === 'saved' && !locked} outlineApproved={outlineApproved} onRequest={sendSelection} />
+      <SelectionChat editor={editor} documentId={info.document.id} baseRevisionId={save.headRevisionId} canRequest={save.status === 'saved' && !locked} outlineApproved={outlineApproved} onRequest={sendSelection} onComment={sendComment} />
       <div className="editor" data-testid="editor"><EditorContent editor={editor} /></div>
       {endedHere && <p role="alert" className="hint" data-testid="recovery-ended">다른 탭에서 로그아웃되어 이 화면에서는 저장되지 않은 변경을 임시 보관하지 않습니다. 새로고침하거나 다시 로그인하면 다시 켜집니다.</p>}
       {owner && storage && storageOk && !endedHere && (
@@ -365,6 +402,8 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false }: { p
       )}
       <ProposalPanel paperId={paperId} documentId={info.document.id} headRevisionId={save.headRevisionId} canApply={save.status === 'saved' && !locked}
         onApplying={setApplying} onApplied={adoptApplied} refreshKey={proposalRefresh} />
+      <CommentsPanel paperId={paperId} documentId={info.document.id} editor={editor} headRevisionId={save.headRevisionId}
+        screenIsHead={save.status === 'saved'} refreshKey={commentRefresh} currentSelection={currentSelection} />
       {owner && !storageOk && <p role="alert" className="hint" data-testid="recovery-unavailable">이 브라우저가 사이트 저장소를 막아 저장되지 않은 변경을 임시 보관할 수 없습니다. 저장 상태를 확인하세요.</p>}
     </section>
   );

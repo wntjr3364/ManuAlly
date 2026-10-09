@@ -593,7 +593,7 @@
       "id": "PW-018",
       "phase": "P02",
       "title": "Highlight·Comment anchor",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-017"
       ],

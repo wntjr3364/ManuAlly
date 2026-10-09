@@ -75,7 +75,10 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
       }
       await load();
     } catch (e) {
-      if (e instanceof ApiError && e.status < 500) {
+      if (e instanceof ApiError && e.status < 500 && unknown === p.id) {
+        // a retry was refused, but the first attempt's outcome is still unknown: ask the proposal itself
+        resolved = await settleUnknown(d, e);
+      } else if (e instanceof ApiError && e.status < 500) {
         // refused: nothing was applied
         keys.current.delete(p.id);
         setUnknown(null);
@@ -93,6 +96,32 @@ export function ProposalPanel({ paperId, documentId, headRevisionId, canApply, o
       if (resolved) onApplying(false);
     }
   };
+  // After an unknown outcome and a refused retry (e.g. 401 after the login expired): read the proposal.
+  // Applied and still the head → put that result on screen; not applied → unlock; unreadable → stay locked.
+  const settleUnknown = async (d: Detail, refusal: ApiError): Promise<boolean> => {
+    const p = d.proposal;
+    try {
+      const now = (await api<Detail>('GET', `/api/papers/${paperId}/proposals/${p.id}`)).proposal as ProposalView & { applied_revision_id?: string | null };
+      if (now.status === 'APPLIED' && now.applied_revision_id) {
+        const doc = await api<{ head: AppliedRevision }>('GET', `/api/papers/${paperId}/documents/${documentId}`);
+        if (doc.head.id !== now.applied_revision_id || !onApplied(doc.head, d.after_block!)) {
+          setError('적용은 저장되었지만 그 뒤 원고가 바뀌었습니다 — 페이지를 새로 불러오세요');
+          return false;
+        }
+        setError('');
+      } else {
+        setError(`적용되지 않았습니다 (${p.status === now.status ? errorText(refusal) : now.status})`);
+      }
+      keys.current.delete(p.id);
+      setUnknown(null);
+      await load();
+      return true;
+    } catch {
+      setError('적용되었는지 아직 알 수 없습니다. 다시 로그인한 뒤 다시 시도하세요. 확인될 때까지 편집을 잠급니다.');
+      return false;
+    }
+  };
+
   const reject = async (d: Detail) => {
     try {
       await api('POST', `/api/papers/${paperId}/proposals/${d.proposal.id}/reject`);

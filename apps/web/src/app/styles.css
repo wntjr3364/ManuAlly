@@ -34,3 +34,6 @@ ul.plain li { padding: 8px 0; border-bottom: 1px solid #eef1f5; display: flex; g
 .proposal { border-top: 1px solid #e3e6ea; padding-top: 8px; margin-top: 8px; }
 .diff del { background: #fde2e1; color: #8a1c17; }
 .diff ins { background: #dcf5e3; color: #11602b; text-decoration: none; }
+.comment-highlight { background: #fff3b0; border-bottom: 2px solid #e0b400; }
+.comment { border-top: 1px solid #e3e6ea; padding-top: 8px; margin-top: 8px; }
+.comment-message { margin: 4px 0; white-space: pre-wrap; }

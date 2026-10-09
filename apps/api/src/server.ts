@@ -9,6 +9,7 @@ import { registerEvidenceRoutes } from './routes/evidence/index.ts';
 import { registerJobRoutes } from './routes/jobs/index.ts';
 import { registerDocumentSaveRoutes } from './documents/index.ts';
 import { registerProposalRoutes } from './proposals/index.ts';
+import { registerCommentRoutes } from './comments/index.ts';
 import { selectProvider } from '@pw/providers';
 
 declare module 'fastify' {
@@ -90,5 +91,6 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerJobRoutes(app, db);
   registerDocumentSaveRoutes(app, db);
   registerProposalRoutes(app, db);
+  registerCommentRoutes(app, db);
   return app;
 }

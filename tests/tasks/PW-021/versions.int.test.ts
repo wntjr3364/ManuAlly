@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import path from 'node:path';
 import pg from 'pg';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { createTempDatabase } from '../../../packages/config/src/test-db.ts';
 import { migrate } from '../../../apps/api/src/db/migrate.ts';
@@ -210,5 +210,26 @@ describe('TST-021B: imports preview first and never replace the manuscript unann
     const big = await call('POST', `/api/papers/${p}/imports`, { format: 'text', text: 'x'.repeat(900_000) + '\n\n' + 'y'.repeat(200_000) });
     expect([413, 422]).toContain(big.statusCode);
     expect((await pool.query('SELECT count(*)::int AS n FROM import_sources WHERE paper_id = $1', [p])).rows[0].n).toBe(0);
+  });
+});
+
+describe('review MINOR-2: the file is kept as received bytes, and must be UTF-8', () => {
+  test('bytes are stored and hashed; a non-UTF-8 file is refused', async () => {
+    const p = await paper();
+    const md = Buffer.from('# 결과\n\n세포가 2.4배 늘었다.', 'utf8');
+    const r = await call('POST', `/api/papers/${p}/imports`, { format: 'markdown', filename: 'k.md', content_base64: md.toString('base64') });
+    expect(r.statusCode, r.body).toBe(201);
+    expect(r.json()).toMatchObject({ byte_size: md.length, source_sha256: createHash('sha256').update(md).digest('hex') });
+    const row = (await pool.query('SELECT source_bytes, source_text FROM import_sources WHERE id = $1', [r.json().id])).rows[0];
+    expect(Buffer.compare(row.source_bytes, md)).toBe(0);
+    expect(row.source_text).toBe(md.toString('utf8'));
+    // "결과" in EUC-KR
+    const euc = Buffer.from([0xb0, 0xe1, 0xb0, 0xfa, 0x0a]);
+    const bad = await call('POST', `/api/papers/${p}/imports`, { format: 'text', filename: 'k.txt', content_base64: euc.toString('base64') });
+    expect(bad.statusCode).toBe(422);
+    expect(bad.json().reason).toBe('NOT_UTF8');
+    // a file near the size limit is accepted by the route (base64 is larger than the file)
+    const big = Buffer.from('x'.repeat(800_000));
+    expect((await call('POST', `/api/papers/${p}/imports`, { format: 'text', content_base64: big.toString('base64') })).statusCode).toBe(201);
   });
 });

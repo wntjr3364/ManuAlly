@@ -84,3 +84,35 @@ describe('Markdown', () => {
     expect(texts(r)).toEqual(['2 * 3 = 6 and a_b']);
   });
 });
+
+describe('review fixes', () => {
+  test('MAJOR: tilde ranges between numbers stay literal (no subscript, nothing lost)', () => {
+    for (const s of ['농도는 10~20%(n=3~5)였다.', '1~2~3', 'pH 6~7 and 8~9']) {
+      const r = parseImport(s, 'markdown');
+      expect(texts(r)).toEqual([s]);
+      expect(blocks(r)[0]!.content!.every((c) => !c.marks)).toBe(true);
+      expect(r.report.losses).toEqual([]);
+    }
+    const r = parseImport('H~2~O and Ca~2+~ and 10^5^ cells', 'markdown');
+    const p = blocks(r)[0]!.content!;
+    expect(p.filter((c) => c.marks?.some((m) => m.type === 'subscript')).map((c) => c.text)).toEqual(['2', '2+']);
+    expect(p.filter((c) => c.marks?.some((m) => m.type === 'superscript')).map((c) => c.text)).toEqual(['5']);
+  });
+  test('MINOR-1: a footnote definition is kept as text, its marker as [n]', () => {
+    const r = parseImport('Text.[^1]\n\n[^1]: The dose was 5 mg/kg in all mice.', 'markdown');
+    expect(texts(r)).toEqual(['Text.[1]', '[1] The dose was 5 mg/kg in all mice.']);
+    expect(loss(r, 'footnote')!.count).toBe(2);
+  });
+  test('MINOR-2: broken characters (U+FFFD) are reported', () => {
+    const r = parseImport('Caf� data', 'text');
+    expect(loss(r, 'replacement_characters')).toMatchObject({ count: 1, examples: ['line 1'] });
+  });
+  test('nits: nested emphasis, backslash escapes, years are not list numbers', () => {
+    const r = parseImport('**bold *nested* text** and \\*not italic\\* and 2\\~3\n\n2020. The study began.', 'markdown');
+    const p = blocks(r)[0]!.content!;
+    expect(texts(r)[0]).toBe('bold nested text and *not italic* and 2~3');
+    expect(p.find((c) => c.text === 'nested')!.marks!.map((m) => m.type).sort()).toEqual(['bold', 'italic']);
+    expect(texts(r)[1]).toBe('2020. The study began.');
+    expect(loss(r, 'list')).toBeUndefined();
+  });
+});

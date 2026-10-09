@@ -21,17 +21,34 @@ export interface ImportView {
 const VIEW = `i.id, i.format, i.filename, i.byte_size, i.source_sha256, i.parser_version, i.preview_json AS preview, i.report_json AS report, i.created_at,
   CASE WHEN a.import_id IS NULL THEN NULL ELSE jsonb_build_object('document_id', a.document_id, 'revision_id', a.revision_id, 'mode', a.mode, 'created_at', a.created_at) END AS applied`;
 
-export async function createImport(pool: TxPool, a: { paperId: string; ownerId: string; format: unknown; filename: unknown; text: unknown }): Promise<ImportView> {
+// The file is sent as bytes (content_base64) or, for pasted text, as text. Bytes must be UTF-8: a file in
+// another encoding (e.g. EUC-KR) is refused instead of being stored with broken characters.
+export async function createImport(pool: TxPool, a: { paperId: string; ownerId: string; format: unknown; filename: unknown; text?: unknown; contentBase64?: unknown }): Promise<ImportView> {
   if (!IMPORT_FORMATS.includes(a.format as ImportFormat)) throw new DomainError('INVALID', `format must be one of ${IMPORT_FORMATS.join(', ')} (DOCX import comes later)`, 'format');
   const filename = a.filename ?? null;
   if (filename !== null && (typeof filename !== 'string' || !filename.trim() || filename.length > 255 || !storable(filename))) throw new DomainError('INVALID', 'filename must be 1–255 characters', 'filename');
-  if (typeof a.text !== 'string') throw new DomainError('INVALID', 'text must be the file content as text', 'text');
-  if (!storable(a.text)) throw new DomainError('INVALID', 'the file contains a NUL character or invalid UTF-16; save it as UTF-8 text', 'text');
-  const bytes = Buffer.byteLength(a.text);
-  if (bytes > MAX_IMPORT_BYTES) throw new DomainError('INVALID', `the file is larger than ${MAX_IMPORT_BYTES} bytes`, 'text');
+  let raw: Buffer;
+  let text: string;
+  if (a.contentBase64 !== undefined && a.contentBase64 !== null) {
+    if (typeof a.contentBase64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(a.contentBase64)) throw new DomainError('INVALID', 'content_base64 must be base64', 'content_base64');
+    raw = Buffer.from(a.contentBase64, 'base64');
+    if (raw.length > MAX_IMPORT_BYTES) throw new DomainError('INVALID', `the file is larger than ${MAX_IMPORT_BYTES} bytes`, 'content_base64');
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(raw);
+    } catch {
+      throw new DomainError('INVALID', 'the file is not UTF-8 text (e.g. EUC-KR/CP949); save it as UTF-8 and import again', 'content_base64', { details: { reason: 'NOT_UTF8' } });
+    }
+  } else {
+    if (typeof a.text !== 'string') throw new DomainError('INVALID', 'send the file as content_base64 or the pasted text as text', 'text');
+    text = a.text;
+    raw = Buffer.from(text, 'utf8');
+    if (raw.length > MAX_IMPORT_BYTES) throw new DomainError('INVALID', `the text is larger than ${MAX_IMPORT_BYTES} bytes`, 'text');
+  }
+  if (!storable(text)) throw new DomainError('INVALID', 'the file contains a NUL character or invalid UTF-16; save it as UTF-8 text', 'text');
+  const bytes = raw.length;
   let parsed;
   try {
-    parsed = parseImport(a.text, a.format as ImportFormat);
+    parsed = parseImport(text, a.format as ImportFormat);
   } catch (e) {
     if (e instanceof ImportError) throw new DomainError('INVALID', e.message, 'text');
     throw e;
@@ -39,9 +56,9 @@ export async function createImport(pool: TxPool, a: { paperId: string; ownerId: 
   const id = await inTransaction(pool, async (tx) => {
     await setActor(tx, `owner:${a.ownerId}`);
     const { rows } = await tx.query<{ id: string }>(
-      `INSERT INTO import_sources (paper_id, format, filename, source_text, source_sha256, byte_size, parser_version, preview_json, report_json, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-      [a.paperId, a.format, filename, a.text, createHash('sha256').update(a.text as string).digest('hex'), bytes, PARSER_VERSION, JSON.stringify(parsed.doc), JSON.stringify(parsed.report), a.ownerId],
+      `INSERT INTO import_sources (paper_id, format, filename, source_text, source_bytes, source_sha256, byte_size, parser_version, preview_json, report_json, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+      [a.paperId, a.format, filename, text, raw, createHash('sha256').update(raw).digest('hex'), bytes, PARSER_VERSION, JSON.stringify(parsed.doc), JSON.stringify(parsed.report), a.ownerId],
     );
     return rows[0]!.id;
   });
@@ -69,11 +86,11 @@ export async function applyImport(pool: TxPool, a: { paperId: string; ownerId: s
   }
   const out = await inTransaction(pool, async (tx) => {
     await setActor(tx, `owner:${a.ownerId}`);
-    // one applying transaction per paper at a time (also keeps "no manuscript yet" true until commit)
-    if (!(await tx.query('SELECT 1 FROM paper_projects WHERE id = $1 FOR UPDATE', [a.paperId])).rows[0]) throw new DomainError('NOT_FOUND', 'paper not found');
-    const imp = await getImport(tx, a.paperId, a.importId);
-    if (!imp) throw new DomainError('NOT_FOUND', 'import not found');
-    if (imp.applied) throw new DomainError('CONFLICT', 'this import was already applied', undefined, { details: { reason: 'ALREADY_APPLIED' } });
+    if (!(await getImport(tx, a.paperId, a.importId))) throw new DomainError('NOT_FOUND', 'import not found');
+    // locks: a new manuscript takes the paper row (keeps "no manuscript yet" true until commit); a
+    // replacement takes only the document row, as saves do (the paper lock after the document lock
+    // would deadlock with a snapshot, which locks documents and then the paper)
+    if (a.mode === 'new_manuscript' && !(await tx.query('SELECT 1 FROM paper_projects WHERE id = $1 FOR UPDATE', [a.paperId])).rows[0]) throw new DomainError('NOT_FOUND', 'paper not found');
     const manuscripts = (await tx.query<{ id: string }>("SELECT id FROM documents WHERE paper_id = $1 AND kind = 'manuscript' ORDER BY created_at", [a.paperId])).rows;
     let documentId: string;
     let parent: string;
@@ -87,6 +104,9 @@ export async function applyImport(pool: TxPool, a: { paperId: string; ownerId: s
       documentId = a.documentId;
       parent = await lockDocumentHead(tx, a.paperId, documentId, a.expectedHead);
     }
+    // read under the lock: applied at most once (the primary key backs this up)
+    const imp = (await getImport(tx, a.paperId, a.importId))!;
+    if (imp.applied) throw new DomainError('CONFLICT', 'this import was already applied', undefined, { details: { reason: 'ALREADY_APPLIED' } });
     const revision = await appendRevisionIn(tx, { paperId: a.paperId, documentId, parent, content: imp.preview, schemaVersion: 1, ownerId: a.ownerId, reason: 'import' });
     await tx.query('INSERT INTO import_applications (import_id, paper_id, document_id, revision_id, mode, created_by) VALUES ($1, $2, $3, $4, $5, $6)', [imp.id, a.paperId, documentId, revision.id, a.mode, a.ownerId]);
     return { revision, document_id: documentId };

@@ -17,9 +17,10 @@ export function registerImportRoutes(app: FastifyInstance, pool: TxPool): void {
   };
   const importId = (p: unknown) => (p as { importId: string }).importId;
   app.get('/api/papers/:paperId/imports', scoped, async (req) => listImports(pool, req.paper!.id));
-  app.post('/api/papers/:paperId/imports', scoped, async (req, reply) => {
+  // a file up to MAX_IMPORT_BYTES arrives base64-encoded in JSON (4/3 larger); the size rule itself is the domain's
+  app.post('/api/papers/:paperId/imports', { ...scoped, bodyLimit: 2 * 1024 * 1024 }, async (req, reply) => {
     const b = (req.body ?? {}) as Record<string, unknown>;
-    return run(reply, () => createImport(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, format: b.format, filename: b.filename, text: b.text }), 201);
+    return run(reply, () => createImport(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, format: b.format, filename: b.filename, text: b.text, contentBase64: b.content_base64 }), 201);
   });
   app.get('/api/papers/:paperId/imports/:importId', scoped, async (req, reply) =>
     (await getImport(pool, req.paper!.id, importId(req.params))) ?? reply.code(404).send({ error: 'not_found' }));

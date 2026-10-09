@@ -120,8 +120,8 @@ export function VersionsTab({ paperId, visible, editor, onHeadChanged }: { paper
                 {diff.every((c) => c.kind === 'same') && <p className="hint">두 버전의 내용이 같습니다.</p>}
                 {diff.filter((c) => c.kind !== 'same').map((c) => (
                   <p key={`${c.kind}:${c.id}`} className={`diff change-${c.kind}`} data-change={c.kind}>
-                    <span className="hint">[{CHANGE[c.kind]}]</span>{' '}
-                    {c.kind === 'changed' && c.parts ? <Diff parts={c.parts} /> : c.kind === 'removed' ? <del>{c.text}</del> : c.kind === 'added' ? <ins>{c.text}</ins> : c.text}
+                    <span className="hint">[{CHANGE[c.kind]}{c.kind === 'moved' && c.changed ? '·바뀜' : ''}]</span>{' '}
+                    {(c.kind === 'changed' || c.kind === 'moved') && c.parts ? <Diff parts={c.parts} /> : c.kind === 'removed' ? <del>{c.text}</del> : c.kind === 'added' ? <ins>{c.text}</ins> : c.text}
                   </p>
                 ))}
               </div>
@@ -172,6 +172,8 @@ function ImportPanel({ paperId, doc, canChange, act }: { paperId: string; doc: D
   const [format, setFormat] = useState<'text' | 'markdown'>('markdown');
   const [filename, setFilename] = useState<string | null>(null);
   const [text, setText] = useState('');
+  // the chosen file's bytes (base64), sent as received; cleared when the text is edited by hand
+  const [bytes, setBytes] = useState<string | null>(null);
   const [preview, setPreview] = useState<ImportView | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState('');
@@ -180,12 +182,16 @@ function ImportPanel({ paperId, doc, canChange, act }: { paperId: string; doc: D
     if (!f) return;
     setFilename(f.name);
     setFormat(/\.(md|markdown)$/i.test(f.name) ? 'markdown' : 'text');
-    setText(await f.text());
+    const buf = new Uint8Array(await f.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    setBytes(btoa(bin));
+    setText(new TextDecoder().decode(buf)); // shown only; the server decodes the bytes strictly
     setPreview(null);
   };
   const makePreview = async () => {
     try {
-      setPreview(await api<ImportView>('POST', `/api/papers/${paperId}/imports`, { format, filename, text }));
+      setPreview(await api<ImportView>('POST', `/api/papers/${paperId}/imports`, bytes ? { format, filename, content_base64: bytes } : { format, filename, text }));
       setConfirm(false);
       setError('');
     } catch (e) {
@@ -197,7 +203,7 @@ function ImportPanel({ paperId, doc, canChange, act }: { paperId: string; doc: D
     const body = doc
       ? { mode: 'replace_manuscript', document_id: doc.document.id, expected_head_revision_id: doc.head.id, confirm_replace: confirm }
       : { mode: 'new_manuscript' };
-    if (await act(() => api('POST', `/api/papers/${paperId}/imports/${preview.id}/apply`, body))) { setPreview(null); setText(''); setFilename(null); }
+    if (await act(() => api('POST', `/api/papers/${paperId}/imports/${preview.id}/apply`, body))) { setPreview(null); setText(''); setBytes(null); setFilename(null); }
   };
   return (
     <section className="card" data-testid="import">
@@ -207,7 +213,7 @@ function ImportPanel({ paperId, doc, canChange, act }: { paperId: string; doc: D
         <label className="inline">파일 <input type="file" aria-label="가져올 파일" accept=".txt,.md,.markdown,text/plain,text/markdown" onChange={(e) => void pick(e.target.files?.[0])} /></label>
         <label className="inline">형식 <select aria-label="형식" value={format} onChange={(e) => setFormat(e.target.value as 'text' | 'markdown')}><option value="markdown">Markdown</option><option value="text">텍스트</option></select></label>
       </div>
-      <label>내용(붙여넣기 가능)<textarea aria-label="가져올 내용" rows={6} value={text} onChange={(e) => { setText(e.target.value); setPreview(null); }} /></label>
+      <label>내용(붙여넣기 가능)<textarea aria-label="가져올 내용" rows={6} value={text} onChange={(e) => { setText(e.target.value); setBytes(null); setPreview(null); }} /></label>
       <button type="button" onClick={() => void makePreview()} disabled={!text.trim()}>미리 보기</button>
       {error && <p role="alert" className="error">{error}</p>}
       {preview && (

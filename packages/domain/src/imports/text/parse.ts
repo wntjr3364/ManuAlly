@@ -3,9 +3,10 @@
 // such is named with its line numbers — nothing is dropped silently. Nothing is ever interpreted as
 // markup beyond the subset below; HTML stays literal text.
 // Markdown subset: ATX headings (#…######), paragraphs, **bold**/__bold__, *italic*/_italic_,
-// H~2~O subscript, x^2^ superscript. Kept as text and reported: links (text kept), lists (bullet or
-// number kept), block quotes, code, tables, $math$, HTML, footnotes. Dropped and reported: images,
-// horizontal rules, footnote definitions.
+// H~2~O subscript, x^2^ superscript (a short run of letters/digits; a tilde between digits, as in a
+// range 10~20%, stays literal), backslash escapes. Kept as text and reported: links (text kept), lists
+// (bullet or number kept), block quotes, code, tables, $math$, HTML, footnotes (marker [1] and the
+// definition as its own paragraph). Dropped and reported: images, horizontal rules.
 import { randomUUID } from 'node:crypto';
 import { validateDocument } from '@pw/editor-core';
 
@@ -14,12 +15,13 @@ export type ImportFormat = 'text' | 'markdown';
 export const IMPORT_FORMATS: readonly ImportFormat[] = ['text', 'markdown'];
 
 export type LossKind =
-  | 'control_characters' | 'link' | 'image' | 'list' | 'blockquote' | 'code' | 'table' | 'math' | 'html' | 'footnote' | 'horizontal_rule';
+  | 'control_characters' | 'replacement_characters' | 'link' | 'image' | 'list' | 'blockquote' | 'code' | 'table' | 'math' | 'html' | 'footnote' | 'horizontal_rule';
 export interface Loss { kind: LossKind; count: number; examples: string[]; note: string }
 export interface ImportReport { format: ImportFormat; parser_version: string; blocks: number; characters: number; losses: Loss[] }
 
 const NOTE: Record<LossKind, string> = {
   control_characters: '제어 문자를 지웠습니다',
+  replacement_characters: '깨진 문자(�)가 있습니다 — 원본 파일의 인코딩(UTF-8인지)을 확인하세요',
   link: '링크 주소를 빼고 글자만 남겼습니다',
   image: '그림을 넣지 않았습니다(그림은 자료에서 따로 추가)',
   list: '목록을 기호가 붙은 문단으로 바꿨습니다',
@@ -28,7 +30,7 @@ const NOTE: Record<LossKind, string> = {
   table: '표를 글자 줄로 남겼습니다(표 편집은 아직 지원하지 않음)',
   math: '수식을 글자 그대로 남겼습니다(수식 노드로 바꾸지 않음)',
   html: 'HTML을 해석하지 않고 글자 그대로 남겼습니다',
-  footnote: '각주를 연결하지 않았습니다',
+  footnote: '각주 번호는 [1]처럼 글자로, 각주 내용은 따로 문단으로 남겼습니다(연결 없음)',
   horizontal_rule: '구분선을 지웠습니다',
 };
 
@@ -52,19 +54,29 @@ class Report {
 
 // marks: longest delimiters first; a marker without its closing pair stays literal
 const INLINE: { re: RegExp; mark: Mark }[] = [
-  { re: /\*\*(?=\S)([^*]+?)(?<=\S)\*\*/u, mark: 'bold' },
-  { re: /__(?=\S)([^_]+?)(?<=\S)__/u, mark: 'bold' },
+  { re: /\*\*(?=\S)(.+?)(?<=\S)\*\*/u, mark: 'bold' }, // may contain *italic*
+  { re: /__(?=\S)(.+?)(?<=\S)__/u, mark: 'bold' },
   { re: /(?<![\p{L}\p{N}*])\*(?=\S)([^*]+?)(?<=\S)\*(?![\p{L}\p{N}*])/u, mark: 'italic' },
   { re: /(?<![\p{L}\p{N}_])_(?=\S)([^_]+?)(?<=\S)_(?![\p{L}\p{N}_])/u, mark: 'italic' },
-  { re: /~(?=\S)([^~\s]+?)~/u, mark: 'subscript' },
-  { re: /\^(?=\S)([^^\s]+?)\^/u, mark: 'superscript' },
+  // not after a digit: 10~20% or n=3~5 are ranges, not subscripts
+  { re: /(?<!\p{N})~([\p{L}\p{N}+\-\u2212]{1,12})~(?!\p{N})/u, mark: 'subscript' },
+  { re: /\^([\p{L}\p{N}+\-\u2212]{1,12})\^/u, mark: 'superscript' },
 ];
 
+// backslash escapes: the escaped character is kept literally (hidden from the rules while parsing)
+const ESCAPABLE = '\\`*_{}[]()#+-.!~^|>$<';
+const hide = (t: string) => (/[\uE000-\uE0FF]/.test(t) ? t : t.replace(/\\(.)/g, (m, c: string) => (ESCAPABLE.includes(c) ? String.fromCharCode(0xe000 + ESCAPABLE.indexOf(c)) : m)));
+const unhide = (t: string) => t.replace(/[\uE000-\uE0FF]/g, (c) => ESCAPABLE[c.charCodeAt(0) - 0xe000] ?? c);
+
 function inlineMarkdown(text: string, line: number, rep: Report): Inline[] {
+  return marksOf(hide(text), line, rep).map((x) => ({ ...x, text: unhide(x.text) }));
+}
+
+function marksOf(text: string, line: number, rep: Report): Inline[] {
   let t = text;
   t = t.replace(/!\[([^\]]*)\]\([^)]*\)/g, () => { rep.add('image', line); return ''; });
   t = t.replace(/\[([^\]]+)\]\([^)]*\)/g, (_m, label: string) => { rep.add('link', line); return label; });
-  t = t.replace(/\[\^[^\]]+\]/g, () => { rep.add('footnote', line); return ''; });
+  t = t.replace(/\[\^([^\]]+)\]/g, (_m, n: string) => { rep.add('footnote', line); return `[${n}]`; });
   t = t.replace(/`([^`]+)`/g, (_m, code: string) => { rep.add('code', line); return code; });
   if (/\$[^$\s][^$]*\$/.test(t)) rep.add('math', line);
   if (/<\/?[A-Za-z][^>]*>/.test(t)) rep.add('html', line);
@@ -142,14 +154,15 @@ export function parseImport(source: string, format: ImportFormat): { doc: { type
       const h = /^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(l);
       if (h) { flush(); block('heading', inlineMarkdown(h[2]!, n, rep), h[1]!.length); return; }
       if (/^([-*_])(\s*\1){2,}$/.test(l)) { flush(); rep.add('horizontal_rule', n); return; }
-      if (/^\[\^[^\]]+\]:/.test(l)) { flush(); rep.add('footnote', n); return; }
+      const fn = /^\[\^([^\]]+)\]:\s*(.*)$/.exec(l);
+      if (fn) { flush(); rep.add('footnote', n); block('paragraph', inlineMarkdown(`[${fn[1]}] ${fn[2]}`, n, rep)); return; }
       if (/^\|.*\|$/.test(l)) {
         flush();
         rep.add('table', n);
         if (!/^\|[\s:|-]+\|$/.test(l)) block('paragraph', [{ type: 'text', text: l }]);
         return;
       }
-      const li = /^([-*+]|\d+[.)])\s+(.*)$/.exec(l);
+      const li = /^([-*+]|\d{1,3}[.)])\s+(.*)$/.exec(l); // a year such as "2020. The …" is not a list
       if (li) { flush(); rep.add('list', n); block('paragraph', inlineMarkdown(`${/\d/.test(li[1]!) ? li[1]! : '•'} ${li[2]}`, n, rep)); return; }
       const q = /^>\s?(.*)$/.exec(l);
       if (q) { rep.add('blockquote', n); if (q[1]) para.push({ text: q[1], line: n }); return; }
@@ -158,6 +171,7 @@ export function parseImport(source: string, format: ImportFormat): { doc: { type
     flush();
   }
   if (!blocks.length) throw new ImportError('the file is empty (no text to import)');
+  if (source.includes('\uFFFD')) rep.add('replacement_characters', source.slice(0, source.indexOf('\uFFFD')).split('\n').length);
   const doc = { type: 'doc' as const, content: blocks };
   const checked = validateDocument(doc, 1);
   if (!checked.ok) throw new ImportError(`the import could not be converted to a valid manuscript: ${JSON.stringify(checked.errors).slice(0, 300)}`);

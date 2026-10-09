@@ -93,3 +93,4 @@ User decision / reviewer:
   - `packages/domain/src/proposals/index.ts`(`undoProposal`, `listAppliedEdits`), `packages/domain/src/revisions/index.ts`(`lockDocumentHead`, `appendRevisionIn`, `createDocumentIn` export)
   - `apps/api/src/imports/**`(새 route 폴더), `apps/api/src/proposals/index.ts`(applied-edits, undo route), `apps/api/src/server.ts`
   - `apps/web/src/editor/ManuscriptEditor.tsx`(`onState`), `apps/web/src/features/paper/{ManuscriptTab,PaperPage}.tsx`(버전 탭 연결, head 변경 후 다시 열기)
+  - 리뷰 반영: `apps/api/src/imports/index.ts`(route body 한도), `db/migrations/pw_021_0002_review_fixes.sql`(원본 bytes)

@@ -30,3 +30,13 @@ describe('compareDocuments', () => {
     expect(compareDocuments(doc(h(1)), doc(h(2)))[0]!.kind).toBe('changed');
   });
 });
+
+describe('review MINOR-3', () => {
+  test('a paragraph that moved and changed shows its diff', () => {
+    const c = compareDocuments(doc(p('1', 'A'), p('2', 'Dose 5 mg.'), p('3', 'C')), doc(p('1', 'A'), p('3', 'C'), p('2', 'Dose 50 mg.')));
+    const moved = c.find((x) => x.id === '2')!;
+    expect(moved).toMatchObject({ kind: 'moved', changed: true });
+    expect(moved.parts!.filter((x) => x.kind === 'ins').map((x) => x.text)).toEqual(['50']);
+    expect(compareDocuments(doc(p('1', 'A'), p('2', 'B'), p('3', 'C')), doc(p('1', 'A'), p('3', 'C'), p('2', 'B'))).find((x) => x.kind === 'moved')).toMatchObject({ id: '2', changed: false });
+  });
+});

@@ -6,7 +6,8 @@ import type { JSONContent } from '@tiptap/core';
 import { canonicalJson } from '@pw/editor-core';
 import { blockTokens, diffTokens, type DiffPart } from '../diff/diff.ts';
 
-export interface BlockChange { kind: 'same' | 'changed' | 'moved' | 'added' | 'removed'; id: string; type: string; text: string; parts?: DiffPart[] }
+// moved: `changed` says whether its content changed too (then `parts` holds the diff)
+export interface BlockChange { kind: 'same' | 'changed' | 'moved' | 'added' | 'removed'; id: string; type: string; text: string; parts?: DiffPart[]; changed?: boolean }
 
 const blocksOf = (d: unknown) => (((d as JSONContent)?.content ?? []) as JSONContent[]).filter((b) => typeof b.attrs?.id === 'string');
 const textOf = (b: JSONContent) => blockTokens(b).join('');
@@ -47,7 +48,7 @@ export function compareDocuments(older: unknown, newer: unknown): BlockChange[] 
     if (!old) { out.push({ kind: 'added', id, type: x.type!, text: textOf(x) }); continue; }
     const same = canonicalJson(old) === canonicalJson(x);
     const kind = !keep.has(id) ? 'moved' : same ? 'same' : 'changed';
-    out.push({ kind, id, type: x.type!, text: textOf(x), parts: same ? undefined : diffTokens(blockTokens(old), blockTokens(x)) });
+    out.push({ kind, id, type: x.type!, text: textOf(x), parts: same ? undefined : diffTokens(blockTokens(old), blockTokens(x)), ...(kind === 'moved' ? { changed: !same } : {}) });
     if (keep.has(id)) removedFrom(aIndex.get(id)! + 1);
   }
   // removed blocks that followed a moved one

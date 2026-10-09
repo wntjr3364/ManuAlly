@@ -1,0 +1,55 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-014/runtime-load.test.ts (3 tests | 2 failed) 584ms
+   ❯ dev runtime (3)
+     × apps/api/src/server.ts loads with node --experimental-strip-types 219ms
+     × apps/worker/src/queue/index.ts loads with node --experimental-strip-types 232ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-014/runtime-load.test.ts > dev runtime > apps/api/src/server.ts loads with node --experimental-strip-types
+ FAIL  tests/tasks/PW-014/runtime-load.test.ts > dev runtime > apps/worker/src/queue/index.ts loads with node --experimental-strip-types
+AssertionError: expected 'node:internal/process/promises:394\n …' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ node:internal/process/promises:394
++     triggerUncaughtException(err, true /* fromPromise */);
++     ^
++
++ file:///home/user/ManuAlly/packages/domain/src/shared/db.ts:10
++   constructor(
++     public readonly code: 'NOT_FOUND' | 'CONFLICT' | 'INVALID' | 'FORBIDDEN',
++                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++     message: string,
++
++ SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode
++     at parseTypeScript (node:internal/modules/typescript:63:40)
++     at processTypeScriptCode (node:internal/modules/typescript:133:42)
++     at stripTypeScriptModuleTypes (node:internal/modules/typescript:163:10)
++     at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:605:16)
++     at #translate (node:internal/modules/esm/loader:546:20)
++     at afterLoad (node:internal/modules/esm/loader:596:29)
++     at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:601:12)
++     at #createModuleJob (node:internal/modules/esm/loader:624:36)
++     at #getJobFromResolveResult (node:internal/modules/esm/loader:343:34)
++     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:311:41) {
++   code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'
++ }
++
++ Node.js v22.22.0
++
+
+ ❯ tests/tasks/PW-014/runtime-load.test.ts:11:22
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  02:29:53
+   Duration  767ms (tests 94%, transform 3%, import 2%, worker 1%)
+

@@ -31,12 +31,21 @@
     "pg": "8.23.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",
+    "vite": "8.3.0",
     "vitest": "5.0.1"
   },
   "pnpm": {
     "overrides": {
       "rrule-temporal": "2.2.6",
-      "serialize-error": "13.0.1"
+      "serialize-error": "13.0.1",
+      "fast-equals": "5.4.3",
+      "prosemirror-changeset": "2.4.3",
+      "prosemirror-history": "1.5.0",
+      "prosemirror-view": "1.42.5",
+      "@tiptap/extension-bubble-menu": "3.31.3",
+      "@tiptap/extension-floating-menu": "3.31.3",
+      "prosemirror-model": "1.25.12",
+      "prosemirror-transform": "1.12.2"
     }
   }
 }

@@ -3,16 +3,16 @@ export interface Queryable {
   query<R = Record<string, unknown>>(text: string, params?: unknown[]): Promise<{ rows: R[]; rowCount: number | null }>;
 }
 
+// explicit fields, no parameter properties: the API dev runtime is node --experimental-strip-types
 export class DomainError extends Error {
+  readonly code: 'NOT_FOUND' | 'CONFLICT' | 'INVALID' | 'FORBIDDEN';
+  readonly field?: string;
   // machine-readable extras for the client (missing fields, gate reasons …); never internal detail
-  public readonly details: Record<string, unknown>;
-  constructor(
-    public readonly code: 'NOT_FOUND' | 'CONFLICT' | 'INVALID' | 'FORBIDDEN',
-    message: string,
-    public readonly field?: string,
-    options?: { cause?: unknown; details?: Record<string, unknown> },
-  ) {
+  readonly details: Record<string, unknown>;
+  constructor(code: DomainError['code'], message: string, field?: string, options?: { cause?: unknown; details?: Record<string, unknown> }) {
     super(message, options);
+    this.code = code;
+    this.field = field;
     this.details = options?.details ?? {};
   }
 }

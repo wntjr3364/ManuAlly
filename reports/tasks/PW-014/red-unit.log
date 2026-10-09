@@ -1,0 +1,25 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-014/save-state.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-014/save-state.test.ts [ tests/tasks/PW-014/save-state.test.ts ]
+Error: Cannot find module '../../../apps/web/src/features/paper/save-state.ts' imported from /home/user/ManuAlly/tests/tasks/PW-014/save-state.test.ts
+ ❯ tests/tasks/PW-014/save-state.test.ts:4:1
+      2| // content on screen; failures and conflicts keep the editor in an uns…
+      3| import { describe, expect, test } from 'vitest';
+      4| import { initialSaveState, saveLabel, saveReducer, isUnsaved, type Sav…
+       | ^
+      5|
+      6| const run = (...actions: Parameters<typeof saveReducer>[1][]) => actio…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  02:23:28
+   Duration  280ms (worker 96%, environment 4%)
+

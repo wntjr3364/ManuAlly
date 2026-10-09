@@ -11,7 +11,8 @@ const blockId = { id: { default: null } };
 
 export const schema = new Schema({
   nodes: {
-    doc: { content: 'block+' },
+    // an empty manuscript is a valid state (new documents start empty)
+    doc: { content: 'block*' },
     paragraph: { group: 'block', content: 'inline*', attrs: { ...blockId } },
     heading: { group: 'block', content: 'inline*', attrs: { ...blockId, level: { default: 1 } } },
     table: { group: 'block', content: 'table_row+', attrs: { ...blockId } },

@@ -4,6 +4,7 @@ import {
   restoreRevision, saveRevision, type TxPool,
 } from '@pw/domain/revisions/index.ts';
 import { DomainError } from '@pw/domain/shared/db.ts';
+import { validateDocument } from '@pw/editor-core';
 import { sendDomainError } from '../../auth/plugin.ts';
 
 const notFound = (reply: FastifyReply) => reply.code(404).send({ error: 'not_found' });
@@ -38,6 +39,10 @@ export function registerRevisionRoutes(app: FastifyInstance, pool: TxPool): void
   });
   app.post('/api/papers/:paperId/documents/:documentId/revisions', scoped, async (req, reply) => {
     const b = (req.body ?? {}) as Record<string, unknown>;
+    // the same editor-core rules the browser runs before sending (PW-012): no raw HTML, unknown
+    // nodes, duplicate block ids or other schema versions reach the database
+    const checked = validateDocument(b.content_json, b.schema_version);
+    if (!checked.ok) return reply.code(422).send({ error: 'invalid', message: 'the document does not match the manuscript schema', field: 'content_json', errors: checked.errors });
     return run(reply, () => saveRevision(pool, {
       paperId: req.paper!.id, documentId: (req.params as { documentId: string }).documentId, ownerId: req.session!.ownerId,
       expectedHead: b.expected_head_revision_id, content: b.content_json, schemaVersion: b.schema_version, reason: b.reason,

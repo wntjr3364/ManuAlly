@@ -70,3 +70,11 @@ PW-010 및 PW-009 리뷰 반영 시 추가 기록(2026-10-08):
   - `apps/api/src/server.ts`: jobs route 등록
   - `apps/worker/package.json`: pg-boss 12.34.0, pg 8.23.0, @pw/domain
   - root `package.json`: `pnpm.overrides`로 pg-boss의 하위 의존성 두 개(rrule-temporal 2.2.6, serialize-error 13.0.1)를 14일 이상 지난 버전으로 고정(CLAUDE.md 버전 규칙). 새 직접 의존성은 ADR-008이 승인한 pg-boss뿐이다.
+- PW-014
+  - 웹 앱 shell: `apps/web/index.html`, `vite.config.ts`, `src/main.tsx`, `src/app/**`, `src/vite-env.d.ts`
+  - `apps/api/src/routes/revisions`: 저장 시 editor-core 검증
+  - `apps/api/package.json`: @pw/editor-core
+  - `packages/domain/src/shared/db.ts`: DomainError parameter property 제거(dev runtime 결함 수정)
+  - `packages/editor-core/src/schema.ts`: `doc: block*`
+  - `tests/tasks/PW-009/revisions.int.test.ts`: fixture block id를 UUID로
+  - root `package.json`: vite devDep, 하위 의존성 overrides(14일 규칙)

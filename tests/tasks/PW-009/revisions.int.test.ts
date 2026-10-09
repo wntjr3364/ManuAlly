@@ -21,7 +21,8 @@ async function login(username: string, password: string): Promise<S> {
   const res = await app.inject({ method: 'POST', url: '/api/auth/login', headers: { origin: ORIGIN }, payload: { username, password } });
   return { cookie: String(res.headers['set-cookie']).split(';')[0]!, csrf: res.json().csrfToken };
 }
-const doc = (text: string) => ({ type: 'doc', content: [{ type: 'paragraph', attrs: { id: 'b-1' }, content: [{ type: 'text', text }] }] });
+// block ids are canonical UUIDs (saves are validated with editor-core since PW-014)
+const doc = (text: string) => ({ type: 'doc', content: [{ type: 'paragraph', attrs: { id: '00000000-0000-4000-8000-0000000000b1' }, content: [{ type: 'text', text }] }] });
 
 beforeAll(async () => {
   db = await createTempDatabase();

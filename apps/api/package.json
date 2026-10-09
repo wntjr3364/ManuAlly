@@ -7,11 +7,12 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "fastify": "5.12.5",
-    "pg": "8.23.0",
-    "@pw/domain": "workspace:*",
     "@pw/contracts": "workspace:*",
-    "@pw/providers": "workspace:*"
+    "@pw/domain": "workspace:*",
+    "@pw/editor-core": "workspace:*",
+    "@pw/providers": "workspace:*",
+    "fastify": "5.12.5",
+    "pg": "8.23.0"
   },
   "devDependencies": {
     "@types/pg": "8.23.1",

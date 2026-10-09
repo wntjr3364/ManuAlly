@@ -461,7 +461,7 @@
       "id": "PW-014",
       "phase": "P01",
       "title": "수동 논문 수직경로 검증",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-013"
       ],

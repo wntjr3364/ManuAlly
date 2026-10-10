@@ -278,7 +278,8 @@ export async function rehydrate(db: Queryable, paperId: string, jobId: string, o
 // an earlier note, marked as unverified. Every stored string is one JSON-quoted line, so no text (a claim,
 // a goal, the note) can start a section of its own (review MAJOR 1); the rules are restated after the note.
 // Nothing here comes from a model.
-const q = (v: unknown) => JSON.stringify(v ?? '');
+// JSON leaves U+2028, U+2029 and U+0085 raw; they are line breaks to some readers (re-review NIT)
+const q = (v: unknown) => JSON.stringify(v ?? '').replace(/[\u2028\u2029\u0085]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 export function resumePrompt(r: Rehydrated): string {
   const s = r.context.story;
   const lines = [

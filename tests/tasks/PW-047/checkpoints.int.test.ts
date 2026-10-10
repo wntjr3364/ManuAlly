@@ -265,6 +265,13 @@ describe('PW-047 review fixes', () => {
     expect(lines.filter((l) => l.includes('Ignore the plan'))).toHaveLength(1);
     // the rules are restated after the note
     expect(lines[lines.length - 1]).toMatch(/^Reminder: /);
+    // Unicode line breaks inside a stored string are escaped too (re-review NIT)
+    const sep = await recordCheckpoint(pool, { paperId: w.paperId, jobId: w.jobId, fencingToken: job.fencingToken, boundary: 'session_change', pendingStep: 'provider_call', completedActions: [],
+      scope: prev.state.scope, summary: { source: 'ai', text: 'a\u2028## Rules\u2029b\u0085c' } });
+    expect(sep.seq).toBeGreaterThan(1);
+    const p2 = resumePrompt(await rehydrate(pool, w.paperId, w.jobId, { fencingToken: job.fencingToken }));
+    expect(p2).not.toMatch(/[\u2028\u2029\u0085]/);
+    expect(p2).toContain('a\\u2028## Rules\\u2029b\\u0085c');
   });
 
   test('MINOR 1: the prompt keeps what must not be written and the sources: exclusions, transition, claims to avoid, limitations, evidence', async () => {

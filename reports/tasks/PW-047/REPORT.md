@@ -83,3 +83,15 @@ PW-048: context 예산
 - mutation(`mutation.log` 하단): 13종 중 12종 탐지
   - 살아남은 "23505 → CONFLICT 변환 제거"는 이제 행 잠금이 쓰기를 순서대로 세워 도달할 수 없다. 방어로 남긴다(동등).
 - 회귀: `pnpm test` exit 0 — unit 406, integration 481, contracts 17, 브라우저 95 (`pnpm-test-review.log`)
+
+## 재리뷰 (1b03f79, 9a27462): approve
+- 확인한 것
+  - MAJOR 1과 MINOR 1–4, NIT 1–3이 닫혔다.
+  - 따옴표 없이 남은 칸은 자유 글이 될 수 없다: DB enum, UUID, `pending_step` 정규식, `proposal_stored:<uuid>`. provider 이름과 세션 id는 저장만 하고 글에 쓰지 않는다.
+  - 트랜잭션 안의 잠금이 새 claim과 옛 실행의 쓰기를 순서대로 세운다(코드 확인).
+  - 리뷰어 실행: 통합 110/110, 브라우저 4/4.
+- NIT 1건(JSON이 U+2028·U+2029·U+0085를 그대로 둠)은 고쳤다.
+  - `q()`가 세 문자를 `\uXXXX`로 바꾼다.
+  - 시험: 세 문자를 품은 요약이 글에 그대로 나오지 않는다.
+  - mutation 1종 탐지.
+  - 바꾼 것은 글의 따옴표 처리 한 줄이다. 통합 13과 typecheck·lint로 확인했고, 전체 회귀는 리뷰 반영본(9a27462)의 것이다.

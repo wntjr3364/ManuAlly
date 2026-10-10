@@ -32,3 +32,5 @@ KILLED R: running elsewhere resumable
 KILLED R: recheck records nothing
 KILLED R: stop mode ignored
 SURVIVED R: race not mapped to CONFLICT
+# re-review NIT
+KILLED RR: unicode separators not escaped

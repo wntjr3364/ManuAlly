@@ -16,7 +16,7 @@ const matching = (re: RegExp) => source.filter((f) => re.test(read(f))).sort();
 
 describe('TST-059A: secrets', () => {
   const SECRET = /sk-ant-[A-Za-z0-9_-]{16,}|\bsk-[A-Za-z0-9]{32,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|xox[baprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}/;
-  // synthetic look-alikes used to test the redaction (PW-052); AKIAIOSFODNN7EXAMPLE is AWS's documentation example
+  // synthetic look-alikes used to test the redaction (PW-052; one is AWS's published documentation example key)
   const SYNTHETIC: Record<string, string> = { 'tests/tasks/PW-052/classify.test.ts': 'redaction fixtures (synthetic, never valid)' };
   test('no tracked file holds a secret-shaped string, except the reviewed synthetic fixtures', () => {
     const hits = tracked.filter((f) => !/\.(png|jpg|pdf|docx|zip|woff2?|ico)$/i.test(f) && fs.existsSync(path.join(root, f)) && SECRET.test(read(f)));

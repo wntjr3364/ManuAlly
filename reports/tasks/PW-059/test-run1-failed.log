@@ -1,0 +1,58 @@
+
+> paper-workspace@ test /home/user/ManuAlly
+> pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:integration && pnpm run test:contracts && pnpm run test:e2e && pnpm run test:spikes && pnpm run test:evals && pnpm run pack-check
+
+
+> paper-workspace@ typecheck /home/user/ManuAlly
+> tsc --noEmit -p packages/config/tsconfig.check.json
+
+
+> paper-workspace@ lint /home/user/ManuAlly
+> eslint .
+
+
+> paper-workspace@ test:unit /home/user/ManuAlly
+> vitest run --config packages/config/vitest.unit.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/security/static.test.ts (9 tests | 1 failed) 180ms
+   ❯ TST-059A: secrets (2)
+     × no tracked file holds a secret-shaped string, except the reviewed synthetic fixtures 94ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/security/static.test.ts > TST-059A: secrets > no tracked file holds a secret-shaped string, except the reviewed synthetic fixtures
+AssertionError: expected [ 'tests/security/static.test.ts' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "tests/security/static.test.ts",
++ ]
+
+ ❯ tests/security/static.test.ts:23:47
+     21|   test('no tracked file holds a secret-shaped string, except the revie…
+     22|     const hits = tracked.filter((f) => !/\.(png|jpg|pdf|docx|zip|woff2…
+     23|     expect(hits.filter((f) => !SYNTHETIC[f])).toEqual([]);
+       |                                               ^
+     24|   });
+     25|   test('no .env file or key file is tracked', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 44 passed (45)
+      Tests  1 failed | 611 passed (612)
+   Start at  10:07:12
+   Duration  22.89s (tests 86%, import 7%, transform 6%, worker 1%)
+
+    Isolate  45 workers spawned · ~198ms startup each (spawn + environment, per file)
+             at least ~2.77s faster with isolate: false — reuses workers across files instead of one per file
+
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Test failed. See above for more details.
+exit 1

@@ -61,4 +61,5 @@ PW-052: 오류 분류·bounded retry
 - GREEN: 통합 13
   - 기존 "다시 잡힌 작업에는 사건 없음" 시험은 바뀐 의미(회복과 사건이 한 트랜잭션)에 맞춰 "사건 1개, 새 실행이 끝남"으로 바꿨다.
 - mutation(`mutation.log` 하단): 4종 모두 탐지(사건 종류, worker id 노출, SKIP LOCKED, 시도 횟수)
-- 회귀: (아래 채움)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 551, contracts 17, 브라우저 95 (`pnpm-test-review.log`)
+- 리뷰 결론: approve(MAJOR 없음). 반영분은 작은 수정(통합 13, mutation 4/4, 전체 회귀 통과)이라 재리뷰 없이 닫는다.

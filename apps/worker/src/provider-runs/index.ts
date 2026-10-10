@@ -27,6 +27,7 @@ import type { Backend, Limits } from '../../../../infra/sandbox/sandbox.ts';
 import { startEgressProxy, type EgressProxy, type EgressTarget } from '../../../../infra/sandbox/egress-proxy.ts';
 import { prepareRun, removeRun } from '../runner/run-dirs.ts';
 import { recordRunProcess, superviseRun, terminateRunGroup, type RunProcessRecord, type SuperviseResult } from '../lifecycle/index.ts';
+import { JobOutcomeError } from '../queue/index.ts';
 import { sandboxedLauncher } from './sandboxed-launcher.ts';
 import { serveToolSocket } from './tool-socket.ts';
 
@@ -54,14 +55,26 @@ export function assertCleanStateDir(dir: string): void {
 
 // <stateRoot>/<provider>/<paper>: private folders of the runtime user; the credential's placeholder
 // `homes`: the developer homes whose CLI state may never be the login profile (default: this user's home)
-export function prepareStateDir(stateRoot: string, provider: 'claude_agent' | 'codex', paperId: string, loginProfile: string, homes?: string[]): { dir: string; binds: { source: string; target: string }[] } {
+// developer CLI state moved elsewhere by the developer's environment (CLAUDE_CONFIG_DIR, CODEX_HOME, XDG)
+export function relocatedCliState(env: NodeJS.ProcessEnv = process.env): string[] {
+  return [env.CLAUDE_CONFIG_DIR, env.CODEX_HOME, env.XDG_CONFIG_HOME ? path.join(env.XDG_CONFIG_HOME, 'claude') : undefined].filter((x): x is string => !!x && path.isAbsolute(x));
+}
+// `homes`: the developer homes whose CLI state may never be the login profile (default: this user's home);
+// `devState`: CLI state folders moved out of a home (default: from this process's environment)
+export function prepareStateDir(stateRoot: string, provider: 'claude_agent' | 'codex', paperId: string, loginProfile: string, homes?: string[], devState: string[] = relocatedCliState()): { dir: string; binds: { source: string; target: string }[] } {
   if (!UUID.test(paperId)) throw new StateRefused('refused: invalid paper id');
   // the login profile is a separate runtime profile, never the developer's own CLI state or a home folder
-  // (security audit F-01; RFC-010)
+  // (security audit F-01, review n2; RFC-010)
   try {
     loginProfile = assertSafeProfileDir(loginProfile, { homes });
   } catch (e) {
     throw new StateRefused(`refused: the login profile must be a separate runtime profile — ${e instanceof Error ? e.message : String(e)}`);
+  }
+  for (const d of devState) {
+    const forms = new Set([path.resolve(d), (() => { try { return fs.realpathSync(d); } catch { return null; } })()].filter((x): x is string => !!x));
+    for (const f of forms) {
+      if (loginProfile === f || loginProfile.startsWith(`${f}${path.sep}`) || f.startsWith(`${loginProfile}${path.sep}`)) throw new StateRefused(`refused: the login profile must be a separate runtime profile — ${loginProfile} is or holds developer CLI state ${d}`);
+    }
   }
   for (const d of [stateRoot, path.join(stateRoot, provider)]) {
     if (!fs.existsSync(d)) fs.mkdirSync(d, { mode: 0o700 });
@@ -127,6 +140,13 @@ export async function runProviderTurn(pool: TxPool, a: {
   onEvent?: (e: ProviderEvent) => void;
 }): Promise<ProviderTurnOutcome> {
   const c = a.config;
+  // the paper's sending policy, here where its material leaves for a provider — not only in each caller
+  // (spec 09; security audit F-03): checked before a token, a folder or a process exists
+  const pp = (await pool.query<{ external_send_policy: string; data_classification: string; allowed_providers: string[] }>(
+    'SELECT external_send_policy, data_classification, allowed_providers FROM paper_projects WHERE id = $1', [a.job.paperId])).rows[0];
+  if (!pp || pp.data_classification === 'sensitive' || pp.external_send_policy !== 'allow_selected' || !pp.allowed_providers.includes(a.provider)) {
+    throw new JobOutcomeError('this paper does not allow sending its material to this provider', 'WAITING_USER');
+  }
   if (a.provider === 'claude_agent' && !a.session) throw new Error('refused: a Claude turn needs a chosen or stored session id');
   const run = prepareRun({ runsRoot: c.runsRoot, runId: randomUUID() });
   const gwDir = path.join(run.dir, 'gateway');

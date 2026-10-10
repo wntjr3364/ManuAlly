@@ -103,6 +103,8 @@ afterAll(async () => {
 
 async function paperWithSelection() {
   const paperId = (await app.inject({ method: 'POST', url: '/api/papers', headers: H, payload: { working_title: 'p', article_type: 'research_article' } })).json().id;
+  // the paper lets its material go to both providers (checked in runProviderTurn since the PW-059 audit, F-03)
+  await pool.query("UPDATE paper_projects SET external_send_policy = 'allow_selected', allowed_providers = '{claude_agent,codex}' WHERE id = $1", [paperId]);
   const d = (await app.inject({ method: 'POST', url: `/api/papers/${paperId}/documents`, headers: H, payload: { kind: 'manuscript' } })).json();
   const content = { type: 'doc', content: [{ type: 'paragraph', attrs: { id: P1 }, content: [{ type: 'text', text: 'It was very very clear.' }] }] };
   const head = (await app.inject({ method: 'POST', url: `/api/papers/${paperId}/documents/${d.document.id}/saves`, headers: H, payload: { expected_head_revision_id: d.head.id, content_json: content, schema_version: 1, reason: 'manual' } })).json().id;

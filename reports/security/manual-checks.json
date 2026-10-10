@@ -1,0 +1,18 @@
+[
+  {
+    "id": "MAN-LIVE-SANDBOX",
+    "title": "Real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user's PC and on the lab server: a profile at ~/.claude is refused; nothing leaves except the provider hosts; the run folder is removed afterwards",
+    "status": "pending",
+    "evidence": "",
+    "checked_by": null,
+    "checked_at": null
+  },
+  {
+    "id": "MAN-DEPLOY-TLS",
+    "title": "The deployment behind TLS: Secure cookies, the allowed origins, and the headers of F-02 (PW-061)",
+    "status": "pending",
+    "evidence": "",
+    "checked_by": null,
+    "checked_at": null
+  }
+]

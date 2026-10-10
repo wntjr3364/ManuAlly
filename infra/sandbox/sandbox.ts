@@ -112,14 +112,16 @@ export function bwrapVersionOk(text: string): boolean {
 
 export function sandboxAvailable(backend: Backend, opts: { network?: Network } = {}): boolean {
   if (process.platform !== 'linux') return false;
+  // the probes get PATH only, never the worker's environment (security audit PW-059)
+  const env = { PATH: process.env.PATH ?? '/usr/bin:/bin' };
   if (backend === 'bwrap') {
-    const r = spawnSync('bwrap', ['--version'], { encoding: 'utf8' });
-    return r.status === 0 && bwrapVersionOk(r.stdout) && spawnSync('prlimit', ['--version'], { stdio: 'ignore' }).status === 0;
+    const r = spawnSync('bwrap', ['--version'], { encoding: 'utf8', env });
+    return r.status === 0 && bwrapVersionOk(r.stdout) && spawnSync('prlimit', ['--version'], { stdio: 'ignore', env }).status === 0;
   }
-  const ok = spawnSync('unshare', ['--user', '--map-root-user', '--mount', '--pid', '--net', '--fork', 'true'], { stdio: 'ignore' }).status === 0
+  const ok = spawnSync('unshare', ['--user', '--map-root-user', '--mount', '--pid', '--net', '--fork', 'true'], { stdio: 'ignore', env }).status === 0
     && ['/usr/bin/prlimit', '/usr/bin/setpriv', '/usr/bin/env'].every((p) => fs.existsSync(p));
   // "proxy" brings up loopback inside the namespace without `ip`: needs python3 for one ioctl
-  return ok && (opts.network !== 'proxy' || spawnSync('/usr/bin/python3', ['-I', '-c', 'import fcntl'], { stdio: 'ignore' }).status === 0);
+  return ok && (opts.network !== 'proxy' || spawnSync('/usr/bin/python3', ['-I', '-c', 'import fcntl'], { stdio: 'ignore', env }).status === 0);
 }
 
 function limitArgs(l: Limits | undefined): string[] {

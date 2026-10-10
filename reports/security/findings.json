@@ -4,7 +4,7 @@
     "title": "The login profile whose credential file is bound into AI runs was not checked against the developer's own CLI state (~/.claude, ~/.codex) or a home folder; a misconfigured path would put the main development login into runs",
     "severity": "high",
     "status": "fixed",
-    "evidence": "tests/security/credentials.test.ts (RED: reports/tasks/PW-059/red-F01.log); fix: apps/worker/src/provider-runs/index.ts prepareStateDir uses assertSafeProfileDir (RFC-014 appendix PW-059)"
+    "evidence": "tests/security/credentials.test.ts (RED: reports/tasks/PW-059/red-F01.log); fix: apps/worker/src/provider-runs/index.ts prepareStateDir uses assertSafeProfileDir (RFC-014 appendix PW-059); review n2: relocated developer CLI state (CLAUDE_CONFIG_DIR, CODEX_HOME, XDG_CONFIG_HOME/claude) refused too (same test file)"
   },
   {
     "id": "F-02",
@@ -12,5 +12,19 @@
     "severity": "low",
     "status": "open",
     "plan": "PW-061 deployment runbook: serve the built app with CSP (default-src 'self'), frame-ancestors 'none', Referrer-Policy no-referrer, nosniff; Secure cookies behind TLS"
+  },
+  {
+    "id": "F-03",
+    "title": "The paper's sending policy (sensitive / block / allowed providers) was checked only by each AI worker before calling a provider; runProviderTurn — where material actually leaves for a real CLI — did not check it, and the selection-edit and curation workers had no check of their own (latent: only the mock provider is wired today)",
+    "severity": "high",
+    "status": "fixed",
+    "evidence": "tests/security/send-policy.int.test.ts (RED: reports/tasks/PW-059/red-F03.log); fix: apps/worker/src/provider-runs/index.ts checks the policy before a token, folder or process exists (RFC-014 appendix PW-059)"
+  },
+  {
+    "id": "F-04",
+    "title": "The sandbox availability probes (bwrap/prlimit/unshare/python3 --version) ran with the worker's whole environment",
+    "severity": "low",
+    "status": "fixed",
+    "evidence": "tests/security/static.test.ts (every spawn names its environment); fix: infra/sandbox/sandbox.ts gives the probes PATH only"
   }
 ]

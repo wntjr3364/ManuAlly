@@ -7,6 +7,7 @@
 //   change it, and are never stored in one's own records; no request ends in an internal error.
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import pg from 'pg';
@@ -95,8 +96,8 @@ beforeAll(async () => {
     const r = await app.inject({ method: 'POST', url: '/api/auth/login', headers: { origin: ORIGIN }, payload: { username: u, password: 'correct horse battery' } });
     H[u] = { cookie: String(r.headers['set-cookie']).split(';')[0]!, 'x-pw-csrf': r.json().csrfToken, origin: ORIGIN };
   }
-  A = await buildWorld(app, pool, H.alice!, 'CANARYALICE7f3e');
-  B = await buildWorld(app, pool, H.bob!, 'CANARYBOB91c2');
+  A = await buildWorld(app, pool, H.alice!, 'CANARYALICE7f3e', '', dir);
+  B = await buildWorld(app, pool, H.bob!, 'CANARYBOB91c2', '', dir);
   routes = listRoutes(app);
 }, 120_000);
 afterAll(async () => {
@@ -106,8 +107,14 @@ afterAll(async () => {
   if (dir) fs.rmSync(dir, { recursive: true, force: true });
 });
 
-const send = (r: Route, url: string, headers: Record<string, string>, payload?: unknown) =>
-  app.inject({ method: r.method as 'GET', url, headers: r.method === 'GET' ? headers : { ...headers, 'content-type': 'application/json' }, payload: r.method === 'GET' ? undefined : JSON.stringify(payload ?? {}) });
+// a reading request also carries the id fields the API reads from the query string (review M1: candidates
+// by asset_id, proposals by document_id, checks by block_id …), taken from the body's ids
+const QUERY = ['asset_id', 'block_id', 'document_id', 'reference_id'] as const;
+const send = (r: Route, url: string, headers: Record<string, string>, payload?: unknown) => {
+  const b = (payload ?? {}) as Record<string, unknown>;
+  const q = QUERY.filter((k) => typeof b[k] === 'string').map((k) => `${k}=${encodeURIComponent(b[k] as string)}`).join('&');
+  return app.inject({ method: r.method as 'GET', url: r.method === 'GET' && q ? `${url}?${q}` : url, headers: r.method === 'GET' ? headers : { ...headers, 'content-type': 'application/json' }, payload: r.method === 'GET' ? undefined : JSON.stringify(b) });
+};
 const fill = (url: string, ids: Record<string, string>) => url.replace(/:(\w+)/g, (_, k: string) => ids[k] ?? '00000000-0000-4000-8000-000000000000');
 // the answer's text, with any ZIP (DOCX, archive) unpacked, so a compressed leak is found too
 function seen(x: { body: string; rawPayload: Buffer }): string {
@@ -135,6 +142,12 @@ describe('TST-059A: the route table is fully covered', () => {
     for (const p of params) expect(PARAM[p], `no id source for :${p} — add it to the audit`).toBeTruthy();
     // what the fixture made (the more kinds, the deeper the sweep)
     expect(A.made.length).toBeGreaterThan(25);
+  });
+  test('every id source has records of both owners (a kind with no record would be swept with nothing — review M1)', async () => {
+    for (const [k, q] of Object.entries(PARAM)) {
+      expect((await idsOf(q, A.paperId)).length, `alice has no ${k}`).toBeGreaterThan(0);
+      expect((await idsOf(q, B.paperId)).length, `bob has no ${k}`).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -193,8 +206,26 @@ describe('TST-059A: IDOR — another owner\'s paper and ids', () => {
       evidence_id: first('evidenceId'), node_id: first('nodeId'), block_id: first('blockId'), after_block_id: first('blockId'), job_id: first('jobId'),
       figure_version_id: allAlice[0], reference_id: allAlice[0], reference_ids: allAlice.slice(0, 5), claim_ids: aliceIds.claimId, evidence_ids: aliceIds.evidenceId,
       library_id: allAlice[0], source_candidate_id: allAlice[0], search_ids: allAlice.slice(0, 3), links: [{ revision_id: first('revisionId'), block_id: first('blockId') }],
+      paper_id: A.paperId, ids: aliceIds.figureId, handle_id: allAlice[0], handle_ids: allAlice.slice(0, 3), figure_id: first('figureId'), comment_id: first('commentId'),
+      nodes: [{ node_id: first('nodeId'), parent_node_id: null, section: 'Results', role: 'result', paragraph_goal: 'g', claim_ids: aliceIds.claimId, evidence_ids: aliceIds.evidenceId, requires_evidence: false, allowed_interpretation: '', exclusions: [], transition: '', word_budget_min: null, word_budget_max: null }],
+      facts: [{ evidence_id: first('evidenceId'), entity: 'e', metric: 'm', value_text: '1', unit: 'u', group: 'g', comparison: 'c', n: 3, extraction_method: 'manual_entry' }],
+      selection: { blockId: first('blockId'), base_revision_id: first('revisionId') },
       intent: 'x', idempotency_key: 'audit-sweep-key-0001', format: 'docx', purpose: 'private', status: 'draft', label: 'audit', text: 'audit', kind: 'manuscript',
     };
+    // the other owner's ids: none may appear in an answer unless the request carried it (review m1)
+    const theirs = new Set([...[...before.values()].join('|').matchAll(UUID)].map((m) => m[0]));
+    const leakedIds = (x: { body: string; rawPayload: Buffer }, sent: string) => [...seen(x).matchAll(UUID)].map((m) => m[0]).filter((u) => theirs.has(u) && !sent.includes(u));
+    const check = (r: Route, url: string, b: unknown, x: { statusCode: number; body: string; rawPayload: Buffer }) => {
+      note(String(x.statusCode));
+      if (x.statusCode >= 500) findings.push(`500: ${r.method} ${r.url}`);
+      expect(seen(x), `${r.method} ${r.url} leaked the other owner's text`).not.toContain(A.canary);
+      const ids = leakedIds(x, url + JSON.stringify(b));
+      expect(ids, `${r.method} ${r.url} answered with the other owner's ids`).toEqual([]);
+    };
+    // owner-wide changing routes (budgets, new papers …) with the other owner's ids in the body
+    for (const r of routes.filter((x) => x.method !== 'GET' && !x.url.includes(':') && !['/api/auth/login', '/api/auth/logout', '/api/setup'].includes(x.url))) {
+      for (const b of [body, { ...body, paper_id: A.paperId, papers: [A.paperId] }]) check(r, r.url, b, await send(r, r.url, H.bob!, b));
+    }
     const scoped = routes.filter((x) => x.url.startsWith('/api/papers/:paperId'));
     for (const r of scoped) {
       const params = [...r.url.matchAll(/:(\w+)/g)].map((m) => m[1]!).filter((p) => p !== 'paperId');
@@ -205,10 +236,8 @@ describe('TST-059A: IDOR — another owner\'s paper and ids', () => {
       // a few bodies with valid choices, so requests get past the first validation to where ids are used
       const bodies = r.method === 'GET' ? [body] : [body, ...VARIANTS.map((v) => ({ ...body, ...v }))];
       for (const ids of tries) for (const b of bodies) {
-        const x = await send(r, fill(r.url, ids), H.bob!, b);
-        note(String(x.statusCode));
-        if (x.statusCode >= 500) findings.push(`500: ${r.method} ${r.url} ${JSON.stringify(Object.keys(b).length)}`);
-        expect(seen(x), `${r.method} ${r.url} leaked the other owner's text`).not.toContain(A.canary);
+        const url = fill(r.url, ids);
+        check(r, url, b, await send(r, url, H.bob!, b));
       }
     }
     fs.writeFileSync(path.resolve('reports/tasks/PW-059/sweep-stats.json'), `${JSON.stringify({ routes: routes.length, alice_ids: allAlice.length, made: A.made, statuses: SWEEP_STATS }, null, 2)}\n`);
@@ -224,5 +253,89 @@ describe('TST-059A: IDOR — another owner\'s paper and ids', () => {
     const crossing = [...bobOwn].filter((u) => aliceOwn.has(u) && !shared.has(u));
     const where = crossing.map((u) => bobRows.filter(([, s]) => s.includes(u)).map(([t]) => t).join(','));
     expect(crossing.map((u, k) => `${u} in ${where[k]}`), 'the other owner\'s ids kept in one\'s own records').toEqual([]);
+  }, 600_000);
+
+  // review M1: the references a write keeps without a database guard (see the schema test) — each tried with
+  // the other owner's id, and with one's own (the control that shows the request reached the id handling)
+  test('targeted cross-paper references: refused with the other owner\'s id, accepted with one\'s own, never kept', async () => {
+    const one = async (q: string, w: World) => (await pool.query(q, [w.paperId])).rows[0] as Record<string, string>;
+    const rev = async (w: World) => one("SELECT r.id AS rev, b->'attrs'->>'id' AS block FROM documents d JOIN document_revisions r ON r.id = d.head_revision_id, jsonb_array_elements(r.content_json->'content') b WHERE d.paper_id = $1 AND b->>'type' = 'paragraph' LIMIT 1", w);
+    const story = async (w: World) => one("SELECT id FROM story_revisions WHERE paper_id = $1 AND status = 'APPROVED'", w);
+    const outline = async (w: World) => one("SELECT o.id, n.node_id FROM outline_revisions o JOIN outline_nodes n ON n.outline_revision_id = o.id WHERE o.paper_id = $1 AND o.status = 'APPROVED' LIMIT 1", w);
+    const search = async (w: World) => one('SELECT id FROM literature_searches WHERE paper_id = $1', w);
+    const cases: [string, (v: World) => Promise<Record<string, unknown>>, string][] = [
+      ['/documents/:doc/scientific-checks', async (v) => ({ revision_id: (await rev(v)).rev, block_id: (await rev(v)).block }), 'scientific check'],
+      ['/reviews', async (v) => ({ document_id: B.documentId, revision_id: (await rev(v)).rev, block_id: (await rev(v)).block, idempotency_key: crypto.randomUUID() }), 'review'],
+      ['/story-alternatives/runs', async (v) => ({ base_story_revision_id: (await story(v)).id, idempotency_key: crypto.randomUUID() }), 'story alternatives'],
+      ['/writer/requests', async (v) => ({ mode: 'draft', outline_revision_id: (await outline(v)).id, node_id: (await outline(v)).node_id, document_id: B.documentId, base_revision_id: (await rev(B)).rev, idempotency_key: crypto.randomUUID() }), 'writer'],
+      ['/ai/draft-requests', async (v) => ({ outline_revision_id: (await outline(v)).id, node_id: (await outline(v)).node_id, instruction: 'write this paragraph' }), 'draft request'],
+      ['/curation/runs', async (v) => ({ search_ids: [(await search(v)).id], idempotency_key: crypto.randomUUID() }), 'curation'],
+    ];
+    const before = await rowsOf(A);
+    const theirs = new Set([...[...before.values()].join('|').matchAll(UUID)].map((m) => m[0]));
+    for (const [route, make, what] of cases) {
+      const url = `/api/papers/${B.paperId}${route.replace(':doc', B.documentId)}`;
+      const attack = await app.inject({ method: 'POST', url, headers: H.bob!, payload: await make(A) });
+      // the control: one's own ids are accepted, or stopped later by a gate that read them (409)
+      const control = await app.inject({ method: 'POST', url, headers: H.bob!, payload: await make(B) });
+      expect(control.statusCode < 300 || control.statusCode === 409, `${what} with one's own ids (the control): ${control.statusCode} ${control.body}`).toBe(true);
+      // the other owner's record is not found, not acceptable, or not this paper's (a different refusal than the control's)
+      expect(attack.statusCode >= 400 && attack.statusCode < 500, `${what} with the other owner's id: ${attack.statusCode} ${attack.body}`).toBe(true);
+      if (attack.statusCode === 409) expect(attack.json().reasons, `${what}: refused for the same reason as one's own request`).not.toEqual(control.statusCode === 409 ? control.json().reasons : undefined);
+    }
+    expect(await rowsOf(A)).toEqual(before);
+    const kept = [...(await rowsOf(B)).entries()].filter(([, v]) => [...v.matchAll(UUID)].some((m) => theirs.has(m[0]))).map(([t]) => t);
+    expect(kept, 'the other owner\'s ids kept in one\'s own records').toEqual([]);
+  });
+
+  // review M1: what the sweep really reaches. The owner's own well-formed path (their own ids of the right
+  // kind) and the same bodies: a reading route must answer 2xx (else the cross-owner 404s above prove
+  // nothing for it); a changing route is "reached" when its own request gets past validation (2xx or 409).
+  // Routes the generic bodies do not get past are listed in the audit as not reached by the sweep — their
+  // cross-owner checks are the task tests (SEC areas), not this sweep. Runs last: it may change the owner's data.
+  test('positive control: every reading route answers its owner; the changing routes the sweep reaches are recorded', async () => {
+    const own: Record<string, string[]> = {};
+    for (const [k, q] of Object.entries(PARAM)) own[k] = await idsOf(q, A.paperId);
+    const refIds = (await pool.query<{ id: string }>('SELECT reference_id::text AS id FROM project_references WHERE paper_id = $1', [A.paperId])).rows.map((r) => r.id);
+    // the k-th own id of each kind (so every kind's records get their turn)
+    const at = (k: number) => (x: string) => own[x]![k % own[x]!.length]!;
+    const bodyAt = (k: number) => {
+      const o = at(k);
+      return {
+        document_id: o('documentId'), revision_id: o('revisionId'), base_revision_id: o('revisionId'), expected_revision_id: o('revisionId'), expected_head_revision_id: o('revisionId'),
+        snapshot_id: o('snapshotId'), asset_id: o('assetId'), evidence_id: o('evidenceId'), node_id: o('nodeId'), block_id: o('blockId'), job_id: o('jobId'), reference_id: refIds[k % refIds.length],
+        intent: 'x', idempotency_key: 'audit-control-key-0001', format: 'docx', purpose: 'private', status: 'draft', label: 'audit', text: 'audit', kind: 'manuscript',
+      };
+    };
+    const reading: string[] = [];
+    const reached: string[] = [];
+    const notReached: Record<string, number> = {};
+    const GET_EXCEPTIONS: Record<string, string> = {
+      'GET /api/papers/:paperId/references/zotero': 'needs the owner\'s Zotero key (none in the fixture); refused 409 before any request',
+    };
+    for (const r of routes.filter((x) => x.url.startsWith('/api/papers/:paperId'))) {
+      const params = [...r.url.matchAll(/:(\w+)/g)].map((m) => m[1]!).filter((x) => x !== 'paperId');
+      const n = Math.max(1, ...params.map((x) => own[x]!.length), r.method === 'GET' ? own.assetId!.length : 1);
+      let best = 0;
+      for (let k = 0; k < Math.min(n, 8) && !(best >= 200 && best < 300); k++) {
+        const ids: Record<string, string> = { paperId: A.paperId, ...Object.fromEntries(params.map((x) => [x, at(k)(x)])) };
+        const body = bodyAt(k);
+        for (const b of r.method === 'GET' ? [body] : [body, ...VARIANTS.map((v) => ({ ...body, ...v }))]) {
+          const x = await send(r, fill(r.url, ids), H.alice!, b);
+          if (x.statusCode >= 200 && x.statusCode < 300) { best = x.statusCode; break; }
+          if (x.statusCode === 409 && (best < 200 || best >= 300)) best = 409;
+          else if (!best) best = x.statusCode;
+        }
+      }
+      const key = `${r.method} ${r.url}`;
+      if (r.method === 'GET') {
+        if (best >= 200 && best < 300) reading.push(key);
+        else expect(GET_EXCEPTIONS[key], `${key}: the owner's own request answered ${best} — the cross-owner check proves nothing here`).toBeTruthy();
+      } else if ((best >= 200 && best < 300) || best === 409) reached.push(key);
+      else notReached[key] = best;
+    }
+    const stats = JSON.parse(fs.readFileSync(path.resolve('reports/tasks/PW-059/sweep-stats.json'), 'utf8'));
+    fs.writeFileSync(path.resolve('reports/tasks/PW-059/sweep-stats.json'), `${JSON.stringify({ ...stats, coverage: { reading_routes_answering_owner: reading.length, changing_routes_reached: reached.length, changing_routes_not_reached: notReached, get_exceptions: GET_EXCEPTIONS } }, null, 2)}\n`);
+    expect(reading.length).toBeGreaterThan(40);
   }, 600_000);
 });

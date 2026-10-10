@@ -1,8 +1,8 @@
 # PW-059 — Security release audit — REPORT
-상태: in_review (2026-10-10)
+상태: in_review (2026-10-10) — 독립 리뷰 1차 changes requested(MAJOR 1, MINOR 5, NIT 3) → 반영, 재리뷰 요청
 
 보안 감사 보고서는 `reports/security/RELEASE_AUDIT.md`, 게이트 기록은 `reports/security/audit.json`이다.
-**게이트 결정은 `pending_manual`**이다. 자동 8영역 263개 시험이 통과했고 critical·high는 open이 아니다. 실제 기계 확인 2건이 남았다.
+게이트 결정은 `reports/security/audit.json`에 있다. 수동 확인 2건이 남아 있으므로 `pending_manual`이 기대값이다.
 
 ## 무엇을 했나
 - **전 route sweep**(`tests/security/sweep.int.test.ts`, `routes.ts`, `world.ts`)
@@ -39,7 +39,11 @@
   - `tests/security/{routes.ts, world.ts, sweep.int.test.ts, static.test.ts, egress.test.ts, injection.int.test.ts, credentials.test.ts, supply-chain.test.ts, gate.ts, gate.test.ts, run-audit.ts}`
   - `reports/security/{RELEASE_AUDIT.md, findings.json, audit.json}`
   - `reports/tasks/PW-059/**`
-- 범위 밖(RFC-014 부록 PW-059): `apps/worker/src/provider-runs/index.ts`(F-01 수정)
+- 범위 밖(RFC-014 부록 PW-059)
+  - `apps/worker/src/provider-runs/index.ts`(F-01·F-03·n2)
+  - `infra/sandbox/sandbox.ts`(F-04)
+  - `tests/rfc/RFC-010/provider-runs.int.test.ts`(허용 공급자 명시)
+- 추가 시험: `tests/security/{schema.int.test.ts, send-policy.int.test.ts}`, `reports/security/manual-checks.json`
 
 ## 보안·과학 경계
 - 게이트는 skip이나 미실행을 통과로 치지 않는다.
@@ -51,6 +55,39 @@
 - F-02(low, 헤더)는 PW-061에서 다룬다.
 - sweep은 각 route의 첫 검증을 넘는 깊이가 제한적이다. 깊은 경로는 각 Task 시험이 맡는다(SEC 묶음에 포함).
 - 브라우저 XSS 자동 탐색, 경합 공격, 외부 침투 시험은 하지 않았다.
+
+## 독립 리뷰 1차(changes requested) — 반영
+- **M1**: sweep이 닿지 않는 route를 통과로 셌다.
+  - fixture가 모든 경로 매개변수 종류를 만든다(PDF anchor, story alternative, curation assessment, figure flag 추가). 두 사용자 모두 각 종류의 기록이 없으면 실패한다.
+  - query string id(`asset_id`, `block_id`, `document_id`, `reference_id`)도 보낸다. 대조군이 candidates route의 빈틈을 찾아냈다.
+  - positive control
+    - 읽기 route 62개가 모두 소유자에게 2xx로 답한다(예외 1개는 이유 기록).
+    - 바꾸기 route는 sweep이 닿는 17개와 닿지 않는 63개를 `sweep-stats.json`에 나눠 기록한다. 감사 보고서에 그대로 적었다.
+  - 닿지 않는 본문 깊이는 둘로 덮는다.
+    - 구조 시험(`schema.int.test.ts`): 논문 범위 외래 키 113개 중 88개에 `paper_id`가 있다. 25개 예외는 이유가 검토되어 있고 목록이 정확해야 한다.
+    - 요청이 주는 비복합 참조 6종의 표적 시험: 상대 id → 4xx, 자기 id → 2xx 또는 gate 409, 남은 id 없음.
+- **m1**
+  - 답에 상대 id가 있으면 실패한다(요청에 넣은 것은 제외). ids만 새는 job 목록을 심어 확인했다.
+  - 본문에 중첩 id를 넣고, 소유자 범위 POST도 시도한다.
+  - PDF 등 ZIP 밖 이진 형식은 풀지 않는다. 남은 위험이다(sweep fixture에는 PDF export가 없다).
+- **m2**
+  - 모듈 이름을 어떤 형태든 찾는다(양쪽 따옴표, `import()`, require, createRequire, 여러 줄).
+  - fetch는 호출이나 값 사용을 찾고, 속성·경로·다른 객체의 메서드는 제외한다. 이 형태들의 판별 자체도 시험한다.
+  - `.js/.mjs/.cjs`, `infra/`, `scripts/`를 포함하고, 주석과 type import는 뺀다.
+  - `process.env`를 펼치거나 `Object.assign`·`structuredClone`으로 복사하면 금지한다.
+  - eval·new Function·vm을 금지한다.
+  - 새로 잡힌 것
+    - sandbox 가용성 확인이 worker 환경을 받았다(**F-04**, 수정).
+    - sandbox 안 상속 2곳은 검토 목록에 넣었다.
+- **m3**: 수동 확인은 사용자가 관리하는 `reports/security/manual-checks.json`에서 읽는다. 통과에는 `checked_by: "user"`, 날짜, 근거가 필요하다.
+- **m4**
+  - SEC-SEND-POLICY 영역을 추가했다.
+  - 점검 중 **F-03(high)**을 찾았다. 실제 전송 지점 `runProviderTurn`이 전송 정책을 확인하지 않았고, 선택 수정·curation worker에는 자체 확인이 없었다. 수정했다(RED `red-F03.log`).
+  - RFC-010 시험 논문은 허용 공급자를 명시한다.
+- **m5**: `RELEASE_AUDIT.md`에 spec 09 대조표를 넣었다. "부분"과 "없음"도 적었다(credential 교체 재인증, 로그 내용 자동 시험, SBOM, parser 패치 정책).
+- **n1**: 감사 기록에 `dirty`를 넣었다. 커밋되지 않은 트리의 감사는 게이트가 거절한다.
+- **n2**: 옮겨 둔 개발자 CLI 상태(`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, XDG)도 로그인 프로필로 거부한다.
+- 반영 확인 mutation: n2, gate dirty, gate 수동 기록자, Object.assign env 복사, F-03, ids만 새는 목록 — 모두 잡았다. 잘못 만든 mutant 1개는 무효로 기록했다.
 
 ## 다음
 PW-060(백업·복구 drill)

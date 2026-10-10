@@ -100,3 +100,8 @@ User decision / reviewer:
     - `prepareStateDir`가 로그인 프로필에 `assertSafeProfileDir`를 적용한다. 개발자 CLI 상태(`~/.claude`, `~/.codex`, `~/.config/claude`), 그 안, 홈 자체, symlink, 남이 쓸 수 있는 폴더는 거부한다.
     - `homes`를 넘길 수 있다(실행 설정의 homes).
     - RFC-010의 "별도 runtime 로그인 프로필"을 코드로 강제하는 것이다. 동작 변화는 잘못된 설정의 거부뿐이다.
+  - (리뷰 반영) `apps/worker/src/provider-runs/index.ts` 추가 변경
+    - 보안 감사 F-03(high): `runProviderTurn`이 시작할 때 논문의 전송 정책을 확인한다(민감 자료, 전송 차단, 허용 공급자 목록). token·폴더·프로세스가 생기기 전이다.
+    - 리뷰 n2: 로그인 프로필이 옮겨 둔 개발자 CLI 상태(`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `XDG_CONFIG_HOME/claude`) 안이면 거부한다.
+  - `tests/rfc/RFC-010/provider-runs.int.test.ts`: 시험 논문이 두 공급자를 허용하도록 설정한다. F-03 확인이 생겨서 필요해졌다.
+  - `infra/sandbox/sandbox.ts`(F-04, low): sandbox 가용성 확인(bwrap·prlimit·unshare·python3)이 worker 환경 대신 PATH만 받는다.

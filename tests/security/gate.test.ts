@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { evaluateGate, REQUIRED_AREAS, type Audit, type Suite } from './gate.ts';
 
 const auto = (id: string, over: Partial<Suite> = {}): Suite => ({ id, title: id, kind: 'automated', required: true, status: 'passed', counts: { passed: 3, failed: 0, skipped: 0 }, evidence: 'tests/x', ...over });
-const base = (): Audit => ({ audited_at: '2026-10-10T00:00:00Z', commit: 'abc', suites: [...REQUIRED_AREAS.map((id) => auto(id)), { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: 'reports/x.md' }], findings: [] });
+const base = (): Audit => ({ audited_at: '2026-10-10T00:00:00Z', commit: 'abc', dirty: false, suites: [...REQUIRED_AREAS.map((id) => auto(id)), { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: 'reports/x.md', checked_by: 'user', checked_at: '2026-10-10' }], findings: [] });
 const with_ = (f: (a: Audit) => void) => { const a = base(); f(a); return a; };
 
 describe('TST-059B: the release gate', () => {
@@ -40,8 +40,19 @@ describe('TST-059B: the release gate', () => {
   });
   test('a manual check without evidence is pending, never allowed; a failed one refuses', () => {
     expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'pending', evidence: '' }; }))).toMatchObject({ decision: 'pending_manual' });
-    expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: '' }; })).decision).toBe('pending_manual');
+    expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: '', checked_by: 'user', checked_at: '2026-10-10' }; })).decision).toBe('pending_manual');
     expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'failed', evidence: 'x' }; })).decision).toBe('refused');
+  });
+  test('review m3: a manual check counts only when the user recorded it with a date and evidence', () => {
+    const manual = (o: Partial<Suite>) => evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: 'x', checked_by: 'user', checked_at: '2026-10-10', ...o }; })).decision;
+    expect(manual({})).toBe('allowed');
+    expect(manual({ checked_by: 'claude' })).toBe('pending_manual');
+    expect(manual({ checked_by: null })).toBe('pending_manual');
+    expect(manual({ checked_at: null })).toBe('pending_manual');
+  });
+  test('review n1: an audit of uncommitted changes, or one that does not say, refuses', () => {
+    expect(evaluateGate(with_((a) => { a.dirty = true; })).decision).toBe('refused');
+    expect(evaluateGate(with_((a) => { delete a.dirty; })).decision).toBe('refused');
   });
   test('malformed records and unknown values refuse', () => {
     expect(evaluateGate({} as Audit).decision).toBe('refused');

@@ -1,0 +1,37 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/security/send-policy.int.test.ts (4 tests | 4 failed) 1484ms
+   ❯ F-03: the sending policy is checked where material leaves (4)
+     × a paper that blocks sending: refused before anything is issued or started 33ms
+     × a paper that sensitive: refused before anything is issued or started 12ms
+     × a paper that provider not listed: refused before anything is issued or started 11ms
+     × a paper that no provider listed (the default): refused before anything is issued or started 10ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/security/send-policy.int.test.ts > F-03: the sending policy is checked where material leaves > a paper that blocks sending: refused before anything is issued or started
+ FAIL  tests/security/send-policy.int.test.ts > F-03: the sending policy is checked where material leaves > a paper that sensitive: refused before anything is issued or started
+ FAIL  tests/security/send-policy.int.test.ts > F-03: the sending policy is checked where material leaves > a paper that provider not listed: refused before anything is issued or started
+ FAIL  tests/security/send-policy.int.test.ts > F-03: the sending policy is checked where material leaves > a paper that no provider listed (the default): refused before anything is issued or started
+AssertionError: expected Error: a run needs at least one tool { …(3) } to be an instance of JobOutcomeError
+ ❯ tests/security/send-policy.int.test.ts:63:17
+     61|       config: { runsRoot, stateRoot: path.join(tmp, 'state'), egressAl…
+     62|     }).then(() => null, (e: unknown) => e);
+     63|     expect(err).toBeInstanceOf(JobOutcomeError);
+       |                 ^
+     64|     expect((err as JobOutcomeError).next).toBe('WAITING_USER');
+     65|     expect(await tokens()).toBe(0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed (4)
+   Start at  10:11:45
+   Duration  4.59s (transform 52%, tests 34%, import 14%)
+
+  Transform  transforming modules took 2.25s · 52% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

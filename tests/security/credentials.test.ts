@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { prepareStateDir, StateRefused } from '../../apps/worker/src/provider-runs/index.ts';
+import { prepareStateDir, relocatedCliState, StateRefused } from '../../apps/worker/src/provider-runs/index.ts';
 
 function world() {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'pw059-cred-'));
@@ -38,6 +38,21 @@ describe('F-01: the run\'s login profile is never the developer\'s CLI state', (
       const link = path.join(w.base, 'looks-separate');
       fs.symlinkSync(path.join(w.home, '.claude'), link);
       expect(() => prepareStateDir(w.state, 'claude_agent', randomUUID(), link, [w.home])).toThrow(StateRefused);
+    } finally {
+      fs.rmSync(w.base, { recursive: true, force: true });
+    }
+  });
+  test('review n2: developer CLI state moved out of the home (CLAUDE_CONFIG_DIR, CODEX_HOME, XDG) is refused too', () => {
+    const w = world();
+    try {
+      const moved = path.join(w.base, 'moved-claude');
+      fs.mkdirSync(moved, { mode: 0o700 });
+      fs.writeFileSync(path.join(moved, '.credentials.json'), '{}', { mode: 0o600 });
+      expect(() => prepareStateDir(w.state, 'claude_agent', randomUUID(), moved, [w.home], [moved])).toThrow(/developer CLI state/);
+      expect(relocatedCliState({ CLAUDE_CONFIG_DIR: '/x/claude', CODEX_HOME: '/y/codex', XDG_CONFIG_HOME: '/z' })).toEqual(['/x/claude', '/y/codex', '/z/claude']);
+      expect(relocatedCliState({ CLAUDE_CONFIG_DIR: 'relative' })).toEqual([]);
+      // the separate runtime profile still works
+      expect(prepareStateDir(w.state, 'claude_agent', randomUUID(), path.join(w.base, 'runtime-profile'), [w.home], [moved]).binds).toHaveLength(1);
     } finally {
       fs.rmSync(w.base, { recursive: true, force: true });
     }

@@ -22,3 +22,12 @@ KILLED static: a fetch planted in an API route
 KILLED static: a spawn without its own env
 KILLED static: a spawn passing the server env on
 KILLED static: a credential file read
+# review fixes
+KILLED n2: relocated CLI state not checked
+KILLED gate: dirty tree allowed
+KILLED gate: manual by anyone
+INVALID static: env shorthand ignored and spread allowed (mutated the test's own assertion; replaced by planting the violation in source below)
+KILLED F-03: sending policy not checked where material leaves
+KILLED IDOR (ids only): export list without the paper filter
+KILLED static: a spawn copying process.env with Object.assign
+KILLED IDOR (ids only): job list without the paper filter

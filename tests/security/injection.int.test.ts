@@ -41,8 +41,8 @@ beforeAll(async () => {
     const r = await app.inject({ method: 'POST', url: '/api/auth/login', headers: { origin: ORIGIN }, payload: { username: u, password: 'correct horse battery' } });
     H[u] = { cookie: String(r.headers['set-cookie']).split(';')[0]!, 'x-pw-csrf': r.json().csrfToken, origin: ORIGIN };
   }
-  A = await buildWorld(app, pool, H.alice!, 'CANARYA1', INJECTION);
-  B = await buildWorld(app, pool, H.bob!, 'CANARYBOBSECRET5d');
+  A = await buildWorld(app, pool, H.alice!, 'CANARYA1', INJECTION, dir);
+  B = await buildWorld(app, pool, H.bob!, 'CANARYBOBSECRET5d', '', dir);
 }, 120_000);
 afterAll(async () => {
   await app?.close();

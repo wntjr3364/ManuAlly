@@ -12,20 +12,22 @@ import { evaluateGate, type Audit, type Finding, type Suite } from './gate.ts';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
 type Config = 'unit' | 'integration';
 const AUTOMATED: { id: string; title: string; files: [Config, string][] }[] = [
-  { id: 'SEC-IDOR-AUTH', title: 'cross-owner/cross-paper access, authentication, CSRF and origin on every route', files: [['integration', 'tests/security/sweep.int.test.ts']] },
+  { id: 'SEC-IDOR-AUTH', title: 'cross-owner/cross-paper access, authentication, CSRF and origin on every route; cross-paper references refused by the database', files: [['integration', 'tests/security/sweep.int.test.ts'], ['integration', 'tests/security/schema.int.test.ts']] },
   { id: 'SEC-INJECTION', title: 'injected instructions in untrusted text; tool gateway scope from the run token', files: [['integration', 'tests/security/injection.int.test.ts'], ['integration', 'tests/tasks/PW-027/gateway.int.test.ts']] },
   { id: 'SEC-EGRESS', title: 'URL fetch scheme/host/port/address checks; network only from reviewed modules', files: [['unit', 'tests/security/egress.test.ts'], ['integration', 'tests/tasks/PW-034/assets.int.test.ts'], ['unit', 'tests/security/static.test.ts']] },
+  { id: 'SEC-SEND-POLICY', title: 'a paper\'s sending policy (classification, block, allowed providers) before any material reaches a provider', files: [['integration', 'tests/security/send-policy.int.test.ts'], ['integration', 'tests/tasks/PW-034/assets.int.test.ts'], ['integration', 'tests/tasks/PW-037/retrieval.int.test.ts'], ['integration', 'tests/tasks/PW-047/checkpoints.int.test.ts'], ['integration', 'tests/tasks/PW-049/quota.int.test.ts']] },
   { id: 'SEC-CREDENTIAL', title: 'login profile never developer state; child environments; run folders and sandbox runner', files: [['unit', 'tests/security/credentials.test.ts'], ['unit', 'tests/tasks/PW-026/runner.test.ts']] },
   { id: 'SEC-PARSER', title: 'PDF, DOCX, ZIP archive and reference parsers under limits', files: [['integration', 'tests/tasks/PW-035/pdf.int.test.ts'], ['unit', 'tests/tasks/PW-055/docx.test.ts'], ['unit', 'tests/tasks/PW-057/archive.test.ts']] },
   { id: 'SEC-AUTH', title: 'owners, sessions, login limits, paper scope', files: [['integration', 'tests/tasks/PW-008/papers.int.test.ts'], ['integration', 'tests/tasks/PW-008/review-fixes.int.test.ts']] },
   { id: 'SEC-REDACTION', title: 'secret redaction in errors and logs', files: [['unit', 'tests/tasks/PW-052/classify.test.ts']] },
   { id: 'SEC-SUPPLY', title: 'dependency licenses, version pins, lockfile', files: [['unit', 'tests/security/supply-chain.test.ts']] },
 ];
-// checks only a real machine can give (never faked here)
-const MANUAL: Suite[] = [
-  { id: 'MAN-LIVE-SANDBOX', title: 'real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user\'s PC and the lab server (no credentials here; the real CLIs are never run by the build agent)', kind: 'manual', required: true, status: 'pending', evidence: '' },
-  { id: 'MAN-DEPLOY-TLS', title: 'deployment behind TLS with Secure cookies, allowed origins and the headers of F-02 (PW-061)', kind: 'manual', required: true, status: 'pending', evidence: '' },
-];
+// checks only a real machine can give: recorded by the user in reports/security/manual-checks.json (who, when,
+// evidence); never written by this runner (review m3)
+function manualChecks(): Suite[] {
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'reports/security/manual-checks.json'), 'utf8')) as { id: string; title: string; status: Suite['status']; evidence: string; checked_by: string | null; checked_at: string | null }[];
+  return raw.map((m) => ({ id: m.id, title: m.title, kind: 'manual', required: true, status: m.status, evidence: m.evidence, checked_by: m.checked_by, checked_at: m.checked_at }));
+}
 
 interface VitestJson { testResults: { name: string; assertionResults: { status: string }[] }[] }
 function runVitest(config: Config, files: string[]): VitestJson {
@@ -35,6 +37,8 @@ function runVitest(config: Config, files: string[]): VitestJson {
 }
 
 export function runAudit(): Audit {
+  // the tree as audited: any uncommitted change makes the record name no release (review n1)
+  const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }).trim() !== '';
   const results = new Map<string, { passed: number; failed: number; skipped: number }>();
   for (const config of ['unit', 'integration'] as const) {
     const files = [...new Set(AUTOMATED.flatMap((s) => s.files.filter(([c]) => c === config).map(([, f]) => f)))];
@@ -57,7 +61,7 @@ export function runAudit(): Audit {
   });
   const findings = JSON.parse(fs.readFileSync(path.join(ROOT, 'reports/security/findings.json'), 'utf8')) as Finding[];
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
-  return { audited_at: new Date().toISOString(), commit, suites: [...suites, ...MANUAL], findings };
+  return { audited_at: new Date().toISOString(), commit, dirty, suites: [...suites, ...manualChecks()], findings };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {

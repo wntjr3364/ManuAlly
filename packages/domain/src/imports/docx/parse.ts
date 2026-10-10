@@ -22,8 +22,12 @@ import { validateDocument } from '@pw/editor-core';
 import { openZip, ZipError, type ZipFailure } from './zip.ts';
 import { child, descendants, elements, parseXml, textOf, XmlError, type XEl } from './xml.ts';
 
-export const DOCX_PARSER_VERSION = 'pw-docx-import-4';
+export const DOCX_PARSER_VERSION = 'pw-docx-import-5';
 export const MAX_BLOCKS = 50_000;
+// fields nest a few levels in real documents; anything deeper is refused (each open field sees every text)
+export const MAX_FIELD_DEPTH = 64;
+// what is kept of a text only for the report's examples (they are cut to 120 characters)
+const EXAMPLE_CHARS = 200;
 export type TrackedChoice = 'accept' | 'reject';
 export type DocxLossKind =
   | 'tracked_change' | 'tracked_formatting' | 'list' | 'comment' | 'citation_field' | 'bibliography_field' | 'field' | 'equation' | 'table_layout'
@@ -217,7 +221,9 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
   const boxes: string[] = [];
   const anchors = new Map<string, string>(); // comment id → anchored text so far
   const open = new Set<string>();
-  const state = { characters: 0, inNote: 0, carry: null as { content: Inline[] } | null };
+  // only the comments shown as examples need their anchored text (fourth review R2)
+  const anchored = new Set([...commentText.keys()].slice(0, MAX_EXAMPLES));
+  const state = { characters: 0, inNote: 0, inUnknown: 0, carry: null as { content: Inline[] } | null };
   const push = (b: Block) => {
     if (blocks.length >= MAX_BLOCKS) throw new DocxError(`more than ${MAX_BLOCKS} paragraphs and tables`, 'TOO_LARGE');
     blocks.push(b);
@@ -239,12 +245,25 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
   // one paragraph's (or cell's, or note's) inline content
   function inlines(p: XEl): Inline[] {
     const out: Inline[] = [];
-    const fields: { instr: string; phase: 'instr' | 'result'; result: string }[] = [];
+    // an open field: its instruction, its shown result (only as much as the report shows), and the text met
+    // while still in the instruction part (dropped at "separate"; kept if the field never shows a result)
+    type Field = { instr: string; phase: 'instr' | 'result'; result: string; held: { text: string; marks: Mark[] }[] };
+    const fields: Field[] = [];
+    let inInstr = 0;
+    const addField = (f: Field) => {
+      if (fields.length >= MAX_FIELD_DEPTH) throw new DocxError(`fields nested deeper than ${MAX_FIELD_DEPTH} levels`, 'CORRUPT');
+      if (f.phase === 'instr') inInstr++;
+      fields.push(f);
+    };
     const emit = (text: string, marks: Mark[]) => {
       if (!text) return;
-      if (fields.some((f) => f.phase === 'instr')) return; // field instructions are not text
-      for (const f of fields) f.result += text;
-      for (const id of open) anchors.set(id, (anchors.get(id) ?? '') + text);
+      // inside a field's instruction part: held by the innermost such field, not shown (fourth review m2)
+      if (inInstr > 0) {
+        for (let k = fields.length - 1; k >= 0; k--) if (fields[k]!.phase === 'instr') { fields[k]!.held.push({ text, marks }); break; }
+        return;
+      }
+      for (const f of fields) if (f.result.length < EXAMPLE_CHARS) f.result += text;
+      for (const id of open) { const a = anchors.get(id) ?? ''; if (a.length < EXAMPLE_CHARS) anchors.set(id, a + text); }
       state.characters += text.length;
       const last = out.at(-1);
       const key = marks.slice().sort().join(',');
@@ -254,6 +273,13 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
     const endField = () => {
       const f = fields.pop();
       if (!f) return;
+      if (f.phase === 'instr') {
+        // a field that never showed a result: the text met inside it is not instruction — keep it, report it
+        inInstr--;
+        const t = f.held.map((h) => h.text).join('');
+        for (const h of f.held) emit(h.text, h.marks);
+        if (t.trim()) { report.add('field', `a field without a shown result: ${t}`); return; }
+      }
       if (CITATION.test(f.instr)) report.add('citation_field', f.result);
       else if (BIBLIOGRAPHY.test(f.instr)) report.add('bibliography_field', f.result);
       else if (f.instr.trim()) report.add('field', `${f.instr.trim().split(/\s+/)[0]}: ${f.result}`);
@@ -312,12 +338,12 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
           }
           case 'w:fldChar': {
             const t = c.attrs['w:fldCharType'];
-            if (t === 'begin') fields.push({ instr: '', phase: 'instr', result: '' });
-            else if (t === 'separate' && fields.length) fields.at(-1)!.phase = 'result';
+            if (t === 'begin') addField({ instr: '', phase: 'instr', result: '', held: [] });
+            else if (t === 'separate' && fields.length && fields.at(-1)!.phase === 'instr') { fields.at(-1)!.phase = 'result'; fields.at(-1)!.held = []; inInstr--; }
             else if (t === 'end') endField();
             break;
           }
-          case 'w:instrText': if (fields.length) fields.at(-1)!.instr += textOf({ name: 'x', attrs: {}, children: [c] }, ['w:instrText']); break;
+          case 'w:instrText': if (fields.length && fields.at(-1)!.instr.length < 4096) fields.at(-1)!.instr += textOf({ name: 'x', attrs: {}, children: [c] }, ['w:instrText']); break;
           case 'w:drawing': case 'w:pict': case 'w:object': shape(c); break;
           case 'mc:AlternateContent': alternate(c, (b) => { for (const x of elements(b)) runChild(x); }); break;
           case 'w:footnoteReference': case 'w:endnoteReference': {
@@ -388,7 +414,7 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
             break;
           }
           case 'w:fldSimple': {
-            fields.push({ instr: c.attrs['w:instr'] ?? '', phase: 'result', result: '' });
+            addField({ instr: c.attrs['w:instr'] ?? '', phase: 'result', result: '', held: [] });
             walk(c);
             endField();
             break;
@@ -397,7 +423,7 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
             const kind = sdtKind(c);
             const content = child(c, 'w:sdtContent') ?? EMPTY;
             if (kind) {
-              fields.push({ instr: kind === 'citation' ? 'CITATION' : 'BIBLIOGRAPHY', phase: 'result', result: '' });
+              addField({ instr: kind === 'citation' ? 'CITATION' : 'BIBLIOGRAPHY', phase: 'result', result: '', held: [] });
               walk(content);
               endField();
             } else walk(content);
@@ -411,12 +437,18 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
             emit(t, []);
             break;
           }
-          case 'w:commentRangeStart': open.add(c.attrs['w:id'] ?? ''); break;
+          case 'w:commentRangeStart': if (anchored.has(c.attrs['w:id'] ?? '')) open.add(c.attrs['w:id'] ?? ''); break;
           case 'w:commentRangeEnd': open.delete(c.attrs['w:id'] ?? ''); break;
           default:
-            if (!SILENT.has(c.name) && textOf(c).trim()) {
-              report.add('other', `${c.name}: ${textOf(c)}`);
-              walk(c);
+            if (SILENT.has(c.name)) break;
+            // the text is looked at once, at the outermost unknown element (fourth review m1)
+            if (state.inUnknown > 0) { walk(c); break; }
+            {
+              const t = textOf(c);
+              if (!t.trim()) break;
+              report.add('other', `${c.name}: ${t.slice(0, EXAMPLE_CHARS)}`);
+              state.inUnknown++;
+              try { walk(c); } finally { state.inUnknown--; }
             }
             break;
         }
@@ -497,9 +529,16 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
         case 'w:ins': case 'w:moveTo': if (choice !== 'reject') walkBody(c); break;
         case 'w:del': case 'w:moveFrom': if (choice === 'reject') walkBody(c); break;
         case 'mc:AlternateContent': walkBody(branchOf(c) ?? EMPTY); break;
-        default:
-          if (!SILENT.has(c.name) && textOf(c).trim()) { report.add('other', `${c.name}: ${textOf(c)}`); walkBody(c); }
+        default: {
+          if (SILENT.has(c.name)) break;
+          if (state.inUnknown > 0) { walkBody(c); break; }
+          const t = textOf(c);
+          if (!t.trim()) break;
+          report.add('other', `${c.name}: ${t.slice(0, EXAMPLE_CHARS)}`);
+          state.inUnknown++;
+          try { walkBody(c); } finally { state.inUnknown--; }
           break;
+        }
       }
     }
   };

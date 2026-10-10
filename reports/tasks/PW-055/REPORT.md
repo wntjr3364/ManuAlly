@@ -110,3 +110,16 @@ PW-056: DOCX·CSL export
 - RED(`red-third.log`): 13초로 시간 한계 실패
 - GREEN: unit 39, 통합 6(+PW-021 9), 브라우저 1(parser version `pw-docx-import-4`)
 - mutation: 1종 탐지
+- 회귀(3차 반영): `pnpm test` exit 0 — unit 483, integration 596, contracts 17, 브라우저 98 (`pnpm-test-third.log`)
+
+## 4차 리뷰 (426c6a5): changes requested — MAJOR 1(R2), MINOR 2 (R1' 해결 확인; 표·스타일·AlternateContent·글상자·각주는 증폭 없음 확인)
+| 지적 | 처리 | 시험 |
+|---|---|---|
+| R2: 글 조각마다 열린 댓글 범위·열린 필드 모두에 덧붙임(1만×1만: 17–34초, 3.4 GB) | 댓글 범위는 보고 예로 보일 앞 5개 댓글만 추적한다. 예로 쓰는 글(댓글 범위, 필드 결과)은 200자까지만 모은다(글 자체는 모두 원고에 남음). 필드 중첩은 64까지만이고 넘으면 `CORRUPT`다. 명령 부분 필드 수는 셈으로 관리한다 | 열린 범위 5만 × run 5만 → 3초 안, 댓글 5만 개 보고(예 ≤120자). 끝나지 않은 필드 1만 중첩 → 3초 안 `CORRUPT`. 5,000자 인용 결과는 글은 그대로, 예는 ≤120자 |
+| m1: 모르는 요소가 중첩될 때마다 글 전체를 다시 훑음 | 가장 바깥 모르는 요소에서만 글을 한 번 보고 보고한다. 안쪽은 그냥 읽는다 | 모르는 요소 250겹 × 5만 run → 3초 안, 글 50만 자, `other` 1 |
+| m2: 결과 구분(separate) 없이 끝나지 않은 필드 뒤의 글이 보고 없이 사라짐 | 명령 부분에서 만난 글은 가장 안쪽 필드가 들고 있다. separate에서 버리고(중첩 필드 결과처럼 명령의 일부), 결과를 보이지 않고 끝나면 그 자리에 되돌리고 `field`("a field without a shown result")로 보고한다 | "Before important result 2.4-fold"와 보고. 중첩 필드 시험(명령 안 결과는 버림)도 그대로 통과 |
+
+- RED(`red-fourth.log`): 새 시험 4개 실패(최대 57초)
+- GREEN: unit 44, 통합 6(+PW-021 9), 브라우저 1(parser version `pw-docx-import-5`)
+- mutation(`mutation.log` 하단): 5종 모두 탐지
+  - "모든 댓글 추적" 변이는 1만 규모 시험에서 살아남았다(200자 제한만으로 3초 안). 5만 규모로 시험을 키운 뒤 탐지했다.

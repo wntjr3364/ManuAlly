@@ -50,7 +50,7 @@ describe('TST-055A: preview and losses first, then a new manuscript or a new ver
     const res = await upload(id, richDocx(), { tracked_changes: 'accept' });
     expect(res.statusCode, res.body).toBe(201);
     const imp = res.json();
-    expect(imp).toMatchObject({ format: 'docx', filename: 'paper.docx', parser_version: 'pw-docx-import-4', applied: null });
+    expect(imp).toMatchObject({ format: 'docx', filename: 'paper.docx', parser_version: 'pw-docx-import-5', applied: null });
     expect(imp.report).toMatchObject({ round_trip: 'not_supported', tracked_changes: { insertions: 1, deletions: 1, choice: 'accept' } });
     expect(imp.report.losses.map((l: { kind: string }) => l.kind)).toEqual(expect.arrayContaining(['tracked_change', 'comment', 'citation_field', 'equation', 'table_layout', 'image', 'footnote', 'link']));
     expect((await pool.query("SELECT count(*)::int AS n FROM documents WHERE paper_id = $1", [id])).rows[0].n).toBe(0);

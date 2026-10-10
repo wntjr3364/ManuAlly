@@ -350,3 +350,47 @@ describe("third review R1': many references to one note read it once", () => {
     expect(loss(out.report, 'other')).toMatchObject({ count: 9_999, examples: [expect.stringMatching(/repeated note reference/)] });
   });
 });
+
+// PW-055 fourth review: MAJOR R2, MINOR m1–m2
+describe('fourth review R2: open comment ranges and open fields do not multiply the work', () => {
+  test('50,000 comment ranges left open over 50,000 runs: fast; the comments are still reported', () => {
+    const starts = Array.from({ length: 50_000 }, (_, k) => `<w:commentRangeStart w:id="${k}"/>`).join('');
+    const comments = Array.from({ length: 50_000 }, (_, k) => `<w:comment w:id="${k}"><w:p><w:r><w:t>c${k}</w:t></w:r></w:p></w:comment>`).join('');
+    const doc = makeDocx(p(starts + r('ten chars.').repeat(50_000)), { comments });
+    const t0 = Date.now();
+    const out = parseDocx(doc, {});
+    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(loss(out.report, 'comment')).toMatchObject({ count: 50_000 });
+    for (const e of loss(out.report, 'comment')!.examples) expect(e.length).toBeLessThanOrEqual(120);
+  });
+  test('fields nested beyond any real document are refused (CORRUPT), quickly', () => {
+    const f = (t: string) => `<w:r><w:fldChar w:fldCharType="${t}"/></w:r>`;
+    const open = (f('begin') + '<w:r><w:instrText> REF x </w:instrText></w:r>' + f('separate')).repeat(10_000);
+    const doc = makeDocx(p(open + r('ten chars.').repeat(10_000)));
+    const t0 = Date.now();
+    expect(() => parseDocx(doc, {})).toThrow(expect.objectContaining({ reason: 'CORRUPT' }));
+    expect(Date.now() - t0).toBeLessThan(3000);
+  });
+  test('a field result kept for the report is clipped (the text itself is all kept)', () => {
+    const f = (t: string) => `<w:r><w:fldChar w:fldCharType="${t}"/></w:r>`;
+    const out = parseDocx(makeDocx(p(`${f('begin')}<w:r><w:instrText> ADDIN ZOTERO_ITEM CSL_CITATION {} </w:instrText></w:r>${f('separate')}${r('y'.repeat(5000))}${f('end')}`)), {});
+    expect(text((out.doc.content as Block[])[0]!)).toHaveLength(5000);
+    expect(loss(out.report, 'citation_field')!.examples[0]!.length).toBeLessThanOrEqual(120);
+  });
+});
+
+describe('fourth review m1 / m2', () => {
+  test('m1: 250 nested unknown wrappers around many runs are read in linear time', () => {
+    const doc = makeDocx(p(`${'<x:u xmlns:x="x">'.repeat(250)}${r('ten chars.').repeat(50_000)}${'</x:u>'.repeat(250)}`));
+    const t0 = Date.now();
+    const out = parseDocx(doc, {});
+    expect(Date.now() - t0).toBeLessThan(3000);
+    expect(text((out.doc.content as Block[])[0]!)).toHaveLength(500_000);
+    expect(loss(out.report, 'other')!.count).toBe(1);
+  });
+  test('m2: text after a field start that never shows a result is kept and reported', () => {
+    const out = parseDocx(makeDocx(p(`${r('Before ')}<w:r><w:fldChar w:fldCharType="begin"/></w:r>${r('important result 2.4-fold')}`)), {});
+    expect(text((out.doc.content as Block[])[0]!)).toBe('Before important result 2.4-fold');
+    expect(loss(out.report, 'field')).toMatchObject({ count: 1, examples: [expect.stringContaining('important result 2.4-fold')] });
+  });
+});

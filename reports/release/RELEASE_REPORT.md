@@ -53,7 +53,7 @@
 2. **CAP-SANDBOX-LIVE**, **CAP-SECURITY-GATE**
    - 수동 확인 MAN-LIVE-SANDBOX와 MAN-DEPLOY-TLS를 `reports/security/manual-checks.json`에 사용자가 기록한다.
    - 그 뒤 감사를 다시 실행한다(`tests/security/run-audit.ts`).
-   - 지금 감사 결정은 `pending_manual`이다(자동 9개 영역은 통과).
+   - 지금 감사 결정은 `pending_manual`이다(자동 9개 영역은 통과, 열린 finding 없음 — 커밋 1dbf54a의 감사, [`audit-run.log`](audit-run.log)).
 3. **CAP-PREFLIGHT-USER**: 사용자 PC와 연구실 서버에서 preflight와 격리 확인을 한다. data root, 백업 위치, runtime 사용자를 정한다.
 4. **CAP-RELIABILITY-REAL**: 실제 공급자의 quota·문맥 값을 관측한다(지금은 UNKNOWN). 실제 장애 확인은 가능한 범위에서 한다.
 5. **CAP-SCIENTIFIC-HUMAN**: 권리를 확인한 실제 문단으로 사람 blind rubric을 하고, 수치 목표를 사용자가 정한다.

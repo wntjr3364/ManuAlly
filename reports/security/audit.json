@@ -1,6 +1,6 @@
 {
-  "audited_at": "2026-10-10T11:10:02.957Z",
-  "commit": "0048e3342256e97165268d43033638355de3c451",
+  "audited_at": "2026-10-10T13:32:14.714Z",
+  "commit": "1dbf54a17b393d8f575dfd3ae2bfc99bfeb236d7",
   "dirty": false,
   "suites": [
     {
@@ -153,8 +153,8 @@
       "id": "F-02",
       "title": "The web app is served without Content-Security-Policy / frame-ancestors (clickjacking, script injection hardening); the session cookie is SameSite=Strict and HttpOnly, served originals are sandboxed",
       "severity": "low",
-      "status": "open",
-      "plan": "PW-061 deployment runbook: serve the built app with CSP (default-src 'self'), frame-ancestors 'none', Referrer-Policy no-referrer, nosniff; Secure cookies behind TLS"
+      "status": "fixed",
+      "evidence": "tests/tasks/PW-061/deploy.int.test.ts (every answer of the production server carries CSP with frame-ancestors 'none', X-Frame-Options DENY, nosniff, no-referrer, COOP/CORP; a served original keeps its own sandbox CSP; the built app runs under the CSP in Chromium with no violation; RED: reports/tasks/PW-061/red.log); fix: infra/deploy/serve.ts (PW-061). Secure cookies behind TLS remain the manual check MAN-DEPLOY-TLS"
     },
     {
       "id": "F-03",
@@ -172,7 +172,7 @@
     },
     {
       "id": "F-05",
-      "title": "An outline node's claim_ids and evidence_ids were checked for form only; a node could name another paper's claim or evidence, and another paper's evidence id satisfied 'requires evidence' for approval (no content leaked: readers filter by paper)",
+      "title": "An outline node's claim_ids and evidence_ids were checked for form only; a node could name another paper's claim or evidence, and another paper's evidence id satisfied 'requires evidence' for approval (no content leaked: readers filter by paper) — note: free planning labels (non-UUID text, the PW-010 design) still satisfy 'requires evidence'; that is a planning marker, not an integrity guarantee",
       "severity": "medium",
       "status": "fixed",
       "evidence": "tests/security/sweep.int.test.ts targeted cases 'outline node claim ids' / 'outline node evidence ids' (RED: reports/tasks/PW-059/red-F05.log); tests/security/schema.int.test.ts classifies every array column; fix: packages/domain/src/outlines/index.ts createOutlineRevision requires a record id to be a claim / evidence record of the paper (RFC-014 appendix PW-059)"
@@ -184,8 +184,6 @@
       "MAN-LIVE-SANDBOX: pending — Real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user's PC and on the lab server: a profile at ~/.claude is refused; nothing leaves except the provider hosts; the run folder is removed afterwards",
       "MAN-DEPLOY-TLS: pending — The deployment behind TLS: Secure cookies, the allowed origins, and the headers of F-02 (PW-061)"
     ],
-    "open_low": [
-      "F-02 (low): The web app is served without Content-Security-Policy / frame-ancestors (clickjacking, script injection hardening); the session cookie is SameSite=Strict and HttpOnly, served originals are sandboxed"
-    ]
+    "open_low": []
   }
 }

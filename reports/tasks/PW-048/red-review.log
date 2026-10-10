@@ -1,0 +1,162 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-048/context.int.test.ts (19 tests | 7 failed) 3264ms
+   ❯ TST-048A: near the limit the job continues — compacted where verified, else in a new session (9)
+     × verified compaction: checkpoint, compaction confirmed by the provider, the same session continues 210ms
+   ❯ TST-048B: occupancy is the current request, and no turn starts on an unfinished one (5)
+     × cumulative turn/session totals are billing, not occupancy; the window may come from any report 3ms
+   ❯ PW-048 review fixes (5)
+     × MAJOR 1: the previous answer counts — 70k in + 25k out does not leave room for the next request 2ms
+     × MINOR 1 / NIT 2: a provider without per-request reports (session totals only) is estimated from what was exchanged, and switches 89ms
+     × NIT 1: step names are checked before anything runs 70ms
+     × NIT 3: a compaction is confirmed only by a clean stream 86ms
+     × NIT 4: a switch names a checkpoint of its own job 160ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-048/context.int.test.ts > TST-048A: near the limit the job continues — compacted where verified, else in a new session > verified compaction: checkpoint, compaction confirmed by the provider, the same session continues
+AssertionError: expected { …(11) } to match object { from_session: 's1', …(3) }
+(9 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "context_source": "provider_reported",
+-   "context_tokens": 85100,
+    "context_window": 100000,
+    "from_session": "s1",
+  }
+
+ ❯ tests/tasks/PW-048/context.int.test.ts:125:19
+    123|     const sw = await listContextSwitches(pool, w.paperId, w.job.id);
+    124|     expect(sw.map((x) => x.kind)).toEqual(['compact_requested', 'compa…
+    125|     expect(sw[0]).toMatchObject({ from_session: 's1', context_window: …
+       |                   ^
+    126|     expect(Number(sw[0]!.occupancy)).toBeCloseTo(0.851);
+    127|     // a checkpoint at the boundary, before compaction (pending: the n…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  tests/tasks/PW-048/context.int.test.ts > TST-048B: occupancy is the current request, and no turn starts on an unfinished one > cumulative turn/session totals are billing, not occupancy; the window may come from any report
+AssertionError: expected { context_window: 128000, …(2) } to deeply equal { context_window: 128000, …(2) }
+
+- Expected
++ Received
+
+  {
+    "context_window": 128000,
+-   "current_context": 30100,
++   "current_input": 30000,
+    "source": "provider_reported",
+  }
+
+ ❯ tests/tasks/PW-048/context.int.test.ts:204:15
+    202|     const r = readContext([usage('message', 30_000), usage('turn', 900…
+    203|     // the current context: the last request's input and its answer (b…
+    204|     expect(r).toEqual({ context_window: 128_000, current_context: 30_1…
+       |               ^
+    205|     expect(requestBudget(r, opts)).toMatchObject({ occupancy: 30_100 /…
+    206|     // no message-scope report: estimated from the prompt, marked as s…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  tests/tasks/PW-048/context.int.test.ts > PW-048 review fixes > MAJOR 1: the previous answer counts — 70k in + 25k out does not leave room for the next request
+AssertionError: expected { context_window: 100000, …(2) } to deeply equal { context_window: 100000, …(2) }
+
+- Expected
++ Received
+
+  {
+    "context_window": 100000,
+-   "current_context": 95000,
++   "current_input": 70000,
+    "source": "provider_reported",
+  }
+
+ ❯ tests/tasks/PW-048/context.int.test.ts:252:15
+    250|   test('MAJOR 1: the previous answer counts — 70k in + 25k out does no…
+    251|     const r = readContext([usage('message', 70_000, 100_000, 25_000)],…
+    252|     expect(r).toEqual({ context_window: 100_000, current_context: 95_0…
+       |               ^
+    253|     expect(requestBudget(r, opts)).toMatchObject({ state: 'switch', av…
+    254|     // an answer of unknown size is not zero: estimated from what was …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  tests/tasks/PW-048/context.int.test.ts > PW-048 review fixes > MINOR 1 / NIT 2: a provider without per-request reports (session totals only) is estimated from what was exchanged, and switches
+AssertionError: expected [ 's1:start', …(4) ] to deeply equal [ 's1:start', …(5) ]
+
+- Expected
++ Received
+
+  [
+    "s1:start",
+    "s1:turn:draft_intro",
+    "s1:turn:draft_results",
+    "s1:turn:draft_discussion",
+-   "s2:start",
+-   "s2:turn:draft_conclusion",
++   "s1:turn:draft_conclusion",
+  ]
+
+ ❯ tests/tasks/PW-048/context.int.test.ts:266:19
+    264|     // after three answers (~90k) the estimate passes 80%: a new sessi…
+    265|     // first step's 10k report does not stand for later turns
+    266|     expect(f.log).toEqual(['s1:start', 's1:turn:draft_intro', 's1:turn…
+       |                   ^
+    267|     const sw = await listContextSwitches(pool, w.paperId, w.job.id);
+    268|     expect(sw).toEqual([expect.objectContaining({ kind: 'session_repla…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  tests/tasks/PW-048/context.int.test.ts > PW-048 review fixes > NIT 1: step names are checked before anything runs
+AssertionError: expected Error: pending step must be a short name … { …(3) } to be an instance of JobOutcomeError
+ ❯ tests/tasks/PW-048/context.int.test.ts:276:19
+    274|     for (const bad of [[{ name: 'Draft-1', prompt: 'x' }], [{ name: 'd…
+    275|       const err = await runJobTurns(pool, { ...w, factory: f.factory, …
+    276|       expect(err).toBeInstanceOf(JobOutcomeError);
+       |                   ^
+    277|       expect(err.next).toBe('FAILED');
+    278|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  tests/tasks/PW-048/context.int.test.ts > PW-048 review fixes > NIT 3: a compaction is confirmed only by a clean stream
+AssertionError: expected [ 'compact_requested', …(1) ] to deeply equal [ 'compact_requested', …(2) ]
+
+- Expected
++ Received
+
+  [
+    "compact_requested",
+-   "compact_failed",
+-   "session_replaced",
++   "compact_confirmed",
+  ]
+
+ ❯ tests/tasks/PW-048/context.int.test.ts:286:87
+    284|     const f = fakeSessions({ sizes: [40_000, 85_000, 20_000, 25_000], …
+    285|     await runJobTurns(pool, { ...w, factory: f.factory, compactSupport…
+    286|     expect((await listContextSwitches(pool, w.paperId, w.job.id)).map(…
+       |                                                                                       ^
+    287|   });
+    288|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  tests/tasks/PW-048/context.int.test.ts > PW-048 review fixes > NIT 4: a switch names a checkpoint of its own job
+TypeError: recordSwitch is not a function
+ ❯ tests/tasks/PW-048/context.int.test.ts:293:18
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 12 passed (19)
+   Start at  02:29:49
+   Duration  5.25s (tests 64%, transform 28%, import 8%)
+
+exit 1

@@ -66,3 +66,25 @@
 
 ## 다음
 PW-049: 할당량 대기·재개
+
+## 리뷰 반영 (1차, changes requested — MAJOR 1, MINOR 2, NIT 4)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR 1: 앞 답(output)이 다음 요청에 들어가는데 예산에서 빠짐(70k 입력 + 25k 답에서 "들어감"으로 판단) | 현재 context = 마지막 turn의 message 보고의 **입력 + 답**이다. 답 크기를 모르면 0으로 치지 않고 추정이나 UNKNOWN이다. 이름도 `current_context`로 바꿨다(기록 column `context_tokens`, `context_source`) | 70k + 25k: 현재 95k, `switch`(available −2k). 답 크기를 모르면 unknown이고, 주고받은 글이 있으면 그 추정(최소)을 쓴다 |
+| MINOR 1: message 보고가 없는 공급자(Codex는 session 합계만)는 늘 UNKNOWN이라 전환하지 않음 | runner가 이 세션에서 주고받은 글(시작·재수화 prompt, 단계 prompt, 답)로 **하한을 추정**한다(`estimated`). compaction 뒤에는 그 뒤의 글만 센다. 새 세션은 재수화 prompt부터 센다 | session 합계만 보고하는 세션에서 답 세 개(약 90k) 뒤에 새 세션으로 전환한다(`context_source: estimated`). compaction 뒤 추정은 그 뒤 글만 세어 다시 전환하지 않는다 |
+| MINOR 2: 재시도가 checkpoint의 남은 단계가 아니라 처음부터 다시 함 | 앞 단계의 답은 저장되지 않으므로 다시 보내는 것이 안전한 선택이다. 주석의 "checkpoint에서 재시도"를 고쳤고, 비용은 남은 위험에 적었다 | — |
+| NIT 1: 단계 이름을 미리 확인하지 않음 | 시작 전에 소문자·`_`·서로 다름을 확인한다. 어기면 FAILED다(재시도 없음) | "Draft-1"과 중복 이름은 FAILED이고, 세션을 시작하지 않는다 |
+| NIT 2: 앞 단계의 message 보고가 뒤 단계에도 쓰임 | 읽기는 **마지막 turn의 사건**만 본다. 보고가 없으면 추정이다 | MINOR 1 시험: 첫 단계의 10k 보고가 뒤 단계의 크기를 대신하지 않는다 |
+| NIT 3: `compacted` 뒤에 오류가 와도 확인으로 봄 | `compacted`가 있고 오류나 실패 turn이 없는 깨끗한 stream만 확인이다. 일반 turn 중의 `compacted`(공급자 자동 compaction)는 확인으로 쓰지 않는다 | compacted 다음 오류: 요청·실패·교체 |
+| NIT 4: 전환 기록의 checkpoint가 같은 작업 것인지 확인 안 함 | `recordSwitch`가 checkpoint의 작업을 확인한다(다르면 INVALID) | 다른 작업의 checkpoint는 INVALID다 |
+
+- mutation이 드러낸 추가 수정: **window는 모델의 성질**이라 전환 뒤에도 유지한다. 한 번만 보고하는 공급자는 전에는 전환 뒤 window를 잃었다. 시험을 더했다.
+- RED(`red-review.log`): 3067fd0 구현에서 리뷰 시험 7개가 실패한다(이름 바꾼 기존 시험 2개 포함).
+- GREEN: 통합 21
+- mutation(`mutation.log` 하단): 13종 모두 탐지
+  - 처음 살아남은 2종(compaction 뒤 추정 미초기화, window를 대체값에서만 읽음)은 시험을 더한 뒤 탐지했다. 그중 하나가 위의 window 유지 수정을 드러냈다.
+  - 패턴 오류 1종은 다른 형태로 다시 돌려 탐지했다.
+- 회귀: (아래 채움)
+- 남은 위험(추가)
+  - 재시도는 첫 단계부터 다시 보낸다(비용·할당량).
+  - 추정은 하한이다(system prompt, 도구 정의, 도구 결과는 세지 않음). 공급자 보고가 있으면 그것을 쓴다.

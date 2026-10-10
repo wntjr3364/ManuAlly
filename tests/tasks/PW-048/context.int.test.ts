@@ -21,7 +21,7 @@ import { claimJob } from '../../../packages/domain/src/jobs/index.ts';
 import { listCheckpoints } from '../../../packages/domain/src/checkpoints/index.ts';
 import { jobCheckpoints } from '../../../apps/worker/src/checkpoints/index.ts';
 import { JobOutcomeError } from '../../../apps/worker/src/queue/index.ts';
-import { TurnIncomplete, canStartTurn, listContextSwitches, readContext, requestBudget, runJobTurns, type ContextSession } from '../../../apps/worker/src/context/index.ts';
+import { TurnIncomplete, canStartTurn, listContextSwitches, recordSwitch, readContext, requestBudget, runJobTurns, type ContextSession } from '../../../apps/worker/src/context/index.ts';
 import type { ProviderEvent } from '../../../packages/contracts/src/provider/index.ts';
 
 const ORIGIN = 'http://127.0.0.1:5173';
@@ -74,11 +74,11 @@ async function world() {
 }
 
 const ev = <K extends ProviderEvent['kind']>(kind: K, data: Extract<ProviderEvent, { kind: K }>['data']) => ({ schema_version: 1, provider: 'codex', kind, data }) as ProviderEvent;
-const usage = (scope: 'message' | 'turn' | 'session', input: number, window: number | null = null) => ev('usage', { scope, input_tokens: input, output_tokens: 100, cost_usd_estimate: null, context_window: window, unknown_fields: [] });
+const usage = (scope: 'message' | 'turn' | 'session', input: number, window: number | null = null, output: number | null = 100) => ev('usage', { scope, input_tokens: input, output_tokens: output, cost_usd_estimate: null, context_window: window, unknown_fields: output === null ? ['output_tokens'] : [] });
 const done = ev('turn_completed', { outcome: 'success', stop_reason: 'end_turn' });
 
 // a fake provider session: each turn reports its (current) request size; compaction confirms or not
-function fakeSessions(o: { sizes: (number | null)[]; window?: number | null; confirmCompact?: boolean | 'error'; cumulative?: boolean; breakTurn?: number }) {
+function fakeSessions(o: { sizes: (number | null)[]; window?: number | null; confirmCompact?: boolean | 'error' | 'then_error'; cumulative?: boolean; breakTurn?: number; answerChars?: number; windowOnlyInSession?: boolean; windowOnce?: boolean }) {
   const log: string[] = [];
   const starts: string[] = [];
   let turnNo = 0;
@@ -87,17 +87,22 @@ function fakeSessions(o: { sizes: (number | null)[]; window?: number | null; con
     async *turn(prompt: string) {
       const n = turnNo++;
       log.push(`${id}:turn:${prompt}`);
-      yield ev('message_completed', { text: `answer ${n}` });
+      yield ev('message_completed', { text: o.answerChars ? 'x'.repeat(o.answerChars) : `answer ${n}` });
       if (o.breakTurn === n) return; // the stream ends mid-turn (a tool still running, a crash): no turn_completed
       // the current request size (message scope); cumulative billing totals come as turn/session scope
       // null: this turn reports no size
-      if (o.sizes[n] !== null) yield usage('message', o.sizes[n] ?? 1000, o.window ?? null);
+      if (o.sizes[n] !== null) yield usage('message', o.sizes[n] ?? 1000, o.windowOnce ? null : o.window ?? null);
+      // the window reported once, in the first turn's session totals
+      if (o.windowOnce && n === 0) yield usage('session', 9_000_000, o.window ?? null);
+      // a provider that reports only session totals with the model's window (as Codex does)
+      if (o.windowOnlyInSession) yield usage('session', 9_000_000, o.window ?? null);
       if (o.cumulative) { yield usage('turn', 10_000_000); yield usage('session', 50_000_000, o.window ?? null); }
       yield done;
     },
     async *compact() {
       log.push(`${id}:compact`);
       if (o.confirmCompact === 'error') yield ev('error', { kind: 'provider', message: 'compaction failed' });
+      else if (o.confirmCompact === 'then_error') { yield ev('compacted', {}); yield ev('error', { kind: 'provider', message: 'failed after' }); }
       else if (o.confirmCompact) yield ev('compacted', {});
     },
   });
@@ -119,8 +124,8 @@ describe('TST-048A: near the limit the job continues — compacted where verifie
     expect(f.log).toEqual(['s1:start', 's1:turn:draft_intro', 's1:turn:draft_results', 's1:compact', 's1:turn:draft_discussion', 's1:turn:draft_conclusion']);
     const sw = await listContextSwitches(pool, w.paperId, w.job.id);
     expect(sw.map((x) => x.kind)).toEqual(['compact_requested', 'compact_confirmed']);
-    expect(sw[0]).toMatchObject({ from_session: 's1', context_window: 100_000, input_tokens: 85_000, input_source: 'provider_reported' });
-    expect(Number(sw[0]!.occupancy)).toBeCloseTo(0.85);
+    expect(sw[0]).toMatchObject({ from_session: 's1', context_window: 100_000, context_tokens: 85_100, context_source: 'provider_reported' });
+    expect(Number(sw[0]!.occupancy)).toBeCloseTo(0.851);
     // a checkpoint at the boundary, before compaction (pending: the next step)
     const cps = await listCheckpoints(pool, w.paperId, w.job.id);
     expect(cps.find((c) => c.boundary === 'session_change')).toMatchObject({ pending_step: 'draft_discussion' });
@@ -197,13 +202,14 @@ describe('TST-048A: near the limit the job continues — compacted where verifie
 describe('TST-048B: occupancy is the current request, and no turn starts on an unfinished one', () => {
   test('cumulative turn/session totals are billing, not occupancy; the window may come from any report', () => {
     const r = readContext([usage('message', 30_000), usage('turn', 900_000), usage('session', 4_000_000, 128_000)], { window: null });
-    expect(r).toEqual({ context_window: 128_000, current_input: 30_000, source: 'provider_reported' });
-    expect(requestBudget(r, opts)).toMatchObject({ occupancy: 30_000 / 128_000, state: 'ok', available: 128_000 - 30_000 - 1_000 - 0 - 4_000 - 2_000 });
+    // the current context: the last request's input and its answer (both go into the next request)
+    expect(r).toEqual({ context_window: 128_000, current_context: 30_100, source: 'provider_reported' });
+    expect(requestBudget(r, opts)).toMatchObject({ occupancy: 30_100 / 128_000, state: 'ok', available: 128_000 - 30_100 - 1_000 - 0 - 4_000 - 2_000 });
     // no message-scope report: estimated from the prompt, marked as such; no window: UNKNOWN, no percent
-    expect(readContext([usage('session', 4_000_000)], { window: 100_000, promptChars: 40_000 })).toEqual({ context_window: 100_000, current_input: 10_000, source: 'estimated' });
+    expect(readContext([usage('session', 4_000_000)], { window: 100_000, promptChars: 40_000 })).toEqual({ context_window: 100_000, current_context: 10_000, source: 'estimated' });
     const u = readContext([usage('turn', 900_000)], { window: null });
-    expect(u).toEqual({ context_window: null, current_input: null, source: 'unknown' });
-    expect(requestBudget(u, opts)).toEqual({ available: null, occupancy: null, state: 'unknown', unknown: ['context_window', 'current_input'] });
+    expect(u).toEqual({ context_window: null, current_context: null, source: 'unknown' });
+    expect(requestBudget(u, opts)).toEqual({ available: null, occupancy: null, state: 'unknown', unknown: ['context_window', 'current_context'] });
   });
 
   test('cumulative totals in the stream do not trigger a switch', async () => {
@@ -238,5 +244,75 @@ describe('TST-048B: occupancy is the current request, and no turn starts on an u
     const f = fakeSessions({ sizes: [40_000, 85_000], window: 100_000 });
     const err = await runJobTurns(pool, { ...w, fencingToken: w.fencingToken - 1, factory: f.factory, compactSupport: 'unsupported', window: null, steps: steps.slice(0, 3), initialPrompt: 'start', ...opts }).catch((e) => e);
     expect(err).toMatchObject({ code: 'CONFLICT' });
+  });
+});
+
+// PW-048 review (changes requested): MAJOR 1, MINOR 1, NIT 1–4
+describe('PW-048 review fixes', () => {
+  test('MAJOR 1: the previous answer counts — 70k in + 25k out does not leave room for the next request', () => {
+    const r = readContext([usage('message', 70_000, 100_000, 25_000)], { window: null });
+    expect(r).toEqual({ context_window: 100_000, current_context: 95_000, source: 'provider_reported' });
+    expect(requestBudget(r, opts)).toMatchObject({ state: 'switch', available: -2_000 });
+    // an answer of unknown size is not zero: estimated from what was exchanged, else unknown
+    expect(readContext([usage('message', 70_000, 100_000, null)], { window: null })).toEqual({ context_window: 100_000, current_context: null, source: 'unknown' });
+    expect(readContext([usage('message', 70_000, 100_000, null)], { window: null, promptChars: 400_000 })).toEqual({ context_window: 100_000, current_context: 100_000, source: 'estimated' });
+  });
+
+  test('MINOR 1 / NIT 2: a provider without per-request reports (session totals only) is estimated from what was exchanged, and switches', async () => {
+    const w = await world();
+    // each answer is ~30k tokens of text; no message-scope report, only session totals with the window
+    const f = fakeSessions({ sizes: [10_000, null, null, null], window: 100_000, answerChars: 120_000, windowOnlyInSession: true });
+    await runJobTurns(pool, { ...w, factory: f.factory, compactSupport: 'unsupported', window: null, steps, initialPrompt: 'start', ...opts });
+    // after three answers (~90k) the estimate passes 80%: a new session before the fourth step; the
+    // first step's 10k report does not stand for later turns
+    expect(f.log).toEqual(['s1:start', 's1:turn:draft_intro', 's1:turn:draft_results', 's1:turn:draft_discussion', 's2:start', 's2:turn:draft_conclusion']);
+    const sw = await listContextSwitches(pool, w.paperId, w.job.id);
+    expect(sw).toEqual([expect.objectContaining({ kind: 'session_replaced', context_source: 'estimated', context_window: 100_000 })]);
+  });
+
+  test('NIT 1: step names are checked before anything runs', async () => {
+    const w = await world();
+    const f = fakeSessions({ sizes: [10_000], window: 100_000 });
+    for (const bad of [[{ name: 'Draft-1', prompt: 'x' }], [{ name: 'draft', prompt: 'x' }, { name: 'draft', prompt: 'y' }]]) {
+      const err = await runJobTurns(pool, { ...w, factory: f.factory, compactSupport: 'unsupported', window: null, steps: bad, initialPrompt: 'start', ...opts }).catch((e) => e);
+      expect(err).toBeInstanceOf(JobOutcomeError);
+      expect(err.next).toBe('FAILED');
+    }
+    expect(f.log).toEqual([]);
+  });
+
+  test('NIT 3: a compaction is confirmed only by a clean stream', async () => {
+    const w = await world();
+    const f = fakeSessions({ sizes: [40_000, 85_000, 20_000, 25_000], window: 100_000, confirmCompact: 'then_error' });
+    await runJobTurns(pool, { ...w, factory: f.factory, compactSupport: 'verified', window: null, steps, initialPrompt: 'start', ...opts });
+    expect((await listContextSwitches(pool, w.paperId, w.job.id)).map((x) => x.kind)).toEqual(['compact_requested', 'compact_failed', 'session_replaced']);
+  });
+
+  test('NIT 4: a switch names a checkpoint of its own job', async () => {
+    const w = await world();
+    const other = await world();
+    const cp = await other.cps.mark('before_call', 'draft_intro', []);
+    await expect(recordSwitch(pool, { paperId: w.paperId, jobId: w.job.id, fencingToken: w.fencingToken, kind: 'checkpoint_review', from: 's1', reading: { context_window: 100, current_context: 10, source: 'provider_reported' }, checkpointId: cp.id }))
+      .rejects.toMatchObject({ code: 'INVALID' });
+  });
+});
+
+describe('PW-048 review fixes (mutation follow-up)', () => {
+  test('a window reported once is the model\'s: it still counts after a switch', async () => {
+    const w = await world();
+    const f = fakeSessions({ sizes: [40_000, 85_000, 20_000, 85_000, 20_000], window: 100_000, windowOnce: true });
+    const five = [...steps, { name: 'draft_summary', prompt: 'draft_summary' }];
+    await runJobTurns(pool, { ...w, factory: f.factory, compactSupport: 'unsupported', window: null, steps: five, initialPrompt: 'start', ...opts });
+    // two switches: after the second and after the fourth step (the window known from the first turn)
+    expect((await listContextSwitches(pool, w.paperId, w.job.id)).map((x) => [x.kind, x.context_window])).toEqual([['session_replaced', 100_000], ['session_replaced', 100_000]]);
+  });
+
+  test('after a compaction the estimate counts only what was exchanged since', async () => {
+    const w = await world();
+    const f = fakeSessions({ sizes: [null, null, null, null, null], window: 100_000, windowOnce: true, answerChars: 120_000, confirmCompact: true });
+    const five = [...steps, { name: 'draft_summary', prompt: 'draft_summary' }];
+    await runJobTurns(pool, { ...w, factory: f.factory, compactSupport: 'verified', window: null, steps: five, initialPrompt: 'start', ...opts });
+    // ~90k estimated after three answers: compacted once; the fourth answer alone (~30k) is far below
+    expect((await listContextSwitches(pool, w.paperId, w.job.id)).map((x) => x.kind)).toEqual(['compact_requested', 'compact_confirmed']);
   });
 });

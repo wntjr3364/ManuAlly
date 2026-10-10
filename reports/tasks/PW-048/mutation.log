@@ -20,3 +20,17 @@ KILLED switch records not fenced
 KILLED unconfirmed compaction trusted (2)
 KILLED readings kept after switch (2)
 KILLED no re-check after switch
+# review fixes
+KILLED R: answer not counted
+KILLED R: unknown answer as 0
+KILLED R: runner does not estimate
+KILLED R: last turn not reset (2)
+KILLED R: answers not counted in the estimate
+KILLED R: error after compacted ignored
+KILLED R: step names unchecked
+KILLED R: checkpoint of another job accepted
+SURVIVED R: estimate not reset after compaction
+SURVIVED R: window only from fallback
+KILLED R: estimate not reset after compaction (2)
+KILLED R: window only from fallback (2)
+KILLED R: window forgotten on switch

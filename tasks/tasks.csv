@@ -60,4 +60,4 @@ PW-058,P07,Reviewer·제출판 freeze,in_review,PW-057,REQ-058,"TST-058A,TST-058
 PW-059,P07,Security release audit,in_review,PW-058,REQ-059,"TST-059A,TST-059B",tests/security/**;reports/security/**;tests/tasks/PW-059/**;reports/tasks/PW-059/**;db/migrations/pw_059_*
 PW-060,P07,Backup·restore·migration drill,in_review,PW-059,REQ-060,"TST-060A,TST-060B",infra/backup/**;tests/restore/**;tests/tasks/PW-060/**;reports/tasks/PW-060/**;db/migrations/pw_060_*
 PW-061,P07,배포·storage·upgrade runbook,in_review,PW-060,REQ-061,"TST-061A,TST-061B",infra/deploy/**;docs/runbooks/**;tests/tasks/PW-061/**;reports/tasks/PW-061/**;db/migrations/pw_061_*
-PW-062,P07,v1 최종 pilot·추적성 gate,planned,PW-061,REQ-062,"TST-062A,TST-062B",reports/release/**;PROGRESS.md;tests/tasks/PW-062/**;reports/tasks/PW-062/**;db/migrations/pw_062_*
+PW-062,P07,v1 최종 pilot·추적성 gate,in_review,PW-061,REQ-062,"TST-062A,TST-062B",reports/release/**;PROGRESS.md;tests/tasks/PW-062/**;reports/tasks/PW-062/**;db/migrations/pw_062_*

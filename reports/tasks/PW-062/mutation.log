@@ -1,0 +1,23 @@
+KILLED evaluator: mock-only live accepted
+KILLED evaluator: registry not consulted
+KILLED evaluator: manual pass without the user's record
+KILLED evaluator: pass without evidence
+KILLED evaluator: a missing capability not noticed
+SURVIVED evaluator: blockers of later levels dropped (killed after strengthening, R2 below)
+KILLED evaluator: an overclaiming record still gets a level
+INVALID record: the Claude live run marked pass (the mutant only added an unused field; the real change is the next line)
+KILLED record: Claude live marked pass
+KILLED record: pilot marked pass by the AI
+KILLED record: security gate marked pass
+KILLED record: a requirement left untraced
+KILLED record: evidence that does not exist
+KILLED record: a blocker without its reason
+KILLED report: v1 claimed
+KILLED report: a blocker dropped
+KILLED report: P03 shown as approved
+SURVIVED report: no MOCK disclosure (the test only looked for the word; strengthened, R2 below)
+KILLED report: a different level stated
+# after strengthening (R2)
+KILLED R2 evaluator: blockers of later levels dropped
+KILLED R2 report: the MOCK disclosure removed
+KILLED R2 report: the 'never called' sentence removed

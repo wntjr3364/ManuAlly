@@ -1,0 +1,440 @@
+[
+  {
+    "id": "CAP-PAPER-CORE",
+    "title": "논문 1편 = PaperProject: 소유자 인증, 불변 revision·snapshot, Story·Outline 수동 작성과 승인, job·outbox·audit, 수동 수직 경로, 버전 비교·되돌리기·가져오기, scaffold·ADR·pin",
+    "requirements": [
+      "REQ-006",
+      "REQ-007",
+      "REQ-008",
+      "REQ-009",
+      "REQ-010",
+      "REQ-013",
+      "REQ-014",
+      "REQ-021"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "evidence": [
+      "reports/tasks/PW-006/REPORT.md",
+      "reports/tasks/PW-007/REPORT.md",
+      "reports/tasks/PW-008/REPORT.md",
+      "reports/tasks/PW-009/REPORT.md",
+      "reports/tasks/PW-010/REPORT.md",
+      "reports/tasks/PW-013/REPORT.md",
+      "reports/tasks/PW-014/REPORT.md",
+      "reports/tasks/PW-021/REPORT.md",
+      "reports/tasks/PW-061/test.log"
+    ],
+    "mock_only": false,
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-EDITOR",
+    "title": "편집기: 공유 schema, autosave·복구·한국어 조합(Chromium CDP), 선택 툴바·짧은 대화, proposal CAS 적용, highlight·comment anchor, 선택 gate",
+    "requirements": [
+      "REQ-003",
+      "REQ-012",
+      "REQ-015",
+      "REQ-016",
+      "REQ-017",
+      "REQ-018",
+      "REQ-022"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "evidence": [
+      "reports/tasks/PW-003/REPORT.md",
+      "reports/tasks/PW-012/REPORT.md",
+      "reports/tasks/PW-015/REPORT.md",
+      "reports/tasks/PW-016/REPORT.md",
+      "reports/tasks/PW-017/REPORT.md",
+      "reports/tasks/PW-018/REPORT.md",
+      "reports/tasks/PW-022/REPORT.md",
+      "reports/tasks/PW-061/test.log"
+    ],
+    "mock_only": false,
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-EVIDENCE-REFS",
+    "title": "주장·사실·근거, 문헌·그림, 서지 검색·식별·curation, 원문 PDF 저장·추출·anchor, 그림 version, retrieval, 문헌 가져오기 (외부 서비스는 대역으로만 시험)",
+    "requirements": [
+      "REQ-011",
+      "REQ-019",
+      "REQ-031",
+      "REQ-032",
+      "REQ-033",
+      "REQ-034",
+      "REQ-035",
+      "REQ-036",
+      "REQ-037",
+      "REQ-038"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "evidence": [
+      "reports/tasks/PW-011/REPORT.md",
+      "reports/tasks/PW-019/REPORT.md",
+      "reports/tasks/PW-031/REPORT.md",
+      "reports/tasks/PW-032/REPORT.md",
+      "reports/tasks/PW-033/REPORT.md",
+      "reports/tasks/PW-034/REPORT.md",
+      "reports/tasks/PW-035/REPORT.md",
+      "reports/tasks/PW-036/REPORT.md",
+      "reports/tasks/PW-037/REPORT.md",
+      "reports/tasks/PW-038/REPORT.md",
+      "reports/tasks/PW-061/test.log"
+    ],
+    "mock_only": false,
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-MOCK-AI",
+    "title": "AI 경로 전체(MOCK 공급자): provider registry·event 정규화, Claude·Codex adapter 계약 시험, sandbox 규칙, tool gateway, 수명·사용량, story 대안, 개요 영향, WritingProfile, Writer, Reviewer, 연구 workflow",
+    "requirements": [
+      "REQ-002",
+      "REQ-020",
+      "REQ-023",
+      "REQ-024",
+      "REQ-025",
+      "REQ-026",
+      "REQ-027",
+      "REQ-028",
+      "REQ-029",
+      "REQ-030",
+      "REQ-039",
+      "REQ-040",
+      "REQ-041",
+      "REQ-042",
+      "REQ-044",
+      "REQ-046"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "mock_only": true,
+    "evidence": [
+      "reports/tasks/PW-002/REPORT.md",
+      "reports/tasks/PW-020/REPORT.md",
+      "reports/tasks/PW-023/REPORT.md",
+      "reports/tasks/PW-024/REPORT.md",
+      "reports/tasks/PW-025/REPORT.md",
+      "reports/tasks/PW-026/REPORT.md",
+      "reports/tasks/PW-027/REPORT.md",
+      "reports/tasks/PW-028/REPORT.md",
+      "reports/tasks/PW-029/REPORT.md",
+      "reports/tasks/PW-030/REPORT.md",
+      "reports/tasks/PW-039/REPORT.md",
+      "reports/tasks/PW-040/REPORT.md",
+      "reports/tasks/PW-041/REPORT.md",
+      "reports/tasks/PW-042/REPORT.md",
+      "reports/tasks/PW-044/REPORT.md",
+      "reports/tasks/PW-046/REPORT.md",
+      "reports/tasks/PW-061/test.log"
+    ],
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-SCIENTIFIC-AUTO",
+    "title": "과학 품질 자동 검사: 글쓰기 baseline fixture, 결정적 과학 gate, 합성 hard case 30개",
+    "requirements": [
+      "REQ-005",
+      "REQ-043",
+      "REQ-045"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "evidence": [
+      "reports/tasks/PW-005/REPORT.md",
+      "reports/tasks/PW-043/REPORT.md",
+      "reports/tasks/PW-045/REPORT.md",
+      "reports/tasks/PW-061/test.log"
+    ],
+    "mock_only": false,
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-EXPORT",
+    "title": "내보내기·제출: DOCX 가져오기와 손실 보고, DOCX·CSL, PDF(LibreOffice)·재현 source archive, 리뷰 응답·제출판 freeze",
+    "requirements": [
+      "REQ-055",
+      "REQ-056",
+      "REQ-057",
+      "REQ-058"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "evidence": [
+      "reports/tasks/PW-055/REPORT.md",
+      "reports/tasks/PW-056/REPORT.md",
+      "reports/tasks/PW-057/REPORT.md",
+      "reports/tasks/PW-058/REPORT.md",
+      "reports/tasks/PW-061/test.log"
+    ],
+    "mock_only": false,
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-RELIABILITY",
+    "title": "내구성(모의 장애): checkpoint 재수화, 문맥 예산, quota 대기, 비용 예산, lease fencing, 오류 분류·재시도, crash·disk full·stale 재개, 실행 상태 UI",
+    "requirements": [
+      "REQ-047",
+      "REQ-048",
+      "REQ-049",
+      "REQ-050",
+      "REQ-051",
+      "REQ-052",
+      "REQ-053",
+      "REQ-054"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "evidence": [
+      "reports/tasks/PW-047/REPORT.md",
+      "reports/tasks/PW-048/REPORT.md",
+      "reports/tasks/PW-049/REPORT.md",
+      "reports/tasks/PW-050/REPORT.md",
+      "reports/tasks/PW-051/REPORT.md",
+      "reports/tasks/PW-052/REPORT.md",
+      "reports/tasks/PW-053/REPORT.md",
+      "reports/tasks/PW-054/REPORT.md",
+      "reports/tasks/PW-061/test.log"
+    ],
+    "mock_only": false,
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-SECURITY-AUTO",
+    "title": "보안 자동 감사: 전 route IDOR·인증·CSRF sweep, 정적 점검, egress, prompt injection, 전송 정책, 자격증명, 공급망 (F-01·F-03·F-04·F-05 수정, F-02 PW-061에서 수정)",
+    "requirements": [
+      "REQ-059"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "evidence": [
+      "reports/tasks/PW-059/REPORT.md",
+      "reports/security/RELEASE_AUDIT.md",
+      "reports/security/audit.json"
+    ],
+    "mock_only": false,
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-BACKUP-RESTORE",
+    "title": "백업·복원·migration drill(합성 데이터, 같은 기계의 새 DB·새 asset 폴더)",
+    "requirements": [
+      "REQ-060"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "evidence": [
+      "reports/tasks/PW-060/REPORT.md",
+      "reports/tasks/PW-060/test.log"
+    ],
+    "mock_only": false,
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-DEPLOY-TOOLS",
+    "title": "배포 도구·runbook: 배포 확인, pwctl supervisor, 운영 서버(F-02 헤더), AI 일시 중지, 로그·디스크 상한 (이 컨테이너에서 drill)",
+    "requirements": [
+      "REQ-061"
+    ],
+    "kind": "automated",
+    "status": "pass",
+    "evidence": [
+      "reports/tasks/PW-061/REPORT.md",
+      "reports/tasks/PW-061/test.log"
+    ],
+    "mock_only": false,
+    "blocker": null,
+    "user_record": null
+  },
+  {
+    "id": "CAP-PROVIDER-CLAUDE-LIVE",
+    "title": "실제 Claude Code CLI(사용자 로그인)로 문단 proposal 등 실제 실행",
+    "requirements": [
+      "REQ-024",
+      "REQ-002"
+    ],
+    "kind": "live",
+    "provider": "claude_agent",
+    "status": "not_run",
+    "evidence": [
+      "packages/providers/src/core/registry.json"
+    ],
+    "blocker": "실제 호출을 한 적이 없다(registry: requires_verification, live_evidence 없음). 사용자 기계에서 별도 runtime 로그인 프로필로 sandbox 안 live smoke를 실행하고 registry에 live evidence를 기록해야 한다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-PROVIDER-CODEX-LIVE",
+    "title": "실제 Codex CLI(사용자 로그인)로 실제 실행",
+    "requirements": [
+      "REQ-025"
+    ],
+    "kind": "live",
+    "provider": "codex",
+    "status": "not_run",
+    "evidence": [
+      "packages/providers/src/core/registry.json"
+    ],
+    "blocker": "실제 호출을 한 적이 없다(registry: requires_verification). Claude와 같은 절차의 live smoke와 registry 기록이 필요하다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-SANDBOX-LIVE",
+    "title": "실제 CLI를 bubblewrap sandbox 안에서, 별도 runtime 로그인 프로필로 (사용자 PC·연구실 서버)",
+    "requirements": [
+      "REQ-026",
+      "REQ-004"
+    ],
+    "kind": "manual",
+    "status": "manual_pending",
+    "evidence": [
+      "reports/security/manual-checks.json"
+    ],
+    "blocker": "수동 확인 MAN-LIVE-SANDBOX 미기록. 이 컨테이너에는 bubblewrap이 없어 sandbox를 실제로 실행하지 못했다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-PREFLIGHT-USER",
+    "title": "사용자 기계의 환경 preflight와 격리 확인(데이터 root, 백업 위치, runtime 사용자 결정)",
+    "requirements": [
+      "REQ-001",
+      "REQ-004"
+    ],
+    "kind": "manual",
+    "status": "manual_pending",
+    "evidence": [
+      "reports/tasks/PW-001/REPORT.md",
+      "reports/tasks/PW-004/REPORT.md"
+    ],
+    "blocker": "preflight·격리 확인은 개발 컨테이너에서만 했다. 사용자 PC와 연구실 서버에서 실행하고 결과를 기록해야 한다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-RELIABILITY-REAL",
+    "title": "실제 장애·한도: 실제 공급자 quota·문맥 값, 실제 전원·파일시스템 장애",
+    "requirements": [
+      "REQ-049",
+      "REQ-048",
+      "REQ-053"
+    ],
+    "kind": "manual",
+    "status": "not_run",
+    "evidence": [
+      "reports/tasks/PW-048/REPORT.md",
+      "reports/tasks/PW-049/REPORT.md",
+      "reports/tasks/PW-053/REPORT.md"
+    ],
+    "blocker": "실제 공급자 한도는 실제 실행이 있어야 관측된다(지금은 UNKNOWN). 실제 전원 차단·파일시스템 가득 참은 sudo·mount가 필요해 모의로만 시험했다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-SECURITY-GATE",
+    "title": "보안 release gate(자동 9개 영역 + 수동 2건)",
+    "requirements": [
+      "REQ-059"
+    ],
+    "kind": "manual",
+    "status": "manual_pending",
+    "evidence": [
+      "reports/security/audit.json",
+      "reports/security/manual-checks.json"
+    ],
+    "blocker": "게이트 결정 pending_manual: MAN-LIVE-SANDBOX, MAN-DEPLOY-TLS를 사용자가 기록해야 한다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-SCIENTIFIC-HUMAN",
+    "title": "사람 blind rubric(권리를 확인한 실제 문단)과 수치 목표",
+    "requirements": [
+      "REQ-045"
+    ],
+    "kind": "manual",
+    "status": "manual_pending",
+    "evidence": [
+      "reports/tasks/PW-045/REPORT.md"
+    ],
+    "blocker": "권리를 확인한 실제 문단과 사용자가 정하는 수치 목표가 없다. hard case 30개 중 5개는 사람 판단이 필요하다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-DEPLOY-REAL",
+    "title": "사용자 PC·연구실 서버 실제 배포(사용자 systemd·linger, TLS reverse proxy)",
+    "requirements": [
+      "REQ-061"
+    ],
+    "kind": "manual",
+    "status": "manual_pending",
+    "evidence": [
+      "docs/runbooks/DEPLOY.md"
+    ],
+    "blocker": "실제 배포는 사용자 몫이다(MAN-DEPLOY-TLS 포함). 이 컨테이너에서는 사용자 systemd를 시험하지 못했다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-RESTORE-REAL",
+    "title": "사용자 운영 환경에서 실제 복원 연습",
+    "requirements": [
+      "REQ-060"
+    ],
+    "kind": "manual",
+    "status": "manual_pending",
+    "evidence": [
+      "infra/backup/README.md"
+    ],
+    "blocker": "실제 운영 데이터의 백업을 다른 DB·폴더에 복원해 보는 연습은 사용자가 배포 후 한다. 암호화·오프호스트 보관 위치도 사용자가 정한다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-BROWSERS-IME",
+    "title": "실제 한국어 IME, Firefox·Safari, macOS 단축키",
+    "requirements": [
+      "REQ-015",
+      "REQ-022"
+    ],
+    "kind": "manual",
+    "status": "not_run",
+    "evidence": [
+      "reports/tasks/PW-015/REPORT.md",
+      "reports/tasks/PW-022/REPORT.md"
+    ],
+    "blocker": "Chromium과 CDP로 흉내 낸 IME만 시험했다. 실제 입력기와 다른 브라우저는 사용자가 확인해야 한다.",
+    "mock_only": false,
+    "user_record": null
+  },
+  {
+    "id": "CAP-USER-PILOT",
+    "title": "사용자 pilot: 주요 workflow를 사용자가 직접 검토(spec 11 완료 기준)",
+    "requirements": [
+      "REQ-062"
+    ],
+    "kind": "manual",
+    "status": "manual_pending",
+    "evidence": [
+      "reports/release/pilot.json",
+      "reports/release/PILOT.md"
+    ],
+    "blocker": "사용자가 PILOT.md의 workflow를 직접 해 보고 pilot.json에 기록해야 한다.",
+    "mock_only": false,
+    "user_record": null
+  }
+]

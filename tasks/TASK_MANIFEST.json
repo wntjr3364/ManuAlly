@@ -2011,7 +2011,7 @@
       "id": "PW-062",
       "phase": "P07",
       "title": "v1 최종 pilot·추적성 gate",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-061"
       ],

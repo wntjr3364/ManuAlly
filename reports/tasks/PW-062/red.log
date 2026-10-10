@@ -1,0 +1,150 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-062/release.test.ts (10 tests | 9 failed) 24ms
+   ❯ TST-062A: the release record (4)
+     × every requirement of every task is traced to a capability, and every piece of evidence exists 7ms
+     × the tasks behind a passing capability are implemented and reviewed (in_review), not planned 2ms
+     × the record is consistent: the gate refuses nothing, and the report states the gate's own decision and every blocker 1ms
+     × the approval scope is the one the gate records give: P00/P01 approved, P02–P06 delegated, no real provider use approved 1ms
+   ❯ TST-062B: nothing is presented as more than it is (6)
+     × a record that overclaims is refused as a whole; one that drops a capability is refused 1ms
+     × live provider capabilities cannot pass while the registry has not admitted the provider on live evidence 1ms
+     × the report makes no product-complete claim unless the gate says v1, and says that AI answers are MOCK 1ms
+     × the security gate and the user pilot are reported as what they are 3ms
+     × every level names only capabilities the record has, and v1 needs them all 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-062/release.test.ts > TST-062A: the release record > every requirement of every task is traced to a capability, and every piece of evidence exists
+Error: ENOENT: no such file or directory, open '/home/user/ManuAlly/reports/release/capabilities.json'
+ ❯ read tests/tasks/PW-062/release.test.ts:11:32
+      9|
+     10| const root = path.resolve('.');
+     11| const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8'…
+       |                                ^
+     12| const caps = () => JSON.parse(read('reports/release/capabilities.json'…
+     13| const report = () => read('reports/release/RELEASE_REPORT.md');
+ ❯ caps tests/tasks/PW-062/release.test.ts:12:31
+ ❯ tests/tasks/PW-062/release.test.ts:19:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  tests/tasks/PW-062/release.test.ts > TST-062A: the release record > the tasks behind a passing capability are implemented and reviewed (in_review), not planned
+Error: ENOENT: no such file or directory, open '/home/user/ManuAlly/reports/release/capabilities.json'
+ ❯ read tests/tasks/PW-062/release.test.ts:11:32
+      9|
+     10| const root = path.resolve('.');
+     11| const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8'…
+       |                                ^
+     12| const caps = () => JSON.parse(read('reports/release/capabilities.json'…
+     13| const report = () => read('reports/release/RELEASE_REPORT.md');
+ ❯ caps tests/tasks/PW-062/release.test.ts:12:31
+ ❯ tests/tasks/PW-062/release.test.ts:28:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  tests/tasks/PW-062/release.test.ts > TST-062A: the release record > the record is consistent: the gate refuses nothing, and the report states the gate's own decision and every blocker
+Error: ENOENT: no such file or directory, open '/home/user/ManuAlly/reports/release/capabilities.json'
+ ❯ read tests/tasks/PW-062/release.test.ts:11:32
+      9|
+     10| const root = path.resolve('.');
+     11| const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8'…
+       |                                ^
+     12| const caps = () => JSON.parse(read('reports/release/capabilities.json'…
+     13| const report = () => read('reports/release/RELEASE_REPORT.md');
+ ❯ caps tests/tasks/PW-062/release.test.ts:12:31
+ ❯ tests/tasks/PW-062/release.test.ts:37:31
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  tests/tasks/PW-062/release.test.ts > TST-062A: the release record > the approval scope is the one the gate records give: P00/P01 approved, P02–P06 delegated, no real provider use approved
+Error: ENOENT: no such file or directory, open '/home/user/ManuAlly/reports/release/RELEASE_REPORT.md'
+ ❯ read tests/tasks/PW-062/release.test.ts:11:32
+      9|
+     10| const root = path.resolve('.');
+     11| const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8'…
+       |                                ^
+     12| const caps = () => JSON.parse(read('reports/release/capabilities.json'…
+     13| const report = () => read('reports/release/RELEASE_REPORT.md');
+ ❯ report tests/tasks/PW-062/release.test.ts:13:22
+ ❯ tests/tasks/PW-062/release.test.ts:48:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  tests/tasks/PW-062/release.test.ts > TST-062B: nothing is presented as more than it is > a record that overclaims is refused as a whole; one that drops a capability is refused
+Error: ENOENT: no such file or directory, open '/home/user/ManuAlly/reports/release/capabilities.json'
+ ❯ read tests/tasks/PW-062/release.test.ts:11:32
+      9|
+     10| const root = path.resolve('.');
+     11| const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8'…
+       |                                ^
+     12| const caps = () => JSON.parse(read('reports/release/capabilities.json'…
+     13| const report = () => read('reports/release/RELEASE_REPORT.md');
+ ❯ caps tests/tasks/PW-062/release.test.ts:12:31
+ ❯ tests/tasks/PW-062/release.test.ts:87:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  tests/tasks/PW-062/release.test.ts > TST-062B: nothing is presented as more than it is > live provider capabilities cannot pass while the registry has not admitted the provider on live evidence
+Error: ENOENT: no such file or directory, open '/home/user/ManuAlly/reports/release/capabilities.json'
+ ❯ read tests/tasks/PW-062/release.test.ts:11:32
+      9|
+     10| const root = path.resolve('.');
+     11| const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8'…
+       |                                ^
+     12| const caps = () => JSON.parse(read('reports/release/capabilities.json'…
+     13| const report = () => read('reports/release/RELEASE_REPORT.md');
+ ❯ caps tests/tasks/PW-062/release.test.ts:12:31
+ ❯ tests/tasks/PW-062/release.test.ts:98:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  tests/tasks/PW-062/release.test.ts > TST-062B: nothing is presented as more than it is > the report makes no product-complete claim unless the gate says v1, and says that AI answers are MOCK
+Error: ENOENT: no such file or directory, open '/home/user/ManuAlly/reports/release/capabilities.json'
+ ❯ read tests/tasks/PW-062/release.test.ts:11:32
+      9|
+     10| const root = path.resolve('.');
+     11| const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8'…
+       |                                ^
+     12| const caps = () => JSON.parse(read('reports/release/capabilities.json'…
+     13| const report = () => read('reports/release/RELEASE_REPORT.md');
+ ❯ caps tests/tasks/PW-062/release.test.ts:12:31
+ ❯ tests/tasks/PW-062/release.test.ts:107:31
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  tests/tasks/PW-062/release.test.ts > TST-062B: nothing is presented as more than it is > the security gate and the user pilot are reported as what they are
+Error: ENOENT: no such file or directory, open '/home/user/ManuAlly/reports/release/capabilities.json'
+ ❯ read tests/tasks/PW-062/release.test.ts:11:32
+      9|
+     10| const root = path.resolve('.');
+     11| const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8'…
+       |                                ^
+     12| const caps = () => JSON.parse(read('reports/release/capabilities.json'…
+     13| const report = () => read('reports/release/RELEASE_REPORT.md');
+ ❯ caps tests/tasks/PW-062/release.test.ts:12:31
+ ❯ tests/tasks/PW-062/release.test.ts:116:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  tests/tasks/PW-062/release.test.ts > TST-062B: nothing is presented as more than it is > every level names only capabilities the record has, and v1 needs them all
+Error: ENOENT: no such file or directory, open '/home/user/ManuAlly/reports/release/capabilities.json'
+ ❯ read tests/tasks/PW-062/release.test.ts:11:32
+      9|
+     10| const root = path.resolve('.');
+     11| const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8'…
+       |                                ^
+     12| const caps = () => JSON.parse(read('reports/release/capabilities.json'…
+     13| const report = () => read('reports/release/RELEASE_REPORT.md');
+ ❯ caps tests/tasks/PW-062/release.test.ts:12:31
+ ❯ tests/tasks/PW-062/release.test.ts:125:25
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed | 1 passed (10)
+   Start at  13:26:24
+   Duration  508ms (transform 73%, tests 13%, import 11%, worker 3%)
+

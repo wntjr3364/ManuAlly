@@ -1,0 +1,10 @@
+{
+  "status": "pending",
+  "checked_by": null,
+  "checked_at": null,
+  "evidence": null,
+  "workflows": [
+    "PILOT.md 1–8"
+  ],
+  "note": "The user fills this in after doing the pilot (PILOT.md). The AI never does."
+}

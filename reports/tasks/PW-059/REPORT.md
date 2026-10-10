@@ -115,5 +115,7 @@
 - `pnpm test` 2회차(`test.log`): exit 0. unit 617, 통합 639, contracts 17, 브라우저 101, spikes·evals·pack-check 통과.
 - `sweep-stats.json`의 상태 개수는 실행마다 몇 개씩 다르다(예: 200 265↔268). id 목록의 순서가 무작위 uuid를 따르기 때문이다. 판정(유출·변경·교차 참조·500 없음)과 route 분류 개수는 같다.
 
+- 재리뷰 반영 후: 깨끗한 커밋 `0048e33`의 감사 → exit 2(`pending_manual`), `dirty: false`, 9개 영역 통과(IDOR-AUTH 12). `pnpm test` exit 0(unit 618, 통합 641, contracts 17, 브라우저 101; `test.log`).
+
 ## 다음
 PW-060(백업·복구 drill)

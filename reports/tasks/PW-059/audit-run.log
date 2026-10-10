@@ -8,7 +8,7 @@
     "F-02 (low): The web app is served without Content-Security-Policy / frame-ancestors (clickjacking, script injection hardening); the session cookie is SameSite=Strict and HttpOnly, served originals are sandboxed"
   ],
   "suites": [
-    "SEC-IDOR-AUTH: passed (10 passed, 0 failed, 0 skipped)",
+    "SEC-IDOR-AUTH: passed (12 passed, 0 failed, 0 skipped)",
     "SEC-INJECTION: passed (15 passed, 0 failed, 0 skipped)",
     "SEC-EGRESS: passed (82 passed, 0 failed, 0 skipped)",
     "SEC-SEND-POLICY: passed (62 passed, 0 failed, 0 skipped)",

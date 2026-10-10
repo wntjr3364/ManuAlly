@@ -65,7 +65,8 @@ export function RunsTab({ paperId, visible }: { paperId: string; visible: boolea
             <strong>{intentLabel(r.intent)}</strong> · <span>{when(r.created_at)}</span>
             {' · '}<span data-testid="run-status">{statusLabel(r)}</span>
             {r.attempts > 1 && <span className="hint"> · {r.attempts}번째 시도</span>}
-            {r.status === 'FAILED' && r.last_error && <p className="hint">사유: {r.last_error.slice(0, 200)}</p>}
+            {/* why it stopped or waits, and the owner's next step (PW-052: also for WAITING_* and STALE) */}
+            {(r.status === 'FAILED' || r.status === 'STALE' || r.status.startsWith('WAITING_')) && r.last_error && <p className="hint" data-testid="run-reason">사유: {r.last_error.slice(0, 300)}</p>}
             {isActive(r) && ' '}
             {isActive(r) && (
               <button type="button" disabled={busy === r.id || offline} onClick={() => void stop(r.id)}>중지</button>

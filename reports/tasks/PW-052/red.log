@@ -1,0 +1,26 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-052/classify.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-052/classify.test.ts [ tests/tasks/PW-052/classify.test.ts ]
+Error: Cannot find module '../../../packages/providers/src/error-normalization/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-052/classify.test.ts
+ ❯ tests/tasks/PW-052/classify.test.ts:7:1
+      5| // TST-052B: a login problem (401/403) is never a quota wait and never…
+      6| import { describe, expect, test } from 'vitest';
+      7| import { classifyError, classifyEvent } from '../../../packages/provid…
+       | ^
+      8|
+      9| const c = (o: Parameters<typeof classifyError>[0]) => classifyError(o);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  04:30:12
+   Duration  282ms (worker 96%, environment 4%)
+
+exit 1

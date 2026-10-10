@@ -1,0 +1,22 @@
+KILLED 401 not first
+KILLED auth retried
+KILLED auth as quota
+KILLED unknown retried
+KILLED message before structure
+KILLED no network codes
+KILLED 503 not overload
+SURVIVED no detail clip
+KILLED retry-after dropped
+KILLED event kind ignored
+KILLED decided errors reclassified
+KILLED quota not a wait
+KILLED no circuit
+KILLED circuit per provider only
+KILLED overload not counted
+SURVIVED stale run records
+KILLED provider message as notice
+# re-run after adding tests (clip with ordinary words; run that lost the job)
+KILLED no redaction (long opaque)
+KILLED no key redaction
+KILLED no detail clip
+KILLED stale run records

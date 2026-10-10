@@ -1691,7 +1691,7 @@
       "id": "PW-052",
       "phase": "P06",
       "title": "오류 분류·bounded retry",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-051"
       ],

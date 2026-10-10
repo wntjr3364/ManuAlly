@@ -45,3 +45,8 @@ User decision / reviewer:
   - `apps/worker/src/local/index.ts`: 회복 주기에서 `recoverJobs` 대신 `reconcileInflight`를 부른다(상태 사건, 미정산 예약, 기록 포함).
   - `apps/worker/src/main.ts`: PW-050의 별도 정산 sweep을 뺐다(회복 sweep이 한다).
   - 리뷰 반영: 회복 sweep(`reconcileInflight`)은 지금 local worker 고리에서만 돈다. pg-boss 배치를 쓰면 같은 sweep을 주기적으로 직접 돌려야 한다(review n3).
+- PW-052
+  - `packages/providers/package.json`: `./error-normalization/index.ts` export 하나(worker가 분류기를 씀)
+  - `apps/worker/src/main.ts`: 모든 AI handler를 승인(PW-050) ⊃ quota 대기(PW-049) ⊃ 오류 분류(PW-052) 순으로 감싼다. Writer의 별도 `withQuotaWaits`는 이 조합으로 옮겼다.
+  - `apps/web/src/features/runs/RunsTab.tsx`: FAILED뿐 아니라 STALE, WAITING_* 작업에도 사유(다음 행동 포함)를 보인다.
+  - `run_errors` 조회 API는 만들지 않았다(남은 위험).

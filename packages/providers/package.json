@@ -8,6 +8,7 @@
     "./core/index.ts": "./src/core/index.ts",
     "./core/launch.ts": "./src/core/launch.ts",
     "./claude/index.ts": "./src/claude/index.ts",
-    "./codex/index.ts": "./src/codex/index.ts"
+    "./codex/index.ts": "./src/codex/index.ts",
+    "./error-normalization/index.ts": "./src/error-normalization/index.ts"
   }
 }

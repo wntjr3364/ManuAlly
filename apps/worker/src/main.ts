@@ -14,6 +14,7 @@ import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
 import { reconcileRunProcesses } from './lifecycle/index.ts';
 import { wakeDueWaits, withQuotaWaits } from './quota-scheduler/index.ts';
 import { withAdmission } from './admission/index.ts';
+import { withErrorHandling } from './errors/index.ts';
 import type { JobHandler } from './queue/index.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -21,13 +22,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!url) throw new Error('PW_DATABASE_URL is not set (see .env.example / `pnpm db:dev start`)');
   selectProvider(process.env); // refuses anything but an admitted provider
   const pool = new pg.Pool({ connectionString: url, max: 6 });
-  const admitted = <K extends string>(h: Record<K, JobHandler>) => withAdmission(pool, h, { provider: 'mock', authMode: 'none', estimateUsd: () => null });
+  // admission (PW-050) around quota waits (PW-049) around error classification (PW-052), for every AI job
+  const admitted = <K extends string>(h: Record<K, JobHandler>) => withAdmission(pool, withQuotaWaits(pool, withErrorHandling(pool, h, { provider: 'mock', authProfileId: 'none' })), { provider: 'mock', authMode: 'none', estimateUsd: () => null });
   const worker = startLocalWorker(pool, {
     handlers: {
       // PW-050: every AI job is admitted (and settled) per run, with the provider it runs on — the MOCK is
       // free; a real provider configured here must name its login so its cost class is known (review m1)
       ...admitted(selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 }))), ...admitted(curationHandlers(pool, createMockAssessor())), ...admitted(storyHandlers(pool, createMockStoryGenerator())),
-      ...admitted(profileHandlers(pool, createMockProfileGenerator())), ...admitted(withQuotaWaits(pool, writerHandlers(pool, createMockWriter()))), ...admitted(reviewerHandlers(pool, createMockReviewer())),
+      ...admitted(profileHandlers(pool, createMockProfileGenerator())), ...admitted(writerHandlers(pool, createMockWriter())), ...admitted(reviewerHandlers(pool, createMockReviewer())),
       ...pdfHandlers(pool, { assetDir: defaultAssetDir() }),
     },
     onError: (e) => console.error('worker error:', e instanceof Error ? e.message : e),

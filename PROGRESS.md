@@ -83,6 +83,7 @@
 | PW-050 | in_review | (P06) | REQ-050 / TST-050A,B | 통합 19(리뷰 반영), mutation 30+8종 탐지, `pnpm test` exit 0(리뷰 반영) | 실제 공급자 비용 보고 미시험, 구독의 유료 추가 사용 차단은 공급자 설정(live smoke), 예산 화면 없음, WAITING_BUDGET 재개 경로 없음, 공급자 쪽 유료 추가 사용 감지 불가 |
 | PW-051 | in_review | (P06) | REQ-051 / TST-051A,B | 통합 13(리뷰 반영), mutation 11+4종 탐지, `pnpm test` exit 0(리뷰 반영) | 실제 프로세스 kill·DB 끊김 미시험(lease 만료를 DB에서 흉내), 공급자 호출 중복은 막지 않음(at-least-once로 보고) |
 | PW-052 | in_review | (P06) | REQ-052 / TST-052A,B | unit 31, 통합 17(리뷰 반영), 브라우저 1, mutation 21+12+1종 탐지, `pnpm test` exit 0(리뷰 전·리뷰 반영) | 실제 공급자 오류 문구 미검증(합성), run_errors 조회 화면 없음, WAITING_AUTH/BUDGET/USER 재개 화면 없음 |
+| PW-053 | in_review | (P06) | REQ-053 / TST-053A,B | 통합 12(실제 SIGKILL, DB 53100·ENOSPC 주입), mutation 7종 탐지, `pnpm test`(진행) | 실제 FS 포화·전원 차단·PG 서버 사망 미시험(sudo 없음), blob ENOSPC 미시험; 결함 2건 수정(디스크 포화 재시도→안전 중단, 호출 중 계획 변경→STALE) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

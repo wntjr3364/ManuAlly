@@ -1,0 +1,8 @@
+KILLED disk full at commit retried
+KILLED only ENOSPC is disk full
+KILLED plan change not stale
+KILLED gate reasons ignore outline
+KILLED no checkpoint before call
+KILLED proposal stored outside completion
+# re-run after adding the in-call edit of the draft's own place
+KILLED late check skipped

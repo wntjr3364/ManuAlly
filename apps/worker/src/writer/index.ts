@@ -19,7 +19,7 @@ import { checkDraftGate } from '@pw/domain/outlines/index.ts';
 import { activeProfile } from '@pw/domain/writing-profile/index.ts';
 import { listReferences } from '@pw/domain/references/index.ts';
 import { checkReplacement } from '@pw/domain/proposals/guard.ts';
-import { blockText, buildParagraph, documentAt, insertParagraphProposalIn, paragraphItems, placeHolds, type WriterMode } from '@pw/domain/writer/index.ts';
+import { blockText, buildParagraph, documentAt, gateReasonsIn, insertParagraphProposalIn, paragraphItems, placeHolds, type WriterMode } from '@pw/domain/writer/index.ts';
 import { noticesOf } from '@pw/domain/literature/index.ts';
 import { sectionKey } from '@pw/domain/manuscript-structure/index.ts';
 import { GATE_VERSION, proseSignals, scientificGate, type Finding } from '@pw/domain/scientific-checks/index.ts';
@@ -258,8 +258,12 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
         apply: async (tx) => {
           const head = (await tx.query<{ head_revision_id: string }>('SELECT head_revision_id FROM documents WHERE paper_id = $1 AND id = $2', [job.paper_id, p.document_id])).rows[0]!.head_revision_id;
           // a late answer whose own place changed meanwhile is kept, but STALE (edits elsewhere do not count)
-          const late = head !== p.base_revision_id && ['PENDING', 'CHECK_FAILED'].includes(row.status) && !(await placeHolds((await documentAt(tx, job.paper_id, p.document_id, head))!, row));
-          const stored = await insertParagraphProposalIn(tx, late ? { ...row, status: 'STALE', status_reason: 'the manuscript changed while the paragraph was written' } : row);
+          const open = ['PENDING', 'CHECK_FAILED'].includes(row.status);
+          const late = open && head !== p.base_revision_id && !(await placeHolds((await documentAt(tx, job.paper_id, p.document_id, head))!, row));
+          // a plan replaced or withdrawn during the call: the answer is kept, but STALE (PW-053)
+          const gone = open && !late ? await gateReasonsIn(tx, job.paper_id, p.outline_revision_id, p.node_id) : [];
+          const stored = await insertParagraphProposalIn(tx, late ? { ...row, status: 'STALE', status_reason: 'the manuscript changed while the paragraph was written' }
+            : gone.length ? { ...row, status: 'STALE', status_reason: `the plan changed while the paragraph was written (${gone.join(', ')})` } : row);
           await cps.mark('after_proposal', null, [`proposal_stored:${stored.id}`], tx, null, `proposal_${stored.status.toLowerCase()}`);
           result.proposal_id = stored.id;
           result.status = stored.status;

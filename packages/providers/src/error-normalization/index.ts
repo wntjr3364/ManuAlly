@@ -79,7 +79,7 @@ function classOf(i: ErrorInput): ErrorClass {
   if (i.httpStatus === 401 || i.httpStatus === 403) return 'auth';
   if (i.httpStatus === 429) return 'quota';
   if (i.errorType && TYPE[i.errorType]) return TYPE[i.errorType]!;
-  if (i.code === 'ENOSPC') return 'disk_full';
+  if (i.code === 'ENOSPC' || i.code === '53100') return 'disk_full'; // 53100: PostgreSQL disk_full
   if (i.code && NETWORK_CODES.includes(i.code)) return 'network';
   if (i.httpStatus === 529 || i.httpStatus === 503) return 'overloaded';
   if (i.httpStatus === 500 || i.httpStatus === 502 || i.httpStatus === 504) return 'network';

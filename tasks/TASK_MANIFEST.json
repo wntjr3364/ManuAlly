@@ -1723,7 +1723,7 @@
       "id": "PW-053",
       "phase": "P06",
       "title": "Crash·disk full·stale 재개 시험",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-052"
       ],

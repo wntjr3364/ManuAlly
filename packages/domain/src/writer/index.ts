@@ -157,7 +157,10 @@ export async function placeHolds(doc: PMNode, p: Pick<ParagraphProposal, 'mode' 
 // The draft gate's conditions read inside the caller's transaction (review NIT): the paper row held,
 // the story approved and active, this outline the active approved one on that story, the node
 // approved, no unreviewed impact on it.
-async function gateHoldsIn(tx: Queryable, paperId: string, outlineRevisionId: string, nodeId: string) {
+// why a paragraph plan cannot be written to now (empty when its gate holds): the story and outline are
+// still the approved, active ones, the node approved, no impact open. Also read when a run's answer is stored
+// (PW-053: a plan replaced during the provider call makes the answer STALE).
+export async function gateReasonsIn(tx: Queryable, paperId: string, outlineRevisionId: string, nodeId: string): Promise<string[]> {
   await tx.query('SELECT 1 FROM paper_projects WHERE id = $1 FOR SHARE', [paperId]);
   const r = (await tx.query<{ story_ok: boolean; outline_ok: boolean; node_ok: boolean }>(
     `SELECT (s.status = 'APPROVED') AS story_ok,
@@ -170,6 +173,10 @@ async function gateHoldsIn(tx: Queryable, paperId: string, outlineRevisionId: st
   if (!r?.outline_ok) reasons.push('outline_not_active');
   if (!r?.node_ok) reasons.push('node_not_approved');
   if ((await unresolvedNodes(tx, paperId, outlineRevisionId)).has(nodeId)) reasons.push('impact_review_required');
+  return reasons;
+}
+async function gateHoldsIn(tx: Queryable, paperId: string, outlineRevisionId: string, nodeId: string) {
+  const reasons = await gateReasonsIn(tx, paperId, outlineRevisionId, nodeId);
   if (reasons.length) throw new DomainError('CONFLICT', 'this paragraph plan cannot be written to now', undefined, { details: { reasons } });
 }
 

@@ -55,3 +55,8 @@ User decision / reviewer:
     - `packages/domain/src/jobs/index.ts`: `deferJob`(fenced, 시도 하나 반환, dispatch 지연)
     - 공유 함수 변경(migration `pw_052_0002`): `pw_job_guard`가 `pw.defer_run` 표시가 있는 트랜잭션에서만 RUNNING→QUEUED, attempts−1, 같은 token을 허락한다. 다른 규칙은 그대로다.
     - `apps/worker/src/main.ts`: `withCircuitBreaker`를 승인 바깥에 둔다(미룸이 예산 실행을 쓰지 않게).
+- PW-053(장애 주입 시험이 찾은 결함 수정)
+  - `apps/worker/src/queue/index.ts`: 실행 또는 결과 저장 중 디스크 포화(`ENOSPC`, PostgreSQL `53100`)는 재시도 없이 FAILED다(`DISK_FULL_NOTICE`). 재시도가 저장할 수 없는 답을 위해 공급자를 다시 부르던 결함을 막는다.
+  - `apps/worker/src/writer/index.ts`: 완료 트랜잭션에서 계획의 gate를 다시 읽는다. 호출 중 계획(승인)이 바뀐 답은 STALE로 저장한다(적용은 원래도 거절됨).
+  - `packages/domain/src/writer/index.ts`: `gateReasonsIn` export(`gateHoldsIn`을 나눔, 동작 같음)
+  - `packages/providers/src/error-normalization/index.ts`: 코드 `53100` → disk_full

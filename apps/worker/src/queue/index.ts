@@ -98,6 +98,16 @@ export class JobDeferred extends Error {
   }
 }
 
+// A full disk (the worker's, ENOSPC, or the database's, SQLSTATE 53100) while a run works or stores its
+// result: a safe stop, not a retry — a retry would call the provider again for a result it cannot store
+// (spec 08 "disk full → 안전 중단·저장 미완 알림", PW-053). The completion is one transaction, so nothing is
+// half-stored.
+export const DISK_FULL_NOTICE = 'The disk is full. The job stopped safely; its result was not stored and nothing was half-stored. Free space, then ask again. [disk_full]';
+const isDiskFull = (e: unknown) => {
+  const code = e && typeof e === 'object' ? (e as { code?: unknown }).code : undefined;
+  return code === 'ENOSPC' || code === '53100';
+};
+
 export type DeliveryOutcome = 'completed' | 'duplicate' | 'skipped' | 'rejected' | 'failed' | 'deferred' | 'lost_lease';
 
 export async function processDelivery(pool: TxPool, msg: JobMessage, opts: { workerId: string; leaseMs: number; handlers: Partial<Record<string, JobHandler>> }): Promise<{ outcome: DeliveryOutcome; detail?: string }> {
@@ -126,6 +136,10 @@ export async function processDelivery(pool: TxPool, msg: JobMessage, opts: { wor
       if (e instanceof JobDeferred) {
         await deferJob(pool, { jobId: job.id, fencingToken, error: e.message, delaySecs: e.delaySecs });
         return { outcome: 'deferred', detail: e.message };
+      }
+      if (!(e instanceof JobOutcomeError) && isDiskFull(e)) {
+        await failJob(pool, { jobId: job.id, fencingToken, error: DISK_FULL_NOTICE, next: 'FAILED' });
+        return { outcome: 'failed', detail: DISK_FULL_NOTICE };
       }
       await failJob(pool, { jobId: job.id, fencingToken, error: e instanceof Error ? e.message : String(e), next: e instanceof JobOutcomeError ? e.next : 'retry' });
     } catch (f) {

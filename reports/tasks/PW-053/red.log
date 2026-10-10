@@ -1,0 +1,41 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+stdout | tests/tasks/PW-053/faults.int.test.ts
+apply after the owner's edit: 200 APPLIED
+
+ ❯ tests/tasks/PW-053/faults.int.test.ts (11 tests | 1 failed) 12034ms
+   ❯ TST-053B: no overwrite of a newer document, no failed save shown as success, no revived cancel (9)
+     × the database is full when the proposal is stored: the job stops (not retried, no new model call) and nothing is reported as done 145ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-053/faults.int.test.ts > TST-053B: no overwrite of a newer document, no failed save shown as success, no revived cancel > the database is full when the proposal is stored: the job stops (not retried, no new model call) and nothing is reported as done
+AssertionError: expected { status: 'QUEUED', attempts: 1, …(3) } to match object { status: 'FAILED', result: null }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "result": null,
+-   "status": "FAILED",
++   "status": "QUEUED",
+  }
+
+ ❯ tests/tasks/PW-053/faults.int.test.ts:203:17
+    201|       // the provider again for an answer it cannot store
+    202|       const j = await job(w);
+    203|       expect(j).toMatchObject({ status: 'FAILED', result: null });
+       |                 ^
+    204|       expect(j.last_error).toMatch(/disk is full/i);
+    205|       expect(j.last_error).toMatch(/not stored|nothing was half-stored…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+   Start at  05:08:36
+   Duration  14.36s (tests 85%, transform 12%, import 3%)
+

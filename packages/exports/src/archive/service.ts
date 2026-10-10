@@ -76,7 +76,7 @@ export async function createArchiveExport(pool: TxPool, a: { paperId: string; ow
   const notShareable = new Set(d.assets.filter((x) => !shareable(x.license)).map((x) => x.sha256));
   const taken = d.assets.filter((x) => purpose === 'private' || (shareable(x.license) && !notShareable.has(x.sha256)));
   const total = taken.reduce((n, x) => n + Number(x.byte_size), 0);
-  if (total > MAX_ORIGINALS_BYTES) throw new DomainError('INVALID', `the originals come to ${Math.round(total / 1048576)} MiB, more than an archive holds (${MAX_ORIGINALS_BYTES / 1048576} MiB); make a share archive or contact the operator`, 'purpose');
+  if (total > MAX_ORIGINALS_BYTES) throw new DomainError('INVALID', `the originals come to ${Math.round(total / 1048576)} MiB, more than an archive holds (${MAX_ORIGINALS_BYTES / 1048576} MiB); the originals themselves are kept in the asset store and its backup (PW-060), and a share archive leaves out the originals it may not carry`, 'purpose');
   const assets: ArchiveAsset[] = [];
   for (const x of d.assets) {
     if (!taken.includes(x)) { assets.push({ ...x, bytes: null }); continue; }

@@ -1,5 +1,5 @@
 # PW-057 — PDF·재현 source archive — REPORT
-상태: in_review (2026-10-10) — 독립 리뷰 1차 changes requested(MAJOR 1, MINOR 3, NIT 3) → 반영, 재리뷰 요청
+상태: in_review (2026-10-10) — 독립 리뷰 1차 changes requested(MAJOR 1, MINOR 3, NIT 3) → 반영 → 재리뷰 approve(NIT 1 반영)
 
 ## 무엇을 했나
 - **읽기용 PDF**(`packages/exports/src/pdf`)
@@ -119,7 +119,9 @@
   - 예를 아직 없는 형식(`odt`)으로 바꿨다(`tests/tasks/PW-056/export.int.test.ts:105`, RFC-014 부록).
   - 거부 규칙 자체는 그대로다.
 - 리뷰 요청 뒤 스스로 고친 것: 같은 바이트가 공유 가능 라이선스와 불가 라이선스로 두 번 기록된 경우, 공유용 묶음에서 그 바이트를 빼고 `licence_conflict`로 적는다(unit 시험 추가).
-- `pnpm test` 3회차: `test.log`
+- `pnpm test` 3회차 exit 0(`test-run3-prereview.log`, 리뷰 반영 전 코드)
+- `pnpm test` 4회차 exit 0(`test.log`, 리뷰 반영 후): unit 535, 통합 612, 계약 17, 브라우저 100
+- 리뷰 반영 확인 mutation 6종 모두 탐지(`mutation.log` 끝)
 
 ## 보안·과학적 실패 경로
 - 권리 없는 원문이 공유 묶음에 들어감: 허용 목록 방식이다. 미확인은 제외한다. 검증기가 "넣지 않았다는 원본이 있음"을 잡는다.
@@ -153,6 +155,11 @@
 - **n1**: 검증 문구를 "manifest와 일치"로 바꿨다(코드 메시지·이 보고서).
 - **n2**: 철회 표시는 스냅샷 시점이 아니라 내보낼 때의 철회 공지다. 라이선스와 같이 현재 지식을 쓴다. 그래서 같은 스냅샷이라도 나중에 철회 공지가 생기면 묶음의 DOCX 검사 보고가 달라진다. `manifest.render.retracted`에 기록된다.
 - **n3**: 기록 저장 실패 시 저장소에 묶음 blob이 남는다(위 남은 위험). PW-060 백업·정리에서 다룬다.
+
+## 재리뷰(approve)
+- M1·m1은 리뷰어의 원래 probe로 막힌 것을 확인했고, m2·m3는 코드와 시험으로 확인했다.
+- 서명 없는 검증의 본질적 한계는 남는다. 원고를 고쳐 위조 DOCX와 같은 렌더가 나오게 하거나 라이선스 문자열을 위조하는 것은 막지 못한다. 그래서 보고서와 CLI 문구는 "manifest와의 일관성"이라고 쓴다.
+- NIT n1(상한 초과 메시지가 공유용을 권함): 원본 자체는 asset 저장소와 백업(PW-060)에 있고, 공유용은 실을 수 없는 원본을 뺀다는 안내로 바꿨다. PW-057 시험을 다시 돌렸다.
 
 ## 다음
 PW-058(Reviewer·제출판 freeze)

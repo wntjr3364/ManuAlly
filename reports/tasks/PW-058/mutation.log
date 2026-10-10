@@ -1,0 +1,15 @@
+KILLED descendsFrom always true
+KILLED unchanged block accepted as change
+KILLED addressed without links
+KILLED links on disagree
+KILLED claim holds ignores revert
+KILLED no-response not blocking
+KILLED render errors as warnings
+KILLED scientific failed always stale
+KILLED scientific finding as warning
+KILLED ready ignores blocking
+KILLED warnings need no confirm
+KILLED stale expected accepted
+KILLED intent not required
+KILLED gate on head skipped (snapshot before check)
+KILLED response table no pipe escape

@@ -89,5 +89,13 @@
 - **n2**: 옮겨 둔 개발자 CLI 상태(`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, XDG)도 로그인 프로필로 거부한다.
 - 반영 확인 mutation: n2, gate dirty, gate 수동 기록자, Object.assign env 복사, F-03, ids만 새는 목록 — 모두 잡았다. 잘못 만든 mutant 1개는 무효로 기록했다.
 
+## 감사 실행과 회귀(리뷰 반영 후)
+- 감사: 깨끗한 커밋 `199bf58`에서 `node --experimental-strip-types tests/security/run-audit.ts` → exit 2(`pending_manual`), `dirty: false`, 자동 9개 영역 통과. 기록 `audit-run.log`, `reports/security/audit.json`.
+- `pnpm test` 1회차(`test-run2-failed.log`): TST-014A 1건 실패.
+  - 원인: PW-057의 묶음 내보내기 스냅샷 선택에 같은 스냅샷 이름이 option으로 나온다. 목록 갱신이 확인보다 먼저 끝나면 `getByText`가 두 요소를 잡는다(경합).
+  - 수정: 시험이 이름을 `exact`로 찾는다(시험만, RFC-014 부록). 해당 파일 3회 반복 통과.
+- `pnpm test` 2회차(`test.log`): exit 0. unit 617, 통합 639, contracts 17, 브라우저 101, spikes·evals·pack-check 통과.
+- `sweep-stats.json`의 상태 개수는 실행마다 몇 개씩 다르다(예: 200 265↔268). id 목록의 순서가 무작위 uuid를 따르기 때문이다. 판정(유출·변경·교차 참조·500 없음)과 route 분류 개수는 같다.
+
 ## 다음
 PW-060(백업·복구 drill)

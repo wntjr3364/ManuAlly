@@ -49,7 +49,7 @@
     - "확인 사건 아닌 사건도 compaction으로 믿음": compaction stream이 오류만 보내는 경우
     - "전환 전 측정값을 남김": 크기 보고 없는 turn
   - 패턴 오류로 돌지 않은 1종(전환 뒤 재검사 제거)은 다시 돌려 탐지했다.
-- 회귀: (아래 채움)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 495, contracts 17, 브라우저 95 (`pnpm-test.log`)
 
 ## 보안·과학적 실패 경로
 - compaction은 공급자가 확인해야만 믿는다. 확인되지 않은 세션에는 turn을 시작하지 않는다.

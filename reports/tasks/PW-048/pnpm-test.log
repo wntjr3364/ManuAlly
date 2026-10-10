@@ -1,0 +1,647 @@
+
+> paper-workspace@ test /home/user/ManuAlly
+> pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:integration && pnpm run test:contracts && pnpm run test:e2e && pnpm run test:spikes && pnpm run test:evals && pnpm run pack-check
+
+
+> paper-workspace@ typecheck /home/user/ManuAlly
+> tsc --noEmit -p packages/config/tsconfig.check.json
+
+
+> paper-workspace@ lint /home/user/ManuAlly
+> eslint .
+
+
+> paper-workspace@ test:unit /home/user/ManuAlly
+> vitest run --config packages/config/vitest.unit.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  33 passed (33)
+      Tests  406 passed (406)
+   Start at  02:17:36
+   Duration  15.21s (tests 86%, transform 7%, import 7%, worker 1%)
+
+    Isolate  33 workers spawned · ~167ms startup each (spawn + environment, per file)
+             at least ~1.67s faster with isolate: false — reuses workers across files instead of one per file
+
+
+> paper-workspace@ test:integration /home/user/ManuAlly
+> vitest run --config packages/config/vitest.integration.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  44 passed (44)
+      Tests  495 passed (495)
+   Start at  02:17:53
+   Duration  63.18s (tests 88%, import 9%, transform 3%)
+
+
+> paper-workspace@ test:contracts /home/user/ManuAlly
+> vitest run --config packages/config/vitest.contracts.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  4 passed (4)
+      Tests  17 passed (17)
+   Start at  02:18:57
+   Duration  1.06s (transform 38%, tests 38%, import 22%, worker 1%)
+
+
+> paper-workspace@ test:e2e /home/user/ManuAlly
+> playwright test --config packages/config/playwright.config.ts
+
+
+Running 95 tests using 1 worker
+
+  ✓   1 tests/e2e/health.e2e.ts:9:1 › browser reaches the API health endpoint and sees the mock provider (1.7s)
+  ✓   2 tests/e2e/manual-paper/manual-paper.e2e.ts:24:1 › TST-014A: manuscript, approvals, evidence and snapshot survive a new browser session (6.4s)
+  ✓   3 tests/e2e/manual-paper/manual-paper.e2e.ts:111:1 › TST-014B: a database failure during save is never shown as saved, and the text is kept (2.7s)
+  ✓   4 tests/e2e/manual-paper/rereview-fixes.e2e.ts:25:1 › MA1: the browser Back button asks before discarding unsaved text, and staying keeps it (1.9s)
+  ✓   5 tests/e2e/manual-paper/rereview-fixes.e2e.ts:42:1 › MA2: a saved story whose list field had a trailing newline or spaces is not "unsaved", and can be approved (1.5s)
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/api/src/server.ts" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/api/src/server.ts?raw" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/domain/src/shared/db.ts" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/domain/src/shared/db.ts?raw" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/web/vite.config.ts" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/node_modules/.pnpm/node_modules/@pw/web/vite.config.ts?raw" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/.git/config" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/.git/config?raw" is outside of Vite serving allow list.
+  ✓   6 tests/e2e/manual-paper/rereview-fixes.e2e.ts:61:1 › minor 1: workspace sources behind pnpm links and VCS files are not served (51ms)
+  ✓   7 tests/e2e/manual-paper/rereview-fixes.e2e.ts:72:1 › minor 2: Enter at the start of a paragraph keeps its id with its text (1.8s)
+  ✓   8 tests/e2e/manual-paper/rereview-fixes.e2e.ts:89:1 › minor 4: a manuscript stored with another schema version opens read-only (1.3s)
+  ✓   9 tests/e2e/manual-paper/rereview-fixes.e2e.ts:107:1 › minor 5: after another session saved the story first, the newer version can be loaded explicitly (2.9s)
+  ✓  10 tests/e2e/manual-paper/rereview-fixes.e2e.ts:130:1 › minor 6: unsent evidence/fact form text counts as unsaved (1.4s)
+  ✓  11 tests/e2e/manual-paper/rereview-fixes.e2e.ts:142:1 › final check MAJOR-1: typing at the start of a paragraph keeps its id (1.8s)
+  ✓  12 tests/e2e/manual-paper/rereview-fixes.e2e.ts:160:1 › final check minor 1: cancelling Forward keeps the browser history as it was (1.6s)
+  ✓  13 tests/e2e/manual-paper/rereview-fixes.e2e.ts:186:1 › final check minor 2: an outline conflict offers to reload the outline only, keeping unsaved story text (3.0s)
+  ✓  14 tests/e2e/manual-paper/rereview-fixes.e2e.ts:218:1 › verification minor 1: undo/redo of a multi-paragraph paste at a paragraph start keeps that paragraph id (1.9s)
+  ✓  15 tests/e2e/manual-paper/rereview-fixes.e2e.ts:247:1 › verification minor 2: a #fragment change on the same page neither prompts nor breaks Back (1.9s)
+  ✓  16 tests/e2e/manual-paper/rereview-fixes.e2e.ts:267:1 › verification minor 3: text typed before the story has loaded still asks before leaving (1.3s)
+  ✓  17 tests/e2e/manual-paper/rereview-fixes.e2e.ts:287:1 › verification minor 4: a title typed while the previous paper is being created is kept (1.0s)
+  ✓  18 tests/e2e/manual-paper/review-fixes.e2e.ts:25:1 › M1: a manuscript with content the editor cannot edit opens read-only, shows it, and cannot be overwritten (1.6s)
+  ✓  19 tests/e2e/manual-paper/review-fixes.e2e.ts:46:1 › M2: unsaved text survives tab switches; leaving the paper or logging out asks first (2.0s)
+  ✓  20 tests/e2e/manual-paper/review-fixes.e2e.ts:66:1 › M3: approval is only offered for what is saved; unsaved form edits block it and are kept (1.6s)
+  ✓  21 tests/e2e/manual-paper/review-fixes.e2e.ts:87:1 › minor 5: a replicate count that is not a whole number is refused, not silently dropped (1.5s)
+  ✓  22 tests/e2e/manual-paper/review-fixes.e2e.ts:99:1 › an outline loaded from the server can be edited, saved again and approved (1.8s)
+  ✓  23 tests/e2e/manual-paper/review-fixes.e2e.ts:122:1 › minor 1: a pasted citation keeps its reference and locator (1.8s)
+  ✓  24 tests/e2e/manual-paper/review-fixes.e2e.ts:143:1 › typing before the story finishes loading is kept, not overwritten by the load (1.9s)
+The request id "/home/user/ManuAlly/CLAUDE.md" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/PROGRESS.md" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/apps/api/src/server.ts" is outside of Vite serving allow list.
+The request id "/home/user/ManuAlly/.env.example" is outside of Vite serving allow list.
+  ✓  25 tests/e2e/manual-paper/review-fixes.e2e.ts:162:1 › minor 7: the dev server does not serve repository files outside the web app (25ms)
+  ✓  26 tests/e2e/scientific-workflow/workflow.e2e.ts:117:1 › TST-046A/B: a biology research article — its outline's sections and a Results paragraph under Results (4.9s)
+  ✓  27 tests/e2e/scientific-workflow/workflow.e2e.ts:121:1 › TST-046A/B: a software paper — its own sections, no IMRaD added, the paragraph under Implementation (4.4s)
+  ✓  28 tests/tasks/PW-015/editor.e2e.ts:95:1 › TST-015A: Korean IME, italic, sub/superscript and a citation are autosaved and come back after reload (7.3s)
+  ✓  29 tests/tasks/PW-015/editor.e2e.ts:144:1 › TST-015B: an outside patch is refused while composing and applied after (1.6s)
+  ✓  30 tests/tasks/PW-015/editor.e2e.ts:163:1 › TST-015B: a failing save is never shown as saved; it is retried and then stored once (9.4s)
+  ✓  31 tests/tasks/PW-015/editor.e2e.ts:182:1 › TST-015B: offline shows not saved; coming back online saves (3.7s)
+  ✓  32 tests/tasks/PW-015/editor.e2e.ts:196:1 › TST-015B: a save whose answer was lost is not stored twice and not reported as a conflict (7.4s)
+  ✓  33 tests/tasks/PW-015/editor.e2e.ts:239:1 › TST-015A: unsaved text is offered back from this browser and then saved (6.4s)
+  ✓  34 tests/tasks/PW-015/editor.e2e.ts:255:1 › TST-015A: a recovery copy older than the server text is shown for copying, never merged (4.7s)
+  ✓  35 tests/tasks/PW-015/editor.e2e.ts:276:1 › TST-015A: logout leaves no recovery copy; turning recovery off stores none (8.2s)
+  ✓  36 tests/tasks/PW-015/editor.e2e.ts:297:1 › Korean composition inside a paragraph keeps the paragraph id (1.9s)
+  ✓  37 tests/tasks/PW-015/editor.e2e.ts:312:1 › review 2: a save right after typing leaves no copy of the saved text behind (2.7s)
+  ✓  38 tests/tasks/PW-015/editor.e2e.ts:323:1 › review 3: tabs keep their own recovery copies; an open tab's copy is not offered elsewhere (8.4s)
+  ✓  39 tests/tasks/PW-015/editor.e2e.ts:363:1 › review 7: a browser that blocks site storage is told that nothing is kept locally (3.6s)
+  ✓  40 tests/tasks/PW-015/editor.e2e.ts:375:1 › review 8: signing in removes recovery copies another account left in this browser (1.1s)
+  ✓  41 tests/tasks/PW-015/editor.e2e.ts:385:1 › re-review 1: a duplicated tab does not share the tab id of the open original (9.7s)
+  ✓  42 tests/tasks/PW-015/editor.e2e.ts:418:1 › re-review 4: after a logout in another tab, an open editor keeps no copy (3.9s)
+  ✓  43 tests/tasks/PW-015/editor.e2e.ts:438:1 › final check nit 2: a tab without an open editor also stops keeping copies after a logout elsewhere (6.5s)
+  ✓  44 tests/tasks/PW-016/selection.e2e.ts:45:1 › TST-016A: a Korean instruction typed in the popup keeps the original selection and base revision (6.4s)
+  ✓  45 tests/tasks/PW-016/selection.e2e.ts:82:1 › TST-016B: no selection is never the whole manuscript; cross-paragraph and whole-document selections are refused (3.9s)
+  ✓  46 tests/tasks/PW-016/selection.e2e.ts:104:1 › TST-016B: moving focus does not change the frozen range; Esc puts the selection back (4.2s)
+  ✓  47 tests/tasks/PW-016/selection.e2e.ts:133:1 › keyboard only: Ctrl+Shift+K reaches the toolbar, Enter opens the popup and sends (3.7s)
+  ✓  48 tests/tasks/PW-016/selection.e2e.ts:152:1 › requests wait for the stored revision; academic rewrite waits for an approved outline (3.7s)
+  ✓  49 tests/tasks/PW-016/selection.e2e.ts:178:1 › review 2: a citation-only selection can be asked about but not edited; atoms are named in the scope (3.6s)
+  ✓  50 tests/tasks/PW-016/selection.e2e.ts:203:1 › review 1 / nit: Esc or Enter that belongs to an IME composition keeps the popup and the instruction (3.7s)
+  ✓  51 tests/tasks/PW-016/selection.e2e.ts:225:1 › review 3 / nits: the shortcut explains disabled actions, stale messages clear, Esc leaves the toolbar (3.6s)
+  ✓  52 tests/tasks/PW-016/selection.e2e.ts:245:1 › Esc closes the popup wherever the focus is (an Esc before the popup takes focus is not lost) (3.7s)
+  ✓  53 tests/tasks/PW-016/selection.e2e.ts:261:1 › an Esc meant for another control on the page does not close the popup (or lose its text) (3.7s)
+  ✓  54 tests/tasks/PW-017/proposals.e2e.ts:51:1 › TST-017A: one apply changes only the selected range, and no extra autosave follows (9.3s)
+  ✓  55 tests/tasks/PW-017/proposals.e2e.ts:76:1 › TST-017B: a proposal made before the manuscript changed cannot be applied (6.3s)
+  ✓  56 tests/tasks/PW-017/proposals.e2e.ts:90:1 › TST-017B: a proposal that changes a number shows why and has no apply button (4.2s)
+  ✓  57 tests/tasks/PW-017/proposals.e2e.ts:100:1 › TST-017B: an apply whose answer was lost is retried with the same key and applied once (4.4s)
+  ✓  58 tests/tasks/PW-017/proposals.e2e.ts:123:1 › review MINOR-2: a 5xx answer after the server applied is treated as unknown, then resolved by the same key (6.4s)
+  ✓  59 tests/tasks/PW-017/proposals.e2e.ts:147:1 › rejecting a proposal keeps the text and removes it from the list (4.5s)
+  ✓  60 tests/tasks/PW-017/proposals.e2e.ts:157:1 › re-review MINOR: a retry refused with 401 after a lost answer still finds out that it was applied (4.5s)
+  ✓  61 tests/tasks/PW-018/comments.e2e.ts:42:1 › TST-018A: after the paragraph moves and a small edit, the comment stays on its sentence (8.6s)
+  ✓  62 tests/tasks/PW-018/comments.e2e.ts:60:1 › TST-018B: a deleted sentence or two equal candidates leave the comment without a place; it can be attached again (9.0s)
+  ✓  63 tests/tasks/PW-018/comments.e2e.ts:86:1 › replies, resolve and reopen; a resolved comment has no highlight (6.6s)
+  ✓  64 tests/tasks/PW-019/references.e2e.ts:47:1 › TST-019A: labels and the bibliography follow the document, the style and the figure order (5.1s)
+  ✓  65 tests/tasks/PW-019/references.e2e.ts:78:1 › TST-019B: a citation to a reference this paper does not have is flagged and left out of the bibliography (2.0s)
+  ✓  66 tests/tasks/PW-020/stream.e2e.ts:43:1 › TST-020A: a question streams an answer, labelled MOCK, and leaves the manuscript alone (6.4s)
+  ✓  67 tests/tasks/PW-020/stream.e2e.ts:58:1 › TST-020A: a correction is "ready, not applied" until the owner applies it, then "applied" (4.8s)
+  ✓  68 tests/tasks/PW-020/stream.e2e.ts:75:1 › TST-020B: reloading mid-answer does not cancel; the answer is complete after the reload (6.2s)
+  ✓  69 tests/tasks/PW-020/stream.e2e.ts:87:1 › TST-020B: "취소" stops the job; no answer is completed and nothing is proposed (5.9s)
+  ✓  70 tests/tasks/PW-021/versions.e2e.ts:33:1 › TST-021A: an applied AI edit is undone after a reload, and versions compare (6.2s)
+  ✓  71 tests/tasks/PW-021/versions.e2e.ts:73:1 › TST-021B: an import shows its losses and replaces the manuscript only after confirmation; the old text is restorable (4.8s)
+  ✓  72 tests/tasks/PW-021/versions.e2e.ts:108:1 › TST-021B: with unsaved typing in the editor, the versions tab does not change the head (3.7s)
+  ✓  73 tests/tasks/PW-022/selection-gate.e2e.ts:24:3 › TST-022A: keyboard workflow at 1366×768 (6.2s)
+  ✓  74 tests/tasks/PW-022/selection-gate.e2e.ts:24:3 › TST-022A: keyboard workflow at 1920×1080 (6.4s)
+  ✓  75 tests/tasks/PW-022/selection-gate.e2e.ts:78:1 › TST-022B: duplicate sentences — only the selected occurrence changes (4.8s)
+  ✓  76 tests/tasks/PW-022/selection-gate.e2e.ts:94:1 › TST-022B: emoji before the selection — the change lands at the right characters (5.0s)
+  ✓  77 tests/tasks/PW-022/selection-gate.e2e.ts:107:1 › TST-022B: citation atoms — a change that would move a citation to another word is refused; a safe one keeps both atoms in place (8.0s)
+  ✓  78 tests/tasks/PW-022/selection-gate.e2e.ts:141:1 › TST-022B: two tabs — a proposal made before another tab's edit is refused, and an old tab never overwrites an apply (11.8s)
+  ✓  79 tests/tasks/PW-022/selection-gate.e2e.ts:193:1 › TST-022B: background reloads (window focus) do not touch the editor while a selection is being made (4.8s)
+  ✓  80 tests/tasks/PW-022/selection-gate.e2e.ts:213:1 › TST-022B: an autosave (new stored head) does not make the comments layer dispatch when nothing changed (6.9s)
+  ✓  81 tests/tasks/PW-022/selection-gate.e2e.ts:232:1 › TST-022B: selecting with the keyboard right after the page loads keeps every keystroke (8.2s)
+  ✓  82 tests/tasks/PW-028/runs.e2e.ts:41:1 › TST-028A: reload keeps the run; 중지 stores the cancel; every reconnect shows the stored state (6.4s)
+  ✓  83 tests/tasks/PW-028/runs.e2e.ts:69:1 › TST-028A: while offline the tab says so; when the network returns it shows what the database holds (6.5s)
+  ✓  84 tests/tasks/PW-029/usage.e2e.ts:12:1 › TST-029A: the runs tab shows app usage, context and account quota separately (1.4s)
+  ✓  85 tests/tasks/PW-032/known-doi.e2e.ts:10:1 › a known DOI with other details: the library work is offered, never overwritten (3.7s)
+  ✓  86 tests/tasks/PW-033/curation.e2e.ts:16:1 › TST-033A/B: suggestions are shown with use, fit, depth and warnings; nothing is adopted until the owner decides (1.8s)
+  ✓  87 tests/tasks/PW-035/pdf.e2e.ts:25:1 › TST-035A/B: confirm a quote, reload, re-open it as a highlight on the rendered (and rotated) page (6.0s)
+  ✓  88 tests/tasks/PW-036/trace.e2e.ts:16:1 › TST-036A/B: trace a claim to its figure and value; a unit change asks for review without touching the text (1.9s)
+  ✓  89 tests/tasks/PW-038/import.e2e.ts:57:1 › TST-038A/B: import shows each outcome, cites by stable id, re-import links, Zotero only reads (3.4s)
+  ✓  90 tests/tasks/PW-039/story-ai.e2e.ts:13:1 › TST-039A/B: alternatives with message, evidence and limits; adopt one into a draft; a blocked one cannot be adopted (4.1s)
+  ✓  91 tests/tasks/PW-040/impact.e2e.ts:14:1 › TST-040A/B: a withdrawn claim marks only its paragraph plan; the user reviews it (2.2s)
+  ✓  92 tests/tasks/PW-041/profile.e2e.ts:25:1 › TST-041A/B: a proposed profile shows its sources; the user approves it, adds a journal rule and feedback (2.8s)
+  ✓  93 tests/tasks/PW-042/writer.e2e.ts:15:1 › TST-042A/B: a paragraph from an approved plan is a proposal until applied; no evidence, no paragraph (4.0s)
+  ✓  94 tests/tasks/PW-043/gate.e2e.ts:14:1 › TST-043A/B: a paragraph check shows matches with their evidence, mismatches and unknowns (2.0s)
+  ✓  95 tests/tasks/PW-044/review.e2e.ts:16:1 › TST-044A/B: a finding with its span and source, accepted by the user, repaired once and applied by the user (4.1s)
+
+  95 passed (7.3m)
+
+> paper-workspace@ test:spikes /home/user/ManuAlly
+> node --test --test-timeout=30000 'tests/tasks/PW-00[1-6]/*.test.mjs'
+
+TAP version 13
+# Subtest: TST-001A: report separates approved, undecided and protected paths
+ok 1 - TST-001A: report separates approved, undecided and protected paths
+  ---
+  duration_ms: 10.109587
+  type: 'test'
+  ...
+# Subtest: TST-001A: data root given without user approval stays undecided
+ok 2 - TST-001A: data root given without user approval stays undecided
+  ---
+  duration_ms: 5.803671
+  type: 'test'
+  ...
+# Subtest: TST-001A: protected paths are only stat-ed, never read or listed
+ok 3 - TST-001A: protected paths are only stat-ed, never read or listed
+  ---
+  duration_ms: 6.36005
+  type: 'test'
+  ...
+# Subtest: TST-001B: missing data root is blocked and never created
+ok 4 - TST-001B: missing data root is blocked and never created
+  ---
+  duration_ms: 6.216358
+  type: 'test'
+  ...
+# Subtest: TST-001B: data root that is a file or a symlink is blocked
+ok 5 - TST-001B: data root that is a file or a symlink is blocked
+  ---
+  duration_ms: 11.247387
+  type: 'test'
+  ...
+# Subtest: TST-001B: unknown free space blocks instead of guessing
+ok 6 - TST-001B: unknown free space blocks instead of guessing
+  ---
+  duration_ms: 6.733545
+  type: 'test'
+  ...
+# Subtest: TST-001B: insufficient free space is blocked
+ok 7 - TST-001B: insufficient free space is blocked
+  ---
+  duration_ms: 7.401334
+  type: 'test'
+  ...
+# Subtest: TST-001A: the report says whether sandboxing works without sudo (XDG runtime dir, user namespaces)
+ok 8 - TST-001A: the report says whether sandboxing works without sudo (XDG runtime dir, user namespaces)
+  ---
+  duration_ms: 4.219466
+  type: 'test'
+  ...
+# Subtest: TST-002A: every provider/auth/deployment entry has admission, sources, checked date and test status
+ok 9 - TST-002A: every provider/auth/deployment entry has admission, sources, checked date and test status
+  ---
+  duration_ms: 3.87189
+  type: 'test'
+  ...
+# Subtest: TST-002A: validator rejects missing evidence, bad enums and unverified "verified" claims
+ok 10 - TST-002A: validator rejects missing evidence, bad enums and unverified "verified" claims
+  ---
+  duration_ms: 0.763749
+  type: 'test'
+  ...
+# Subtest: TST-002A: multi-user hosting and API-key modes are disabled
+ok 11 - TST-002A: multi-user hosting and API-key modes are disabled
+  ---
+  duration_ms: 0.224822
+  type: 'test'
+  ...
+# Subtest: TST-002B: no real provider may be called before live admission + user approval
+ok 12 - TST-002B: no real provider may be called before live admission + user approval
+  ---
+  duration_ms: 0.842627
+  type: 'test'
+  ...
+# Subtest: TST-002B: credential copying, cookie extraction and implicit session reuse are refused
+ok 13 - TST-002B: credential copying, cookie extraction and implicit session reuse are refused
+  ---
+  duration_ms: 2.585345
+  type: 'test'
+  ...
+# Subtest: TST-002B: CLI probe only asks for --version, with a scrubbed HOME and no API keys
+ok 14 - TST-002B: CLI probe only asks for --version, with a scrubbed HOME and no API keys
+  ---
+  duration_ms: 45.41567
+  type: 'test'
+  ...
+# Subtest: TST-002B: Codex RPC policy only allows methods present in the pinned schema and blocks dangerous surfaces
+ok 15 - TST-002B: Codex RPC policy only allows methods present in the pinned schema and blocks dangerous surfaces
+  ---
+  duration_ms: 1.341347
+  type: 'test'
+  ...
+# Subtest: TST-002B: profile dirs that alias the developer config (symlink, HOME itself, parent of HOME) are refused
+ok 16 - TST-002B: profile dirs that alias the developer config (symlink, HOME itself, parent of HOME) are refused
+  ---
+  duration_ms: 4.366284
+  type: 'test'
+  ...
+# Subtest: TST-002B: a real provider also needs a fresh, same-host, isolated auth sentinel result before any call (M5)
+ok 17 - TST-002B: a real provider also needs a fresh, same-host, isolated auth sentinel result before any call (M5)
+  ---
+  duration_ms: 0.987376
+  type: 'test'
+  ...
+# Subtest: TST-002B: a profile dir may not contain links to files elsewhere (re-review M4)
+ok 18 - TST-002B: a profile dir may not contain links to files elsewhere (re-review M4)
+  ---
+  duration_ms: 5.264056
+  type: 'test'
+  ...
+# Subtest: TST-003A: an AI proposal changes only its selection; the base document object is untouched
+ok 19 - TST-003A: an AI proposal changes only its selection; the base document object is untouched
+  ---
+  duration_ms: 10.821783
+  type: 'test'
+  ...
+# Subtest: TST-003A: a selection spanning a citation must keep the same citation, locator and anchor word
+ok 20 - TST-003A: a selection spanning a citation must keep the same citation, locator and anchor word
+  ---
+  duration_ms: 3.297566
+  type: 'test'
+  ...
+# Subtest: TST-003A: conservative guard catches the value, comparator, unit, direction, negation, mark and locator changes found in review
+ok 21 - TST-003A: conservative guard catches the value, comparator, unit, direction, negation, mark and locator changes found in review
+  ---
+  duration_ms: 5.929134
+  type: 'test'
+  ...
+# Subtest: TST-003A: export writes DOCX + HTML preview + a per-block loss report
+ok 22 - TST-003A: export writes DOCX + HTML preview + a per-block loss report
+  ---
+  duration_ms: 674.588667
+  type: 'test'
+  ...
+# Subtest: TST-003A: the loss report flags dropped blocks and dropped marks, not just feature presence
+ok 23 - TST-003A: the loss report flags dropped blocks and dropped marks, not just feature presence
+  ---
+  duration_ms: 687.266517
+  type: 'test'
+  ...
+# Subtest: TST-003B: identical sentences — only the selected occurrence changes; quote-only operations are refused
+ok 24 - TST-003B: identical sentences — only the selected occurrence changes; quote-only operations are refused
+  ---
+  duration_ms: 1.031456
+  type: 'test'
+  ...
+# Subtest: TST-003B: a proposal cannot move or widen the user selection (review M1)
+ok 25 - TST-003B: a proposal cannot move or widen the user selection (review M1)
+  ---
+  duration_ms: 1.243374
+  type: 'test'
+  ...
+# Subtest: TST-003B: replaying an applied proposal is refused, even against the original base document
+ok 26 - TST-003B: replaying an applied proposal is refused, even against the original base document
+  ---
+  duration_ms: 0.922209
+  type: 'test'
+  ...
+# Subtest: TST-003B: an AI proposal cannot opt out of the guard by asking for manual mode
+ok 27 - TST-003B: an AI proposal cannot opt out of the guard by asking for manual mode
+  ---
+  duration_ms: 0.926151
+  type: 'test'
+  ...
+# Subtest: TST-003B: duplicated block IDs are refused instead of guessing
+ok 28 - TST-003B: duplicated block IDs are refused instead of guessing
+  ---
+  duration_ms: 1.181874
+  type: 'test'
+  ...
+# Subtest: TST-003B: positions that split an emoji, a combining sequence or decomposed Hangul are refused
+ok 29 - TST-003B: positions that split an emoji, a combining sequence or decomposed Hangul are refused
+  ---
+  duration_ms: 1.725105
+  type: 'test'
+  ...
+# Subtest: TST-003B: out-of-range, inverted, empty and non-text selections are refused
+ok 30 - TST-003B: out-of-range, inverted, empty and non-text selections are refused
+  ---
+  duration_ms: 0.984787
+  type: 'test'
+  ...
+# Subtest: TST-003B: a block edited by the user after the selection makes the AI proposal STALE
+ok 31 - TST-003B: a block edited by the user after the selection makes the AI proposal STALE
+  ---
+  duration_ms: 1.678929
+  type: 'test'
+  ...
+# Subtest: TST-003B: math and figure atoms need explicit preserve_atom items (RFC-005)
+ok 32 - TST-003B: math and figure atoms need explicit preserve_atom items (RFC-005)
+  ---
+  duration_ms: 1.213008
+  type: 'test'
+  ...
+# Subtest: TST-003A: guard catches direction verbs, spelled numbers, length units and comparator words; allows harmless rewording
+ok 33 - TST-003A: guard catches direction verbs, spelled numbers, length units and comparator words; allows harmless rewording
+  ---
+  duration_ms: 2.062673
+  type: 'test'
+  ...
+# Subtest: TST-003B: an invalid preserve_atom index is a coded rejection
+ok 34 - TST-003B: an invalid preserve_atom index is a coded rejection
+  ---
+  duration_ms: 0.945542
+  type: 'test'
+  ...
+# Subtest: TST-003A: the loss report compares each block with its citeproc-rendered source text (citations, locators, inserted words)
+ok 35 - TST-003A: the loss report compares each block with its citeproc-rendered source text (citations, locators, inserted words)
+  ---
+  duration_ms: 636.83771
+  type: 'test'
+  ...
+# Subtest: TST-004A: a new run gets the explicit session id we chose and reports it back
+ok 36 - TST-004A: a new run gets the explicit session id we chose and reports it back
+  ---
+  duration_ms: 62.597288
+  type: 'test'
+  ...
+# Subtest: TST-004A: resume passes exactly the stored session id
+ok 37 - TST-004A: resume passes exactly the stored session id
+  ---
+  duration_ms: 52.562467
+  type: 'test'
+  ...
+# Subtest: TST-004A: a provider reporting a different session id is flagged, not adopted
+ok 38 - TST-004A: a provider reporting a different session id is flagged, not adopted
+  ---
+  duration_ms: 48.644257
+  type: 'test'
+  ...
+# Subtest: TST-004A: interrupt ends the run and its process group only
+ok 39 - TST-004A: interrupt ends the run and its process group only
+  ---
+  duration_ms: 182.606606
+  type: 'test'
+  ...
+# Subtest: TST-004A: the original research folder and the read-only input copy are both unchanged after a tampering run
+ok 40 - TST-004A: the original research folder and the read-only input copy are both unchanged after a tampering run
+  ---
+  duration_ms: 51.766858
+  type: 'test'
+  ...
+# Subtest: TST-004B: implicit continue / latest-session / unknown flags are refused (allowlist)
+ok 41 - TST-004B: implicit continue / latest-session / unknown flags are refused (allowlist)
+  ---
+  duration_ms: 1.496184
+  type: 'test'
+  ...
+# Subtest: TST-004B: symlinks, hardlinks, traversal and unsafe run roots cannot pull originals into a run
+ok 42 - TST-004B: symlinks, hardlinks, traversal and unsafe run roots cannot pull originals into a run
+  ---
+  duration_ms: 11.289553
+  type: 'test'
+  ...
+# Subtest: TST-004B: the child gets a fresh HOME and none of the parent credentials; profile aliases are refused
+ok 43 - TST-004B: the child gets a fresh HOME and none of the parent credentials; profile aliases are refused
+  ---
+  duration_ms: 47.161351
+  type: 'test'
+  ...
+# Subtest: TST-004B: no provider process starts without an issued admission for that provider (M5, re-review)
+ok 44 - TST-004B: no provider process starts without an issued admission for that provider (M5, re-review)
+  ---
+  duration_ms: 4.971602
+  type: 'test'
+  ...
+# Subtest: TST-004B: the full argv is validated — nothing can be smuggled before -p or app-server (re-review N1/N2)
+ok 45 - TST-004B: the full argv is validated — nothing can be smuggled before -p or app-server (re-review N1/N2)
+  ---
+  duration_ms: 9.064266
+  type: 'test'
+  ...
+# Subtest: TST-004B: an agent instruction file that appears above the run after prepareRun blocks the start
+ok 46 - TST-004B: an agent instruction file that appears above the run after prepareRun blocks the start
+  ---
+  duration_ms: 5.375625
+  type: 'test'
+  ...
+# Subtest: TST-004B: leftover cleanup only targets a process group that is provably still ours
+ok 47 - TST-004B: leftover cleanup only targets a process group that is provably still ours
+  ---
+  duration_ms: 0.200546
+  type: 'test'
+  ...
+# Subtest: TST-004B: a missing provider binary fails fast instead of hanging
+ok 48 - TST-004B: a missing provider binary fails fast instead of hanging
+  ---
+  duration_ms: 9.145627
+  type: 'test'
+  ...
+# Subtest: TST-004B: no shell or file-tool surface is configured for either provider
+ok 49 - TST-004B: no shell or file-tool surface is configured for either provider
+  ---
+  duration_ms: 1.131263
+  type: 'test'
+  ...
+# Subtest: TST-004B: an empty runtime profile that still reports a login is detected as a credential leak
+ok 50 - TST-004B: an empty runtime profile that still reports a login is detected as a credential leak
+  ---
+  duration_ms: 373.917558
+  type: 'test'
+  ...
+# Subtest: TST-004B: the default runs root needs no sudo — XDG_RUNTIME_DIR first, private /tmp folder otherwise
+ok 51 - TST-004B: the default runs root needs no sudo — XDG_RUNTIME_DIR first, private /tmp folder otherwise
+  ---
+  duration_ms: 9.231275
+  type: 'test'
+  ...
+# Subtest: TST-004B: a pre-created /tmp folder owned by someone else, or made loose, is refused
+ok 52 - TST-004B: a pre-created /tmp folder owned by someone else, or made loose, is refused
+  ---
+  duration_ms: 4.315197
+  type: 'test'
+  ...
+# Subtest: TST-005A: the shipped baseline is internally consistent
+ok 53 - TST-005A: the shipped baseline is internally consistent
+  ---
+  duration_ms: 7.795803
+  type: 'test'
+  ...
+# Subtest: TST-005A: every required category has expected outcomes, including both pass and fail examples
+ok 54 - TST-005A: every required category has expected outcomes, including both pass and fail examples
+  ---
+  duration_ms: 0.894433
+  type: 'test'
+  ...
+# Subtest: TST-005A: two article types are covered and the rubric/procedure documents exist
+ok 55 - TST-005A: two article types are covered and the rubric/procedure documents exist
+  ---
+  duration_ms: 2.525683
+  type: 'test'
+  ...
+# Subtest: TST-005A: every designed SCI case is mapped to a baseline category
+ok 56 - TST-005A: every designed SCI case is mapped to a baseline category
+  ---
+  duration_ms: 1.015903
+  type: 'test'
+  ...
+# Subtest: TST-005B: an abstract-only reference cannot carry fulltext_style_verified
+ok 57 - TST-005B: an abstract-only reference cannot carry fulltext_style_verified
+  ---
+  duration_ms: 1.560358
+  type: 'test'
+  ...
+# Subtest: TST-005B: style verification of a section requires that exact section to have been read
+ok 58 - TST-005B: style verification of a section requires that exact section to have been read
+  ---
+  duration_ms: 0.782795
+  type: 'test'
+  ...
+# Subtest: TST-005B: a gold (ALLOW) paragraph may not contain results that are not in the fact records
+ok 59 - TST-005B: a gold (ALLOW) paragraph may not contain results that are not in the fact records
+  ---
+  duration_ms: 1.126858
+  type: 'test'
+  ...
+# Subtest: TST-005B: gold paragraphs may not cite references or facts that do not exist, or unverified facts
+ok 60 - TST-005B: gold paragraphs may not cite references or facts that do not exist, or unverified facts
+  ---
+  duration_ms: 2.997382
+  type: 'test'
+  ...
+# Subtest: TST-005B: fixtures must be marked synthetic
+ok 61 - TST-005B: fixtures must be marked synthetic
+  ---
+  duration_ms: 0.945283
+  type: 'test'
+  ...
+# Subtest: TST-005B: failing cases relabelled as gold are rejected (source depth, retraction, group swap, negation, overclaim)
+ok 62 - TST-005B: failing cases relabelled as gold are rejected (source depth, retraction, group swap, negation, overclaim)
+  ---
+  duration_ms: 3.243075
+  type: 'test'
+  ...
+# Subtest: TST-005B: reading depth must be consistent with the sections recorded as read
+ok 63 - TST-005B: reading depth must be consistent with the sections recorded as read
+  ---
+  duration_ms: 1.54786
+  type: 'test'
+  ...
+# Subtest: TST-005B: group percentages must match their counts (review M8: 62% of 40 plants is impossible)
+ok 64 - TST-005B: group percentages must match their counts (review M8: 62% of 40 plants is impossible)
+  ---
+  duration_ms: 1.162383
+  type: 'test'
+  ...
+# Subtest: TST-005B: re-review bypasses are rejected as gold
+ok 65 - TST-005B: re-review bypasses are rejected as gold
+  ---
+  duration_ms: 5.30831
+  type: 'test'
+  ...
+# Subtest: TST-005B: a writing-only reference cannot support a scientific claim in gold text
+ok 66 - TST-005B: a writing-only reference cannot support a scientific claim in gold text
+  ---
+  duration_ms: 1.03316
+  type: 'test'
+  ...
+# Subtest: TST-006A: the P00 decision record has every required part
+ok 67 - TST-006A: the P00 decision record has every required part
+  ---
+  duration_ms: 1.410544
+  type: 'test'
+  ...
+# Subtest: TST-006A: every RFC follows the template and has a status
+ok 68 - TST-006A: every RFC follows the template and has a status
+  ---
+  duration_ms: 2.85547
+  type: 'test'
+  ...
+# Subtest: TST-006B: nothing unverified is reported as verified
+ok 69 - TST-006B: nothing unverified is reported as verified
+  ---
+  duration_ms: 0.744873
+  type: 'test'
+  ...
+# Subtest: TST-006B: no product scaffold exists unless the P00 gate approval is recorded
+ok 70 - TST-006B: no product scaffold exists unless the P00 gate approval is recorded
+  ---
+  duration_ms: 0.413211
+  type: 'test'
+  ...
+1..70
+# tests 70
+# suites 0
+# pass 70
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2209.24983
+
+> paper-workspace@ test:evals /home/user/ManuAlly
+> node spikes/writing-baseline/validate.mjs
+
+{
+  "status": "PASS",
+  "errors": []
+}
+
+> paper-workspace@ pack-check /home/user/ManuAlly
+> python3 -I scripts/validate_pack.py
+
+{
+  "status": "PASS",
+  "scope": "PLANNING_PACK_ONLY_NOT_PRODUCT_TESTS",
+  "checked_at": "2026-10-10T02:26:19.758771+00:00",
+  "tasks": 62,
+  "requirements": 62,
+  "acceptance_test_designs": 124,
+  "scientific_case_designs": 30,
+  "schema_examples_checked": 7,
+  "checks": [
+    "unique task/requirement/test identifiers",
+    "requirement→task→acceptance mapping",
+    "acyclic prior-task dependencies",
+    "read-first file existence",
+    "repository-relative write scopes",
+    "all JSON files parse",
+    "positive/negative starter JSON Schema examples",
+    "30 scientific scenario designs structurally valid; model evaluation NOT RUN"
+  ],
+  "errors": [],
+  "warnings": [],
+  "not_validated": [
+    "web application implementation",
+    "live Claude/Codex accounts or policy admission",
+    "OS isolation effectiveness",
+    "scientific writing performance",
+    "document export rendering",
+    "backup/restore of a deployed application"
+  ]
+}
+exit 0

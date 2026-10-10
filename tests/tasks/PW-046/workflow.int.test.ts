@@ -293,3 +293,49 @@ describe('PW-046 review fixes', () => {
     for (const s of ['2. Methods', 'Data availability', 'Experimental procedures', 'Installation and usage']) expect(proseSignals('1. One thing. 2. Another thing.', s)).toEqual([]);
   });
 });
+
+// PW-046 re-review (changes requested): R1 (a title heading above level-2 sections), NIT 1–2
+describe('PW-046 re-review fixes', () => {
+  const h = (t: string, level = 1) => ({ type: 'heading', attrs: { id: randomUUID(), level }, content: [{ type: 'text', text: t }] });
+  const para = (t: string) => ({ type: 'paragraph', attrs: { id: randomUUID() }, content: [{ type: 'text', text: t }] });
+  const save = async (x: P, content: unknown[]) => (await call('alice', 'POST', `/api/papers/${x.paperId}/documents/${x.documentId}/saves`, { expected_head_revision_id: (await doc(x)).head.id, content_json: { type: 'doc', content }, schema_version: 1, reason: 'manual' })).json().id as string;
+  const levels = async (x: P) => ((await doc(x)).head.content_json.content as unknown as { type: string; attrs: { level?: number }; content?: { text?: string }[] }[])
+    .map((b) => (b.type === 'heading' ? `${'#'.repeat(b.attrs.level!)}${b.content?.[0]?.text}` : 'p'));
+
+  test('R1: "# Title / ## sections" — the title is not a section; sections at level 2 are found, added and written into', async () => {
+    const x = await paper('research_article', ['Introduction', 'Results', 'Discussion']);
+    const head = await save(x, [h('Drought marker in roots'), h('Introduction', 2), para('i'), h('Results', 2), para('r')]);
+    expect((await scaffold(x, head)).json().added).toEqual(['Discussion']);
+    expect(await levels(x)).toEqual(['#Drought marker in roots', '##Introduction', 'p', '##Results', 'p', '##Discussion']);
+    // a Results paragraph placed by default goes under ##Results, before ##Discussion
+    await draft(x, x.nodes[1]!.node_id, (await doc(x)).head.id);
+    expect(await levels(x)).toEqual(['#Drought marker in roots', '##Introduction', 'p', '##Results', 'p', 'p', '##Discussion']);
+  });
+
+  test('R1: a leading heading that is a section name is a section, not a title (MINOR 1 still holds)', async () => {
+    const x = await paper('research_article', ['Results', 'Conclusion']);
+    const head = await save(x, [h('Discussion'), para('d1'), h('Results', 2), para('sub')]);
+    expect((await scaffold(x, head)).json().added).toEqual(['Results', 'Conclusion']);
+    expect(await levels(x)).toEqual(['#Discussion', 'p', '##Results', 'p', '#Results', '#Conclusion']);
+  });
+
+  test('R1: a leading heading named as one of the outline\'s own sections is a section (scaffold and default placement)', async () => {
+    const x = await paper('software_resource', ['Use cases', 'Availability']);
+    const head = await save(x, [h('Use cases'), para('u'), h('Availability', 2), para('a'), h('Notes', 2), para('n')]);
+    // "Use cases" is the outline's section, so the sections are level 1 and ##Availability is a subsection
+    expect((await scaffold(x, head)).json().added).toEqual(['Availability']);
+    expect(await levels(x)).toEqual(['#Use cases', 'p', '##Availability', 'p', '##Notes', 'p', '#Availability']);
+    const y = await paper('software_resource', ['Use cases', 'Availability']);
+    const head2 = await save(y, [h('Use cases'), para('u'), h('Availability', 2), para('a'), h('Notes', 2), para('n')]);
+    // no level-1 Availability: the Availability paragraph goes to the end, not into the subsection
+    await draft(y, y.nodes[1]!.node_id, head2);
+    expect(await levels(y)).toEqual(['#Use cases', 'p', '##Availability', 'p', '##Notes', 'p', 'p']);
+  });
+
+  test('NIT 1–2: standard procedure section names may enumerate; a heading that begins with a number is not stripped of it', async () => {
+    for (const s of ['Usage Notes', 'Data and code availability', 'Methods: sample preparation', 'Code and data availability']) expect(proseSignals('1. One thing. 2. Another thing.', s)).toEqual([]);
+    const x = await paper('research_article', ['1000 Genomes data']);
+    const head = await save(x, [h('Genomes data'), para('g')]);
+    expect((await scaffold(x, head)).json().added).toEqual(['1000 Genomes data']);
+  });
+});

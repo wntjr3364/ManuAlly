@@ -101,3 +101,20 @@ P05 gate 보고(`reports/p05/P05_GATE.md`) → P06(PW-047~054)
   - 프로필 역할의 **근거 출처**는 여전히 문헌에서 읽은 IMRaD 섹션이다. 역할 섹션과 정확히 같아야 출처로 인정된다(`sectionServes`). 그래서 "Implementation", "Materials and Methods" 같은 역할은 출처 없는 사용자 규칙만 가질 수 있다.
   - AI 프로필 제안은 IMRaD 섹션만 낸다. 화면에는 역할 편집이 없고, 소프트웨어 섹션 역할은 API로만 만든다.
   - 섹션이 없는 원고에 넣는 골격은 level 1이다.
+
+## 재리뷰 (727ecd0): changes requested — MAJOR 1(MINOR 1 수정의 회귀), NIT 3
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| R1 MAJOR: "# 제목 / ## 섹션" 원고(Markdown 가져오기의 흔한 꼴)에서 섹션을 못 찾음. 골격이 섹션을 level 1로 중복 추가하고, 기본 위치 문단은 원고 끝에 붙음 | `sectionLevel(doc, sectionNames)`: 맨 앞의 유일한 최상위 제목이 더 낮은 제목들 위에 있으면 **논문 제목**으로 보고, 섹션 수준은 그 아래 수준이다. 다만 그 이름이 알려진 섹션 이름(유형별 제안, Abstract·Background·Methods·Conclusion·References 등)이거나 **개요의 섹션**이면 섹션이다(MINOR 1의 보호 유지). 골격과 Writer 기본 위치 모두 개요의 섹션 이름을 넘긴다 | 제목+##섹션 원고에 ##Discussion만 더해지고, Results 문단은 ##Results 아래로 간다. 맨 앞의 #Discussion은 섹션이다(MINOR 1 시험 유지). 맨 앞의 #Use cases(개요 섹션)는 섹션이므로 ##Availability는 하위 제목이다(골격·기본 위치 모두) |
+| NIT 1: "Usage Notes", "Data and code availability", "Methods: …"가 경고됨 | 절차 섹션 이름에 Usage Notes, "A and B availability", 콜론 뒤 부제를 더했다 | 네 이름 모두 경고 없음. 기존 부정 사례(Methodological limitations 등)는 그대로 경고다 |
+| NIT 2: 앞 번호 제거가 "1000 Genomes data"의 숫자를 지움 | 구두점 없는 맨 숫자는 두 자리까지만 섹션 번호로 본다(화면도 같음). "V. cholerae"처럼 로마 숫자+마침표로 시작하는 이름은 여전히 번호로 본다(아래 남은 위험) | 개요의 "1000 Genomes data"는 원고의 "Genomes data"와 다른 섹션이다 |
+| NIT 3: 섹션 제목을 하위 수준으로 내리면 다음 골격이 그 섹션을 다시 추가 | 동작은 MINOR 1 규칙대로 둔다(하위 제목은 섹션이 아님). 아래 남은 위험에 적었다 | — |
+
+- RED(`red-rereview.log`): R1 제목 시험과 NIT 시험이 727ecd0 구현에서 실패한다. 맨 앞 섹션 이름 시험은 처음부터 통과한다(MINOR 1 보호의 회귀 방지).
+- GREEN: 통합 17(맨 앞 제목이 개요 섹션인 경우 1개 추가)
+- mutation(`mutation.log` 하단): 8종 모두 탐지
+  - 제목 판별, 알려진 이름, 개요 이름, Writer·골격의 개요 이름 전달, 두 자리 숫자, Usage Notes, 콜론 부제
+- 남은 위험(추가)
+  - 제목 판별은 휴리스틱이다. 섹션처럼 쓴 맨 앞 제목의 이름이 알려진 이름도 개요 섹션도 아니면 제목으로 본다.
+  - 사용자가 섹션 제목을 하위 수준으로 내리면 다음 골격이 같은 이름의 섹션을 다시 더한다. 이는 MINOR 1 규칙의 결과다.
+  - "V. cholerae colonization"처럼 로마 숫자와 마침표로 시작하는 이름은 앞부분을 번호로 본다.

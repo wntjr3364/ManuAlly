@@ -1,0 +1,60 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts (16 tests | 2 failed) 4300ms
+   ❯ PW-046 re-review fixes (3)
+     × R1: "# Title / ## sections" — the title is not a section; sections at level 2 are found, added and written into 141ms
+     × NIT 1–2: standard procedure section names may enumerate; a heading that begins with a number is not stripped of it 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > PW-046 re-review fixes > R1: "# Title / ## sections" — the title is not a section; sections at level 2 are found, added and written into
+AssertionError: expected [ 'Introduction', 'Results', …(1) ] to deeply equal [ 'Discussion' ]
+
+- Expected
++ Received
+
+  [
++   "Introduction",
++   "Results",
+    "Discussion",
+  ]
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:308:52
+    306|     const x = await paper('research_article', ['Introduction', 'Result…
+    307|     const head = await save(x, [h('Drought marker in roots'), h('Intro…
+    308|     expect((await scaffold(x, head)).json().added).toEqual(['Discussio…
+       |                                                    ^
+    309|     expect(await levels(x)).toEqual(['#Drought marker in roots', '##In…
+    310|     // a Results paragraph placed by default goes under ##Results, bef…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > PW-046 re-review fixes > NIT 1–2: standard procedure section names may enumerate; a heading that begins with a number is not stripped of it
+AssertionError: expected [ 'enumerated_list' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "enumerated_list",
++ ]
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:323:188
+    321|
+    322|   test('NIT 1–2: standard procedure section names may enumerate; a hea…
+    323|     for (const s of ['Usage Notes', 'Data and code availability', 'Met…
+       |                                                                                                                                                                                            ^
+    324|     const x = await paper('research_article', ['1000 Genomes data']);
+    325|     const head = await save(x, [h('Genomes data'), para('g')]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 14 passed (16)
+   Start at  01:12:54
+   Duration  6.65s (tests 66%, transform 27%, import 7%)
+
+exit 1

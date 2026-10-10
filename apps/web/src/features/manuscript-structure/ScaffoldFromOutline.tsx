@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { api, errorText } from '../../app/api.ts';
 
-const sectionKey = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim().replace(/^(?:\d+(?:\.\d+)*[.)]?|[IVX]+[.)])\s+/i, '').replace(/[\s.:;]+$/, '').toLowerCase();
+const sectionKey = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim().replace(/^(?:\d{1,2}(?:\.\d+)*[.)]?|[IVX]+[.)])\s+/i, '').replace(/[\s.:;]+$/, '').toLowerCase();
 
 export function ScaffoldFromOutline({ paperId, documentId, headId, clean, onDone }: { paperId: string; documentId: string; headId: string; clean: boolean; onDone: () => void }) {
   const [outlineId, setOutlineId] = useState<string | null>(null);

@@ -25,3 +25,12 @@ KILLED R: profile section limit 60
 KILLED R: exemption regex not anchored
 KILLED R: worker drops the section heading
 KILLED R: placeHolds ignores the section heading (after test fix)
+# re-review fixes
+KILLED RR: no title detection
+KILLED RR: known section names ignored for the title
+KILLED RR: outline names ignored for the title
+KILLED RR: writer does not pass the outline's sections
+KILLED RR: scaffold does not pass the outline's sections
+KILLED RR: any bare number stripped
+KILLED RR: no Usage Notes
+KILLED RR: no subtitle after colon

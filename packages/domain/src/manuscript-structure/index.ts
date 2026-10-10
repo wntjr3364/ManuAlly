@@ -57,23 +57,41 @@ export function sectionTemplate(articleType: string) {
 // a section's name for comparison: Unicode-normalised, spacing collapsed, case ignored, without a
 // leading section number ("2.", "2.1", "IV.") or trailing punctuation (review MINOR 2: imported
 // manuscripts number their headings)
+// (re-review NIT 2: a bare number is a section number only up to two digits — "1000 Genomes data" keeps it)
 export const sectionKey = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim()
-  .replace(/^(?:\d+(?:\.\d+)*[.)]?|[IVX]+[.)])\s+/i, '').replace(/[\s.:;]+$/, '').toLowerCase();
+  .replace(/^(?:\d{1,2}(?:\.\d+)*[.)]?|[IVX]+[.)])\s+/i, '').replace(/[\s.:;]+$/, '').toLowerCase();
 const textOf = (n: PMNode) => n.textContent;
 const blocksOf = (doc: PMNode) => { const out: PMNode[] = []; doc.forEach((n) => out.push(n)); return out; };
+// names that are sections, not a paper's title
+const KNOWN_SECTIONS = new Set([
+  ...Object.values(SECTION_TEMPLATES).flat().map((x) => x.section),
+  'Abstract', 'Summary', 'Background', 'Materials and Methods', 'Methods', 'Results and Discussion', 'Conclusion', 'Conclusions',
+  'Limitations', 'Acknowledgements', 'Acknowledgments', 'References', 'Supplementary Information', 'Data Availability', 'Code Availability',
+].map(sectionKey));
 // the manuscript's section level: its highest heading level (1 when it has none). Only headings of this
-// level are sections; a same-name subsection is not (review MINOR 1)
-export const sectionLevel = (doc: PMNode) => {
-  const levels = blocksOf(doc).filter((n) => n.type.name === 'heading').map((n) => n.attrs.level as number);
-  return levels.length ? Math.min(...levels) : 1;
+// level are sections; a same-name subsection is not (review MINOR 1). A lone first heading above
+// lower-level headings is the paper's title ("# Title / ## Introduction …", as Markdown imports are),
+// unless it is named as a section — known, or one of `sectionNames` (the outline's) (re-review R1).
+export const sectionLevel = (doc: PMNode, sectionNames: string[] = []) => {
+  const blocks = blocksOf(doc);
+  const levels = blocks.filter((n) => n.type.name === 'heading').map((n) => n.attrs.level as number);
+  if (!levels.length) return 1;
+  const top = Math.min(...levels);
+  const first = blocks[0]!;
+  const titleLike = first.type.name === 'heading' && (first.attrs.level as number) === top && levels.filter((l) => l === top).length === 1 && levels.some((l) => l > top);
+  if (titleLike) {
+    const key = sectionKey(textOf(first));
+    if (!KNOWN_SECTIONS.has(key) && !sectionNames.some((x) => sectionKey(x) === key)) return Math.min(...levels.filter((l) => l > top));
+  }
+  return top;
 };
 const isSection = (n: PMNode, level: number) => n.type.name === 'heading' && (n.attrs.level as number) === level;
 
 // the section heading of `section` in the manuscript, or null
-export function sectionHeading(doc: PMNode, section: string): PMNode | null {
+export function sectionHeading(doc: PMNode, section: string, sectionNames: string[] = [section]): PMNode | null {
   const key = sectionKey(section);
   if (!key) return null;
-  const level = sectionLevel(doc);
+  const level = sectionLevel(doc, sectionNames);
   return blocksOf(doc).find((n) => isSection(n, level) && sectionKey(textOf(n)) === key) ?? null;
 }
 // the last block of the section that heading `headingId` opens (before the next heading of the same or a
@@ -92,8 +110,8 @@ export function sectionEndOf(doc: PMNode, headingId: string): PMNode | null {
   return blocks[end]!;
 }
 // where a new paragraph of `section` goes by default: after the last block of that section
-export function sectionEnd(doc: PMNode, section: string): PMNode | null {
-  const h = sectionHeading(doc, section);
+export function sectionEnd(doc: PMNode, section: string, sectionNames: string[] = [section]): PMNode | null {
+  const h = sectionHeading(doc, section, sectionNames);
   return h ? sectionEndOf(doc, h.attrs.id as string) : null;
 }
 
@@ -114,7 +132,7 @@ export async function scaffoldFromOutline(pool: TxPool, a: { paperId: string; ow
     if (kind !== 'manuscript') throw new DomainError('INVALID', 'only a manuscript is built from the outline', 'document_id');
     const doc = (await documentAt(tx, a.paperId, a.documentId, head))!;
     const sections = await outlineSections(tx, outlineId);
-    const level = sectionLevel(doc);
+    const level = sectionLevel(doc, sections);
     const present = new Set<string>();
     doc.forEach((n) => { if (isSection(n, level)) present.add(sectionKey(textOf(n))); });
     const missing = sections.filter((s) => !present.has(sectionKey(s)));
@@ -132,8 +150,8 @@ export async function scaffoldFromOutline(pool: TxPool, a: { paperId: string; ow
       const prev = sections.slice(0, idx).reverse().find((x) => present.has(sectionKey(x)));
       const next = sections.slice(idx + 1).find((x) => present.has(sectionKey(x)));
       let at = blocks.length;
-      if (prev !== undefined) at = indexOf(sectionEnd(current, prev)!.attrs.id) + 1;
-      else if (next !== undefined) at = indexOf(sectionHeading(current, next)!.attrs.id);
+      if (prev !== undefined) at = indexOf(sectionEnd(current, prev, sections)!.attrs.id) + 1;
+      else if (next !== undefined) at = indexOf(sectionHeading(current, next, sections)!.attrs.id);
       blocks.splice(at, 0, heading);
       present.add(sectionKey(s));
     }

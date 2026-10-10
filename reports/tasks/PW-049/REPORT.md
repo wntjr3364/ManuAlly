@@ -45,7 +45,7 @@
 - mutation(`mutation.log`): 24종 중 23종 탐지
   - 처음 살아남은 "결정 시각 뒤의 관측도 씀"은 시험을 더한 뒤 탐지했다.
   - "SKIP LOCKED 제거"는 살아남았다(동등). 두 번째 결정은 잠금을 기다린 뒤 대기가 이미 결정된 것을 본다. 한 번만 결정됨은 상태 재확인과 DB trigger("decided once")가 보장한다. SKIP LOCKED는 기다리지 않게 할 뿐이다.
-- 회귀: (아래 채움)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 514, contracts 17, 브라우저 95 (`pnpm-test.log`)
 
 ## 보안·과학적 실패 경로
 - 사용자가 허락하지 않았거나 허락이 끝났으면 스스로 재개하지 않는다.

@@ -79,7 +79,7 @@
 | PW-046 | in_review | (P05) | REQ-046 / TST-046A,B | 통합 17(재리뷰 반영), 브라우저 2(연구 논문·소프트웨어 논문), mutation 13+12+8종 탐지, `pnpm test` exit 0(재리뷰 반영; 리뷰 전 첫 실행은 이 Task E2E의 인용 단언 오류로 2 실패 — 고침) | MOCK writer만(문헌 인용 문단은 MOCK에서 끝까지 시험 불가), 섹션 이름은 정규화한 글자 일치(동의어 없음), 프로필 비IMRaD 역할은 출처 없는 규칙만, 제목 판별 휴리스틱(제목 앞 문단·# References가 있으면 놓침) |
 | PW-047 | in_review | (P06) | REQ-047 / TST-047A,B | 통합 13(리뷰 반영), mutation 17+12종 탐지(+동등 2), `pnpm test` exit 0(리뷰 반영) | 실제 provider 세션 교체·compact 미실행, checkpoint는 Writer에만 연결, 화면 표시 없음, 예산 예약 UNKNOWN |
 | PW-048 | in_review | (P06) | REQ-048 / TST-048A,B | 통합 21(리뷰 반영), mutation 21+13종 탐지, `pnpm test` exit 0(리뷰 반영) | 대역 세션만(실제 adapter 연결·Codex compaction RPC는 live smoke), 지금 Claude·Codex 모두 새 세션 경로(compaction 미검증), 모델 window 표 없음 |
-| PW-049 | in_review | (P06) | REQ-049 / TST-049A,B | 통합 11, mutation 23종 탐지(+동등 1), `pnpm test` (기록 예정) | 실제 가용성 probe 없음(worker는 "모름"), 실제 429 연결은 provider run 경로, 허락·대기 화면 없음(API만) |
+| PW-049 | in_review | (P06) | REQ-049 / TST-049A,B | 통합 11, mutation 23종 탐지(+동등 1), `pnpm test` exit 0 | 실제 가용성 probe 없음(worker는 "모름"), 실제 429 연결은 provider run 경로, 허락·대기 화면 없음(API만) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

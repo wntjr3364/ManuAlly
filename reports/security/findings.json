@@ -10,8 +10,8 @@
     "id": "F-02",
     "title": "The web app is served without Content-Security-Policy / frame-ancestors (clickjacking, script injection hardening); the session cookie is SameSite=Strict and HttpOnly, served originals are sandboxed",
     "severity": "low",
-    "status": "open",
-    "plan": "PW-061 deployment runbook: serve the built app with CSP (default-src 'self'), frame-ancestors 'none', Referrer-Policy no-referrer, nosniff; Secure cookies behind TLS"
+    "status": "fixed",
+    "evidence": "tests/tasks/PW-061/deploy.int.test.ts (every answer of the production server carries CSP with frame-ancestors 'none', X-Frame-Options DENY, nosniff, no-referrer, COOP/CORP; a served original keeps its own sandbox CSP; the built app runs under the CSP in Chromium with no violation; RED: reports/tasks/PW-061/red.log); fix: infra/deploy/serve.ts (PW-061). Secure cookies behind TLS remain the manual check MAN-DEPLOY-TLS"
   },
   {
     "id": "F-03",

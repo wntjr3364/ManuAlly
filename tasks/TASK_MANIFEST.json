@@ -1979,7 +1979,7 @@
       "id": "PW-061",
       "phase": "P07",
       "title": "배포·storage·upgrade runbook",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-060"
       ],

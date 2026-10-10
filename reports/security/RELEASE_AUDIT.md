@@ -74,7 +74,7 @@
 | F-03 | high | fixed | 전송 정책을 실제 전송 지점(`runProviderTurn`)에서 확인하지 않았다. 선택 수정·curation worker는 자체 확인도 없었다. 지금은 mock만 연결되어 있어 잠재 위험이다. | `send-policy.int.test.ts`, RED `red-F03.log` |
 | F-04 | low | fixed | sandbox 가용성 확인이 worker 환경 전체를 받았다. | `static.test.ts` |
 | F-05 | medium | fixed | 개요 노드의 주장·근거 id가 형식만 확인되어, 다른 논문의 근거로 "근거 필요"를 채울 수 있었다(내용 유출은 없음: 읽는 쪽이 논문으로 거른다). 재리뷰 M1'. 자유 계획 이름표(UUID가 아닌 글, PW-010 설계)는 여전히 "근거 필요"를 채운다. 이것은 무결성 보장이 아니라 계획 표시다(3차 리뷰 n1). | `sweep.int.test.ts` 표적 2종, `schema.int.test.ts`, RED `red-F05.log` |
-| F-02 | low | open | 웹 앱 CSP·frame-ancestors·Referrer-Policy가 없다. | PW-061 배포에서 다룬다. |
+| F-02 | low | fixed(PW-061) | 웹 앱 CSP·frame-ancestors·Referrer-Policy가 없었다. 운영 서버가 모든 응답에 붙인다(원본의 sandbox CSP는 유지). TLS 뒤의 Secure 쿠키는 수동 확인 MAN-DEPLOY-TLS. | `tests/tasks/PW-061/deploy.int.test.ts`, RED `reports/tasks/PW-061/red.log` |
 
 ## spec 09 대조(리뷰 m5 반영)
 | spec 09 항목 | 상태 |

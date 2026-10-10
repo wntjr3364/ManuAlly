@@ -112,3 +112,4 @@ User decision / reviewer:
 - PW-061
   - `apps/worker/src/ai-pause/index.ts`(새 파일), `apps/worker/src/main.ts`: AI 작업 handler를 가장 바깥에서 `withAiPause`로 감싼다(spec 12 "비상 중단"). 운영자가 AI를 멈추면 새 AI 작업은 시도 횟수를 쓰지 않고 기다린다. 멈춘 동안 끝난 호출의 결과는 적용하지 않는다. PDF 해석과 수동 편집은 그대로다.
   - `tests/security/static.test.ts`(PW-059 검토 목록): `infra/deploy/pwctl.ts`를 자식 프로세스 모듈(supervisor, 만든 환경)과 네트워크 모듈(loopback health 확인)에 넣는다.
+  - `reports/security/{findings.json, RELEASE_AUDIT.md}`(PW-059 기록): F-02를 fixed로 바꾸고 근거(PW-061 시험)를 적는다. 게이트 결정은 다음 감사 실행에서 다시 만든다.

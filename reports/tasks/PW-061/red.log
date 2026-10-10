@@ -18,3 +18,13 @@
 AssertionError: expected 'completed' to be 'deferred' // Object.is equality
 AssertionError: expected 'completed' to be 'deferred' // Object.is equality
       Tests  2 failed | 2 passed (4)
+
+=== RED: stop counted an exited, uncollected supervisor (zombie) as alive — before the fix (drill run d6)
+     × stop: the worker finishes and stops, then the API; the supervisor exits cleanly 180120ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+state: (no state)
+[supervisor] worker exited (SIGKILL)
+[supervisor] worker exited (0)
+[supervisor] api exited (0)
+: expected null to deeply equal { stopped: true }
+      Tests  1 failed | 5 passed | 3 skipped (9)

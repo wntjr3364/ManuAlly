@@ -18,6 +18,7 @@ import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { recordDisk } from '../../../infra/deploy/pwctl.ts';
 import { startServer, SECURITY_HEADERS } from '../../../infra/deploy/serve.ts';
 import type { DeployConfig } from '../../../infra/deploy/check.ts';
+import { PAPER_V1 } from '../PW-035/fixtures.ts';
 
 const MIGRATIONS = path.resolve('db/migrations');
 const tmp: string[] = [];
@@ -262,6 +263,7 @@ describe('TST-061B: refused before anything starts, backups before migrations, t
   test('over the size cap uploads and new files are refused (507); reading and editing go on', async () => {
     const p3 = await freePort();
     const local: DeployConfig = { ...cfg, listen: { host: '127.0.0.1', port: p3 }, public_origin: `http://127.0.0.1:${p3}` };
+    { const c = await pool.connect(); await migrate(c, MIGRATIONS); c.release(); } // (nothing to do after the drill above; lets this test run alone)
     await owner();
     await recordDisk(pool, cfg.max_data_bytes, cfg.max_data_bytes);
     const srv = await startServer(local, env);
@@ -276,11 +278,20 @@ describe('TST-061B: refused before anything starts, backups before migrations, t
       expect(up.status).toBe(507);
       expect((await up.json()).error).toBe('disk_pressure');
       expect((await fetch(`${o}/api/papers/${id}`, { headers: H })).status).toBe(200);
+      // when space is back an upload works, and a served original keeps its own, stricter policy (PW-034 sandbox)
+      await recordDisk(pool, 1, cfg.max_data_bytes);
+      await new Promise((r) => setTimeout(r, 5500)); // the server re-reads the flag every 5 s
+      const ok = await fetch(`${o}/api/papers/${id}/assets?license=cc-by`, { method: 'POST', headers: { ...H, 'content-type': 'application/pdf' }, body: PAPER_V1() });
+      expect(ok.status, await ok.clone().text()).toBe(201);
+      const content = await fetch(`${o}/api/papers/${id}/assets/${(await ok.json()).id}/content`, { headers: H });
+      expect(content.status).toBe(200);
+      expect(content.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'");
+      expect(content.headers.get('x-frame-options')).toBe('DENY');
       const log = (await pool.query("SELECT control, actor FROM ops_control_log WHERE control LIKE 'disk%' ORDER BY id")).rows;
-      expect(log.at(-1)).toEqual({ control: 'disk_pressure_on', actor: 'supervisor' });
+      expect(log.slice(-2)).toEqual([{ control: 'disk_pressure_on', actor: 'supervisor' }, { control: 'disk_pressure_off', actor: 'supervisor' }]);
     } finally {
       await srv.close();
       await recordDisk(pool, 1, cfg.max_data_bytes);
     }
-  }, 60_000);
+  }, 90_000);
 });

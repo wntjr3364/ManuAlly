@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { checkDeployment, fsTypeOf, lockfileSha, type DeployConfig, type Pins, type Probe, type UpgradeRecord } from '../../../infra/deploy/check.ts';
 import { RotatingLog } from '../../../infra/deploy/logs.ts';
-import { loadVersions } from '../../../infra/deploy/pwctl.ts';
+import { childEnv, loadVersions } from '../../../infra/deploy/pwctl.ts';
 
 const tmp: string[] = [];
 afterAll(() => { for (const d of tmp) fs.rmSync(d, { recursive: true, force: true }); });
@@ -131,3 +131,20 @@ describe('TST-061B: logs are bounded', () => {
     for (const f of files) expect(fs.statSync(path.join(d, f)).mode & 0o077).toBe(0);
   });
 });
+
+describe('TST-061B: the supervisor gives its children a built environment, not its own', () => {
+  test('only the named settings reach the API and the worker', () => {
+    const operator = {
+      PATH: '/usr/bin', HOME: '/home/u', PW_DATABASE_URL: 'postgres://pw@localhost/papers?host=/run/pw', PW_TEST_DATABASE_URL: 'postgres://pw@localhost/pw_test',
+      ANTHROPIC_API_KEY: 'synthetic-not-a-key', GITHUB_TOKEN: 'synthetic', SSH_AUTH_SOCK: '/tmp/agent', CLAUDE_CONFIG_DIR: '/home/u/.claude', PW_SOFFICE: '/usr/bin/soffice', PW_AI_PAUSE_RECHECK_S: '5',
+    };
+    const e = childEnv(cfg(), operator, '/home/u/.config/paper-workspace/deploy.json');
+    expect(Object.keys(e).sort()).toEqual(['HOME', 'LANG', 'NODE_ENV', 'PATH', 'PW_AI_PAUSE_RECHECK_S', 'PW_ASSET_DIR', 'PW_DATABASE_URL', 'PW_DEPLOY_CONFIG', 'PW_PROVIDER', 'PW_SOFFICE', 'TMPDIR']);
+    expect(e).toMatchObject({ TMPDIR: path.join(root, 'tmp'), PW_ASSET_DIR: path.join(root, 'assets'), PW_PROVIDER: 'mock' });
+    // a database URL kept under another name is handed to the app under the name it reads
+    const named = childEnv(cfg({ database_url_env: 'PW_PROD_URL' }), { ...operator, PW_PROD_URL: 'postgres://pw@localhost/prod' }, '/x.json');
+    expect(named.PW_PROD_URL).toBe('postgres://pw@localhost/prod');
+    expect(named.PW_DATABASE_URL).toBe('postgres://pw@localhost/prod');
+  });
+});
+

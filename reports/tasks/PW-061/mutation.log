@@ -1,0 +1,31 @@
+KILLED overlay accepted as data root
+KILLED no size cap needed
+KILLED data root open to others accepted
+KILLED data root of another user accepted
+KILLED data root may be a symlink
+KILLED data root inside developer CLI state
+KILLED data root inside the app folder
+KILLED logs unbounded
+KILLED any listen host
+KILLED plain http to other machines
+KILLED test database name accepted
+KILLED the test database URL accepted
+KILLED remote database without verified TLS
+KILLED latest accepted as a pin
+KILLED a failed upgrade check accepted
+KILLED an upgrade check with no commands accepted
+KILLED an unpinned installed component accepted
+KILLED logs keep every old file
+KILLED AI result applied although paused meanwhile
+KILLED missing controls row counts as running
+EQUIVALENT pause without a reason (the database CHECK on ops_controls and ops_control_log refuses an empty reason too)
+KILLED pause changes not logged
+# drill (real pwctl / server)
+KILLED uploads accepted over the size cap
+KILLED the hardening headers replace a route's own stricter policy
+KILLED migrate without the backup first
+SURVIVED the childEnv passes the operator's whole environment
+KILLED web files outside the build are served
+KILLED a crashed child is not restarted
+KILLED the worker runs AI jobs without the pause
+KILLED R2 the childEnv passes the operator's whole environment

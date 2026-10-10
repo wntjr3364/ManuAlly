@@ -1,0 +1,24 @@
+# systemd --user unit (no sudo): copy to ~/.config/systemd/user/paper-workspace.service, then
+#   systemctl --user daemon-reload && systemctl --user enable --now paper-workspace
+# On a server where it must keep running after logout, `loginctl enable-linger <you>` is needed; if that is
+# not allowed without an administrator, run `pwctl run` inside tmux/screen instead (docs/runbooks/DEPLOY.md).
+# The environment file holds PW_DATABASE_URL (mode 0600, never in git).
+[Unit]
+Description=Paper Workspace (private installation)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/paper-workspace
+EnvironmentFile=%h/.config/paper-workspace/env
+Environment=PW_DEPLOY_CONFIG=%h/.config/paper-workspace/deploy.json
+ExecStart=/usr/bin/env node --experimental-strip-types --no-warnings infra/deploy/pwctl.ts run
+ExecStop=/usr/bin/env node --experimental-strip-types --no-warnings infra/deploy/pwctl.ts stop
+TimeoutStopSec=300
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

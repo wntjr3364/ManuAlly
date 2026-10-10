@@ -43,7 +43,7 @@
 ## 요구사항-시험 매핑
 | REQ / TST | 시험 |
 |---|---|
-| REQ-046-A / TST-046A: 서로 다른 article type의 outline과 섹션 역할이 원고에 반영된다 | 통합: 연구 논문 개요(Introduction·Results·Discussion)가 그 순서의 제목이 된다. Results 계획의 문단은 Results 아래(Discussion 앞)에, Discussion 계획은 끝에, Introduction 계획은 Results 앞에 들어간다. 사용자가 쓴 "introduction" 제목과 문단은 그대로이고 Results만 더해진다. 하위 제목이 있는 Introduction과 Discussion 사이에 Results가 들어간다. 반복된 섹션은 제목 하나다. 낡은 head·다른 개요는 409, 다른 사용자는 404, 원고 아닌 문서는 422다. 다시 하면 아무것도 더하지 않는다. 소프트웨어 프로필이 "Implementation" 역할을 가진다. 브라우저: 두 유형 모두 같은 흐름이다. 논문 유형 선택 → 유형별 제안 → 승인된 개요 → 골격 → 계획의 문단이 그 섹션 아래(문헌 인용 포함) → 교정 요청 뒤에도 그 자리 → 다시 골격은 "모두 있음" |
+| REQ-046-A / TST-046A: 서로 다른 article type의 outline과 섹션 역할이 원고에 반영된다 | 통합: 연구 논문 개요(Introduction·Results·Discussion)가 그 순서의 제목이 된다. Results 계획의 문단은 Results 아래(Discussion 앞)에, Discussion 계획은 끝에, Introduction 계획은 Results 앞에 들어간다. 사용자가 쓴 "introduction" 제목과 문단은 그대로이고 Results만 더해진다. 하위 제목이 있는 Introduction과 Discussion 사이에 Results가 들어간다. 반복된 섹션은 제목 하나다. 낡은 head·다른 개요는 409, 다른 사용자는 404, 원고 아닌 문서는 422다. 다시 하면 아무것도 더하지 않는다. 소프트웨어 프로필이 "Implementation" 역할을 가진다. 브라우저: 두 유형 모두 같은 흐름이다. 논문 유형 선택 → 유형별 제안 → 승인된 개요 → 골격 → 계획의 문단이 그 섹션 아래(계획의 문헌 발췌는 보낼 수 없어 인용되지 않음) → 교정 요청 뒤에도 그 자리 → 다시 골격은 "모두 있음" |
 | REQ-046-B / TST-046B: 모든 유형을 고정 IMRaD나 보고서 목록으로 강제하거나 사용자 승인 없이 novelty를 바꾸지 않는다 | 통합: 소프트웨어 제안에는 Implementation·Availability가 있고 Methods가 없다. 단보는 제안이 거의 없다(`enforced: false`). 소프트웨어 개요(Background·Implementation·Use cases·Availability)의 원고에 Introduction·Methods·Results·Discussion이 더해지지 않는다. Implementation·Installation·Usage·Materials and Methods·Protocol의 단계 목록은 경고가 아니고 Discussion의 목록은 경고다. 골격·Writer 뒤에도 스토리 revision은 1개이고 novelty는 승인한 그대로다. 브라우저: 소프트웨어 논문 원고에 IMRaD 제목이 없다. 두 유형 모두 스토리 revision 1개, novelty 그대로다 |
 
 ## RED → GREEN
@@ -55,6 +55,7 @@
   - 브라우저 시험은 구현 뒤에 썼다. 첫 실행 실패는 tab 이름 오기("구상·개요")였다. 구현 전 브라우저 RED는 따로 남기지 않았다.
 - mutation(`mutation.log`): 13종 모두 탐지
   - 섹션 끝(수준 비교 2), 대소문자, 활성 개요 확인, 원고 종류 확인, 없는 것만 더함, 앞 섹션 뒤 위치, 중복 제거, expected head 무시, Writer 기본 위치, prose 예외, 프로필 IMRaD 이름, 유형별 제안
+- 첫 전체 회귀(`regression-1-failed.log`): exit 1, 브라우저 2개 실패. 마지막에 이 E2E에 더한 "문단이 계획의 문헌을 인용한다"는 단언이 틀렸다. 위의 이유로 MOCK에서는 발췌가 보류된다(제품의 의도된 동작). 단언을 "인용 없음"으로 고쳤다. 고치기 전 커밋(7c57279)은 이 실패를 품은 채 push되었다.
 - 회귀: (아래 채움)
 
 ## 보안·과학적 실패 경로
@@ -66,6 +67,7 @@
 ## 미실행 / 남은 위험
 - 실제 공급자(Claude Code·Codex)로 이 흐름을 돌리지 않았다(MOCK writer). 사용자 PC live smoke 대상이다.
 - 문헌 단계는 서재 참고문헌과 검증된 발췌를 미리 넣은 상태에서 시작한다. 검색→채택 화면(PW-031~033)은 각 Task의 브라우저 시험이 다룬다. 이 시험에서 다시 돌리지 않았다.
+- **MOCK writer로는 문헌 인용이 있는 문단을 끝까지 시험할 수 없다.** Writer는 공급자 id로 근거 범위를 정한다(PW-037). `mock`은 논문이 허용할 수 있는 공급자가 아니다(`claude_agent`, `codex`만). 그래서 발췌는 언제나 보류되고, 계획에 연결된 참고문헌(`linked_to_node`)이 생기지 않는다. 브라우저 시험은 이 안전한 결과(인용 없음)를 확인한다. 연결된 참고문헌을 인용하는 경로는 계약 unit 시험(PW-042)만 다룬다. 실제 공급자 live smoke에서 확인할 항목이다.
 - 섹션 이름 일치는 정규화한 글자 그대로다. "Methods"와 "Materials and Methods"는 다른 섹션이다. 번역·동의어는 보지 않는다.
 - 골격은 level-1 제목만 만든다. 개요의 하위 계층(parent_node_id)은 제목 수준으로 옮기지 않는다.
 - prose 예외는 섹션 이름의 낱말로 판단한다. 이름이 예외 낱말을 품은 다른 섹션(예: "Methodological limitations")의 목록도 경고하지 않는다(경고일 뿐이라 영향이 작다).

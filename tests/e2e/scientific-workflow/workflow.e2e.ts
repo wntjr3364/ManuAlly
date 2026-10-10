@@ -1,8 +1,8 @@
 // PW-046 — the researcher's path in a real browser, for two article types (MOCK writer):
 // new paper of a type → section suggestions for that type (not enforced) → approved story and outline
 // with the paper's own sections (plans backed by a fact and by a library reference's excerpt) →
-// "개요로 원고 골격 만들기" → a paragraph from a plan lands in its section, citing that reference → a
-// correction request on it → the story's novelty is what the user approved.
+// "개요로 원고 골격 만들기" → a paragraph from a plan lands in its section (the excerpt, which may not be
+// sent, is not cited) → a correction request on it → the story's novelty is what the user approved.
 // TST-046A: the outline's sections become the manuscript's headings, in outline order; the paragraph
 //   goes under its plan's heading.
 // TST-046B: a software paper gets its own sections, no Introduction/Methods/Results/Discussion is
@@ -28,7 +28,7 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: '내 논문' })).toBeVisible();
 }
 
-// the story, one verified fact with an approved claim, a library reference behind a verified excerpt,
+// the story, one verified fact with an approved claim, a library reference with a verified excerpt,
 // and the approved outline (one plan per section, each with the claim, the fact and the excerpt)
 async function seed(paperId: string, sections: string[]) {
   const ownerId = (await h.pool.query('SELECT owner_id FROM paper_projects WHERE id = $1', [paperId])).rows[0].owner_id as string;
@@ -42,7 +42,10 @@ async function seed(paperId: string, sections: string[]) {
   await linkClaimEvidence(h.pool, { paperId, ownerId, claimId: c.id, body: { evidence_id: ev.id, relation: 'supports' } });
   await approveClaim(h.pool, { paperId, ownerId, id: c.id, body: { intent: 'approve_claim', content_hash: c.content_hash } });
   const ref = await createReference(h.pool, { paperId, ownerId, body: { title: 'Earlier root drought study', authors: [{ family: 'Kim' }], year: 2019 } });
-  const lit = await createEvidence(h.pool, { paperId, ownerId, body: { kind: 'literature_excerpt', reference_id: ref.id, locator: { quote: 'ABC1 transcripts rose in drought-stressed roots.' } } });
+  // an excerpt typed in without a confirmed PDF location: it is evidence for the plan, but it may not
+  // be sent to a writer (PW-037 no_confirmed_source_document; MOCK is never a provider a paper allows)
+  const quote = 'ABC1 transcripts rose in drought-stressed roots.';
+  const lit = await createEvidence(h.pool, { paperId, ownerId, body: { kind: 'literature_excerpt', reference_id: ref.id, locator: { quote } } });
   await reviewEvidence(h.pool, { paperId, ownerId, id: lit.id, to: 'VERIFIED', body: { intent: 'verify_evidence', content_hash: lit.content_hash } });
   const base = { parent_node_id: null, role: 'result', claim_ids: [c.id], evidence_ids: [ev.id, lit.id], requires_evidence: false, allowed_interpretation: '', exclusions: [], transition: '', word_budget_min: null, word_budget_max: null };
   const o = await createOutlineRevision(h.pool, { paperId, ownerId, parent: null, storyRevisionId: s.id, nodes: sections.map((section) => ({ ...base, node_id: randomUUID(), section, paragraph_goal: `${section} plan` })) });
@@ -89,8 +92,9 @@ async function workflow(page: Page, a: { title: string; typeLabel: string; sugge
   const expected = a.sections.flatMap((s, i) => (i === a.target ? [`#${s}`, 'p'] : [`#${s}`]));
   await expect.poll(() => shape(page)).toEqual(expected);
   await expect(page.locator('.ProseMirror > p')).toContainText('ABC1 rises in roots');
-  // the plan's literature: the paragraph cites the library reference behind the plan's excerpt
-  await expect(page.locator('.ProseMirror > p [data-pw-citation]')).toHaveCount(1);
+  // the plan's literature: its excerpt was withheld from the writer, so the paragraph cites nothing
+  // (a citation comes only from material the writer could see; the owner adds one by hand)
+  await expect(page.locator('.ProseMirror > p [data-pw-citation]')).toHaveCount(0);
 
   // a correction request on that paragraph: still a proposal, the paragraph stays in its section
   await panel.getByLabel('할 일').selectOption({ label: '보수적 교정' });

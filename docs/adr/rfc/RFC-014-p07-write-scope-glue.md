@@ -105,3 +105,4 @@ User decision / reviewer:
     - 리뷰 n2: 로그인 프로필이 옮겨 둔 개발자 CLI 상태(`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `XDG_CONFIG_HOME/claude`) 안이면 거부한다.
   - `tests/rfc/RFC-010/provider-runs.int.test.ts`: 시험 논문이 두 공급자를 허용하도록 설정한다. F-03 확인이 생겨서 필요해졌다.
   - `infra/sandbox/sandbox.ts`(F-04, low): sandbox 가용성 확인(bwrap·prlimit·unshare·python3)이 worker 환경 대신 PATH만 받는다.
+  - `tests/e2e/manual-paper/manual-paper.e2e.ts`(회귀 수정, 시험만): 스냅샷 이름을 `exact`로 찾는다. PW-057의 묶음 내보내기 스냅샷 선택에도 같은 이름이 option으로 나온다. 목록 갱신이 확인보다 먼저 끝나면 두 요소가 잡혀 실패했다(경합). 제품 동작은 바뀌지 않는다.

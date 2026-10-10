@@ -79,7 +79,7 @@ test('TST-014A: manuscript, approvals, evidence and snapshot survive a new brows
   await page.getByRole('tab', { name: '버전' }).click();
   await page.getByLabel('스냅샷 이름').fill('Before co-author review');
   await page.getByRole('button', { name: '스냅샷 만들기' }).click();
-  await expect(page.getByText('Before co-author review')).toBeVisible();
+  await expect(page.getByText('Before co-author review', { exact: true })).toBeVisible();
   const paperUrl = page.url().split('#')[0]!;
   await ctx.close();
 
@@ -102,7 +102,7 @@ test('TST-014A: manuscript, approvals, evidence and snapshot survive a new brows
   await expect(p2.getByTestId('fact-value').first()).toHaveText('2.4 fold');
   await expect(p2.getByTestId('fact-state').first()).toHaveText('VERIFIED');
   await p2.getByRole('tab', { name: '버전' }).click();
-  await expect(p2.getByText('Before co-author review')).toBeVisible();
+  await expect(p2.getByText('Before co-author review', { exact: true })).toBeVisible();
   await expect(p2.getByTestId('snapshot-pins').first()).toContainText('story');
   await shot(p2, '3-new-session-snapshot');
   await ctx2.close();

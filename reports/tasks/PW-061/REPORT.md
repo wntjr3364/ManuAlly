@@ -78,6 +78,9 @@ TST-061B가 보이는 것
   4. 웹 route가 세션 확인에 걸려 `/`가 401이었고, `/*`는 `/`를 받지 않았다.
   5. `stop`이 끝났지만 거두어지지 않은 supervisor(zombie)를 살아 있다고 보았다(`red.log` 끝). `/proc/<pid>/stat` 상태로 판단한다.
 
+## 회귀
+- `pnpm test` exit 0(`test.log`: unit 628, 통합 672, contracts 17, 브라우저 101, spikes·evals·pack-check).
+
 ## Mutation(`mutation.log`)
 - 빠른 시험 22종 중 21종을 잡았다. 남은 1종(이유 없는 pause)은 DB CHECK가 같은 것을 거부하는 동치다.
 - drill 7종 중 6종을 잡았다(상한 초과 업로드, 원본의 sandbox CSP 덮어쓰기, 백업 없는 migration, 빌드 밖 파일, 재시작 없음, worker의 pause 누락).

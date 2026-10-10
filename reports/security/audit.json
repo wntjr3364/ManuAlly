@@ -1,19 +1,20 @@
 {
-  "audited_at": "2026-10-10T10:03:56.242Z",
-  "commit": "6b5666933991445389baf4d327eb3093e554cb6c",
+  "audited_at": "2026-10-10T10:32:49.633Z",
+  "commit": "199bf58fc3c1056a6433992511c85f063185176f",
+  "dirty": false,
   "suites": [
     {
       "id": "SEC-IDOR-AUTH",
-      "title": "cross-owner/cross-paper access, authentication, CSRF and origin on every route",
+      "title": "cross-owner/cross-paper access, authentication, CSRF and origin on every route; cross-paper references refused by the database",
       "kind": "automated",
       "required": true,
       "status": "passed",
       "counts": {
-        "passed": 6,
+        "passed": 10,
         "failed": 0,
         "skipped": 0
       },
-      "evidence": "tests/security/sweep.int.test.ts"
+      "evidence": "tests/security/sweep.int.test.ts, tests/security/schema.int.test.ts"
     },
     {
       "id": "SEC-INJECTION",
@@ -35,11 +36,24 @@
       "required": true,
       "status": "passed",
       "counts": {
-        "passed": 79,
+        "passed": 82,
         "failed": 0,
         "skipped": 0
       },
       "evidence": "tests/security/egress.test.ts, tests/tasks/PW-034/assets.int.test.ts, tests/security/static.test.ts"
+    },
+    {
+      "id": "SEC-SEND-POLICY",
+      "title": "a paper's sending policy (classification, block, allowed providers) before any material reaches a provider",
+      "kind": "automated",
+      "required": true,
+      "status": "passed",
+      "counts": {
+        "passed": 62,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence": "tests/security/send-policy.int.test.ts, tests/tasks/PW-034/assets.int.test.ts, tests/tasks/PW-037/retrieval.int.test.ts, tests/tasks/PW-047/checkpoints.int.test.ts, tests/tasks/PW-049/quota.int.test.ts"
     },
     {
       "id": "SEC-CREDENTIAL",
@@ -48,7 +62,7 @@
       "required": true,
       "status": "passed",
       "counts": {
-        "passed": 21,
+        "passed": 22,
         "failed": 0,
         "skipped": 0
       },
@@ -108,19 +122,23 @@
     },
     {
       "id": "MAN-LIVE-SANDBOX",
-      "title": "real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user's PC and the lab server (no credentials here; the real CLIs are never run by the build agent)",
+      "title": "Real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user's PC and on the lab server: a profile at ~/.claude is refused; nothing leaves except the provider hosts; the run folder is removed afterwards",
       "kind": "manual",
       "required": true,
       "status": "pending",
-      "evidence": ""
+      "evidence": "",
+      "checked_by": null,
+      "checked_at": null
     },
     {
       "id": "MAN-DEPLOY-TLS",
-      "title": "deployment behind TLS with Secure cookies, allowed origins and the headers of F-02 (PW-061)",
+      "title": "The deployment behind TLS: Secure cookies, the allowed origins, and the headers of F-02 (PW-061)",
       "kind": "manual",
       "required": true,
       "status": "pending",
-      "evidence": ""
+      "evidence": "",
+      "checked_by": null,
+      "checked_at": null
     }
   ],
   "findings": [
@@ -129,7 +147,7 @@
       "title": "The login profile whose credential file is bound into AI runs was not checked against the developer's own CLI state (~/.claude, ~/.codex) or a home folder; a misconfigured path would put the main development login into runs",
       "severity": "high",
       "status": "fixed",
-      "evidence": "tests/security/credentials.test.ts (RED: reports/tasks/PW-059/red-F01.log); fix: apps/worker/src/provider-runs/index.ts prepareStateDir uses assertSafeProfileDir (RFC-014 appendix PW-059)"
+      "evidence": "tests/security/credentials.test.ts (RED: reports/tasks/PW-059/red-F01.log); fix: apps/worker/src/provider-runs/index.ts prepareStateDir uses assertSafeProfileDir (RFC-014 appendix PW-059); review n2: relocated developer CLI state (CLAUDE_CONFIG_DIR, CODEX_HOME, XDG_CONFIG_HOME/claude) refused too (same test file)"
     },
     {
       "id": "F-02",
@@ -137,13 +155,27 @@
       "severity": "low",
       "status": "open",
       "plan": "PW-061 deployment runbook: serve the built app with CSP (default-src 'self'), frame-ancestors 'none', Referrer-Policy no-referrer, nosniff; Secure cookies behind TLS"
+    },
+    {
+      "id": "F-03",
+      "title": "The paper's sending policy (sensitive / block / allowed providers) was checked only by each AI worker before calling a provider; runProviderTurn — where material actually leaves for a real CLI — did not check it, and the selection-edit and curation workers had no check of their own (latent: only the mock provider is wired today)",
+      "severity": "high",
+      "status": "fixed",
+      "evidence": "tests/security/send-policy.int.test.ts (RED: reports/tasks/PW-059/red-F03.log); fix: apps/worker/src/provider-runs/index.ts checks the policy before a token, folder or process exists (RFC-014 appendix PW-059)"
+    },
+    {
+      "id": "F-04",
+      "title": "The sandbox availability probes (bwrap/prlimit/unshare/python3 --version) ran with the worker's whole environment",
+      "severity": "low",
+      "status": "fixed",
+      "evidence": "tests/security/static.test.ts (every spawn names its environment); fix: infra/sandbox/sandbox.ts gives the probes PATH only"
     }
   ],
   "gate": {
     "decision": "pending_manual",
     "reasons": [
-      "MAN-LIVE-SANDBOX: pending — real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user's PC and the lab server (no credentials here; the real CLIs are never run by the build agent)",
-      "MAN-DEPLOY-TLS: pending — deployment behind TLS with Secure cookies, allowed origins and the headers of F-02 (PW-061)"
+      "MAN-LIVE-SANDBOX: pending — Real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user's PC and on the lab server: a profile at ~/.claude is refused; nothing leaves except the provider hosts; the run folder is removed afterwards",
+      "MAN-DEPLOY-TLS: pending — The deployment behind TLS: Secure cookies, the allowed origins, and the headers of F-02 (PW-061)"
     ],
     "open_low": [
       "F-02 (low): The web app is served without Content-Security-Policy / frame-ancestors (clickjacking, script injection hardening); the session cookie is SameSite=Strict and HttpOnly, served originals are sandboxed"

@@ -312,7 +312,8 @@ describe('PW-048 review fixes (mutation follow-up)', () => {
     const f = fakeSessions({ sizes: [null, null, null, null, null], window: 100_000, windowOnce: true, answerChars: 120_000, confirmCompact: true });
     const five = [...steps, { name: 'draft_summary', prompt: 'draft_summary' }];
     await runJobTurns(pool, { ...w, factory: f.factory, compactSupport: 'verified', window: null, steps: five, initialPrompt: 'start', ...opts });
-    // ~90k estimated after three answers: compacted once; the fourth answer alone (~30k) is far below
+    // ~90k estimated after three answers: compacted once; after it the size is not observed (UNKNOWN,
+    // not a stale or zero estimate): no second compaction
     expect((await listContextSwitches(pool, w.paperId, w.job.id)).map((x) => x.kind)).toEqual(['compact_requested', 'compact_confirmed']);
   });
 });

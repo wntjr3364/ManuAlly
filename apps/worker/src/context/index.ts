@@ -65,7 +65,8 @@ export function requestBudget(r: ContextReading, b: BudgetInput) {
   return { available, occupancy, state, unknown };
 }
 
-// a turn that did not complete, or a turn that cannot start: retried by the queue from the checkpoint
+// a turn that did not complete, or a turn that cannot start: the queue retries the job (from its first
+// step; earlier answers are not stored)
 export class TurnIncomplete extends Error {}
 
 export interface TurnState { turnOpen: boolean; openToolCalls: number; compaction: 'none' | 'requested' | 'confirmed' | 'failed' }
@@ -124,7 +125,8 @@ export async function runJobTurns(pool: TxPool, a: {
   // events (for its size), the text exchanged since the session started or was compacted
   let knownWindow: number | null = null;
   let lastTurn: ProviderEvent[] = [];
-  let chars = a.initialPrompt.length;
+  // undefined after a compaction: the compacted summary's size is not observed (UNKNOWN, not 0; re-review NIT 1)
+  let chars: number | undefined = a.initialPrompt.length;
   const reading = () => readContext(lastTurn, { window: knownWindow ?? a.window, promptChars: chars });
   const completed: string[] = [];
   // after a switch: what changed since the checkpoint stops the job (nothing is resumed on a guess)
@@ -174,7 +176,7 @@ export async function runJobTurns(pool: TxPool, a: {
         await recheck();
         // earlier readings described the session before the switch
         lastTurn = [];
-        if (switched) chars = 0;
+        if (switched) chars = undefined;
       } else if (budget.state === 'review') review = true;
     }
     const gate = canStartTurn(state);
@@ -184,11 +186,11 @@ export async function runJobTurns(pool: TxPool, a: {
     state.turnOpen = true;
     let outcome: string | null = null;
     lastTurn = [];
-    chars += step.prompt.length;
+    if (chars !== undefined) chars += step.prompt.length;
     for await (const e of session.turn(step.prompt)) {
       lastTurn.push(e);
       knownWindow = windowOf([e]) ?? knownWindow;
-      if (e.kind === 'message_completed') chars += e.data.text.length;
+      if (e.kind === 'message_completed' && chars !== undefined) chars += e.data.text.length;
       if (e.kind === 'tool_requested') state.openToolCalls++;
       if (e.kind === 'turn_completed') { outcome = e.data.outcome; state.turnOpen = false; state.openToolCalls = 0; }
     }

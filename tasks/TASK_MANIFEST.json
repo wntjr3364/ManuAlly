@@ -1627,7 +1627,7 @@
       "id": "PW-050",
       "phase": "P06",
       "title": "비용 예약·budget guard",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-049"
       ],

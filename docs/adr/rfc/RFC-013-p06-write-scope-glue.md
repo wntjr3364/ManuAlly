@@ -37,3 +37,6 @@ User decision / reviewer:
   - 새 route 폴더 `apps/api/src/quota-waits/**`, `apps/api/src/server.ts`(등록)
   - `apps/worker/src/main.ts`: Writer handler를 `withQuotaWaits`로 감싼다. 1분마다 `wakeDueWaits`를 돈다. 확인된 공급자 가용성 확인이 아직 없어 probe는 "모름"이다.
   - 공유 함수 변경(이 Task migration `pw_049_0001`): `pw_job_guard`에 WAITING_QUOTA → WAITING_USER, WAITING_AUTH, STALE 전환을 더했다. 다른 전환은 그대로다.
+- PW-050
+  - 새 route 폴더 `apps/api/src/budget/**`, `apps/api/src/server.ts`(등록): 예산 설정(사용자 행위), 논문 예산 상태
+  - `apps/worker/src/main.ts`: Writer를 `withAdmission`으로 감싼다(바깥, MOCK은 free).

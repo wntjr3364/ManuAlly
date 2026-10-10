@@ -1,0 +1,26 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-050/budget.int.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-050/budget.int.test.ts [ tests/tasks/PW-050/budget.int.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/budget/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-050/budget.int.test.ts
+ ❯ tests/tasks/PW-050/budget.int.test.ts:20:1
+     18| import { claimJob, enqueueJob } from '../../../packages/domain/src/job…
+     19| import { recordUsage } from '../../../packages/domain/src/usage/index.…
+     20| import { listReservations, settleReservation, useJobLimit } from '../.…
+       | ^
+     21| import { admitRun, withAdmission, type CostClassOf } from '../../../ap…
+     22| import { processDelivery, JobOutcomeError } from '../../../apps/worker…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  03:25:09
+   Duration  1.90s (worker 97%, environment 3%)
+
+exit 1

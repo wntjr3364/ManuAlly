@@ -1,0 +1,31 @@
+KILLED paid overage allowed
+KILLED reset credit allowed
+KILLED API key allowed
+KILLED provider switch allowed
+KILLED unbounded runs
+KILLED unknown cost class runs
+KILLED unknown estimate runs
+KILLED no budget runs
+KILLED run limit ignored
+KILLED budget exceeded allowed
+KILLED reservations not counted
+KILLED unknown settle counts 0
+KILLED paper budget across papers
+SURVIVED provider budget across providers
+KILLED turn and session added
+KILLED message rows added to turns
+KILLED session cumulative not delta
+KILLED unknown cost as 0
+SURVIVED other run's reports
+KILLED earlier reports
+KILLED settle twice
+KILLED wrapper does not settle on failure
+KILLED repair unbounded
+KILLED budget not fenced
+KILLED other owner's paper budget
+KILLED negative budget
+# after added tests
+KILLED provider budget across providers (2)
+KILLED other run's reports (2)
+KILLED paper budget across papers (param)
+KILLED provider budget across providers (param)

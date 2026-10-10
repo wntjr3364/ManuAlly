@@ -13,6 +13,7 @@ import { pdfHandlers } from './pdf/index.ts';
 import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
 import { reconcileRunProcesses } from './lifecycle/index.ts';
 import { wakeDueWaits, withQuotaWaits } from './quota-scheduler/index.ts';
+import { withAdmission } from './admission/index.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const url = process.env.PW_DATABASE_URL;
@@ -20,7 +21,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   selectProvider(process.env); // refuses anything but an admitted provider
   const pool = new pg.Pool({ connectionString: url, max: 6 });
   const worker = startLocalWorker(pool, {
-    handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()), ...storyHandlers(pool, createMockStoryGenerator()), ...profileHandlers(pool, createMockProfileGenerator()), ...withQuotaWaits(pool, writerHandlers(pool, createMockWriter())), ...reviewerHandlers(pool, createMockReviewer()), ...pdfHandlers(pool, { assetDir: defaultAssetDir() }) },
+    handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()), ...storyHandlers(pool, createMockStoryGenerator()), ...profileHandlers(pool, createMockProfileGenerator()), // PW-050: admitted (and settled) per run; the MOCK is free and needs no money budget
+      ...withAdmission(pool, withQuotaWaits(pool, writerHandlers(pool, createMockWriter())), { provider: 'mock', authMode: 'none', estimateUsd: () => null }), ...reviewerHandlers(pool, createMockReviewer()), ...pdfHandlers(pool, { assetDir: defaultAssetDir() }) },
     onError: (e) => console.error('worker error:', e instanceof Error ? e.message : e),
   });
   // RFC-010: provider run processes left by a crashed worker (or of cancelled jobs) are ended on start

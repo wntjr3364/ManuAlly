@@ -1,0 +1,178 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-058/submission.int.test.ts (9 tests | 9 failed) 2015ms
+   ❯ TST-058A: responses tied to real edits; the frozen submission never changes (3)
+     × a comment records the revision it was made on; "addressed" needs a changed block in a later revision 93ms
+     × links must be revisions of the same document made after the comment 50ms
+     × freezing: snapshot, archive, DOCX hash and the response trace are stored once and never change 36ms
+   ❯ TST-058B: never "changed" for unchanged text; never submission-ready with a critical issue (6)
+     × an unanswered comment blocks submission-ready; a draft freeze records it 40ms
+     × a claimed change that was undone afterwards is caught at freezing 52ms
+     × RFC-008: unresolved citations and figure references refuse submission-ready and are listed 58ms
+     × a failed scientific check or an open scientific finding on an unchanged paragraph blocks; once the paragraph changes it is a warning 54ms
+     × warnings need the owner's confirmation; a stale expected revision, a missing intent or another owner are refused 47ms
+     × the database refuses a submission-ready row with a blocker 58ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-058/submission.int.test.ts > TST-058A: responses tied to real edits; the frozen submission never changes > a comment records the revision it was made on; "addressed" needs a changed block in a later revision
+AssertionError: {"message":"Route POST:/api/papers/e9b8e53c-9d56-403b-89ab-9ff57bcec9e1/review-comments not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ comment tests/tasks/PW-058/submission.int.test.ts:82:32
+     80| const comment = async (w: W, text = 'Please clarify how fast the roots…
+     81|   const r = await call('POST', `/api/papers/${w.paperId}/review-commen…
+     82|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     83|   return r.json() as { id: string; base_revision_id: string; position:…
+     84| };
+ ❯ tests/tasks/PW-058/submission.int.test.ts:93:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  tests/tasks/PW-058/submission.int.test.ts > TST-058A: responses tied to real edits; the frozen submission never changes > links must be revisions of the same document made after the comment
+AssertionError: {"message":"Route POST:/api/papers/eaa5edc3-5ed8-4160-9c1f-72dfa7aa45df/review-comments not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ comment tests/tasks/PW-058/submission.int.test.ts:82:32
+     80| const comment = async (w: W, text = 'Please clarify how fast the roots…
+     81|   const r = await call('POST', `/api/papers/${w.paperId}/review-commen…
+     82|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     83|   return r.json() as { id: string; base_revision_id: string; position:…
+     84| };
+ ❯ tests/tasks/PW-058/submission.int.test.ts:119:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  tests/tasks/PW-058/submission.int.test.ts > TST-058A: responses tied to real edits; the frozen submission never changes > freezing: snapshot, archive, DOCX hash and the response trace are stored once and never change
+AssertionError: {"message":"Route POST:/api/papers/678fa090-7192-4bf6-adc9-9a91f139e7cc/review-comments not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ comment tests/tasks/PW-058/submission.int.test.ts:82:32
+     80| const comment = async (w: W, text = 'Please clarify how fast the roots…
+     81|   const r = await call('POST', `/api/papers/${w.paperId}/review-commen…
+     82|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     83|   return r.json() as { id: string; base_revision_id: string; position:…
+     84| };
+ ❯ tests/tasks/PW-058/submission.int.test.ts:137:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  tests/tasks/PW-058/submission.int.test.ts > TST-058B: never "changed" for unchanged text; never submission-ready with a critical issue > an unanswered comment blocks submission-ready; a draft freeze records it
+AssertionError: {"message":"Route POST:/api/papers/2cae8ada-c863-4ef4-9294-f836cba6c418/review-comments not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ comment tests/tasks/PW-058/submission.int.test.ts:82:32
+     80| const comment = async (w: W, text = 'Please clarify how fast the roots…
+     81|   const r = await call('POST', `/api/papers/${w.paperId}/review-commen…
+     82|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     83|   return r.json() as { id: string; base_revision_id: string; position:…
+     84| };
+ ❯ tests/tasks/PW-058/submission.int.test.ts:170:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  tests/tasks/PW-058/submission.int.test.ts > TST-058B: never "changed" for unchanged text; never submission-ready with a critical issue > a claimed change that was undone afterwards is caught at freezing
+AssertionError: {"message":"Route POST:/api/papers/5f950384-4461-42a7-89af-ebf24afa8887/review-comments not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ comment tests/tasks/PW-058/submission.int.test.ts:82:32
+     80| const comment = async (w: W, text = 'Please clarify how fast the roots…
+     81|   const r = await call('POST', `/api/papers/${w.paperId}/review-commen…
+     82|   expect(r.statusCode, r.body).toBe(201);
+       |                                ^
+     83|   return r.json() as { id: string; base_revision_id: string; position:…
+     84| };
+ ❯ tests/tasks/PW-058/submission.int.test.ts:185:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  tests/tasks/PW-058/submission.int.test.ts > TST-058B: never "changed" for unchanged text; never submission-ready with a critical issue > RFC-008: unresolved citations and figure references refuse submission-ready and are listed
+AssertionError: expected 404 to be 409 // Object.is equality
+
+- Expected
++ Received
+
+- 409
++ 404
+
+ ❯ tests/tasks/PW-058/submission.int.test.ts:203:26
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  tests/tasks/PW-058/submission.int.test.ts > TST-058B: never "changed" for unchanged text; never submission-ready with a critical issue > a failed scientific check or an open scientific finding on an unchanged paragraph blocks; once the paragraph changes it is a warning
+TypeError: Cannot read properties of undefined (reading 'map')
+ ❯ kinds tests/tasks/PW-058/submission.int.test.ts:88:46
+
+ ❯ tests/tasks/PW-058/submission.int.test.ts:214:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  tests/tasks/PW-058/submission.int.test.ts > TST-058B: never "changed" for unchanged text; never submission-ready with a critical issue > warnings need the owner's confirmation; a stale expected revision, a missing intent or another owner are refused
+AssertionError: expected undefined to deeply equal []
+
+- Expected:
+[]
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-058/submission.int.test.ts:231:24
+    229|     const w = await paper({ year: null }); // a reference without a ye…
+    230|     const k = (await check(w)).json();
+    231|     expect(k.blocking).toEqual([]);
+       |                        ^
+    232|     expect(kinds(k.warnings)).toContain('incomplete_reference');
+    233|     const r = await freeze(w);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  tests/tasks/PW-058/submission.int.test.ts > TST-058B: never "changed" for unchanged text; never submission-ready with a critical issue > the database refuses a submission-ready row with a blocker
+error: relation "submissions" does not exist
+ ❯ node_modules/.pnpm/pg-pool@3.14.0_pg@8.23.0/node_modules/pg-pool/index.js:45:11
+ ❯ tests/tasks/PW-058/submission.int.test.ts:248:18
+    246|     const w = await paper();
+    247|     const d = (await freeze(w, { status: 'draft', label: 'd' })).json(…
+    248|     const row = (await pool.query('SELECT * FROM submissions WHERE id …
+       |                  ^
+    249|     await expect(pool.query(
+    250|       `INSERT INTO submissions (paper_id, label, status, snapshot_id, …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  9 failed (9)
+   Start at  09:10:59
+   Duration  4.60s (tests 46%, transform 45%, import 10%)
+

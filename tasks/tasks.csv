@@ -56,7 +56,7 @@ PW-054,P06,Run 상태 UI·운영 reliability gate,in_review,PW-053,REQ-054,"TST-
 PW-055,P07,DOCX import와 손실 보고,in_review,PW-054,REQ-055,"TST-055A,TST-055B",packages/domain/src/imports/docx/**;apps/web/src/features/import/**;tests/tasks/PW-055/**;reports/tasks/PW-055/**;db/migrations/pw_055_*
 PW-056,P07,DOCX·CSL export,in_review,PW-055,REQ-056,"TST-056A,TST-056B",packages/exports/src/docx/**;tests/export/docx/**;tests/tasks/PW-056/**;reports/tasks/PW-056/**;db/migrations/pw_056_*
 PW-057,P07,PDF·재현 source archive,in_review,PW-056,REQ-057,"TST-057A,TST-057B",packages/exports/src/pdf/**;packages/exports/src/archive/**;tests/tasks/PW-057/**;reports/tasks/PW-057/**;db/migrations/pw_057_*
-PW-058,P07,Reviewer·제출판 freeze,planned,PW-057,REQ-058,"TST-058A,TST-058B",packages/domain/src/submissions/**;apps/web/src/features/submission/**;tests/tasks/PW-058/**;reports/tasks/PW-058/**;db/migrations/pw_058_*
+PW-058,P07,Reviewer·제출판 freeze,in_review,PW-057,REQ-058,"TST-058A,TST-058B",packages/domain/src/submissions/**;apps/web/src/features/submission/**;tests/tasks/PW-058/**;reports/tasks/PW-058/**;db/migrations/pw_058_*
 PW-059,P07,Security release audit,planned,PW-058,REQ-059,"TST-059A,TST-059B",tests/security/**;reports/security/**;tests/tasks/PW-059/**;reports/tasks/PW-059/**;db/migrations/pw_059_*
 PW-060,P07,Backup·restore·migration drill,planned,PW-059,REQ-060,"TST-060A,TST-060B",infra/backup/**;tests/restore/**;tests/tasks/PW-060/**;reports/tasks/PW-060/**;db/migrations/pw_060_*
 PW-061,P07,배포·storage·upgrade runbook,planned,PW-060,REQ-061,"TST-061A,TST-061B",infra/deploy/**;docs/runbooks/**;tests/tasks/PW-061/**;reports/tasks/PW-061/**;db/migrations/pw_061_*

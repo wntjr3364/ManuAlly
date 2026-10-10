@@ -29,6 +29,7 @@ import { registerManuscriptStructureRoutes } from './manuscript-structure/index.
 import { registerQuotaWaitRoutes } from './quota-waits/index.ts';
 import { registerRunControlRoutes } from './run-control/index.ts';
 import { registerExportRoutes } from './exports/index.ts';
+import { registerSubmissionRoutes } from './submissions/index.ts';
 import { registerBudgetRoutes } from './budget/index.ts';
 import { registerOutlineImpactRoutes } from './outline-impact/index.ts';
 import type { ZoteroConfig } from '@pw/search/zotero/index.ts';
@@ -140,6 +141,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerQuotaWaitRoutes(app, db);
   registerRunControlRoutes(app, db);
   registerExportRoutes(app, db, opts.assets);
+  registerSubmissionRoutes(app, db, opts.assets);
   registerBudgetRoutes(app, db);
   registerOutlineImpactRoutes(app, db);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });

@@ -76,3 +76,22 @@ User decision / reviewer:
     - 공유용 묶음은 CC BY·CC BY-SA·CC0·퍼블릭 도메인·자기 작업 원본만 자동으로 넣는다.
       - NC·ND·출판사 TDM·권리 보유·미확인 원본은 해시와 이유만 적는다.
       - 그림 파일은 정책이 'unknown'이고 지금은 바꿀 경로가 없다(PW-036). 그래서 공유용에서는 빠지고 보관용에만 들어간다. 남은 위험으로 기록한다.
+- PW-058
+  - 새 route 폴더 `apps/api/src/submissions/**`, `apps/api/src/server.ts`(등록)
+    - 이 파일이 domain의 제출판 확정에 세 가지를 넘긴다. domain은 exports에 의존하지 않는다(exports가 domain에 의존).
+      - head DOCX 렌더(PW-056 `headDocx`)
+      - 이름 붙인 스냅샷(PW-009)
+      - 스냅샷의 보관용 원본 묶음(PW-057)과 그 안의 렌더 보고·DOCX 해시
+  - `apps/web/src/features/versions/VersionsTab.tsx`: 리뷰어 의견·제출판 패널(`features/submission/SubmissionPanel.tsx`)을 단다.
+  - 공유 표(migration `pw_058_0001`): `review_comments`, `review_responses`, `submissions`. 모두 불변이다.
+    - 제출용(`submission_ready`) 행은 막는 문제 목록이 비어 있어야 한다(`submissions_ready_clean` CHECK).
+  - **결정(위임)**
+    - 제출용 확정을 막는 것
+      - 내보내기 검사의 오류(RFC-008의 미해결 인용·그림 참조 포함)
+      - 답 없는 의견
+      - 지금 원고에서 사라진 "수정함" 주장
+      - 같은 문단에 남은 과학 검사 실패와 미결정 과학 검토 지적
+      - 원본 묶음의 빠짐이나 검증 실패
+    - 경고는 사용자가 확인해야 넘어간다: 철회 문헌, 불완전 문헌, 바뀐 뒤 다시 검사하지 않은 문단, 반영하지 않음 답 등.
+    - 초안으로 고정하는 것은 문제가 있어도 되며, 문제를 함께 기록한다.
+    - 확정은 head에서 먼저 검사한다. 거절되면 스냅샷도 묶음도 만들지 않는다. 확정은 스냅샷 → 원본 묶음 → 묶음 자체 렌더로 다시 검사 → 저장 순서다.

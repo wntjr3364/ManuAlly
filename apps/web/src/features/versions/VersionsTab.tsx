@@ -10,6 +10,7 @@ import type { EditorState } from '../../editor/ManuscriptEditor.tsx';
 import { SnapshotsTab } from '../paper/SnapshotsTab.tsx';
 import { DocxImport } from '../import/DocxImport.tsx';
 import { ExportPanel } from '../exports/ExportPanel.tsx';
+import { SubmissionPanel } from '../submission/SubmissionPanel.tsx';
 import { MockBadge } from '../chat/JobStream.tsx';
 import { blockTokens, diffTokens, type DiffPart } from '../diff/diff.ts';
 import { compareDocuments, type BlockChange } from './compare.ts';
@@ -169,6 +170,8 @@ export function VersionsTab({ paperId, visible, editor, onHeadChanged }: { paper
       {doc !== undefined && <ImportPanel paperId={paperId} doc={doc} canChange={!busy && !blockedReason} act={act} />}
       {/* PW-056/057: exports of the saved manuscript (Word, PDF, CSL-JSON) with their check; source archives of snapshots */}
       {doc && <ExportPanel paperId={paperId} documentId={doc.document.id} canChange={!busy} snapshotsChanged={snapshotsChanged} />}
+      {/* PW-058: reviewer comments, answers tied to real edits, submission freeze */}
+      {doc && <SubmissionPanel paperId={paperId} documentId={doc.document.id} headRevisionId={doc.head.id} canChange={!busy} />}
       {/* PW-055: Word import (preview, losses, tracked-change choice, original kept) */}
       {doc !== undefined && <DocxImport paperId={paperId} doc={doc} canChange={!busy && !blockedReason} act={act} />}
       <SnapshotsTab paperId={paperId} visible={visible} onCreated={() => setSnapshotsChanged((n) => n + 1)} />

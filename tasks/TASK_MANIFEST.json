@@ -1883,7 +1883,7 @@
       "id": "PW-058",
       "phase": "P07",
       "title": "Reviewer·제출판 freeze",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-057"
       ],

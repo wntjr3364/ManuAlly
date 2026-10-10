@@ -18,3 +18,17 @@ SURVIVED other paper's job
 KILLED worker does not carry completed actions (2)
 KILLED last event not shown
 SURVIVED other paper's job (2)
+# review fixes
+KILLED R: claim text not quoted
+KILLED R: note not quoted
+KILLED R: no reminder after the note
+KILLED R: exclusions dropped
+KILLED R: claims to avoid dropped
+KILLED R: no own transaction
+KILLED R: proposal existence not checked
+KILLED R: evidence drift ignored
+KILLED R: open impact ignored
+KILLED R: running elsewhere resumable
+KILLED R: recheck records nothing
+KILLED R: stop mode ignored
+SURVIVED R: race not mapped to CONFLICT

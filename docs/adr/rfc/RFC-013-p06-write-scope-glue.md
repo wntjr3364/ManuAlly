@@ -30,3 +30,4 @@ User decision / reviewer:
 ## 부록 — Task별 범위 밖 파일
 - PW-047
   - `apps/worker/src/writer/index.ts`: Writer handler의 checkpoint 세 곳(호출 전, 검증 후, 제안 저장 — 마지막은 완료 트랜잭션 안). 두 번째 이후 실행은 마지막 checkpoint를 재검사하고, 바뀐 것이 있으면 WAITING_USER로 보낸다.
+  - 리뷰 반영: `job_checkpoints`는 `jobs(paper_id, id)`를 참조하고 바뀌지 않는다(삭제 동작 없음). 지금은 작업·논문 삭제가 없다. 앞으로 보존 기간 정리나 논문 삭제를 만들 때 이 표를 함께 다뤄야 한다(review NIT 3).

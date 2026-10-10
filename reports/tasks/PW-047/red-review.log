@@ -1,0 +1,232 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts (13 tests | 7 failed) 3386ms
+   ❯ TST-047B: summaries are notes, not evidence; nothing needs a model to resume (7)
+     × a checkpoint carries ids, never content or approvals given by the caller; completed work cannot be undone; only the current run writes 181ms
+     × the writer re-checks on resume: what changed is recorded and its own run-time checks decide (review MINOR 3) 170ms
+   ❯ PW-047 review fixes (5)
+     × MAJOR 1: the summary and user text cannot forge the prompt's sections; the rules come after the data again 125ms
+     × MINOR 1: the prompt keeps what must not be written and the sources: exclusions, transition, claims to avoid, limitations, evidence 110ms
+     × MINOR 2: concurrent checkpoints of the current run are ordered; none fails with a raw database error 176ms
+     × MINOR 4: withdrawn evidence and an open outline impact are drift 219ms
+     × NIT 1: a job running under another run's claim is not resumable by this caller 132ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-047/checkpoints.int.test.ts > TST-047B: summaries are notes, not evidence; nothing needs a model to resume > a checkpoint carries ids, never content or approvals given by the caller; completed work cannot be undone; only the current run writes
+AssertionError: promise resolved "{ …(12) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "boundary": "before_call",
++   "created_at": 2026-10-10T01:51:56.430Z,
++   "fencing_token": 2,
++   "id": "0a43df77-35ae-436d-b0f0-7cc5b36cc7ee",
++   "job_id": "3dca61fc-cca6-450b-8c2b-022d8ac29633",
++   "paper_id": "6ab02f2a-782b-445a-811e-24af9e70d392",
++   "pending_step": "provider_call",
++   "seq": 2,
++   "state": {
++     "approved": {
++       "claims": [
++         {
++           "content_hash": "7173b4a2ae560533388e65ee5e20533768a938cf532205216b9c10c15d08b6e2",
++           "id": "7253cd09-01e5-424d-a5e9-59629dd40bd0",
++         },
++       ],
++       "facts": [
++         {
++           "content_hash": "6ebd04aa7d05cde6b6074eccac5664bdbc7b2e49baf8850083bd33cf3ba34924",
++           "id": "22871c3d-7e6e-42e3-9090-eab114e2f671",
++         },
++       ],
++       "outline": {
++         "content_hash": "110b783a449b65201e60e487a5f028e86b2df05d367b08de552cc71957bbd726",
++         "id": "4d544839-d13b-4c8e-a90c-24f33e381a1d",
++         "node_hash": "110b783a449b65201e60e487a5f028e86b2df05d367b08de552cc71957bbd726",
++         "node_id": "49ce0b8e-eec9-470e-b518-9bcf3d33c332",
++       },
++       "profile": null,
++       "story": {
++         "content_hash": "c87ea80e372e7d5fff5ef315ceb10628ab0cbb5c174a09cd67213bd670a051e5",
++         "id": "a2f9d367-0205-4ad2-95c9-110e7c535515",
++       },
++     },
++     "budget_reservation": "UNKNOWN",
++     "checkpoint_version": "pw-checkpoint-1",
++     "completed_actions": [
++       "proposal_stored:4ccb1a9e-ad0f-4919-847e-ecd6b8bca200",
++     ],
++     "job": {
++       "attempts": 2,
++       "intent": "draft_paragraph",
++     },
++     "last_event": null,
++     "policy": {
++       "allowed_providers": [],
++       "checkpoint_version": "pw-checkpoint-1",
++       "data_classification": "unpublished",
++       "external_send_policy": "allow_selected",
++     },
++     "provider": null,
++     "scope": {
++       "base_revision_id": "2b37447d-4162-43f0-89be-1a0495ea517c",
++       "claim_ids": [
++         "7253cd09-01e5-424d-a5e9-59629dd40bd0",
++       ],
++       "document_id": "50a21168-2b44-43e6-9798-ea04074740ac",
++       "evidence_ids": [
++         "7f152ac5-e3e5-4027-a709-2a1eea20194f",
++       ],
++       "fact_ids": [
++         "22871c3d-7e6e-42e3-9090-eab114e2f671",
++       ],
++       "node_id": "49ce0b8e-eec9-470e-b518-9bcf3d33c332",
++       "outline_revision_id": "4d544839-d13b-4c8e-a90c-24f33e381a1d",
++     },
++     "versions": {},
++   },
++   "state_hash": "0cf0fa038507048678b81ef93ba2991d2347c9b9fd154e2e7f77e7c05c7b59ca",
++   "summary": null,
++   "summary_source": null,
+  }
+
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts:154:109
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  tests/tasks/PW-047/checkpoints.int.test.ts > TST-047B: summaries are notes, not evidence; nothing needs a model to resume > the writer re-checks on resume: what changed is recorded and its own run-time checks decide (review MINOR 3)
+AssertionError: expected 'failed' to be 'completed' // Object.is equality
+
+Expected: "completed"
+Received: "failed"
+
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts:210:56
+    208|     // the owner allows another provider while the job waits; the MOCK…
+    209|     await pool.query("UPDATE paper_projects SET external_send_policy =…
+    210|     expect((await run(w, createMockWriter())).outcome).toBe('completed…
+       |                                                        ^
+    211|     const all = await listCheckpoints(pool, w.paperId, w.jobId);
+    212|     expect(all.map((x) => x.boundary)).toEqual(['before_call', 'sessio…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  tests/tasks/PW-047/checkpoints.int.test.ts > PW-047 review fixes > MAJOR 1: the summary and user text cannot forge the prompt's sections; the rules come after the data again
+AssertionError: expected [ '## Verified facts', …(1) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts:260:120
+    258|     const prompt = resumePrompt(await rehydrate(pool, w.paperId, w.job…
+    259|     const lines = prompt.split('\n');
+    260|     for (const h of ['## Verified facts', '## Work state', '## Approve…
+       |                                                                                                                        ^
+    261|     expect(lines.filter((l) => l.startsWith('# '))).toHaveLength(1);
+    262|     expect(lines.some((l) => l === '## Rules' || l.startsWith('Rules: …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  tests/tasks/PW-047/checkpoints.int.test.ts > PW-047 review fixes > MINOR 1: the prompt keeps what must not be written and the sources: exclusions, transition, claims to avoid, limitations, evidence
+AssertionError: expected undefined to deeply equal [ ObjectContaining{…} ]
+
+- Expected:
+[
+  ObjectContaining {
+    "id": "99869715-3914-4727-872c-49e8aa2823fe",
+    "kind": "experiment",
+    "label": "qPCR",
+  },
+]
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts:275:32
+    273|     await run(w, lostSession);
+    274|     const r = await rehydrate(pool, w.paperId, w.jobId);
+    275|     expect(r.context.evidence).toEqual([expect.objectContaining({ id: …
+       |                                ^
+    276|     const prompt = resumePrompt(r);
+    277|     for (const t of ['no causal wording', 'leads to the leaf data', 'A…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  tests/tasks/PW-047/checkpoints.int.test.ts > PW-047 review fixes > MINOR 2: concurrent checkpoints of the current run are ordered; none fails with a raw database error
+AssertionError: expected [ 'fulfilled', 'fulfilled', …(3) ] to deeply equal [ 'fulfilled', 'fulfilled', …(3) ]
+
+- Expected
++ Received
+
+  [
+    "fulfilled",
+    "fulfilled",
+-   "fulfilled",
+-   "fulfilled",
+-   "fulfilled",
++   "rejected",
++   "rejected",
++   "rejected",
+  ]
+
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts:286:42
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  tests/tasks/PW-047/checkpoints.int.test.ts > PW-047 review fixes > MINOR 4: withdrawn evidence and an open outline impact are drift
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts:295:25
+    293|     await retractRecord(pool, { paperId: w.paperId, ownerId, kind: 'ev…
+    294|     const r = await rehydrate(pool, w.paperId, w.jobId);
+    295|     expect(r.resumable).toBe(false);
+       |                         ^
+    296|     expect(r.drift).toContainEqual({ kind: 'evidence', id: w.evidence.…
+    297|     expect(r.drift).toContainEqual({ kind: 'outline_node', id: w.nodeI…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  tests/tasks/PW-047/checkpoints.int.test.ts > PW-047 review fixes > NIT 1: a job running under another run's claim is not resumable by this caller
+AssertionError: expected [] to deeply equal [ 'job_running_elsewhere' ]
+
+- Expected
++ Received
+
+- [
+-   "job_running_elsewhere",
+- ]
++ []
+
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts:305:65
+    303|     await run(w, lostSession);
+    304|     const job = (await claimJob(pool, { jobId: w.jobId, workerId: 'w2'…
+    305|     expect((await rehydrate(pool, w.paperId, w.jobId)).reasons).toEqua…
+       |                                                                 ^
+    306|     expect((await rehydrate(pool, w.paperId, w.jobId, { fencingToken: …
+    307|     expect((await rehydrate(pool, w.paperId, w.jobId, { fencingToken: …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 6 passed (13)
+   Start at  01:51:52
+   Duration  5.76s (tests 61%, transform 31%, import 8%)
+
+exit 1

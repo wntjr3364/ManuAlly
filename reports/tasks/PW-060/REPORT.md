@@ -33,6 +33,7 @@
 - RED(`red.log`): 서명만 있는 stub에서 두 파일 모두 `not implemented`로 실패.
 - GREEN 중 시험이 실제 결함을 찾았다. 옛 schema(PW-056) 백업이 `in_asset_store` 열이 없어 실패했다. 참조 열이 있는 schema에서만 찾도록 고쳤다.
 - 통합 18개 통과.
+- 회귀: `pnpm test` exit 0(`test.log`: unit 618, 통합 658, contracts 17, 브라우저 101, spikes·evals·pack-check).
 
 ## Mutation(`mutation.log`)
 - 28종 탐지.

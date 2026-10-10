@@ -38,3 +38,4 @@ User decision / reviewer:
     - `import_sources.format`에 `docx`를 더했다.
     - `source_text`는 docx일 때만 NULL이고, 그때 `source_bytes`는 반드시 있다.
     - 표는 여전히 불변이다.
+  - spec 10 "원본 asset을 먼저 불변 저장"과의 차이(review m3): 원본은 미리 보기와 같은 트랜잭션에 받은 그대로 저장된다. 읽을 수 없는 파일과 변경 추적 선택 전 업로드는 거부하고 저장하지 않는다. 사용자의 파일은 사용자에게 그대로 있다.

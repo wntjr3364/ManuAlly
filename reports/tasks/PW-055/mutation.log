@@ -16,3 +16,24 @@ KILLED download as inline
 KILLED field instr as text
 KILLED doctype accepted
 KILLED list not reported
+# review fixes (M1 silent drops, M2 limits, m1 tracked marks/rows/notes, m2 citations, m4, NITs)
+KILLED sym dropped
+KILLED alternate content dropped (run)
+KILLED both branches read
+KILLED unknown text dropped
+KILLED quote-blind tag end
+KILLED paragraph mark not counted
+KILLED paragraph mark not merged
+KILLED deleted row kept
+KILLED notes not counted
+KILLED notes flattened
+KILLED sdt citation not reported
+KILLED hidden text shown
+KILLED ptab dropped
+KILLED boxes numbered as notes
+KILLED object as image
+# re-run: one test per limit
+KILLED no part cap
+KILLED no element cap
+KILLED no depth cap
+KILLED no block cap

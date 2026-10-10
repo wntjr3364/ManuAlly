@@ -1,5 +1,7 @@
-// DOCX import (PW-055, spec 10 "가져오기"): the file's bytes are stored as received (with their hash) before
-// anything else, converted into a preview with a loss report (./parse.ts), and applied only by the owner's
+// DOCX import (PW-055, spec 10 "가져오기"): the file is converted into a preview with a loss report
+// (./parse.ts); its bytes are stored as received (with their hash) in the same transaction as that preview —
+// a file that cannot be read, or whose tracked changes still need the owner's choice, is refused and nothing
+// is stored (the owner still has the file; review m3, RFC-014). It is applied only by the owner's
 // explicit action through the same path as text imports (imports/text applyImport: a new manuscript, or a new
 // version of the current one with confirmation — the current text stays a revision). With unresolved tracked
 // changes the owner first chooses which text to take. The original stays downloadable; nothing claims the

@@ -1,7 +1,15 @@
 // A small XML reader for WordprocessingML parts (PW-055): elements, attributes, text, CDATA and the five
 // predefined entities plus character references. A DOCTYPE (where external or expanding entities live) is
 // refused, as is any other entity; nothing is fetched or expanded. Names keep their prefix (w:p, m:t).
-export class XmlError extends Error {}
+export class XmlError extends Error {
+  readonly tooLarge: boolean;
+  constructor(message: string, tooLarge = false) {
+    super(message);
+    this.tooLarge = tooLarge;
+  }
+}
+// bounds for untrusted parts: nesting (the readers below recurse) and elements (time and memory)
+export const XML_LIMITS = { depth: 256, elements: 500_000 };
 export interface XEl { name: string; attrs: Record<string, string>; children: XNode[] }
 export type XNode = XEl | string;
 
@@ -23,6 +31,7 @@ function decode(s: string): string {
 export function parseXml(src: string): XEl {
   const root: XEl = { name: '#root', attrs: {}, children: [] };
   const stack: XEl[] = [root];
+  let count = 0;
   let i = 0;
   while (i < src.length) {
     const lt = src.indexOf('<', i);
@@ -38,7 +47,14 @@ export function parseXml(src: string): XEl {
       continue;
     }
     if (src.startsWith('<!', lt)) throw new XmlError('a DOCTYPE or other declaration is not allowed');
-    const gt = src.indexOf('>', lt);
+    // the tag ends at the first '>' outside a quoted attribute value
+    let gt = -1;
+    let quote = '';
+    for (let k = lt + 1; k < src.length; k++) {
+      const ch = src[k]!;
+      if (quote) { if (ch === quote) quote = ''; } else if (ch === '"' || ch === "'") quote = ch;
+      else if (ch === '>') { gt = k; break; }
+    }
     if (gt < 0) throw new XmlError('an unclosed tag');
     const tag = src.slice(lt + 1, gt);
     i = gt + 1;
@@ -57,8 +73,12 @@ export function parseXml(src: string): XEl {
     let a: RegExpExecArray | null;
     const rest = body.slice(m[1]!.length);
     while ((a = attrRe.exec(rest))) el.attrs[a[1]!] = decode(a[3] ?? a[4] ?? '');
+    if (++count > XML_LIMITS.elements) throw new XmlError(`more than ${XML_LIMITS.elements} elements in one part`, true);
     stack.at(-1)!.children.push(el);
-    if (!self) stack.push(el);
+    if (!self) {
+      stack.push(el);
+      if (stack.length > XML_LIMITS.depth) throw new XmlError(`nested deeper than ${XML_LIMITS.depth} levels`);
+    }
   }
   if (stack.length !== 1) throw new XmlError(`an unclosed element <${stack.at(-1)!.name}>`);
   const top = root.children.find((c): c is XEl => typeof c !== 'string');

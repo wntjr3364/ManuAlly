@@ -13,7 +13,8 @@ export class ZipError extends Error {
   }
 }
 
-export const ZIP_LIMITS = { entries: 2000, totalUnpacked: 50 * 1024 * 1024 };
+// a Word paper's text part is a few MiB; media parts are never unpacked here
+export const ZIP_LIMITS = { entries: 2000, totalUnpacked: 50 * 1024 * 1024, part: 10 * 1024 * 1024 };
 interface Entry { name: string; method: number; crc: number; packed: number; unpacked: number; offset: number }
 
 export interface Zip { names: string[]; read(name: string): Buffer | null }
@@ -55,6 +56,7 @@ export function openZip(buf: Buffer): Zip {
     read(name) {
       const e = entries.get(name);
       if (!e) return null;
+      if (e.unpacked > ZIP_LIMITS.part) throw new ZipError(`${name} is larger than ${ZIP_LIMITS.part} bytes unpacked`, 'TOO_LARGE');
       if (e.offset + 30 > buf.length || buf.readUInt32LE(e.offset) !== 0x04034b50) throw new ZipError(`a damaged part: ${name}`, 'CORRUPT');
       const start = e.offset + 30 + buf.readUInt16LE(e.offset + 26) + buf.readUInt16LE(e.offset + 28);
       const packed = buf.subarray(start, start + e.packed);

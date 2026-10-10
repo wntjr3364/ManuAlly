@@ -1,0 +1,258 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-055/docx.test.ts (28 tests | 15 failed) 10048ms
+   ❯ review M1: nothing common in Word papers disappears silently (4)
+     × Symbol-font characters become their Unicode characters (5 μM, ±, ≤); an unknown symbol font is a reported placeholder 18ms
+     × a text box in mc:AlternateContent (Word 2010+): its text is kept once and reported; the shape is reported 6ms
+     × mc:AlternateContent at paragraph level keeps its text 2ms
+     × any other element holding text is kept and reported, never dropped 3ms
+   ❯ review M2 / m4: a small hostile file cannot stall or crash the server (4)
+     × a document part far larger than a paper (unpacked) is refused before parsing 5137ms
+     × too many elements in an allowed size is refused while parsing 4237ms
+     × deep nesting is a readable refusal (CORRUPT), not a stack overflow 296ms
+     × a ">" inside an attribute value does not cut the tag (the field instruction is read whole) 5ms
+   ❯ review m1: tracked changes outside runs (3)
+     × a deleted paragraph mark: accepted, the two paragraphs merge; rejected, they stay apart; it is counted 1ms
+     × a deleted table row: accepted, the row goes; rejected, it stays 2ms
+     × tracked changes in footnotes are counted and follow the choice 1ms
+   ❯ review m2: citations in footnotes and in content controls are reported (2)
+     × a Zotero citation inside a footnote 2ms
+     × a Mendeley Cite citation in a content control (w:sdt) 2ms
+   ❯ review NITs (2)
+     × n1 hidden text is not shown and is reported; n2 a positional tab is a space 2ms
+     × n3 a text box does not shift footnote numbers; n4 an embedded object is not called a figure 3ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 15 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review M1: nothing common in Word papers disappears silently > Symbol-font characters become their Unicode characters (5 μM, ±, ≤); an unknown symbol font is a reported placeholder
+AssertionError: expected '5 M, 3  1, p  0.05' to be '5 μM, 3 ± 1, p ≤ 0.05□' // Object.is equality
+
+Expected: "5 μM, 3 ± 1, p ≤ 0.05□"
+Received: "5 M, 3  1, p  0.05"
+
+ ❯ tests/tasks/PW-055/docx.test.ts:168:15
+    166|     const out = parseDocx(makeDocx(p(`${r('5 ')}${sym('F06D')}${r('M, …
+    167|     const s = text((out.doc.content as Block[])[0]!);
+    168|     expect(s).toBe('5 μM, 3 ± 1, p ≤ 0.05□');
+       |               ^
+    169|     expect(loss(out.report, 'symbol')).toMatchObject({ count: 1, examp…
+    170|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review M1: nothing common in Word papers disappears silently > a text box in mc:AlternateContent (Word 2010+): its text is kept once and reported; the shape is reported
+AssertionError: expected +0 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ tests/tasks/PW-055/docx.test.ts:175:65
+    173|     const out = parseDocx(makeDocx(p(`${r('Before.')}${box}`)), {});
+    174|     const s = JSON.stringify(out.doc);
+    175|     expect(s.split('Box text with 2.4-fold result').length - 1).toBe(1…
+       |                                                                 ^
+    176|     expect(loss(out.report, 'textbox')).toMatchObject({ count: 1, exam…
+    177|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review M1: nothing common in Word papers disappears silently > mc:AlternateContent at paragraph level keeps its text
+TypeError: Cannot read properties of undefined (reading 'content')
+ ❯ text tests/tasks/PW-055/docx.test.ts:13:31
+     11| type Inline = { type: string; text?: string; marks?: { type: string }[…
+     12| type Block = { type: string; attrs: { id: string; level?: number }; co…
+     13| const text = (b: Block) => (b.content ?? []).map((i) => i.text ?? '').…
+       |                               ^
+     14| const all = (doc: { content: Block[] }) => JSON.stringify(doc);
+     15| const loss = (report: { losses: { kind: string; count: number; example…
+ ❯ tests/tasks/PW-055/docx.test.ts:180:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review M1: nothing common in Word papers disappears silently > any other element holding text is kept and reported, never dropped
+AssertionError: expected 'A ' to contain 'mirrored'
+
+Expected: "mirrored"
+Received: "A "
+
+ ❯ tests/tasks/PW-055/docx.test.ts:185:15
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review M2 / m4: a small hostile file cannot stall or crash the server > a document part far larger than a paper (unpacked) is refused before parsing
+AssertionError: expected function to throw an error, but it didn't
+ ❯ tests/tasks/PW-055/docx.test.ts:194:71
+    192|   test('a document part far larger than a paper (unpacked) is refused …
+    193|     const t0 = Date.now();
+    194|     expect(() => parseDocx(makeDocx('<w:p/>'.repeat(4_000_000)), {})).…
+       |                                                                       ^
+    195|     expect(Date.now() - t0).toBeLessThan(5000);
+    196|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review M2 / m4: a small hostile file cannot stall or crash the server > too many elements in an allowed size is refused while parsing
+AssertionError: expected function to throw an error, but it didn't
+ ❯ tests/tasks/PW-055/docx.test.ts:199:97
+    197|   test('too many elements in an allowed size is refused while parsing'…
+    198|     const t0 = Date.now();
+    199|     expect(() => parseDocx(makeDocx('<w:p><w:r><w:t>x</w:t></w:r></w:p…
+       |                                                                                                 ^
+    200|     expect(Date.now() - t0).toBeLessThan(8000);
+    201|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review M2 / m4: a small hostile file cannot stall or crash the server > deep nesting is a readable refusal (CORRUPT), not a stack overflow
+AssertionError: expected error to match asymmetric matcher
+
+- Expected
++ Received
+
+- ObjectContaining {
+-   "reason": "CORRUPT",
++ RangeError {
++   "message": "Maximum call stack size exceeded",
+  }
+
+ ❯ tests/tasks/PW-055/docx.test.ts:204:52
+    202|   test('deep nesting is a readable refusal (CORRUPT), not a stack over…
+    203|     const deep = '<w:hyperlink>'.repeat(200_000) + r('x') + '</w:hyper…
+    204|     expect(() => parseDocx(makeDocx(p(deep)), {})).toThrow(expect.obje…
+       |                                                    ^
+    205|   });
+    206|   test('a ">" inside an attribute value does not cut the tag (the fiel…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review M2 / m4: a small hostile file cannot stall or crash the server > a ">" inside an attribute value does not cut the tag (the field instruction is read whole)
+AssertionError: expected { kind: 'field', count: 1, …(2) } to match object { count: 2 }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "count": 2,
++   "count": 1,
+  }
+
+ ❯ tests/tasks/PW-055/docx.test.ts:209:39
+    207|     const out = parseDocx(makeDocx(p(`<w:fldSimple w:instr="IF 1 &gt; …
+    208|     expect(text((out.doc.content as Block[])[0]!)).toBe('ax');
+    209|     expect(loss(out.report, 'field')).toMatchObject({ count: 2 });
+       |                                       ^
+    210|   });
+    211| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review m1: tracked changes outside runs > a deleted paragraph mark: accepted, the two paragraphs merge; rejected, they stay apart; it is counted
+AssertionError: expected function to throw an error, but it didn't
+ ❯ tests/tasks/PW-055/docx.test.ts:217:49
+    215|   test('a deleted paragraph mark: accepted, the two paragraphs merge; …
+    216|     const body = `<w:p><w:pPr><w:rPr>${del}</w:rPr></w:pPr>${r('First …
+    217|     expect(() => parseDocx(makeDocx(body), {})).toThrow(expect.objectC…
+       |                                                 ^
+    218|     expect((parseDocx(makeDocx(body), { trackedChanges: 'accept' }).do…
+    219|     expect((parseDocx(makeDocx(body), { trackedChanges: 'reject' }).do…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review m1: tracked changes outside runs > a deleted table row: accepted, the row goes; rejected, it stays
+Error: the document has no tracked changes to accept or reject
+ ❯ parseDocx packages/domain/src/imports/docx/parse.ts:135:53
+    133|     throw new DocxError('the document has tracked changes that are not…
+    134|   }
+    135|   if (insertions + deletions === 0 && choice) throw new DocxError('the…
+       |                                                     ^
+    136|
+    137|   const styleName = new Map<string, string>();
+ ❯ rows tests/tasks/PW-055/docx.test.ts:224:48
+ ❯ tests/tasks/PW-055/docx.test.ts:225:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review m1: tracked changes outside runs > tracked changes in footnotes are counted and follow the choice
+AssertionError: expected function to throw an error, but it didn't
+ ❯ tests/tasks/PW-055/docx.test.ts:231:68
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review m2: citations in footnotes and in content controls are reported > a Zotero citation inside a footnote
+AssertionError: expected undefined to match object { count: 1, examples: [ 'Lee 2019' ] }
+
+- Expected:
+{
+  "count": 1,
+  "examples": [
+    "Lee 2019",
+  ],
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-055/docx.test.ts:242:48
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review m2: citations in footnotes and in content controls are reported > a Mendeley Cite citation in a content control (w:sdt)
+AssertionError: expected undefined to match object { count: 1, …(1) }
+
+- Expected:
+{
+  "count": 1,
+  "examples": [
+    "(Smith 2020)",
+  ],
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-055/docx.test.ts:248:48
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review NITs > n1 hidden text is not shown and is reported; n2 a positional tab is a space
+AssertionError: expected 'hidden textab' to be 'a b' // Object.is equality
+
+Expected: "a b"
+Received: "hidden textab"
+
+ ❯ tests/tasks/PW-055/docx.test.ts:255:52
+    253|   test('n1 hidden text is not shown and is reported; n2 a positional t…
+    254|     const out = parseDocx(makeDocx(p(`${r('hidden text', '<w:vanish/>'…
+    255|     expect(text((out.doc.content as Block[])[0]!)).toBe('a b');
+       |                                                    ^
+    256|     expect(loss(out.report, 'hidden_text')).toMatchObject({ count: 1, …
+    257|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/15]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > review NITs > n3 a text box does not shift footnote numbers; n4 an embedded object is not called a figure
+AssertionError: expected '{"type":"doc","content":[{"type":"par…' to contain 'Text[1]'
+
+Expected: "Text[1]"
+Received: "{"type":"doc","content":[{"type":"paragraph","attrs":{"id":"e3970e15-7915-4cf9-8fa0-d9fdde78682f"},"content":[{"type":"text","text":"Text[2]"}]},{"type":"paragraph","attrs":{"id":"70cf3ceb-3056-4b8b-a0a7-345ea98d4ed5"},"content":[{"type":"text","text":"boxed"}]},{"type":"paragraph","attrs":{"id":"f2af95cc-67d7-464b-8666-bb711c05fe40"},"content":[{"type":"text","text":"[2] Note."}]}]}"
+
+ ❯ tests/tasks/PW-055/docx.test.ts:262:37
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/15]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  15 failed | 13 passed (28)
+   Start at  06:22:54
+   Duration  10.97s (tests 94%, transform 5%, import 1%)
+

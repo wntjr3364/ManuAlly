@@ -38,7 +38,9 @@ function runVitest(config: Config, files: string[]): VitestJson {
 
 export function runAudit(): Audit {
   // the tree as audited: any uncommitted change makes the record name no release (review n1)
-  const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }).trim() !== '';
+  // (the files this audit itself writes do not count)
+  const OWN = new Set(['reports/security/audit.json', 'reports/tasks/PW-059/sweep-stats.json']);
+  const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean).some((l) => !OWN.has(l.slice(3)));
   const results = new Map<string, { passed: number; failed: number; skipped: number }>();
   for (const config of ['unit', 'integration'] as const) {
     const files = [...new Set(AUTOMATED.flatMap((s) => s.files.filter(([c]) => c === config).map(([, f]) => f)))];

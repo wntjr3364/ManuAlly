@@ -20,7 +20,7 @@ import type { TxPool } from '@pw/domain/shared/db.ts';
 import { callTool, issueRunToken, revokeRunToken } from '@pw/domain/tool-policy/index.ts';
 import { recordQuota, recordUsage } from '@pw/domain/usage/index.ts';
 import type { RunDecision } from '@pw/providers/core/index.ts';
-import { startClaudeTurn, type SessionChoice, type ClaudeTurnResult } from '@pw/providers/claude/index.ts';
+import { assertSafeProfileDir, startClaudeTurn, type SessionChoice, type ClaudeTurnResult } from '@pw/providers/claude/index.ts';
 import { startCodexServer } from '@pw/providers/codex/index.ts';
 import type { ProviderEvent } from '../../../../packages/contracts/src/provider/index.ts';
 import type { Backend, Limits } from '../../../../infra/sandbox/sandbox.ts';
@@ -53,8 +53,16 @@ export function assertCleanStateDir(dir: string): void {
 }
 
 // <stateRoot>/<provider>/<paper>: private folders of the runtime user; the credential's placeholder
-export function prepareStateDir(stateRoot: string, provider: 'claude_agent' | 'codex', paperId: string, loginProfile: string): { dir: string; binds: { source: string; target: string }[] } {
+// `homes`: the developer homes whose CLI state may never be the login profile (default: this user's home)
+export function prepareStateDir(stateRoot: string, provider: 'claude_agent' | 'codex', paperId: string, loginProfile: string, homes?: string[]): { dir: string; binds: { source: string; target: string }[] } {
   if (!UUID.test(paperId)) throw new StateRefused('refused: invalid paper id');
+  // the login profile is a separate runtime profile, never the developer's own CLI state or a home folder
+  // (security audit F-01; RFC-010)
+  try {
+    loginProfile = assertSafeProfileDir(loginProfile, { homes });
+  } catch (e) {
+    throw new StateRefused(`refused: the login profile must be a separate runtime profile — ${e instanceof Error ? e.message : String(e)}`);
+  }
   for (const d of [stateRoot, path.join(stateRoot, provider)]) {
     if (!fs.existsSync(d)) fs.mkdirSync(d, { mode: 0o700 });
     const st = fs.lstatSync(d);
@@ -146,7 +154,7 @@ export async function runProviderTurn(pool: TxPool, a: {
     });
     // in the read-only gateway folder: the CLI cannot remove or replace it (review nit)
     egress = await startEgressProxy({ socketPath: path.join(gwDir, 'egress.sock'), allow: c.egressAllow });
-    const state = prepareStateDir(c.stateRoot, a.provider, a.job.paperId, a.profileDir);
+    const state = prepareStateDir(c.stateRoot, a.provider, a.job.paperId, a.profileDir, a.homes);
     const parentEnv = { PATH: `${path.dirname(c.nodePath)}:/usr/bin:/bin` };
     const launcher = sandboxedLauncher({ backend: c.backend, run: { ...run, gatewayDir: gwDir }, egressSocket: egress.socketPath, nodePath: c.nodePath, readOnly: c.readOnly, writable: [state.dir], fileBinds: state.binds, limits: c.limits });
     const supervise = async (interrupt: () => Promise<void>) => {

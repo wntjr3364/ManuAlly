@@ -1,0 +1,23 @@
+{
+  "decision": "pending_manual",
+  "reasons": [
+    "MAN-LIVE-SANDBOX: pending — real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user's PC and the lab server (no credentials here; the real CLIs are never run by the build agent)",
+    "MAN-DEPLOY-TLS: pending — deployment behind TLS with Secure cookies, allowed origins and the headers of F-02 (PW-061)"
+  ],
+  "open_low": [
+    "F-02 (low): The web app is served without Content-Security-Policy / frame-ancestors (clickjacking, script injection hardening); the session cookie is SameSite=Strict and HttpOnly, served originals are sandboxed"
+  ],
+  "suites": [
+    "SEC-IDOR-AUTH: passed (6 passed, 0 failed, 0 skipped)",
+    "SEC-INJECTION: passed (15 passed, 0 failed, 0 skipped)",
+    "SEC-EGRESS: passed (79 passed, 0 failed, 0 skipped)",
+    "SEC-CREDENTIAL: passed (21 passed, 0 failed, 0 skipped)",
+    "SEC-PARSER: passed (88 passed, 0 failed, 0 skipped)",
+    "SEC-AUTH: passed (21 passed, 0 failed, 0 skipped)",
+    "SEC-REDACTION: passed (31 passed, 0 failed, 0 skipped)",
+    "SEC-SUPPLY: passed (2 passed, 0 failed, 0 skipped)",
+    "MAN-LIVE-SANDBOX: pending",
+    "MAN-DEPLOY-TLS: pending"
+  ]
+}
+exit 2

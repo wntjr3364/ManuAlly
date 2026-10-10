@@ -1915,7 +1915,7 @@
       "id": "PW-059",
       "phase": "P07",
       "title": "Security release audit",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-058"
       ],

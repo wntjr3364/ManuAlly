@@ -1,0 +1,16 @@
+[
+  {
+    "id": "F-01",
+    "title": "The login profile whose credential file is bound into AI runs was not checked against the developer's own CLI state (~/.claude, ~/.codex) or a home folder; a misconfigured path would put the main development login into runs",
+    "severity": "high",
+    "status": "fixed",
+    "evidence": "tests/security/credentials.test.ts (RED: reports/tasks/PW-059/red-F01.log); fix: apps/worker/src/provider-runs/index.ts prepareStateDir uses assertSafeProfileDir (RFC-014 appendix PW-059)"
+  },
+  {
+    "id": "F-02",
+    "title": "The web app is served without Content-Security-Policy / frame-ancestors (clickjacking, script injection hardening); the session cookie is SameSite=Strict and HttpOnly, served originals are sandboxed",
+    "severity": "low",
+    "status": "open",
+    "plan": "PW-061 deployment runbook: serve the built app with CSP (default-src 'self'), frame-ancestors 'none', Referrer-Policy no-referrer, nosniff; Secure cookies behind TLS"
+  }
+]

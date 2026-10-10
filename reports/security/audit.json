@@ -1,0 +1,152 @@
+{
+  "audited_at": "2026-10-10T10:03:56.242Z",
+  "commit": "6b5666933991445389baf4d327eb3093e554cb6c",
+  "suites": [
+    {
+      "id": "SEC-IDOR-AUTH",
+      "title": "cross-owner/cross-paper access, authentication, CSRF and origin on every route",
+      "kind": "automated",
+      "required": true,
+      "status": "passed",
+      "counts": {
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence": "tests/security/sweep.int.test.ts"
+    },
+    {
+      "id": "SEC-INJECTION",
+      "title": "injected instructions in untrusted text; tool gateway scope from the run token",
+      "kind": "automated",
+      "required": true,
+      "status": "passed",
+      "counts": {
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence": "tests/security/injection.int.test.ts, tests/tasks/PW-027/gateway.int.test.ts"
+    },
+    {
+      "id": "SEC-EGRESS",
+      "title": "URL fetch scheme/host/port/address checks; network only from reviewed modules",
+      "kind": "automated",
+      "required": true,
+      "status": "passed",
+      "counts": {
+        "passed": 79,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence": "tests/security/egress.test.ts, tests/tasks/PW-034/assets.int.test.ts, tests/security/static.test.ts"
+    },
+    {
+      "id": "SEC-CREDENTIAL",
+      "title": "login profile never developer state; child environments; run folders and sandbox runner",
+      "kind": "automated",
+      "required": true,
+      "status": "passed",
+      "counts": {
+        "passed": 21,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence": "tests/security/credentials.test.ts, tests/tasks/PW-026/runner.test.ts"
+    },
+    {
+      "id": "SEC-PARSER",
+      "title": "PDF, DOCX, ZIP archive and reference parsers under limits",
+      "kind": "automated",
+      "required": true,
+      "status": "passed",
+      "counts": {
+        "passed": 88,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence": "tests/tasks/PW-035/pdf.int.test.ts, tests/tasks/PW-055/docx.test.ts, tests/tasks/PW-057/archive.test.ts"
+    },
+    {
+      "id": "SEC-AUTH",
+      "title": "owners, sessions, login limits, paper scope",
+      "kind": "automated",
+      "required": true,
+      "status": "passed",
+      "counts": {
+        "passed": 21,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence": "tests/tasks/PW-008/papers.int.test.ts, tests/tasks/PW-008/review-fixes.int.test.ts"
+    },
+    {
+      "id": "SEC-REDACTION",
+      "title": "secret redaction in errors and logs",
+      "kind": "automated",
+      "required": true,
+      "status": "passed",
+      "counts": {
+        "passed": 31,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence": "tests/tasks/PW-052/classify.test.ts"
+    },
+    {
+      "id": "SEC-SUPPLY",
+      "title": "dependency licenses, version pins, lockfile",
+      "kind": "automated",
+      "required": true,
+      "status": "passed",
+      "counts": {
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0
+      },
+      "evidence": "tests/security/supply-chain.test.ts"
+    },
+    {
+      "id": "MAN-LIVE-SANDBOX",
+      "title": "real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user's PC and the lab server (no credentials here; the real CLIs are never run by the build agent)",
+      "kind": "manual",
+      "required": true,
+      "status": "pending",
+      "evidence": ""
+    },
+    {
+      "id": "MAN-DEPLOY-TLS",
+      "title": "deployment behind TLS with Secure cookies, allowed origins and the headers of F-02 (PW-061)",
+      "kind": "manual",
+      "required": true,
+      "status": "pending",
+      "evidence": ""
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-01",
+      "title": "The login profile whose credential file is bound into AI runs was not checked against the developer's own CLI state (~/.claude, ~/.codex) or a home folder; a misconfigured path would put the main development login into runs",
+      "severity": "high",
+      "status": "fixed",
+      "evidence": "tests/security/credentials.test.ts (RED: reports/tasks/PW-059/red-F01.log); fix: apps/worker/src/provider-runs/index.ts prepareStateDir uses assertSafeProfileDir (RFC-014 appendix PW-059)"
+    },
+    {
+      "id": "F-02",
+      "title": "The web app is served without Content-Security-Policy / frame-ancestors (clickjacking, script injection hardening); the session cookie is SameSite=Strict and HttpOnly, served originals are sandboxed",
+      "severity": "low",
+      "status": "open",
+      "plan": "PW-061 deployment runbook: serve the built app with CSP (default-src 'self'), frame-ancestors 'none', Referrer-Policy no-referrer, nosniff; Secure cookies behind TLS"
+    }
+  ],
+  "gate": {
+    "decision": "pending_manual",
+    "reasons": [
+      "MAN-LIVE-SANDBOX: pending — real Claude Code / Codex CLI inside the bubblewrap sandbox with a separate runtime login profile, on the user's PC and the lab server (no credentials here; the real CLIs are never run by the build agent)",
+      "MAN-DEPLOY-TLS: pending — deployment behind TLS with Secure cookies, allowed origins and the headers of F-02 (PW-061)"
+    ],
+    "open_low": [
+      "F-02 (low): The web app is served without Content-Security-Policy / frame-ancestors (clickjacking, script injection hardening); the session cookie is SameSite=Strict and HttpOnly, served originals are sandboxed"
+    ]
+  }
+}

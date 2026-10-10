@@ -95,3 +95,8 @@ User decision / reviewer:
     - 경고는 사용자가 확인해야 넘어간다: 철회 문헌, 불완전 문헌, 바뀐 뒤 다시 검사하지 않은 문단, 반영하지 않음 답 등.
     - 초안으로 고정하는 것은 문제가 있어도 되며, 문제를 함께 기록한다.
     - 확정은 head에서 먼저 검사한다. 거절되면 스냅샷도 묶음도 만들지 않는다. 확정은 스냅샷 → 원본 묶음 → 묶음 자체 렌더로 다시 검사 → 저장 순서다.
+- PW-059
+  - `apps/worker/src/provider-runs/index.ts`(보안 감사 F-01, high)
+    - `prepareStateDir`가 로그인 프로필에 `assertSafeProfileDir`를 적용한다. 개발자 CLI 상태(`~/.claude`, `~/.codex`, `~/.config/claude`), 그 안, 홈 자체, symlink, 남이 쓸 수 있는 폴더는 거부한다.
+    - `homes`를 넘길 수 있다(실행 설정의 homes).
+    - RFC-010의 "별도 runtime 로그인 프로필"을 코드로 강제하는 것이다. 동작 변화는 잘못된 설정의 거부뿐이다.

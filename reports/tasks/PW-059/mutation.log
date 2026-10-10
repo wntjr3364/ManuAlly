@@ -1,0 +1,24 @@
+KILLED IDOR: export file without the paper filter
+KILLED IDOR: submission without the paper filter
+SURVIVED IDOR: reviewer comment lookup without the paper filter
+KILLED IDOR by reference: document in body not scoped to the paper
+KILLED owner check skipped
+KILLED CSRF check removed
+# with body variants
+KILLED IDOR: reviewer comment lookup without the paper filter (body variants)
+# gate, F-01 and static checks (unit)
+KILLED gate: skipped counts as pass
+KILLED gate: empty suite counts as pass
+KILLED gate: missing area not noticed
+KILLED gate: open high allowed
+KILLED gate: AI may accept risk
+KILLED gate: fixed without evidence
+KILLED gate: manual pending allowed
+KILLED F-01: login profile not checked
+SURVIVED egress: IP literal hosts allowed
+KILLED egress: IPv4 in IPv6 not unwrapped
+KILLED egress: IP literal hosts allowed (IP on the host list)
+KILLED static: a fetch planted in an API route
+KILLED static: a spawn without its own env
+KILLED static: a spawn passing the server env on
+KILLED static: a credential file read

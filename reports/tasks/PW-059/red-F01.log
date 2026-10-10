@@ -1,0 +1,40 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/security/credentials.test.ts (2 tests | 2 failed) 24ms
+   ❯ F-01: the run's login profile is never the developer's CLI state (2)
+     × ~/.claude, ~/.codex, a folder inside them, or the home folder itself is refused; a separate runtime profile is used 15ms
+     × a symlink to the developer's state is refused too 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/security/credentials.test.ts > F-01: the run's login profile is never the developer's CLI state > ~/.claude, ~/.codex, a folder inside them, or the home folder itself is refused; a separate runtime profile is used
+AssertionError: /tmp/pw059-cred-hOsCsa/home/.claude
+ ❯ tests/security/credentials.test.ts:27:85
+     25|       for (const bad of [path.join(w.home, '.claude'), path.join(w.hom…
+     26|         const provider = bad.endsWith('.codex') ? 'codex' : 'claude_ag…
+     27|         expect(() => prepareStateDir(w.state, provider, paper, bad, [w…
+       |                                                                                     ^
+     28|       }
+     29|       const ok = prepareStateDir(w.state, 'claude_agent', paper, path.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/security/credentials.test.ts > F-01: the run's login profile is never the developer's CLI state > a symlink to the developer's state is refused too
+AssertionError: expected function to throw an error, but it didn't
+ ❯ tests/security/credentials.test.ts:40:92
+     38|       const link = path.join(w.base, 'looks-separate');
+     39|       fs.symlinkSync(path.join(w.home, '.claude'), link);
+     40|       expect(() => prepareStateDir(w.state, 'claude_agent', randomUUID…
+       |                                                                                            ^
+     41|     } finally {
+     42|       fs.rmSync(w.base, { recursive: true, force: true });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  09:55:53
+   Duration  1.88s (transform 86%, import 12%, tests 1%)
+

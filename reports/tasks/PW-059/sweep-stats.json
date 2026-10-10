@@ -1,0 +1,43 @@
+{
+  "routes": 152,
+  "alice_ids": 30,
+  "made": [
+    "paper",
+    "story",
+    "story approval",
+    "evidence",
+    "fact",
+    "claim",
+    "outline",
+    "outline approval",
+    "manuscript",
+    "writer request",
+    "writer apply",
+    "reference",
+    "figure",
+    "figure file",
+    "figure version",
+    "source pdf",
+    "manuscript save",
+    "comment thread",
+    "selection handle",
+    "edit proposal",
+    "scientific check",
+    "review comment",
+    "review response",
+    "writing profile note",
+    "text import",
+    "snapshot",
+    "export",
+    "draft submission",
+    "review run"
+  ],
+  "statuses": {
+    "200": 195,
+    "201": 18,
+    "404": 3913,
+    "409": 286,
+    "415": 256,
+    "422": 8604
+  }
+}

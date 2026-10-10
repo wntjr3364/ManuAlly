@@ -1,0 +1,20 @@
+KILLED fencing not checked
+KILLED completed actions may shrink
+KILLED scope takes content
+KILLED unknown input fields accepted
+KILLED summary length unchecked
+KILLED retracted fact reaches the context
+KILLED story drift ignored
+KILLED policy drift ignored
+KILLED cancelled job resumable
+KILLED finished job resumable
+KILLED note not labelled
+KILLED note before the facts
+KILLED fact values from the summary-free checkpoint only (no db read)
+KILLED worker ignores drift
+SURVIVED worker does not carry completed actions
+SURVIVED other paper's job
+# after: completed actions = durable effects only; worker helper test
+KILLED worker does not carry completed actions (2)
+KILLED last event not shown
+SURVIVED other paper's job (2)

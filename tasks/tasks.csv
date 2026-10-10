@@ -45,7 +45,7 @@ PW-043,P05,Deterministic scientific gate,in_review,PW-042,REQ-043,"TST-043A,TST-
 PW-044,P05,문체·과학 검토와 human review,in_review,PW-043,REQ-044,"TST-044A,TST-044B",apps/worker/src/reviewer/**;apps/web/src/features/scientific-review/**;tests/tasks/PW-044/**;reports/tasks/PW-044/**;db/migrations/pw_044_*
 PW-045,P05,과학적 부정 fixture·rubric gate,in_review,PW-044,REQ-045,"TST-045A,TST-045B",evals/**;tests/scientific/**;tests/tasks/PW-045/**;reports/tasks/PW-045/**;db/migrations/pw_045_*
 PW-046,P05,개요→집필 연구자 workflow,in_review,PW-045,REQ-046,"TST-046A,TST-046B",tests/e2e/scientific-workflow/**;reports/p05/**;tests/tasks/PW-046/**;reports/tasks/PW-046/**;db/migrations/pw_046_*
-PW-047,P06,Checkpoint·영구기억 재수화,planned,PW-046,REQ-047,"TST-047A,TST-047B",apps/worker/src/checkpoints/**;packages/domain/src/checkpoints/**;tests/tasks/PW-047/**;reports/tasks/PW-047/**;db/migrations/pw_047_*
+PW-047,P06,Checkpoint·영구기억 재수화,in_review,PW-046,REQ-047,"TST-047A,TST-047B",apps/worker/src/checkpoints/**;packages/domain/src/checkpoints/**;tests/tasks/PW-047/**;reports/tasks/PW-047/**;db/migrations/pw_047_*
 PW-048,P06,Context budget·compact 전환,planned,PW-047,REQ-048,"TST-048A,TST-048B",apps/worker/src/context/**;tests/tasks/PW-048/**;reports/tasks/PW-048/**;db/migrations/pw_048_*
 PW-049,P06,Quota 대기·리셋 재검증,planned,PW-048,REQ-049,"TST-049A,TST-049B",apps/worker/src/quota-scheduler/**;tests/tasks/PW-049/**;reports/tasks/PW-049/**;db/migrations/pw_049_*
 PW-050,P06,비용 예약·budget guard,planned,PW-049,REQ-050,"TST-050A,TST-050B",packages/domain/src/budget/**;apps/worker/src/admission/**;tests/tasks/PW-050/**;reports/tasks/PW-050/**;db/migrations/pw_050_*

@@ -1533,7 +1533,7 @@
       "id": "PW-047",
       "phase": "P06",
       "title": "Checkpoint·영구기억 재수화",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-046"
       ],

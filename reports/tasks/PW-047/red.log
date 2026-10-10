@@ -1,0 +1,26 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-047/checkpoints.int.test.ts [ tests/tasks/PW-047/checkpoints.int.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/checkpoints/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-047/checkpoints.int.test.ts
+ ❯ tests/tasks/PW-047/checkpoints.int.test.ts:22:1
+     20| import { processDelivery } from '../../../apps/worker/src/queue/index.…
+     21| import { writerHandlers, createMockWriter, type Writer } from '../../.…
+     22| import { latestCheckpoint, listCheckpoints, recordCheckpoint, rehydrat…
+       | ^
+     23|
+     24| const ORIGIN = 'http://127.0.0.1:5173';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  01:30:07
+   Duration  1.95s (worker 96%, environment 4%)
+
+exit 1

@@ -22,12 +22,13 @@ import { checkReplacement } from '@pw/domain/proposals/guard.ts';
 import { blockText, buildParagraph, documentAt, insertParagraphProposalIn, paragraphItems, placeHolds, type WriterMode } from '@pw/domain/writer/index.ts';
 import { noticesOf } from '@pw/domain/literature/index.ts';
 import { sectionKey } from '@pw/domain/manuscript-structure/index.ts';
-import { proseSignals, scientificGate, type Finding } from '@pw/domain/scientific-checks/index.ts';
+import { GATE_VERSION, proseSignals, scientificGate, type Finding } from '@pw/domain/scientific-checks/index.ts';
 import { gateFacts } from '@pw/domain/scientific-checks/records.ts';
 import { nodeScopeFor } from '@pw/search/retrieval/index.ts';
 import { AnswerRefused, CONTRACT_VERSION, parseWriterAnswer, wordsIn, type ParagraphContract, type ParagraphItem } from '@pw/contracts/writing';
 import { numbersIn } from '../story/index.ts';
 import { JobOutcomeError, type JobHandler } from '../queue/index.ts';
+import { jobCheckpoints } from '../checkpoints/index.ts';
 
 export interface Writer { id: 'mock' | 'claude_agent' | 'codex'; label: string | null; write(contract: ParagraphContract): Promise<unknown> }
 type Check = { check: string; result: 'pass' | 'fail' | 'unknown' | 'not_applicable'; details?: string; finding?: Finding };
@@ -176,7 +177,7 @@ export function createMockWriter(): Writer {
 
 export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_paragraph', JobHandler> {
   return {
-    draft_paragraph: async (job) => {
+    draft_paragraph: async (job, ctx) => {
       const p = payloadOf(job);
       // the gate again at run time: an approval or impact may have changed since the request
       let gate;
@@ -193,8 +194,17 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
           throw new JobOutcomeError('this paper does not allow sending its material to this provider', 'WAITING_USER');
         }
       }
+      // checkpoints (PW-047): a run after an earlier one re-checks what changed since; then each boundary
+      const cps = jobCheckpoints(pool, job, ctx.fencingToken, { provider: writer.id, versions: { contract_version: CONTRACT_VERSION, gate_version: GATE_VERSION } });
+      await cps.resume();
       const { contract, original } = await buildContract(pool, job, p, writer.id, gate.story_revision_id!);
       const contractHash = createHash('sha256').update(canonicalJson(contract)).digest('hex');
+      cps.setScope({
+        outline_revision_id: p.outline_revision_id, node_id: p.node_id, document_id: p.document_id, base_revision_id: p.base_revision_id,
+        fact_ids: contract.exact_facts.map((f) => f.id), claim_ids: contract.mandatory_claims.map((c) => c.id), evidence_ids: contract.evidence.map((e) => e.id),
+      });
+      // completed actions are durable effects only; progress that a lost run loses is the last event
+      await cps.mark('before_call', 'provider_call', [], pool, null, `contract_built:${contractHash.slice(0, 16)}`);
       let answer;
       let paragraph = null;
       try {
@@ -204,6 +214,7 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
         if (e instanceof AnswerRefused || (e instanceof DomainError && e.code === 'INVALID')) throw new JobOutcomeError(`writer answer refused: ${e.message}`.slice(0, 1000), 'FAILED');
         throw e;
       }
+      await cps.mark('after_validation', 'store_proposal', [], pool, null, 'answer_validated');
       const base = {
         paper_id: job.paper_id, job_id: job.id, document_id: p.document_id, base_revision_id: p.base_revision_id, outline_revision_id: p.outline_revision_id, node_id: p.node_id,
         mode: p.mode, after_block_id: p.after_block_id, after_block_hash: p.after_block_hash, block_id: p.block_id, expected_block_hash: p.expected_block_hash, section_heading_id: p.section_heading_id, section_heading_hash: p.section_heading_hash, contract: contract as unknown as Record<string, unknown>, contract_hash: contractHash,
@@ -248,6 +259,7 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
           // a late answer whose own place changed meanwhile is kept, but STALE (edits elsewhere do not count)
           const late = head !== p.base_revision_id && ['PENDING', 'CHECK_FAILED'].includes(row.status) && !(await placeHolds((await documentAt(tx, job.paper_id, p.document_id, head))!, row));
           const stored = await insertParagraphProposalIn(tx, late ? { ...row, status: 'STALE', status_reason: 'the manuscript changed while the paragraph was written' } : row);
+          await cps.mark('after_proposal', null, [`proposal_stored:${stored.id}`], tx, null, `proposal_${stored.status.toLowerCase()}`);
           result.proposal_id = stored.id;
           result.status = stored.status;
         },

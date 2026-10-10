@@ -36,6 +36,10 @@
 - RED(`red.log`): gate와 시험을 먼저 썼다. 기록이 없어 9개가 실패했다(`ENOENT capabilities.json`). gate 규칙 시험 1개는 통과.
 - GREEN: 기록·보고서·pilot을 만든 뒤 10개 통과.
 
+## 회귀와 감사
+- `pnpm test` exit 0(`test.log`: unit 640, 통합 673, contracts 17, 브라우저 101, spikes·evals·pack-check). capability 근거의 전체 회귀는 이 로그를 가리킨다.
+- 보안 감사를 깨끗한 커밋 1dbf54a에서 다시 실행했다: `pending_manual`, 자동 9개 영역 통과, 열린 finding 없음(F-02는 PW-061에서 수정). 기록 `reports/release/audit-run.log`, `reports/security/audit.json`.
+
 ## Mutation(`mutation.log`)
 - gate 7종, 기록 6종, 보고서 5종을 시험했다.
 - 처음에 2종이 살아남았다.

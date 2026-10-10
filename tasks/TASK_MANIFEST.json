@@ -1947,7 +1947,7 @@
       "id": "PW-060",
       "phase": "P07",
       "title": "Backup·restore·migration drill",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-059"
       ],

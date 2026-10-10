@@ -1,0 +1,30 @@
+KILLED missing original skipped silently in backup
+KILLED backup reads originals without the hash check
+KILLED COMPLETE written for a failed backup
+KILLED verify ignores a missing COMPLETE
+KILLED verify ignores manifest/COMPLETE mismatch
+KILLED verify accepts a failed backup's status
+KILLED verify skips the dump hash
+KILLED verify skips missing originals
+KILLED verify allows unlisted files
+KILLED verify allows a stray file in the blob folder
+KILLED verify accepts an unknown migration
+KILLED verify accepts a changed migration
+KILLED verify accepts a schema gap
+KILLED restore into a non-empty database
+KILLED restore skips the table comparison
+KILLED restore skips a missing table
+KILLED restore skips the referenced-original check
+KILLED restore migrates despite problems
+KILLED restore proceeds after a failed verify
+KILLED sessions carried over
+KILLED password not passed in the environment
+KILLED unix socket host ignored
+KILLED blob reference columns not checked against the schema
+KILLED exports in the asset store not backed up
+KILLED same-disk warning dropped
+KILLED backup into an existing folder
+SURVIVED verify skips the blob size
+# after adding the size and one-point-in-time tests
+KILLED R2 verify skips the blob size
+KILLED dump not taken under the manifest's snapshot

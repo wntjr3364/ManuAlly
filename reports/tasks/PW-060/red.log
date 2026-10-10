@@ -1,0 +1,46 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/restore/failures.int.test.ts (11 tests | 11 skipped) 1639ms
+ ❯ tests/restore/drill.int.test.ts (4 tests | 4 skipped) 4183ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/restore/drill.int.test.ts [ tests/restore/drill.int.test.ts ]
+Error: not implemented
+ ❯ todo infra/backup/backup.ts:15:35
+     13| }
+     14| export interface PgTools { dir: string }
+     15| const todo = (): never => { throw new Error('not implemented'); };
+       |                                   ^
+     16| export function findPgTools(): PgTools { return todo(); }
+     17| export function pgEnv(_url: string): Record<string, string> { return t…
+ ❯ createBackup infra/backup/backup.ts:21:148
+ ❯ tests/restore/drill.int.test.ts:101:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/restore/failures.int.test.ts [ tests/restore/failures.int.test.ts ]
+Error: not implemented
+ ❯ todo infra/backup/backup.ts:15:35
+     13| }
+     14| export interface PgTools { dir: string }
+     15| const todo = (): never => { throw new Error('not implemented'); };
+       |                                   ^
+     16| export function findPgTools(): PgTools { return todo(); }
+     17| export function pgEnv(_url: string): Record<string, string> { return t…
+ ❯ createBackup infra/backup/backup.ts:21:148
+ ❯ tests/restore/failures.int.test.ts:52:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  15 skipped (15)
+   Start at  11:24:38
+   Duration  7.30s (tests 51%, transform 39%, import 9%)
+
+  Transform  transforming modules took 4.50s · 39% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

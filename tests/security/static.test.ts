@@ -84,6 +84,7 @@ describe('TST-059A: least privilege for child processes and credentials', () => 
     'infra/sandbox/sandbox.ts': 'bubblewrap with a built environment (PW-026)',
     'infra/sandbox/forwarder.mjs': 'inside the sandbox: starts the CLI with the environment it was given (RFC-010)',
     'infra/sandbox/probe.mjs': 'sandbox self-test commands (PW-026)',
+    'infra/backup/backup.ts': 'pg_dump / pg_restore with a built env: PATH and the PG* connection variables (the password there, never in argv) (PW-060)',
   };
   const importers = () => matching(MODULE('child_process'));
   // spawns that inherit on purpose: inside the sandbox, the environment is the one sandbox.ts built

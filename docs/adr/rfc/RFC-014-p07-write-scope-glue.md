@@ -107,3 +107,5 @@ User decision / reviewer:
   - `infra/sandbox/sandbox.ts`(F-04, low): sandbox 가용성 확인(bwrap·prlimit·unshare·python3)이 worker 환경 대신 PATH만 받는다.
   - (재리뷰 M1') `packages/domain/src/outlines/index.ts`(보안 감사 F-05, medium): 개요 저장 시 `claim_ids`·`evidence_ids`의 UUID 형태 id는 이 논문의 주장·근거여야 한다. 자유 계획 이름표(PW-010)는 그대로 허용한다. 동작 변화는 다른 논문·없는 기록 id의 거부(422 `not_in_paper`)뿐이다.
   - `tests/e2e/manual-paper/manual-paper.e2e.ts`(회귀 수정, 시험만): 스냅샷 이름을 `exact`로 찾는다. PW-057의 묶음 내보내기 스냅샷 선택에도 같은 이름이 option으로 나온다. 목록 갱신이 확인보다 먼저 끝나면 두 요소가 잡혀 실패했다(경합). 제품 동작은 바뀌지 않는다.
+- PW-060
+  - `tests/security/static.test.ts`(PW-059 정적 점검의 검토 목록): `infra/backup/backup.ts`를 자식 프로세스 허용 모듈에 넣는다. pg_dump·pg_restore를 만든 환경(PATH와 PG* 연결 변수)으로만 실행한다. 비밀번호는 환경에만 있고 명령줄에는 없다. 정적 점검이 새 모듈을 잡은 것이 의도된 동작이다.

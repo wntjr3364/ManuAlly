@@ -1,6 +1,6 @@
 # 사용자 pilot (PW-062, spec 11 "주요 workflow 사용자가 직접 검토")
 
-사용자가 자기 기계에서 직접 해 보고 결과를 `reports/release/pilot.json`에 기록한다. AI는 이 기록을 채우지 않는다.
+사용자가 자기 기계에서 직접 해 보고 결과를 `reports/release/pilot.json`에 기록한다. AI는 이 기록을 채우지 않는다. 이 기록은 증명이 아니라 사용자의 진술이다. 파일을 쓸 수 있는 누구나 쓸 수 있으므로, 사용자가 쓴 것인지 git 기록으로 확인한다.
 
 ## 준비
 - [docs/runbooks/DEPLOY.md](../../docs/runbooks/DEPLOY.md)대로 설치한다. `pwctl check`, `migrate`, `run`을 거친다.

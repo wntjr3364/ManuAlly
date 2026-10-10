@@ -15,7 +15,9 @@
 
 **MOCK 표시**
 - 이 저장소의 모든 AI 결과(문단 초안, 선택 수정, story 대안, 리뷰, curation)는 MOCK 공급자의 것이다.
-- 실제 Claude Code·Codex 호출은 한 번도 하지 않았다. PW-004 사고로 승인 없이 `claude -p` 1회($0.00918)가 실행된 일이 있으며, 그 보고서에 기록되어 있다.
+- 승인되거나 근거가 기록된 실제 Claude Code·Codex 호출은 없다.
+  - 예외가 하나 있다. PW-004 사고 때 승인 없이 `claude -p` 1회($0.00918)가 실행되었다(`reports/tasks/PW-004/REPORT.md`).
+  - 그 호출은 사고이며 근거가 아니다.
 - registry는 두 공급자를 `requires_verification`으로 둔다. spec 11 규칙에 따라 live smoke가 없는 adapter는 **미검증·비활성**이다.
 
 ## 필수 capability
@@ -26,7 +28,7 @@
 | CAP-EVIDENCE-REFS | 주장·사실·근거·문헌·원문 PDF·anchor·그림 version(외부 서비스는 대역) | automated | pass |
 | CAP-MOCK-AI | AI 경로 전체를 MOCK으로: adapter 계약, sandbox 규칙, gateway, Writer, Reviewer, workflow | automated | pass |
 | CAP-SCIENTIFIC-AUTO | baseline·결정적 과학 gate·합성 hard case 30개 | automated | pass |
-| CAP-EXPORT | DOCX 가져오기·DOCX/CSL·PDF·source archive·제출판 freeze | automated | pass |
+| CAP-EXPORT | 내보내기·제출 **범위 축소 포함**(아래 "위임으로 정한 범위"): DOCX 가져오기, 앱의 DOCX(학술지 CSL·OMML·그림 삽입 없음), CSL-JSON, PDF(LibreOffice), source archive, 제출판 freeze(전체 일관성 검사 없음) | automated | pass |
 | CAP-RELIABILITY | checkpoint·예산·quota 대기·lease·재시도·crash 재개(모의 장애) | automated | pass |
 | CAP-SECURITY-AUTO | 보안 자동 감사 9개 영역(F-01~F-05 수정) | automated | pass |
 | CAP-BACKUP-RESTORE | 백업·복원·migration drill(합성 데이터) | automated | pass |
@@ -42,6 +44,7 @@
 | CAP-RESTORE-REAL | 운영 환경 실제 복원 연습 | manual | manual_pending |
 | CAP-BROWSERS-IME | 실제 한국어 IME·Firefox·Safari | manual | not_run |
 | CAP-USER-PILOT | 사용자 pilot([PILOT.md](PILOT.md)) | manual | manual_pending |
+| CAP-SCOPE-ACCEPT | 위임으로 정한 범위 축소·결정을 사용자가 확인·수용 | manual | manual_pending |
 
 모든 요구사항 REQ-001~REQ-062가 위 capability 중 하나 이상에 연결되어 있다(`capabilities.json`, 시험 `tests/tasks/PW-062/release.test.ts`).
 
@@ -60,6 +63,33 @@
 6. **CAP-DEPLOY-REAL**, **CAP-RESTORE-REAL**: [DEPLOY.md](../../docs/runbooks/DEPLOY.md)대로 배포하고, 운영 백업을 다른 곳에 복원해 본다.
 7. **CAP-BROWSERS-IME**: 실제 한국어 입력기와 사용하는 브라우저로 편집기를 확인한다.
 8. **CAP-USER-PILOT**: [PILOT.md](PILOT.md)의 workflow를 사용자가 직접 하고 `pilot.json`에 기록한다.
+9. **CAP-SCOPE-ACCEPT**: 아래 "위임으로 정한 범위"를 보고 받아들이거나, 다시 해야 할 것을 정한다.
+
+수동 기록에 대해
+- 수동 항목의 pass는 사용자가 남긴 기록(`checked_by: "user"`, 날짜, 근거)으로만 인정된다.
+- 이 기록은 증명이 아니다. 파일을 쓸 수 있는 누구나 "user"라고 적을 수 있다.
+- AI는 이 기록을 쓰지 않는다. AI가 쓴 기록이 보이면 사용자 기록으로 보지 않는다.
+
+## 위임으로 정한 범위(P07 승인 때 사용자가 확인)
+사용자 위임("니가 적절하게 선택해서 프로젝트 완성해라")으로 정한 것이다. spec과 다른 점이 있으므로 사용자가 확인해야 한다(CAP-SCOPE-ACCEPT).
+
+P07(RFC-014, 각 Task 보고서)
+- **DOCX는 앱이 직접 쓴다**(PW-056). P00의 "pandoc + citeproc 별도 프로세스" 대신이다.
+  - **학술지별 CSL 양식은 DOCX에 적용하지 않는다.** CSL-JSON으로 대신한다. spec 10의 "목표 학술지 양식 버전"을 충족하지 않는다.
+  - Word 수식(OMML), 그림 파일 삽입, 각주는 없다. 수식은 LaTeX 글자(경고)이고 그림은 범례만 있다.
+  - 종·유전자명 기울임은 일관성 경고만 한다(사전 기반 규칙 없음, spec 10 부분 충족).
+- **PDF는 로컬 LibreOffice로 만든다**(PW-057). 없으면 PDF만 안 된다. MS Word와 Acrobat으로는 확인하지 않았다.
+  - 공유용 묶음에는 다섯 라이선스(own-work, cc0, public-domain, cc-by, cc-by-sa)의 원본만 자동으로 넣는다.
+- **제출판 확인**(PW-058)
+  - spec 10의 "전체 일관성 검사"(초록↔결과, Methods, 약어, funding, data availability)는 구현하지 않았다. 늘 `consistency_not_checked` 경고로 확인을 받는다.
+  - "수정함"은 블록이 실제로 바뀌었는지만 보장한다(의미 판단 없음).
+- **DOCX 가져오기**(PW-055): 원본은 미리 보기와 같은 트랜잭션에 받은 그대로 저장된다(spec 10의 "먼저 불변 저장"과 순서가 다름).
+- **배포**(PW-061): Docker 없이 사용자 계정 프로세스로 돌린다(사용자 결정: sudo 없음). 운영 CSP를 지키려고 편집기 기본 CSS를 stylesheet로 옮겼다.
+
+P02~P06
+- 각 gate 파일의 "위임으로 정한 항목"에 있다: [P02](../phases/P02_GATE.md), [P03](../phases/P03_GATE.md), [P04](../phases/P04_GATE.md), [P05](../p05/P05_GATE.md), [P06](../p06/P06_GATE.md).
+- RFC-010(공급자를 sandbox 안에서 실행)도 위임으로 채택했다. 실제 실행 확인은 MAN-LIVE-SANDBOX다.
+- Zotero는 가져오기 원천이고 정본이 아니다(PW-038).
 
 ## 사용자 승인 범위
 | phase | 기록된 결정 | 범위 |
@@ -93,7 +123,14 @@
 
 ## 알려진 과정상 문제(정직 기록)
 - 일부 Task는 구현을 먼저 쓰고 시험을 나중에 썼다(PW-012, 029, 061, 041·042·052 일부). 각 보고서에 RED 재현과 함께 기록했다.
-- 시험이 실패한 상태로 push한 커밋이 있었다(d6080be, 7c57279, PW-059·061 각 1회). 곧바로 고쳤고 보고서에 남겼다.
+- 시험이 실패한 상태로 push한 커밋이 있었다. 모두 곧바로 고쳤고 보고서에 남겼다.
+  - d6080be(PW-015), 7c57279(PW-046)
+  - 7143002(PW-059, lint; f39064e에서 수정)
+  - 54322d5(PW-061, typecheck; 6e55a8f에서 수정)
+  - 199bf58·d45d577: PW-057부터 있던 TST-014A 경합이 실패할 수 있는 상태였다(a514796에서 수정).
+- PW-004 사고: 승인 없이 실제 `claude -p` 1회($0.00918, 합성 프롬프트, 사용자 데이터 없음)가 실행되었다.
+  - 재발 방지: 인증 상태를 모델 호출 없이 먼저 확인한다. 모델 호출 전 판단(`decideModelCall`)을 실행 경로에 넣었다(bf76f80).
+  - 그 뒤 이 컨테이너에서 실제 provider 실행은 없다.
 - PW-015·016 브라우저 시험의 일회성 실패는 원인을 확정하지 못했다.
 - 앱의 DB 계정은 아직 superuser다. 별도 runtime role은 열린 과제다.
 - budget, `run_errors`, 자동 재개 허가 화면은 API만 있다.

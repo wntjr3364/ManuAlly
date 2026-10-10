@@ -3,7 +3,8 @@
 // which release level is reached, and refuses a record that claims more than its evidence shows:
 //  - a live capability (a real provider, the real sandbox) passes only with the provider admitted in the
 //    registry on live evidence, never with mock-only evidence;
-//  - a manual capability passes only when the user recorded it (who = user, when, evidence);
+//  - a manual capability passes only when the user recorded it (who = user, when, evidence). This is a record,
+//    not a proof: anyone who can write the file can write "user" (an agent must never do so — review n3);
 //  - a pass needs evidence; an unknown status or kind is refused.
 // Levels (spec 12): Demo (Mock) → private alpha (one real provider) → private beta (both adapters and
 // reliability) → personal v1 (everything, with restore and the user's pilot).
@@ -29,8 +30,20 @@ export const LEVELS: Level[] = [
   { id: 'demo_mock', title: 'Demo (Mock)', needs: ['CAP-PAPER-CORE', 'CAP-EDITOR', 'CAP-EVIDENCE-REFS', 'CAP-MOCK-AI', 'CAP-SCIENTIFIC-AUTO', 'CAP-EXPORT', 'CAP-RELIABILITY', 'CAP-SECURITY-AUTO', 'CAP-BACKUP-RESTORE', 'CAP-DEPLOY-TOOLS'] },
   { id: 'private_alpha', title: 'private alpha (실제 허용 provider 1개)', needs: ['CAP-PROVIDER-CLAUDE-LIVE', 'CAP-SANDBOX-LIVE', 'CAP-PREFLIGHT-USER'] },
   { id: 'private_beta', title: 'private beta (두 adapter와 reliability)', needs: ['CAP-PROVIDER-CODEX-LIVE', 'CAP-RELIABILITY-REAL'] },
-  { id: 'personal_v1', title: '개인 사용 v1 (전체 gate + restore + pilot)', needs: ['CAP-SECURITY-GATE', 'CAP-SCIENTIFIC-HUMAN', 'CAP-DEPLOY-REAL', 'CAP-RESTORE-REAL', 'CAP-USER-PILOT', 'CAP-BROWSERS-IME'] },
+  { id: 'personal_v1', title: '개인 사용 v1 (전체 gate + restore + pilot)', needs: ['CAP-SECURITY-GATE', 'CAP-SCIENTIFIC-HUMAN', 'CAP-DEPLOY-REAL', 'CAP-RESTORE-REAL', 'CAP-USER-PILOT', 'CAP-BROWSERS-IME', 'CAP-SCOPE-ACCEPT'] },
 ];
+// what each capability is, fixed here and not taken from the record (review m1: a record that relabels a live
+// or manual capability as automated would otherwise pass it)
+const L = (provider: string) => ({ kind: 'live' as const, provider });
+export const KIND_OF: Record<string, { kind: Kind; provider?: string }> = {
+  'CAP-PAPER-CORE': { kind: 'automated' }, 'CAP-EDITOR': { kind: 'automated' }, 'CAP-EVIDENCE-REFS': { kind: 'automated' }, 'CAP-MOCK-AI': { kind: 'automated' },
+  'CAP-SCIENTIFIC-AUTO': { kind: 'automated' }, 'CAP-EXPORT': { kind: 'automated' }, 'CAP-RELIABILITY': { kind: 'automated' }, 'CAP-SECURITY-AUTO': { kind: 'automated' },
+  'CAP-BACKUP-RESTORE': { kind: 'automated' }, 'CAP-DEPLOY-TOOLS': { kind: 'automated' },
+  'CAP-PROVIDER-CLAUDE-LIVE': L('claude_agent'), 'CAP-PROVIDER-CODEX-LIVE': L('codex'),
+  'CAP-SANDBOX-LIVE': { kind: 'manual' }, 'CAP-PREFLIGHT-USER': { kind: 'manual' }, 'CAP-RELIABILITY-REAL': { kind: 'manual' }, 'CAP-SECURITY-GATE': { kind: 'manual' },
+  'CAP-SCIENTIFIC-HUMAN': { kind: 'manual' }, 'CAP-DEPLOY-REAL': { kind: 'manual' }, 'CAP-RESTORE-REAL': { kind: 'manual' }, 'CAP-BROWSERS-IME': { kind: 'manual' },
+  'CAP-USER-PILOT': { kind: 'manual' }, 'CAP-SCOPE-ACCEPT': { kind: 'manual' },
+};
 const STATUSES: Status[] = ['pass', 'blocked', 'not_run', 'manual_pending'];
 const KINDS: Kind[] = ['automated', 'live', 'manual'];
 
@@ -39,6 +52,8 @@ export interface Decision { level: string; level_title: string; next: string | n
 export function passes(c: Capability, registry: RegistryEntry[], problems: string[]): boolean {
   if (!STATUSES.includes(c.status)) { problems.push(`${c.id}: unknown status ${String(c.status)}`); return false; }
   if (!KINDS.includes(c.kind)) { problems.push(`${c.id}: unknown kind ${String(c.kind)}`); return false; }
+  const fixed = KIND_OF[c.id];
+  if (fixed && (fixed.kind !== c.kind || (fixed.provider ?? null) !== (c.provider ?? null))) { problems.push(`${c.id}: is ${fixed.kind}${fixed.provider ? ` (${fixed.provider})` : ''}, recorded as ${c.kind}${c.provider ? ` (${c.provider})` : ''}`); return false; }
   if (c.status !== 'pass') return false;
   if (!Array.isArray(c.evidence) || c.evidence.length === 0) { problems.push(`${c.id}: pass without evidence`); return false; }
   if (c.kind === 'live') {
@@ -72,4 +87,4 @@ export function evaluateRelease(caps: Capability[], registry: RegistryEntry[]): 
 }
 
 // words that claim a finished product; allowed in the report only when the gate says v1
-export const OVERCLAIM = /v1\s*(완료|출시|릴리스\s*완료)|production[- ]ready|제품\s*완성|모든\s*기능\s*(검증|완료)|실제\s*(AI|provider)로\s*검증\s*완료/i;
+export const OVERCLAIM = /v1\s*(완료|완성|출시|릴리스\s*완료)|production[- ]ready|제품\s*완성|완성(된|한)\s*제품|모든\s*기능\s*(검증|완료)|실제\s*(AI|provider|공급자)로\s*검증(됨|되었|했|\s*완료)|release[- ]ready|출시\s*준비\s*(완료|됨)/i;

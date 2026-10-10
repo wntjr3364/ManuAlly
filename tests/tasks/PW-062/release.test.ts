@@ -85,6 +85,25 @@ describe('TST-062B: nothing is presented as more than it is', () => {
     }
   });
 
+  test('a capability relabelled as another kind (live or manual as automated) is refused (review m1)', () => {
+    for (const id of ['CAP-PROVIDER-CLAUDE-LIVE', 'CAP-SANDBOX-LIVE', 'CAP-USER-PILOT', 'CAP-SCOPE-ACCEPT']) {
+      const forged = caps().map((x) => (x.id === id ? { ...x, kind: 'automated' as const, provider: undefined, status: 'pass' as const, evidence: ['README.md'] } : x));
+      const d = evaluateRelease(forged, registry());
+      expect(d.level, id).toBe('refused');
+      expect(d.problems.join(), id).toMatch(new RegExp(`${id}: is (live|manual)`));
+    }
+    const otherProvider = caps().map((x) => (x.id === 'CAP-PROVIDER-CLAUDE-LIVE' ? { ...x, provider: 'mock' } : x));
+    expect(evaluateRelease(otherProvider, registry()).problems.join()).toMatch(/CAP-PROVIDER-CLAUDE-LIVE: is live \(claude_agent\), recorded as live \(mock\)/);
+  });
+
+  test('the export scope reductions decided under delegation are shown to the user, not hidden in a plain pass (review M1)', () => {
+    const md = report();
+    const exp = caps().find((x) => x.id === 'CAP-EXPORT')!;
+    for (const limit of ['CSL', 'OMML', '그림', '일관성']) expect(exp.title, limit).toContain(limit);
+    for (const decision of ['학술지별 CSL 양식은 DOCX에 적용하지 않는다', 'OMML', '전체 일관성 검사', 'LibreOffice', '기울임']) expect(md, decision).toContain(decision);
+    expect(caps().find((x) => x.id === 'CAP-SCOPE-ACCEPT')!.status).not.toBe('pass');
+  });
+
   test('a record that overclaims is refused as a whole; one that drops a capability is refused', () => {
     const c = caps();
     const forged = c.map((x) => (x.id === 'CAP-PROVIDER-CLAUDE-LIVE' ? { ...x, status: 'pass' as const, mock_only: true } : x));
@@ -111,8 +130,12 @@ describe('TST-062B: nothing is presented as more than it is', () => {
     if (!d.v1) expect(md.match(OVERCLAIM)?.[0] ?? null).toBeNull();
     // the disclosure itself: every AI result is the MOCK provider's, and no real provider call was made
     expect(md).toMatch(/모든 AI 결과[^\n]*MOCK 공급자의 것이다/);
-    expect(md).toMatch(/실제 Claude Code·Codex 호출은 한 번도 하지 않았다/);
-    for (const phrase of ['v1 완료', 'production-ready', '모든 기능 검증']) expect(OVERCLAIM.test(phrase), phrase).toBe(true);
+    expect(md).toMatch(/승인되거나 근거가 기록된 실제 Claude Code·Codex 호출은 없다/);
+    // the one unapproved call is disclosed in the MOCK statement itself, not denied there (review m2)
+    const mockSection = md.slice(md.indexOf('**MOCK 표시**'), md.indexOf('## 필수 capability'));
+    expect(mockSection).toMatch(/PW-004 사고[^\n]*claude -p/);
+    expect(mockSection).not.toMatch(/한 번도 하지 않았다/);
+    for (const phrase of ['v1 완료', 'v1 완성', '완성된 제품', 'production-ready', '모든 기능 검증', '실제 AI로 검증됨', '출시 준비 완료']) expect(OVERCLAIM.test(phrase), phrase).toBe(true);
   });
 
   test('the security gate and the user pilot are reported as what they are', () => {

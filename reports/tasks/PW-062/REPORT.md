@@ -1,8 +1,8 @@
 # PW-062 — v1 최종 pilot·추적성 gate — REPORT
-상태: in_review (2026-10-10)
+상태: in_review (2026-10-10) — 독립 리뷰 changes requested(MAJOR 1·MINOR 2·NIT 3) → 반영
 
 ## 무엇을 했나
-- **release 기록** `reports/release/capabilities.json`: 필수 capability 21개.
+- **release 기록** `reports/release/capabilities.json`: 필수 capability 22개.
   - 각 항목: 연결된 요구사항(REQ-001~062 전부), 종류(automated / live / manual), 상태(pass / blocked / not_run / manual_pending), 근거 파일, pass가 아니면 blocker.
 - **release gate** `tests/tasks/PW-062/release.ts`: spec 12의 릴리스 수준(Demo(Mock) → private alpha → private beta → 개인 사용 v1) 중 도달한 수준을 정한다.
   - 기록이 근거보다 많이 주장하면 거부한다.
@@ -15,7 +15,7 @@
 - **사용자 pilot** `reports/release/PILOT.md`(workflow 8개)와 `pilot.json`(사용자가 채움, 지금 pending).
 
 ## 판정
-**Demo (Mock)**. 다음 수준(private alpha)을 막는 것과 v1까지의 blocker 11개는 모두 사용자 기계나 사용자 결정이 필요하다.
+**Demo (Mock)**. 다음 수준(private alpha)을 막는 것과 v1까지의 blocker 12개는 모두 사용자 기계나 사용자 결정이 필요하다.
 - 실제 공급자 2개(live smoke)
 - 실제 sandbox
 - 사용자 기계 preflight
@@ -25,12 +25,13 @@
 - 실제 배포·복원
 - 브라우저·IME
 - 사용자 pilot
+- 위임으로 정한 범위 축소의 사용자 수용
 
 ## 요구사항–시험
 | REQ/AC | 시험 | 결과 |
 |---|---|---|
-| REQ-062-A / TST-062A(필수 capability의 pass/blocked/not_run과 사용자 승인 범위가 일치하는 release report) | `release.test.ts` "TST-062A" 4개: 모든 REQ 추적·근거 파일 존재·blocker 이유, pass의 Task는 in_review, 보고서의 판정·blocker·표가 gate 계산과 같음, 승인 범위가 gate 파일 상태줄과 같음(P03의 "실제 provider 사용 미승인" 포함) | 통과 |
-| REQ-062-B / TST-062B(mock·문서·미실행 live를 제품 완성으로 포장하거나 blocker를 지우지 않음) | "TST-062B" 6개: gate 판정 규칙, 기록 위조(mock live pass, AI가 채운 pilot, 빠진 capability) 거부, registry 미승인 공급자의 live pass 금지, 과장 표현 금지와 MOCK 표시, 보안 gate·pilot 상태 일치, 수준 정의와 기록 일치 | 통과 |
+| REQ-062-A / TST-062A(필수 capability의 pass/blocked/not_run과 사용자 승인 범위가 일치하는 release report) | `release.test.ts` "TST-062A" 4개 + 위임 범위 표시 1개: 모든 REQ 추적·근거 파일 존재·blocker 이유, pass의 Task는 in_review, 보고서의 판정·blocker·표가 gate 계산과 같음, 승인 범위가 gate 파일 상태줄과 같음(P03의 "실제 provider 사용 미승인" 포함) | 통과 |
+| REQ-062-B / TST-062B(mock·문서·미실행 live를 제품 완성으로 포장하거나 blocker를 지우지 않음) | "TST-062B" 7개(종류 재표기 거부 포함): gate 판정 규칙, 기록 위조(mock live pass, AI가 채운 pilot, 빠진 capability) 거부, registry 미승인 공급자의 live pass 금지, 과장 표현 금지와 MOCK 표시, 보안 gate·pilot 상태 일치, 수준 정의와 기록 일치 | 통과 |
 
 ## RED → GREEN
 - RED(`red.log`): gate와 시험을 먼저 썼다. 기록이 없어 9개가 실패했다(`ENOENT capabilities.json`). gate 규칙 시험 1개는 통과.
@@ -60,6 +61,20 @@
 ## 미검증·남은 위험
 - 이 gate는 기록의 일관성과 과장을 막는다. 기록에 적힌 근거(각 Task의 시험)의 내용은 각 Task의 시험·리뷰가 맡는다.
 - 사용자 pilot, 실제 공급자, 수동 확인 2건, 사람 rubric은 하지 않았다(사용자 몫).
+
+## 독립 리뷰(changes requested) — 반영
+- **M1** CAP-EXPORT를 단순 pass로 보여 주고, 위임으로 정한 spec 10 내보내기 축소를 사용자에게 보이지 않았다.
+  - capability 제목에 한계를 적었다: 학술지 CSL·OMML·그림 삽입 없음, 기울임은 경고만, 전체 일관성 검사 없음, PDF는 LibreOffice.
+  - 보고서에 "위임으로 정한 범위" 절을 더했다. P07 결정을 열거하고, P02~P06은 각 gate의 위임 목록과 RFC-010·Zotero 결정을 가리킨다.
+  - 새 capability **CAP-SCOPE-ACCEPT**(manual, 사용자 수용)를 v1 blocker로 넣었다.
+- **m1** gate가 기록의 `kind`를 그대로 믿었다. capability마다 종류와 공급자를 gate 안(`KIND_OF`)에 고정했다. 다르게 적힌 기록은 거부한다(시험: live·manual을 automated로 바꾼 4종, 공급자 바꾸기).
+- **m2** "실제 호출은 한 번도 없다"와 PW-004 사고가 모순이었다.
+  - "승인되거나 근거가 기록된 실제 호출은 없다"로 고쳤다. PW-004 사고를 MOCK 표시와 정직 기록에 적었다. capability blocker 문구도 같다.
+  - 시험은 MOCK 절 안에서 확인한다.
+- **n1** 시험 실패 상태로 push한 커밋 id를 모두 적었다: 7143002(lint), 54322d5(typecheck), 199bf58·d45d577(TST-014A 경합).
+- **n2** 과장 표현 목록을 넓혔다: v1 완성, 완성된 제품, 실제 AI로 검증됨, 출시 준비 완료, release-ready.
+- **n3** 수동 기록은 증명이 아니라 사용자 진술이다. 누구나 쓸 수 있고 AI는 쓰지 않는다. 이를 gate 주석, 보고서, PILOT.md에 적었다.
+- 반영 확인 mutation 7종을 모두 잡았다(MOCK 절 범위 시험 R2 포함).
 
 ## 다음
 - 사용자 결정(P07 gate)

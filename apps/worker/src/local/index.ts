@@ -4,7 +4,7 @@
 // job ran — the job row does, exactly as with the pg-boss queue.
 import { randomUUID } from 'node:crypto';
 import type { TxPool } from '@pw/domain/shared/db.ts';
-import { recoverJobs } from '@pw/domain/jobs/index.ts';
+import { reconcileInflight } from '../recovery/index.ts';
 import { processDelivery, relayOutbox, type DeliveryOutcome, type JobHandler, type JobMessage } from '../queue/index.ts';
 
 export interface LocalWorkerOptions {
@@ -30,7 +30,8 @@ export function startLocalWorker(pool: TxPool, opts: LocalWorkerOptions & { poll
   const loop = (async () => {
     while (!stopped) {
       try {
-        if (Date.now() - lastRecover > (opts.recoverEveryMs ?? 30_000)) { await recoverJobs(pool); lastRecover = Date.now(); }
+        // PW-051: expired runs re-queued (with a status event), lost messages re-sent, ended runs settled
+        if (Date.now() - lastRecover > (opts.recoverEveryMs ?? 30_000)) { await reconcileInflight(pool); lastRecover = Date.now(); }
         const msgs: JobMessage[] = [];
         await relayOutbox(pool, async (m) => { msgs.push(m); });
         for (const m of msgs) {

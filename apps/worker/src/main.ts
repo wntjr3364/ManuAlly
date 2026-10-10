@@ -14,7 +14,6 @@ import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
 import { reconcileRunProcesses } from './lifecycle/index.ts';
 import { wakeDueWaits, withQuotaWaits } from './quota-scheduler/index.ts';
 import { withAdmission } from './admission/index.ts';
-import { settleOrphanReservations } from '@pw/domain/budget/index.ts';
 import type { JobHandler } from './queue/index.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -41,9 +40,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // PW-049: quota waits that are due are decided every minute. No provider offers a verified availability
   // check yet, so the probe cannot tell: a known reset that passed resumes, an unknown one keeps waiting.
   const wake = () => wakeDueWaits(pool, { now: new Date(), probe: async () => 'unknown' }).catch((e) => console.error('quota scheduler error:', e instanceof Error ? e.message : e));
-  // PW-050: reservations of runs that ended without settling (a crash, a lost lease)
-  const sweep = () => settleOrphanReservations(pool).catch((e) => console.error('settlement sweep error:', e instanceof Error ? e.message : e));
-  const quotaTimer = setInterval(() => { void wake(); void sweep(); }, 60_000);
+  // (reservations of ended runs are settled by the local worker's recovery sweep, PW-051)
+  const quotaTimer = setInterval(() => void wake(), 60_000);
   const stop = async () => { clearInterval(timer); clearInterval(quotaTimer); await worker.stop(); await pool.end(); process.exit(0); };
   process.on('SIGINT', () => void stop());
   process.on('SIGTERM', () => void stop());

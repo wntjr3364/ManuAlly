@@ -1,0 +1,12 @@
+KILLED no status event
+SURVIVED event for a job taken again
+SURVIVED no orphan settlement
+KILLED not logged
+KILLED expired shown alive
+KILLED exactly-once claimed
+KILLED discarded run uncounted
+KILLED heartbeat not fenced
+KILLED completion not fenced
+# after added tests
+KILLED event for a job taken again (2)
+KILLED no orphan settlement (2)

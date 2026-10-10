@@ -41,3 +41,6 @@ User decision / reviewer:
   - 새 route 폴더 `apps/api/src/budget/**`, `apps/api/src/server.ts`(등록): 예산 설정(사용자 행위), 논문 예산 상태
   - `apps/worker/src/main.ts`: Writer를 `withAdmission`으로 감싼다(바깥, MOCK은 free).
   - 리뷰 반영: `apps/worker/src/main.ts`가 모든 AI handler를 승인으로 감싸고, 1분마다 미정산 예약을 정산한다.
+- PW-051
+  - `apps/worker/src/local/index.ts`: 회복 주기에서 `recoverJobs` 대신 `reconcileInflight`를 부른다(상태 사건, 미정산 예약, 기록 포함).
+  - `apps/worker/src/main.ts`: PW-050의 별도 정산 sweep을 뺐다(회복 sweep이 한다).

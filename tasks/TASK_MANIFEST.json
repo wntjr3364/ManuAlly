@@ -1659,7 +1659,7 @@
       "id": "PW-051",
       "phase": "P06",
       "title": "Lease fencing·경합·outbox 복구",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-050"
       ],

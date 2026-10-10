@@ -49,7 +49,7 @@ PW-047,P06,Checkpoint·영구기억 재수화,in_review,PW-046,REQ-047,"TST-047A
 PW-048,P06,Context budget·compact 전환,in_review,PW-047,REQ-048,"TST-048A,TST-048B",apps/worker/src/context/**;tests/tasks/PW-048/**;reports/tasks/PW-048/**;db/migrations/pw_048_*
 PW-049,P06,Quota 대기·리셋 재검증,in_review,PW-048,REQ-049,"TST-049A,TST-049B",apps/worker/src/quota-scheduler/**;tests/tasks/PW-049/**;reports/tasks/PW-049/**;db/migrations/pw_049_*
 PW-050,P06,비용 예약·budget guard,in_review,PW-049,REQ-050,"TST-050A,TST-050B",packages/domain/src/budget/**;apps/worker/src/admission/**;tests/tasks/PW-050/**;reports/tasks/PW-050/**;db/migrations/pw_050_*
-PW-051,P06,Lease fencing·경합·outbox 복구,planned,PW-050,REQ-051,"TST-051A,TST-051B",apps/worker/src/recovery/**;packages/domain/src/leases/**;tests/tasks/PW-051/**;reports/tasks/PW-051/**;db/migrations/pw_051_*
+PW-051,P06,Lease fencing·경합·outbox 복구,in_review,PW-050,REQ-051,"TST-051A,TST-051B",apps/worker/src/recovery/**;packages/domain/src/leases/**;tests/tasks/PW-051/**;reports/tasks/PW-051/**;db/migrations/pw_051_*
 PW-052,P06,오류 분류·bounded retry,planned,PW-051,REQ-052,"TST-052A,TST-052B",apps/worker/src/errors/**;packages/providers/src/error-normalization/**;tests/tasks/PW-052/**;reports/tasks/PW-052/**;db/migrations/pw_052_*
 PW-053,P06,Crash·disk full·stale 재개 시험,planned,PW-052,REQ-053,"TST-053A,TST-053B",tests/faults/**;tests/tasks/PW-053/**;reports/tasks/PW-053/**;db/migrations/pw_053_*
 PW-054,P06,Run 상태 UI·운영 reliability gate,planned,PW-053,REQ-054,"TST-054A,TST-054B",apps/web/src/features/run-control/**;reports/p06/**;tests/tasks/PW-054/**;reports/tasks/PW-054/**;db/migrations/pw_054_*

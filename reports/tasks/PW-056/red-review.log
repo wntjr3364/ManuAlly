@@ -1,0 +1,194 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/export/docx/render.test.ts (17 tests | 8 failed) 125ms
+   ❯ CSL-JSON of the cited references (1)
+     × the stored records of the cited references, in bibliography order, with their stable ids 11ms
+   ❯ review m1: typed citations — fewer false alarms, fewer misses (3)
+     × interval notation and dates in parentheses are not citations 6ms
+     × narrative, prefixed and Korean citations typed as text are errors 5ms
+     × superscript numbers after a word are reported as possible citations (a warning: units such as m² look the same); exponents are not 3ms
+   ❯ review m2: species and gene names written in italics once are italic everywhere (1)
+     × a name italic in one place and plain in another is reported 6ms
+   ❯ review n2–n4 (3)
+     × n4: a cited reference with an empty title, or one the library knows is retracted, is reported 3ms
+     × n3: a cited reference without a stored CSL record is named, not silently left out 2ms
+     × n2: a read-back the reader cannot do is a reported warning, not a crash 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/export/docx/render.test.ts > CSL-JSON of the cited references > the stored records of the cited references, in bibliography order, with their stable ids
+AssertionError: expected [ …(2) ] to deeply equal { items: [ { …(3) }, { …(3) } ], …(1) }
+
+- Expected:
+{
+  "items": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "title": "Root signals under drought",
+      "type": "article-journal",
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "title": "A second study",
+      "type": "article-journal",
+    },
+  ],
+  "missing": [],
+}
+
++ Received:
+[
+  {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "title": "Root signals under drought",
+    "type": "article-journal",
+  },
+  {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "title": "A second study",
+    "type": "article-journal",
+  },
+]
+
+ ❯ tests/export/docx/render.test.ts:134:51
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/export/docx/render.test.ts > review m1: typed citations — fewer false alarms, fewer misses > interval notation and dates in parentheses are not citations
+AssertionError: values normalized to [0, 1].: expected 'draft_with_errors' to be 'clean' // Object.is equality
+
+Expected: "clean"
+Received: "draft_with_errors"
+
+ ❯ tests/export/docx/render.test.ts:149:98
+    147|   test('interval notation and dates in parentheses are not citations',…
+    148|     for (const s of ['values normalized to [0, 1].', 'a range [0.5, 2]…
+    149|       expect(renderDocx({ doc: para(tx(s)), refs, figures, style: 'num…
+       |                                                                                                  ^
+    150|     }
+    151|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  tests/export/docx/render.test.ts > review m1: typed citations — fewer false alarms, fewer misses > narrative, prefixed and Korean citations typed as text are errors
+AssertionError: Smith et al. (2019) showed this.: expected [] to include 'citation_like_text:error'
+ ❯ tests/export/docx/render.test.ts:154:91
+    152|   test('narrative, prefixed and Korean citations typed as text are err…
+    153|     for (const s of ['Smith et al. (2019) showed this.', 'as before (s…
+    154|       expect(kinds(renderDocx({ doc: para(tx(s)), refs, figures, style…
+       |                                                                                           ^
+    155|     }
+    156|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  tests/export/docx/render.test.ts > review m1: typed citations — fewer false alarms, fewer misses > superscript numbers after a word are reported as possible citations (a warning: units such as m² look the same); exponents are not
+AssertionError: expected [] to include 'superscript_citation_like:warning'
+ ❯ tests/export/docx/render.test.ts:158:137
+    156|   });
+    157|   test('superscript numbers after a word are reported as possible cita…
+    158|     expect(kinds(renderDocx({ doc: para(tx('Root growth rose'), tx('12…
+       |                                                                                                                                         ^
+    159|     expect(kinds(renderDocx({ doc: para(tx('Root growth rose¹²˒¹⁴.')),…
+    160|     // 10³ is an exponent
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  tests/export/docx/render.test.ts > review m2: species and gene names written in italics once are italic everywhere > a name italic in one place and plain in another is reported
+AssertionError: expected [] to deep equally contain ObjectContaining{…}
+
+- Expected:
+ObjectContaining {
+  "examples": [
+    "Arabidopsis thaliana",
+  ],
+  "kind": "italic_inconsistent",
+  "severity": "warning",
+}
+
++ Received:
+[]
+
+ ❯ tests/export/docx/render.test.ts:168:31
+    166|   test('a name italic in one place and plain in another is reported', …
+    167|     const out = renderDocx({ doc: para(tx('In '), tx('Arabidopsis thal…
+    168|     expect(out.report.issues).toContainEqual(expect.objectContaining({…
+       |                               ^
+    169|     expect(renderDocx({ doc: para(tx('In '), tx('Arabidopsis thaliana'…
+    170|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  tests/export/docx/render.test.ts > review n2–n4 > n4: a cited reference with an empty title, or one the library knows is retracted, is reported
+AssertionError: expected [] to include 'incomplete_reference:warning'
+ ❯ tests/export/docx/render.test.ts:176:77
+    174|   test('n4: a cited reference with an empty title, or one the library …
+    175|     const r1 = refs.map((r) => (r.id === R1 ? { ...r, title: ' ' } : r…
+    176|     expect(kinds(renderDocx({ doc, refs: r1, figures, style: 'numeric'…
+       |                                                                             ^
+    177|     const out = renderDocx({ doc, refs, figures, style: 'numeric', ret…
+    178|     expect(out.report.issues).toContainEqual(expect.objectContaining({…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  tests/export/docx/render.test.ts > review n2–n4 > n3: a cited reference without a stored CSL record is named, not silently left out
+AssertionError: expected [ { type: 'article-journal', …(2) } ] to deeply equal { items: [ { …(3) } ], …(1) }
+
+- Expected:
+{
+  "items": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "title": "Root signals under drought",
+      "type": "article-journal",
+    },
+  ],
+  "missing": [
+    "22222222-2222-4222-8222-222222222222",
+  ],
+}
+
++ Received:
+[
+  {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "title": "Root signals under drought",
+    "type": "article-journal",
+  },
+]
+
+ ❯ tests/export/docx/render.test.ts:182:51
+    180|   test('n3: a cited reference without a stored CSL record is named, no…
+    181|     const stored = new Map([[R1, { type: 'article-journal', title: 'Ro…
+    182|     expect(cslJson(doc, refs, stored, 'numeric')).toEqual({ items: [{ …
+       |                                                   ^
+    183|   });
+    184|   test('n2: a read-back the reader cannot do is a reported warning, no…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  tests/export/docx/render.test.ts > review n2–n4 > n2: a read-back the reader cannot do is a reported warning, not a crash
+Error: this is not a .docx file
+ ❯ sniff packages/domain/src/imports/docx/parse.ts:126:71
+    124|     throw new DocxError('this is an old Word file (.doc); open it in W…
+    125|   }
+    126|   if (bytes.length < 4 || bytes.readUInt32LE(0) !== 0x04034b50) throw …
+       |                                                                       ^
+    127| }
+    128|
+ ❯ convert packages/domain/src/imports/docx/parse.ts:168:3
+ ❯ parseDocx packages/domain/src/imports/docx/parse.ts:161:12
+ ❯ readBack packages/exports/src/docx/index.ts:47:11
+ ❯ renderDocx packages/exports/src/docx/index.ts:67:15
+ ❯ tests/export/docx/render.test.ts:186:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 9 passed (17)
+   Start at  08:01:24
+   Duration  1.21s (transform 72%, import 13%, tests 13%, worker 1%)
+

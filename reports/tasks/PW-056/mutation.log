@@ -15,3 +15,16 @@ KILLED csl uncited included
 # re-run: readback seam test; corrected locator pattern
 KILLED readback ignored
 KILLED locator dropped
+# review fixes (m1 typed citations, m2 italic names, n2–n4)
+KILLED m1 zero in brackets is a citation
+KILLED m1 months not excluded
+KILLED m1 no narrative
+KILLED m1 no Hangul names
+KILLED m1 no prefixes
+KILLED m1 exponent flagged
+KILLED m1 superscript ignored
+KILLED m2 italic names unchecked
+KILLED n4 retracted unchecked
+KILLED n4 empty title unchecked
+KILLED n3 missing csl hidden
+KILLED n2 readback crash

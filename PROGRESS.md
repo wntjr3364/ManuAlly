@@ -86,7 +86,7 @@
 | PW-053 | in_review | (P06) | REQ-053 / TST-053A,B | 통합 13(실제 SIGKILL, DB 53100·ENOSPC 주입; 리뷰 반영), mutation 7종 탐지, `pnpm test` exit 0 | 실제 FS 포화·전원 차단·PG 서버 사망 미시험(sudo 없음), blob ENOSPC 미시험; 결함 2건 수정(디스크 포화 재시도→안전 중단, 호출 중 계획 변경→STALE) |
 | PW-054 | in_review | (P06) | REQ-054 / TST-054A,B | unit 7, 통합 9, 브라우저 1(스크린샷 2), mutation 15+3종 탐지, `pnpm test` exit 0(리뷰 반영) | 실제 공급자 값 미확인(MOCK), 다시 시작은 시도 수를 되돌리지 않음, 문맥 예산 고리 미연결(문맥 줄 늘 unknown), 예산 화면 없음 |
 | PW-055 | in_review | (P07) | REQ-055 / TST-055A,B | unit 45, 통합 6, 브라우저 1(스크린샷 2), mutation 16+22+6+1+5+1종 탐지(+동등 1), `pnpm test` exit 0(최종) | MS Word 원본 파일로 미시험(LibreOffice·pandoc·수작업 fixture), 인용 필드 재연결 없음 |
-| PW-056 | in_review | (P07) | REQ-056 / TST-056A,B | unit 10, 통합 5, 브라우저 1, LibreOffice 확인, mutation 16종 탐지, `pnpm test`(진행) | MS Word 미확인, 학술지 CSL 양식·OMML 수식·그림 삽입 없음(결정, RFC-014), 인용 모양 검사는 정규식 |
+| PW-056 | in_review | (P07) | REQ-056 / TST-056A,B | unit 17, 통합 5, 브라우저 1, LibreOffice 확인, mutation 16+12종 탐지, `pnpm test` exit 0(리뷰 전), 리뷰 반영 회귀 진행 | MS Word 미확인, 학술지 CSL 양식·OMML 수식·그림 삽입 없음(결정, RFC-014), 인용 모양 검사는 정규식(놓치는 형식 기록), 종명 기울임은 일관성 검사만 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

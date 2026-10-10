@@ -131,9 +131,60 @@ describe('TST-056B: unlinked or missing citations never make a normal export', (
 describe('CSL-JSON of the cited references', () => {
   test('the stored records of the cited references, in bibliography order, with their stable ids', () => {
     const stored = new Map([[R1, { type: 'article-journal', title: 'Root signals under drought' }], [R2, { type: 'article-journal', title: 'A second study' }], [R3, { type: 'article-journal', title: 'Never cited' }]]);
-    expect(cslJson(doc, refs, stored, 'numeric')).toEqual([
+    expect(cslJson(doc, refs, stored, 'numeric')).toEqual({ items: [
       { id: R1, type: 'article-journal', title: 'Root signals under drought' },
       { id: R2, type: 'article-journal', title: 'A second study' },
-    ]);
+    ], missing: [] });
+  });
+});
+
+// PW-056 review: MINOR m1–m2, NIT n2–n4
+const para = (...content: unknown[]) => ({ type: 'doc', content: [{ type: 'paragraph', attrs: { id: '00000000-0000-4000-8000-000000000020' }, content }] });
+const tx = (text: string, ...marks: string[]) => (marks.length ? { type: 'text', text, marks: marks.map((type) => ({ type })) } : { type: 'text', text });
+const kinds = (o: ReturnType<typeof renderDocx>) => o.report.issues.map((i) => `${i.kind}:${i.severity}`);
+
+describe('review m1: typed citations — fewer false alarms, fewer misses', () => {
+  test('interval notation and dates in parentheses are not citations', () => {
+    for (const s of ['values normalized to [0, 1].', 'a range [0.5, 2] was used.', 'samples collected (March 2020) were dried.', 'in spring (May 2019).']) {
+      expect(renderDocx({ doc: para(tx(s)), refs, figures, style: 'numeric' }).report.status, s).toBe('clean');
+    }
+  });
+  test('narrative, prefixed and Korean citations typed as text are errors', () => {
+    for (const s of ['Smith et al. (2019) showed this.', 'as before (see Kim 2020).', 'as before (e.g., Smith 2019).', '선행 연구 (김 외, 2020) 참고.', 'Lee and Park (2018) found it.']) {
+      expect(kinds(renderDocx({ doc: para(tx(s)), refs, figures, style: 'numeric' })), s).toContain('citation_like_text:error');
+    }
+  });
+  test('superscript numbers after a word are reported as possible citations (a warning: units such as m² look the same); exponents are not', () => {
+    expect(kinds(renderDocx({ doc: para(tx('Root growth rose'), tx('12', 'superscript'), tx('.')), refs, figures, style: 'numeric' }))).toContain('superscript_citation_like:warning');
+    expect(kinds(renderDocx({ doc: para(tx('Root growth rose¹²˒¹⁴.')), refs, figures, style: 'numeric' }))).toContain('superscript_citation_like:warning');
+    // 10³ is an exponent
+    expect(renderDocx({ doc: para(tx('a 10'), tx('3', 'superscript'), tx('-fold rise')), refs, figures, style: 'numeric' }).report.status).toBe('clean');
+  });
+});
+
+describe('review m2: species and gene names written in italics once are italic everywhere', () => {
+  test('a name italic in one place and plain in another is reported', () => {
+    const out = renderDocx({ doc: para(tx('In '), tx('Arabidopsis thaliana', 'italic'), tx(' roots, but Arabidopsis thaliana leaves differ.')), refs, figures, style: 'numeric' });
+    expect(out.report.issues).toContainEqual(expect.objectContaining({ kind: 'italic_inconsistent', severity: 'warning', examples: ['Arabidopsis thaliana'] }));
+    expect(renderDocx({ doc: para(tx('In '), tx('Arabidopsis thaliana', 'italic'), tx(' roots.')), refs, figures, style: 'numeric' }).report.status).toBe('clean');
+  });
+});
+
+describe('review n2–n4', () => {
+  test('n4: a cited reference with an empty title, or one the library knows is retracted, is reported', () => {
+    const r1 = refs.map((r) => (r.id === R1 ? { ...r, title: ' ' } : r));
+    expect(kinds(renderDocx({ doc, refs: r1, figures, style: 'numeric' }))).toContain('incomplete_reference:warning');
+    const out = renderDocx({ doc, refs, figures, style: 'numeric', retracted: new Set([R2]) });
+    expect(out.report.issues).toContainEqual(expect.objectContaining({ kind: 'retracted_reference', severity: 'warning', count: 1 }));
+  });
+  test('n3: a cited reference without a stored CSL record is named, not silently left out', () => {
+    const stored = new Map([[R1, { type: 'article-journal', title: 'Root signals under drought' }]]);
+    expect(cslJson(doc, refs, stored, 'numeric')).toEqual({ items: [{ id: R1, type: 'article-journal', title: 'Root signals under drought' }], missing: [R2] });
+  });
+  test('n2: a read-back the reader cannot do is a reported warning, not a crash', () => {
+    const tooBig: typeof writeDocx = () => Buffer.from('not a zip');
+    const out = renderDocx({ doc, refs, figures, style: 'numeric' }, tooBig);
+    expect(out.report.readback.ok).toBe(false);
+    expect(kinds(out)).toContain('readback_unverified:warning');
   });
 });

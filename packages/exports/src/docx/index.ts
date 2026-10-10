@@ -53,10 +53,10 @@ function readBack(bytes: Buffer): Seen[] {
 
 // `write` is the file writer (replaceable in tests, to show that a file that does not read back as intended is
 // reported, never passed as clean)
-export function renderDocx(a: { doc: unknown; refs: readonly RefMeta[]; figures: readonly FigureIn[]; style: CitationStyle }, write: typeof writeDocx = writeDocx): { bytes: Buffer; report: ExportReport } {
+export function renderDocx(a: { doc: unknown; refs: readonly RefMeta[]; figures: readonly FigureIn[]; style: CitationStyle; retracted?: ReadonlySet<string> }, write: typeof writeDocx = writeDocx): { bytes: Buffer; report: ExportReport } {
   const l = layout(a.doc, a.refs, a.figures, a.style);
   const issues = new Issues();
-  checkContent(l, issues);
+  checkContent({ ...l, retracted: a.retracted }, issues);
   const controls = l.typed.join('').match(XML_INVALID)?.length ?? 0;
   if (controls) issues.add('control_characters', 'warning', undefined, controls);
   // a file with errors says so in its own header (it cannot pass for a clean export)
@@ -64,13 +64,20 @@ export function renderDocx(a: { doc: unknown; refs: readonly RefMeta[]; figures:
   let bytes = write(l.blocks, draftNote(issues.status()));
   // read back and compare
   const want = expected(l.blocks);
-  const got = readBack(bytes);
   const mismatches: string[] = [];
-  const n = Math.max(want.length, got.length);
-  for (let k = 0; k < n && mismatches.length < 20; k++) {
+  let got: Seen[] | null = null;
+  try {
+    got = readBack(bytes);
+  } catch (e) {
+    // the reader's limits (or any failure to read) leave the file unverified: said, never a crash (review n2)
+    mismatches.push(`could not read back: ${e instanceof Error ? e.message : String(e)}`.slice(0, 300));
+    issues.add('readback_unverified', 'warning', mismatches[0]);
+  }
+  const n = got ? Math.max(want.length, got.length) : 0;
+  for (let k = 0; got && k < n && mismatches.length < 20; k++) {
     if (JSON.stringify(want[k] ?? null) !== JSON.stringify(got[k] ?? null)) mismatches.push(`block ${k + 1}: expected ${JSON.stringify(want[k] ?? null).slice(0, 200)}, file has ${JSON.stringify(got[k] ?? null).slice(0, 200)}`);
   }
-  if (mismatches.length) {
+  if (got && mismatches.length) {
     issues.add('readback_mismatch', 'error', mismatches[0], mismatches.length);
     bytes = write(l.blocks, draftNote(issues.status()));
   }
@@ -85,7 +92,9 @@ export function renderDocx(a: { doc: unknown; refs: readonly RefMeta[]; figures:
   };
 }
 
-export function cslJson(doc: unknown, refs: readonly RefMeta[], stored: ReadonlyMap<string, Record<string, unknown>>, style: CitationStyle): Record<string, unknown>[] {
+// the cited references' stored records; a cited reference without one is named (review n3)
+export function cslJson(doc: unknown, refs: readonly RefMeta[], stored: ReadonlyMap<string, Record<string, unknown>>, style: CitationStyle): { items: Record<string, unknown>[]; missing: string[] } {
   const occ = referenceOccurrences(doc);
-  return bibliography(occ.citations, refs, style).filter((b) => stored.has(b.id)).map((b) => ({ ...stored.get(b.id)!, id: b.id }));
+  const bib = bibliography(occ.citations, refs, style);
+  return { items: bib.filter((b) => stored.has(b.id)).map((b) => ({ ...stored.get(b.id)!, id: b.id })), missing: bib.filter((b) => !stored.has(b.id)).map((b) => b.id) };
 }

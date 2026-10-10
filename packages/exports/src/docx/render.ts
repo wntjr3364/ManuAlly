@@ -19,6 +19,9 @@ export type OutBlock =
   | { type: 'paragraph'; style: 'Normal' | 'Bibliography' | 'Caption'; content: OutInline[] }
   | { type: 'table'; rows: OutInline[][][] };
 export interface FigureIn extends FigureMeta { caption: string | null }
+// the typed text of one paragraph, heading or cell, in order; a citation, cross-reference or formula in between
+// is a break (atom), so checks never join text across it
+export type Seg = { text: string; marks: Mark[] } | { atom: true };
 
 type Node = { type?: string; text?: string; marks?: { type: string }[]; attrs?: Record<string, unknown>; content?: Node[] };
 const MARKS: Mark[] = ['bold', 'italic', 'subscript', 'superscript'];
@@ -36,20 +39,26 @@ export function layout(doc: unknown, refs: readonly RefMeta[], figures: readonly
   let fi = 0;
   const math: string[] = [];
   const typed: string[] = []; // plain text pieces, for the citation-like text check
+  const segments: Seg[][] = [];
   const inlines = (n: Node): OutInline[] => {
     const out: OutInline[] = [];
+    const seg: Seg[] = [];
     for (const c of n.content ?? []) {
       if (c.type === 'text') {
-        out.push({ text: c.text ?? '', marks: MARKS.filter((m) => (c.marks ?? []).some((x) => x.type === m)) });
+        const marks = MARKS.filter((m) => (c.marks ?? []).some((x) => x.type === m));
+        out.push({ text: c.text ?? '', marks });
         typed.push(c.text ?? '');
-      } else if (c.type === 'citation') out.push({ text: cit.labels[ci++] ?? '[?]', marks: [] });
-      else if (c.type === 'figure_ref') out.push({ text: fig.labels[fi++] ?? '[그림/표 없음]', marks: [] });
+        seg.push({ text: c.text ?? '', marks });
+      } else if (c.type === 'citation') { out.push({ text: cit.labels[ci++] ?? '[?]', marks: [] }); seg.push({ atom: true }); }
+      else if (c.type === 'figure_ref') { out.push({ text: fig.labels[fi++] ?? '[그림/표 없음]', marks: [] }); seg.push({ atom: true }); }
       else if (c.type === 'math_inline') {
         const latex = String(c.attrs?.latex ?? '');
         math.push(latex);
         out.push({ text: latex, marks: [] });
+        seg.push({ atom: true });
       }
     }
+    segments.push(seg);
     return out;
   };
   const blocks: OutBlock[] = [];
@@ -70,7 +79,7 @@ export function layout(doc: unknown, refs: readonly RefMeta[], figures: readonly
   }
   const cited = [...new Set(occ.citations.map((o) => o.referenceId))].map((id) => refs.find((r) => r.id === id)).filter((r): r is RefMeta => !!r);
   return {
-    blocks, math, typed, cited,
+    blocks, math, typed, segments, cited,
     unresolvedCitations: occ.citations.filter((o) => !refs.some((r) => r.id === o.referenceId)).map((o) => o.referenceId),
     unresolvedFigures: occ.figures.filter((t) => !figures.some((f) => f.id === t)),
     styleVersion: STYLE_VERSION,

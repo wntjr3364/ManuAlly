@@ -1,0 +1,163 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-055/docx.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts [ tests/tasks/PW-055/docx.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/imports/docx/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-055/docx.test.ts
+ ❯ tests/tasks/PW-055/docx.test.ts:8:1
+      6| import { readFileSync } from 'node:fs';
+      7| import { validateDocument } from '../../../packages/editor-core/src/in…
+      8| import { DocxError, parseDocx } from '../../../packages/domain/src/imp…
+       | ^
+      9| import { makeDocx, makeZip, p, r, richDocx, CONTENT_TYPES } from './fi…
+     10|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  06:00:10
+   Duration  536ms (worker 95%, environment 5%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-055/docx-import.int.test.ts (6 tests | 6 failed) 1756ms
+   ❯ TST-055A: preview and losses first, then a new manuscript or a new version (2)
+     × a .docx gives a preview and a loss report; nothing changes until it is applied; applied, it is a new manuscript 29ms
+     × into an existing manuscript: only as a new version, confirmed, from the head the owner saw; the old text stays 30ms
+   ❯ TST-055B: the original is kept; tracked changes need a choice; no round trip is claimed (4)
+     × unresolved tracked changes: refused with the counts until the owner chooses; nothing is stored before 22ms
+     × the original file is stored as received, downloads byte for byte, and is never deleted or changed — also after applying 9ms
+     × not a .docx, an old .doc, a hostile ZIP or an over-large file is refused and nothing is stored 231ms
+     × text imports still work as before and their original downloads too 23ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-055/docx-import.int.test.ts > TST-055A: preview and losses first, then a new manuscript or a new version > a .docx gives a preview and a loss report; nothing changes until it is applied; applied, it is a new manuscript
+AssertionError: {"error":"invalid","message":"format must be one of text, markdown (DOCX import comes later)","field":"format"}: expected 422 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 422
+
+ ❯ tests/tasks/PW-055/docx-import.int.test.ts:51:38
+     49|     const id = await paper();
+     50|     const res = await upload(id, richDocx(), { tracked_changes: 'accep…
+     51|     expect(res.statusCode, res.body).toBe(201);
+       |                                      ^
+     52|     const imp = res.json();
+     53|     expect(imp).toMatchObject({ format: 'docx', filename: 'paper.docx'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx-import.int.test.ts > TST-055A: preview and losses first, then a new manuscript or a new version > into an existing manuscript: only as a new version, confirmed, from the head the owner saw; the old text stays
+AssertionError: {"error":"not_found","message":"import not found","field":null}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ tests/tasks/PW-055/docx-import.int.test.ts:70:36
+     68|     expect((await call('POST', `/api/papers/${id}/imports/${imp.id}/ap…
+     69|     const ok = await call('POST', `/api/papers/${id}/imports/${imp.id}…
+     70|     expect(ok.statusCode, ok.body).toBe(201);
+       |                                    ^
+     71|     const revs = (await pool.query('SELECT id, reason FROM document_re…
+     72|     expect(revs.map((x) => x.reason)).toEqual(['initial', 'import']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx-import.int.test.ts > TST-055B: the original is kept; tracked changes need a choice; no round trip is claimed > unresolved tracked changes: refused with the counts until the owner chooses; nothing is stored before
+AssertionError: expected { error: 'invalid', …(2) } to match object { field: 'tracked_changes', …(1) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "details": {
+-     "deletions": 1,
+-     "insertions": 1,
+-     "reason": "TRACKED_CHANGES_CHOICE",
+-   },
+-   "field": "tracked_changes",
++   "field": "format",
+  }
+
+ ❯ tests/tasks/PW-055/docx-import.int.test.ts:84:24
+     82|     const res = await upload(id, richDocx());
+     83|     expect(res.statusCode).toBe(422);
+     84|     expect(res.json()).toMatchObject({ field: 'tracked_changes', detai…
+       |                        ^
+     85|     expect((await pool.query('SELECT count(*)::int AS n FROM import_so…
+     86|     const rej = (await upload(id, richDocx(), { tracked_changes: 'reje…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx-import.int.test.ts > TST-055B: the original is kept; tracked changes need a choice; no round trip is claimed > the original file is stored as received, downloads byte for byte, and is never deleted or changed — also after applying
+AssertionError: expected undefined to be '7955aab99f3271db463da9c6bf178fdacefde…' // Object.is equality
+
+- Expected:
+"7955aab99f3271db463da9c6bf178fdacefde3731d035ab34afc7e84cf45c1fd"
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-055/docx-import.int.test.ts:96:31
+     94|     const bytes = richDocx();
+     95|     const imp = (await upload(id, bytes, { tracked_changes: 'accept' }…
+     96|     expect(imp.source_sha256).toBe(createHash('sha256').update(bytes).…
+       |                               ^
+     97|     await call('POST', `/api/papers/${id}/imports/${imp.id}/apply`, { …
+     98|     const dl = await call('GET', `/api/papers/${id}/imports/${imp.id}/…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx-import.int.test.ts > TST-055B: the original is kept; tracked changes need a choice; no round trip is claimed > not a .docx, an old .doc, a hostile ZIP or an over-large file is refused and nothing is stored
+TypeError: Cannot read properties of undefined (reading 'reason')
+ ❯ tests/tasks/PW-055/docx-import.int.test.ts:120:25
+    118|       const res = await upload(id, b);
+    119|       expect(res.statusCode, reason).toBe(422);
+    120|       expect(res.json().details.reason).toBe(reason);
+       |                         ^
+    121|     }
+    122|     expect((await pool.query('SELECT count(*)::int AS n FROM import_so…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx-import.int.test.ts > TST-055B: the original is kept; tracked changes need a choice; no round trip is claimed > text imports still work as before and their original downloads too
+AssertionError: expected '{"message":"Route GET:/api/papers/f5c…' to be '# A\n\nB' // Object.is equality
+
+- Expected
++ Received
+
+- # A
+-
+- B
++ {"message":"Route GET:/api/papers/f5c92800-4b34-4af0-8692-8f2079634d72/imports/c02316ef-4ab9-422a-ac88-c6ddd132a37b/original not found","error":"Not Found","statusCode":404}
+
+ ❯ tests/tasks/PW-055/docx-import.int.test.ts:130:21
+    128|     expect(t.statusCode, t.body).toBe(201);
+    129|     const dl = await call('GET', `/api/papers/${id}/imports/${t.json()…
+    130|     expect(dl.body).toBe('# A\n\nB');
+       |                     ^
+    131|   });
+    132| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed (6)
+   Start at  06:04:22
+   Duration  3.97s (tests 46%, transform 44%, import 10%)
+

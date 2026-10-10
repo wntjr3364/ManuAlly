@@ -1,0 +1,66 @@
+# PW-055 — DOCX import와 손실 보고 — REPORT
+상태: in_review (2026-10-10)
+
+## 무엇을 했나
+- **변환기**(`packages/domain/src/imports/docx`): 새 의존성 없이 만들었다(`node:zlib`, 작은 XML 읽기).
+  - `zip.ts`: ZIP을 읽는다. ZIP64와 암호화는 거부한다. 항목은 2,000개, 풀린 크기 합은 50 MiB까지다(ZIP bomb). 항목은 선언 크기 넘게 풀지 않고, CRC를 확인한다. 디스크에 쓰지 않는다.
+  - `xml.ts`: DOCTYPE와 정의되지 않은 엔티티를 거부한다. 외부 참조는 가져오지도 펼치지도 않는다.
+  - `parse.ts`: WordprocessingML을 공유 편집기 문서로 바꾸고 손실 보고를 만든다.
+    - 유지: 문단; 제목(styles.xml의 이름 기준이라 한국어 Word의 숫자 style id도 됨: heading 1~6, Title); 굵게, 기울임, 아래·위 첨자; 표(셀 글자)
+    - 글자로 남기고 보고: 인용 필드(Zotero, Mendeley, EndNote, CSL — 문헌 관리기 연결은 끊김), 참고문헌 필드, 그 밖의 필드, 수식(글자), 링크(글자), 각주·미주(`[n]` 표시와 원고 끝 문단)
+    - 넣지 않고 보고: 댓글(달린 글자는 남고, 댓글 내용은 보고에 있음), 그림·도형, 병합·중첩 표 배치, 목록 번호·기호(항목 글은 문단으로 남음), 서식 변경 추적
+    - **변경 내용 추적**: 수락·거부하지 않은 삽입·삭제가 있으면 사용자가 "수락한 글" 또는 "변경 전 원문"을 고를 때까지 미리 보기를 만들지 않는다(422 `TRACKED_CHANGES_CHOICE`, 개수 포함). 고른 것은 보고에 남는다.
+    - 보고의 `round_trip`은 늘 `not_supported`다.
+    - 결과는 편집기 schema 검증을 통과해야 한다.
+  - `index.ts`
+    - `createDocxImport`: 받은 바이트를 그대로 저장한다(SHA-256 포함, 10 MiB까지). 그 뒤 변환 결과를 미리 보기와 보고로 저장한다.
+    - `importOriginal`: 원본 내려받기
+    - 적용은 기존 경로다(PW-021 `applyImport`): 새 원고, 또는 확인과 본 head를 갖춘 새 버전. 지금 원고는 이전 revision으로 남는다.
+- **API**: `format: docx`, 원본 내려받기(`attachment`, `nosniff`)
+- **화면**(`apps/web/src/features/import/DocxImport.tsx`, 버전 탭)
+  - Word 파일을 고르면 변환한다. 변경 추적이 있으면 개수와 함께 어느 글을 가져올지 묻는다.
+  - 미리 보기, 손실 목록(종류별 안내, 개수, 예), "왕복 변환 아님" 경고, 원본 내려받기 링크를 보인다.
+  - 그 뒤에만 새 원고 또는 새 버전(확인 필요)을 만든다.
+
+## 변경 파일
+- write scope
+  - `packages/domain/src/imports/docx/{zip,xml,parse,index}.ts`
+  - `apps/web/src/features/import/DocxImport.tsx`
+  - `db/migrations/pw_055_0001_docx_import.sql`
+  - `tests/tasks/PW-055/{fixture.ts, docx.test.ts(unit 13), docx-import.int.test.ts(통합 6), docx-import.e2e.ts(브라우저 1)}`
+  - `tests/tasks/PW-055/fixtures/`: LibreOffice 24.2·pandoc 3.1로 만든 실제 .docx 2개와 그 원본, 만든 방법(README)
+- 범위 밖(RFC-014 부록): `apps/api/src/imports/index.ts`, `apps/web/src/features/versions/VersionsTab.tsx`, `packages/domain/src/imports/text/index.ts`(문구 하나)
+
+## 요구사항-시험 매핑
+| REQ / TST | 시험 |
+|---|---|
+| REQ-055-A / TST-055A: 사용자가 변환 손실을 확인하고 새 문서/새 revision으로 가져온다 | unit: 깨끗한 논문(제목, 한국어 style id 제목, 기울임, 굵게, 아래·위 첨자, `w:i w:val=0`, 새 block id). 풍부한 논문(댓글, 인용 필드, 참고문헌 필드, 수식, 병합 셀 표, 그림, 각주, 링크, 변경 추적)은 종류마다 개수와 예, 안내가 있다. 댓글 내용은 원고에 들어가지 않는다. 중첩 필드는 보이는 결과만 남는다. 실제 생산기 파일(LibreOffice 변경 추적과 댓글, pandoc 제목·기울임·표·각주) 통합: 미리 보기와 보고가 먼저이고 문서는 0개, 적용하면 새 원고(head = 미리 보기). 기존 원고에는 확인 없이 422, 확인하면 새 버전(initial → import)이고 옛 revision이 남는다. 두 번 적용은 409. 브라우저: 손실 9종이 보이고 적용 전 문서 0개, 적용 뒤 편집기에 거부한 글, 댓글 내용은 없음 |
+| REQ-055-B / TST-055B: track changes/인용 field가 소실돼도 원본을 삭제하거나 완전 round-trip 지원이라고 표시하지 않는다 | unit: 고르기 전에는 미리 보기 없음(`TRACKED_CHANGES_CHOICE`, 삽입 1·삭제 1). 수락하면 "clearly", 거부하면 "barely". 추적이 없는데 고르면 거부. 모든 보고가 `round_trip: not_supported`. 통합: 고르기 전 422이고 아무것도 저장되지 않는다. SHA-256은 받은 바이트, 적용 뒤에도 원본이 바이트 그대로 내려받아진다(`attachment`). DELETE와 UPDATE는 immutable로 거부되고, 다른 owner는 404. 텍스트 가져오기와 그 원본 내려받기도 그대로 된다. 거부 대상: 텍스트, 옛 .doc(`LEGACY_DOC`), ZIP bomb(`TOO_LARGE`), 10 MiB 초과, 암호화, DOCTYPE, 크기를 속인 항목. 브라우저: 변경 추적 질문(삽입 1곳, 삭제 1곳)이 먼저 나오고 그전에는 저장이 없다. "왕복 변환 아님" 경고가 보이고, 원본 링크가 바이트 그대로 받아진다 |
+
+## RED → GREEN
+- RED(`red.log`)
+  - unit: docx 모듈 없음(처음 실행은 시험의 import 경로 오류라 다시 남김)
+  - 통합: 6개 모두 실패(docx 형식 없음, 내려받기 route 없음)
+- GREEN: unit 13, 통합 6(PW-021 텍스트 가져오기 시험 9와 함께 통과), 브라우저 1, typecheck·lint 통과
+- 화면 증거: `1-docx-preview.png`, `2-imported.png`
+- mutation(`mutation.log`): 17종 중 16종 탐지, 1종 동등(목록 손실 보고 변이 포함)
+  - 동등: 풀 때 상한 제거. 직후의 선언 크기 검사가 어차피 CORRUPT로 거부한다. 상한은 그동안의 메모리만 묶는다.
+  - 처음 살아남은 2종은 시험을 더한 뒤 탐지했다: 필드 명령 안의 중첩 필드, 엔티티 없는 DOCTYPE.
+- 회귀: `pnpm test` (`pnpm-test.log`, 아래)
+
+## 보안·과학적 실패 경로
+- 외부 파일은 로컬에서만 변환한다. 모델로 보내지 않고, 매크로나 외부 참조를 실행하거나 가져오지 않는다.
+- 원본은 받은 그대로 보관한다(불변 표, SHA-256).
+- 인용 필드의 문헌 연결이 끊긴 것은 보고에 명시한다. 인용을 문헌과 다시 잇는 것은 사용자가 문헌 탭에서 한다(자동 추측 없음).
+- 수식은 글자만 남긴다. 수식 의미를 추정해 LaTeX로 바꾸지 않는다.
+
+## 미실행 / 남은 위험
+- **Microsoft Word가 직접 만든 파일로는 시험하지 않았다**(이 환경에 Word 없음). LibreOffice·pandoc 파일과 손으로 만든 WordprocessingML로 시험했다. Word 고유 요소(콘텐츠 컨트롤의 복잡한 구조, SmartArt, 차트, 각주 안의 인용 등)는 사용자 실제 파일로 확인해야 한다.
+- 목록 번호·기호(numbering.xml)는 옮기지 않는다(`list` 손실로 보고하고, 항목 글은 문단으로 남는다).
+- 각주 안의 서식, 표 셀 안의 문단 구분(공백으로 합침)은 옮기지 않는다.
+- strict OOXML(다른 namespace)은 접두사가 `w:`가 아니면 읽지 못한다(빈 결과가 아니라 "body 없음"으로 거부될 수 있음).
+- 인용 필드를 문헌 항목(reference)으로 다시 잇는 기능은 없다(글자만).
+- 크기 상한은 .docx 10 MiB다. 그림이 많은 원고는 그림을 빼고 다시 저장해야 할 수 있다.
+
+## 다음
+PW-056: DOCX·CSL export

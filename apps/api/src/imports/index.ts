@@ -1,7 +1,9 @@
-// Text/Markdown import (PW-021): upload → preview + loss report → explicit apply.
+// Text/Markdown (PW-021) and DOCX (PW-055) import: upload → preview + loss report → explicit apply; the
+// original file as received can be downloaded again.
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { TxPool } from '@pw/domain/revisions/index.ts';
 import { applyImport, createImport, getImport, listImports } from '@pw/domain/imports/text/index.ts';
+import { createDocxImport, importOriginal } from '@pw/domain/imports/docx/index.ts';
 import { DomainError } from '@pw/domain/shared/db.ts';
 import { sendDomainError } from '../auth/plugin.ts';
 
@@ -17,10 +19,23 @@ export function registerImportRoutes(app: FastifyInstance, pool: TxPool): void {
   };
   const importId = (p: unknown) => (p as { importId: string }).importId;
   app.get('/api/papers/:paperId/imports', scoped, async (req) => listImports(pool, req.paper!.id));
-  // a file up to MAX_IMPORT_BYTES arrives base64-encoded in JSON (4/3 larger); the size rule itself is the domain's
-  app.post('/api/papers/:paperId/imports', { ...scoped, bodyLimit: 2 * 1024 * 1024 }, async (req, reply) => {
+  // a file arrives base64-encoded in JSON (4/3 larger): a .docx up to MAX_DOCX_BYTES (10 MiB), a text file up
+  // to MAX_IMPORT_BYTES; the size rules themselves are the domain's
+  app.post('/api/papers/:paperId/imports', { ...scoped, bodyLimit: 15 * 1024 * 1024 }, async (req, reply) => {
     const b = (req.body ?? {}) as Record<string, unknown>;
+    if (b.format === 'docx') {
+      return run(reply, () => createDocxImport(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, filename: b.filename, contentBase64: b.content_base64, trackedChanges: b.tracked_changes }), 201);
+    }
     return run(reply, () => createImport(pool, { paperId: req.paper!.id, ownerId: req.session!.ownerId, format: b.format, filename: b.filename, text: b.text, contentBase64: b.content_base64 }), 201);
+  });
+  const TYPES: Record<string, string> = { docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', markdown: 'text/markdown; charset=utf-8', text: 'text/plain; charset=utf-8' };
+  app.get('/api/papers/:paperId/imports/:importId/original', scoped, async (req, reply) => {
+    const o = await importOriginal(pool, req.paper!.id, importId(req.params));
+    if (!o) return reply.code(404).send({ error: 'not_found' });
+    const name = o.filename ?? `import.${o.format === 'docx' ? 'docx' : o.format === 'markdown' ? 'md' : 'txt'}`;
+    return reply.header('content-type', TYPES[o.format] ?? 'application/octet-stream')
+      .header('content-disposition', `attachment; filename="import.${o.format === 'docx' ? 'docx' : o.format === 'markdown' ? 'md' : 'txt'}"; filename*=UTF-8''${encodeURIComponent(name)}`)
+      .header('x-content-type-options', 'nosniff').header('x-source-sha256', o.sha256).send(o.bytes);
   });
   app.get('/api/papers/:paperId/imports/:importId', scoped, async (req, reply) =>
     (await getImport(pool, req.paper!.id, importId(req.params))) ?? reply.code(404).send({ error: 'not_found' }));

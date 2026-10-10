@@ -1787,7 +1787,7 @@
       "id": "PW-055",
       "phase": "P07",
       "title": "DOCX import와 손실 보고",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-054"
       ],

@@ -1,0 +1,18 @@
+KILLED tracked resolved silently
+KILLED reject keeps insertions
+KILLED citation not reported
+KILLED comments not reported
+KILLED round trip claimed
+KILLED style names ignored
+KILLED italic off ignored
+KILLED no bomb cap
+EQUIVALENT no size check on read (the declared-size check after inflating rejects it as CORRUPT anyway; the cap only bounds memory while it does)
+KILLED encrypted accepted
+KILLED legacy doc not named
+KILLED file size unchecked
+KILLED original not as received
+KILLED download as inline
+# re-run after adding the nested-field and entity-free DOCTYPE tests
+KILLED field instr as text
+KILLED doctype accepted
+KILLED list not reported

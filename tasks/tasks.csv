@@ -53,7 +53,7 @@ PW-051,P06,Lease fencing·경합·outbox 복구,in_review,PW-050,REQ-051,"TST-05
 PW-052,P06,오류 분류·bounded retry,in_review,PW-051,REQ-052,"TST-052A,TST-052B",apps/worker/src/errors/**;packages/providers/src/error-normalization/**;tests/tasks/PW-052/**;reports/tasks/PW-052/**;db/migrations/pw_052_*
 PW-053,P06,Crash·disk full·stale 재개 시험,in_review,PW-052,REQ-053,"TST-053A,TST-053B",tests/faults/**;tests/tasks/PW-053/**;reports/tasks/PW-053/**;db/migrations/pw_053_*
 PW-054,P06,Run 상태 UI·운영 reliability gate,in_review,PW-053,REQ-054,"TST-054A,TST-054B",apps/web/src/features/run-control/**;reports/p06/**;tests/tasks/PW-054/**;reports/tasks/PW-054/**;db/migrations/pw_054_*
-PW-055,P07,DOCX import와 손실 보고,planned,PW-054,REQ-055,"TST-055A,TST-055B",packages/domain/src/imports/docx/**;apps/web/src/features/import/**;tests/tasks/PW-055/**;reports/tasks/PW-055/**;db/migrations/pw_055_*
+PW-055,P07,DOCX import와 손실 보고,in_review,PW-054,REQ-055,"TST-055A,TST-055B",packages/domain/src/imports/docx/**;apps/web/src/features/import/**;tests/tasks/PW-055/**;reports/tasks/PW-055/**;db/migrations/pw_055_*
 PW-056,P07,DOCX·CSL export,planned,PW-055,REQ-056,"TST-056A,TST-056B",packages/exports/src/docx/**;tests/export/docx/**;tests/tasks/PW-056/**;reports/tasks/PW-056/**;db/migrations/pw_056_*
 PW-057,P07,PDF·재현 source archive,planned,PW-056,REQ-057,"TST-057A,TST-057B",packages/exports/src/pdf/**;packages/exports/src/archive/**;tests/tasks/PW-057/**;reports/tasks/PW-057/**;db/migrations/pw_057_*
 PW-058,P07,Reviewer·제출판 freeze,planned,PW-057,REQ-058,"TST-058A,TST-058B",packages/domain/src/submissions/**;apps/web/src/features/submission/**;tests/tasks/PW-058/**;reports/tasks/PW-058/**;db/migrations/pw_058_*

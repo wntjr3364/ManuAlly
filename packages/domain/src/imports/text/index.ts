@@ -24,7 +24,7 @@ const VIEW = `i.id, i.format, i.filename, i.byte_size, i.source_sha256, i.parser
 // The file is sent as bytes (content_base64) or, for pasted text, as text. Bytes must be UTF-8: a file in
 // another encoding (e.g. EUC-KR) is refused instead of being stored with broken characters.
 export async function createImport(pool: TxPool, a: { paperId: string; ownerId: string; format: unknown; filename: unknown; text?: unknown; contentBase64?: unknown }): Promise<ImportView> {
-  if (!IMPORT_FORMATS.includes(a.format as ImportFormat)) throw new DomainError('INVALID', `format must be one of ${IMPORT_FORMATS.join(', ')} (DOCX import comes later)`, 'format');
+  if (!IMPORT_FORMATS.includes(a.format as ImportFormat)) throw new DomainError('INVALID', `format must be one of ${IMPORT_FORMATS.join(', ')} (a .docx is imported with format docx)`, 'format');
   const filename = a.filename ?? null;
   if (filename !== null && (typeof filename !== 'string' || !filename.trim() || filename.length > 255 || !storable(filename))) throw new DomainError('INVALID', 'filename must be 1–255 characters', 'filename');
   let raw: Buffer;

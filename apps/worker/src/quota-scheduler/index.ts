@@ -10,13 +10,15 @@
 //   closed: cancelled); the owner's auto-resume permission is valid (else WAITING_USER); no other bucket is
 //   still blocked (else rescheduled to its reset, without asking the provider); the provider's answer
 //   (auth → WAITING_AUTH, still limited → backoff, cannot tell → backoff unless the known reset passed);
-//   the paper still allows sending to this provider (else WAITING_USER); the document the job was asked on
-//   has not moved (else STALE). Then the job is QUEUED again — it makes a proposal; nothing is applied, the
+//   the paper still allows sending to this provider (else WAITING_USER); the job's own place in its document
+//   is as it was (else STALE; edits elsewhere do not matter, as when a paragraph is applied, PW-042).
+//   The provider is asked before anything is locked; then everything is checked again under the locks. Then the job is QUEUED again — it makes a proposal; nothing is applied, the
 //   provider is never switched, nothing extra is paid for. At most six waits; then the owner decides.
 import { randomInt } from 'node:crypto';
 import { DomainError, inTransaction, type Queryable, type TxPool } from '@pw/domain/shared/db.ts';
 import type { Job } from '@pw/domain/jobs/index.ts';
 import { autoResumeAt } from '@pw/domain/quota-waits/index.ts';
+import { documentAt, placeHolds } from '@pw/domain/writer/index.ts';
 import { JobOutcomeError, type JobHandler } from '../queue/index.ts';
 
 export const MAX_WAITS = 6;
@@ -73,6 +75,8 @@ export async function enterQuotaWait(pool: TxPool, a: {
 }): Promise<{ toUser: boolean; wakeAt: Date | null }> {
   return inTransaction(pool, async (tx) => {
     await lockRunningJob(tx, a.paperId, a.jobId, a.fencingToken);
+    // a wait left open by a run that lost its lease before the job became WAITING_QUOTA (review n2)
+    await tx.query("UPDATE quota_waits SET state = 'closed', reason = 'superseded', decided_at = $2 WHERE job_id = $1 AND state = 'waiting'", [a.jobId, a.now]);
     const attempt = (await tx.query<{ n: number }>('SELECT count(*)::int + 1 AS n FROM quota_waits WHERE job_id = $1', [a.jobId])).rows[0]!.n;
     if (attempt > MAX_WAITS) return { toUser: true, wakeAt: null };
     const b = await blockedAt(tx, a.provider, a.authProfileId, a.now);
@@ -102,15 +106,18 @@ export function withQuotaWaits<K extends string>(pool: TxPool, handlers: Record<
   return out;
 }
 
+// The provider's answer for this login now. 'allowed' means the provider confirms the login can be used —
+// all of its limits (windows, weekly, credit, model), not one bucket; anything less is 'unknown' (review m2).
 export type Probe = (q: { provider: string; authProfileId: string }) => Promise<'allowed' | 'rejected' | 'auth' | 'unknown'>;
 export interface WakeDecision { job_id: string; decision: 'resumed' | 'rescheduled' | 'to_user' | 'to_auth' | 'stale' | 'closed'; reason: string | null }
 interface WaitRow { id: string; paper_id: string; job_id: string; provider: string; auth_profile_id: string; attempt: number; reset_known: boolean }
 
+// what the owner is told (no step that does not exist yet: a waiting job is cancelled or asked again; m3)
 const USER_TEXT: Record<string, string> = {
-  auto_resume_not_allowed: 'the quota reset passed; auto-resume is not allowed for this job — resume or cancel it',
-  auto_resume_expired: 'the quota reset passed after the auto-resume permission expired — resume or cancel it',
-  policy_changed: 'the paper no longer allows sending to this provider',
-  waited_too_long: 'the quota stayed unavailable after several waits — resume or cancel it',
+  auto_resume_not_allowed: 'the quota reset passed; auto-resume is not allowed for this job — cancel it and ask again when you want it',
+  auto_resume_expired: 'the quota reset passed after the auto-resume permission expired — cancel it and ask again when you want it',
+  policy_changed: 'the paper no longer allows sending to this provider — cancel it, or allow the provider and ask again',
+  waited_too_long: 'the quota stayed unavailable after several waits — cancel it and ask again later',
 };
 
 export async function wakeDueWaits(pool: TxPool, a: { now: Date; probe: Probe; jitterMs?: () => number; limit?: number }): Promise<WakeDecision[]> {
@@ -118,6 +125,15 @@ export async function wakeDueWaits(pool: TxPool, a: { now: Date; probe: Probe; j
   const due = (await pool.query<{ id: string }>("SELECT id FROM quota_waits WHERE state = 'waiting' AND wake_at <= $1 ORDER BY wake_at, id LIMIT $2", [a.now, a.limit ?? 50])).rows;
   const out: WakeDecision[] = [];
   for (const { id } of due) {
+    // first, without locks: would this wait reach the provider's answer? Then ask (a network call must not
+    // hold the job or the wait locked; review n1). Everything is checked again under the locks below.
+    let answer: Awaited<ReturnType<Probe>> | undefined;
+    const pre = (await pool.query<WaitRow & { job_status: string }>(
+      "SELECT w.id, w.paper_id, w.job_id, w.provider, w.auth_profile_id, w.attempt, w.reset_known, j.status AS job_status FROM quota_waits w JOIN jobs j ON j.id = w.job_id WHERE w.id = $1 AND w.state = 'waiting'", [id])).rows[0];
+    if (pre && pre.job_status === 'WAITING_QUOTA' && (await autoResumeAt(pool, pre.job_id, a.now)) === 'allowed') {
+      const b0 = await blockedAt(pool, pre.provider, pre.auth_profile_id, a.now);
+      if (!b0.blocking.some((x) => x.resets_at !== null) && !(b0.retryUntil !== null && b0.retryUntil > a.now.getTime())) answer = await a.probe({ provider: pre.provider, authProfileId: pre.auth_profile_id });
+    }
     const d = await inTransaction(pool, async (tx) => {
       await tx.query("SELECT set_config('pw.actor', 'system:quota-scheduler', true)");
       // decided once: a concurrent scheduler skips a wait being decided
@@ -145,7 +161,8 @@ export async function wakeDueWaits(pool: TxPool, a: { now: Date; probe: Probe; j
       const b = await blockedAt(tx, w.provider, w.auth_profile_id, a.now);
       // another bucket still blocked with a known reset: wait for it, without asking the provider
       if (b.blocking.some((x) => x.resets_at !== null) || (b.retryUntil !== null && b.retryUntil > a.now.getTime())) return reschedule('bucket_still_blocked', b);
-      const answer = await a.probe({ provider: w.provider, authProfileId: w.auth_profile_id });
+      // the state changed between the question and the locks: decided at the next round
+      if (answer === undefined) return null;
       if (answer === 'auth') { await close('to_auth', 'login_required'); await jobTo('WAITING_AUTH', 'the provider login must be renewed'); return decide('to_auth', 'login_required'); }
       if (answer === 'rejected') return reschedule('still_limited', { blocking: [], retryUntil: null });
       // the provider cannot tell: only a known reset that has passed (and no blocked bucket) lets it run
@@ -158,7 +175,14 @@ export async function wakeDueWaits(pool: TxPool, a: { now: Date; probe: Probe; j
       const base = job.payload.base_revision_id;
       if (typeof docId === 'string' && typeof base === 'string') {
         const head = (await tx.query<{ head_revision_id: string }>('SELECT head_revision_id FROM documents WHERE id = $1 AND paper_id = $2', [docId, w.paper_id])).rows[0]?.head_revision_id;
-        if (head !== base) { await close('stale', 'document_changed'); await jobTo('STALE', 'the manuscript changed while the job waited for the quota; ask again'); return decide('stale', 'document_changed'); }
+        let moved = head !== base;
+        // a paragraph job: only its own place counts (review m4), as when a proposal is applied
+        if (moved && head && typeof job.payload.mode === 'string') {
+          const pl = job.payload as Record<string, string | null>;
+          const doc = await documentAt(tx, w.paper_id, docId, head);
+          moved = !doc || !(await placeHolds(doc, { mode: pl.mode as 'draft', after_block_id: pl.after_block_id ?? null, after_block_hash: pl.after_block_hash ?? null, block_id: pl.block_id ?? null, expected_block_hash: pl.expected_block_hash ?? null, section_heading_id: pl.section_heading_id ?? null, section_heading_hash: pl.section_heading_hash ?? null }));
+        }
+        if (moved) { await close('stale', 'document_changed'); await jobTo('STALE', 'the part of the manuscript this job was asked for changed while it waited for the quota; ask again'); return decide('stale', 'document_changed'); }
       }
       await close('resumed', null);
       await jobTo('QUEUED', 'resumed after the quota wait');

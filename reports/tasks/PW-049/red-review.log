@@ -1,0 +1,83 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-049/quota.int.test.ts (16 tests | 4 failed) 4663ms
+   ❯ PW-049 review fixes (5)
+     × m3: what the owner is told does not offer a step that does not exist 111ms
+     × m4: an edit elsewhere in the manuscript does not end the wait; a change at the job's own place does 115ms
+     × n1: the provider is asked while nothing is locked 306ms
+     × n2: a wait left open by a lost run is closed when the next run hits the quota again 189ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-049/quota.int.test.ts > PW-049 review fixes > m3: what the owner is told does not offer a step that does not exist
+AssertionError: expected 'the quota reset passed; auto-resume i…' not to match /resume or cancel/
+
+- Expected:
+/resume or cancel/
+
++ Received:
+"the quota reset passed; auto-resume is not allowed for this job — resume or cancel it"
+
+ ❯ tests/tasks/PW-049/quota.int.test.ts:276:30
+    274|     await wakeDueWaits(pool, { now: new Date(a.now + min(32)), probe: …
+    275|     const s = await status(a.w);
+    276|     expect(s.last_error).not.toMatch(/resume or cancel/);
+       |                              ^
+    277|     expect(s.last_error).toMatch(/ask again|cancel/);
+    278|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/tasks/PW-049/quota.int.test.ts > PW-049 review fixes > m4: an edit elsewhere in the manuscript does not end the wait; a change at the job's own place does
+AssertionError: expected { …(3) } to match object { decision: 'resumed' }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "decision": "resumed",
++   "decision": "stale",
+  }
+
+ ❯ tests/tasks/PW-049/quota.int.test.ts:285:126
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/tasks/PW-049/quota.int.test.ts > PW-049 review fixes > n1: the provider is asked while nothing is locked
+error: canceling statement due to lock timeout
+ ❯ node_modules/.pnpm/pg@8.23.0/node_modules/pg/lib/client.js:694:17
+ ❯ Object.probe tests/tasks/PW-049/quota.int.test.ts:297:9
+    295|         await c.query('BEGIN');
+    296|         await c.query("SET LOCAL lock_timeout = '200ms'");
+    297|         await c.query('SELECT 1 FROM jobs WHERE id = $1 FOR UPDATE', […
+       |         ^
+    298|         await c.query("SELECT 1 FROM quota_waits WHERE job_id = $1 AND…
+    299|         lockedDuringProbe = false;
+ ❯ apps/worker/src/quota-scheduler/index.ts:148:22
+ ❯ inTransaction packages/domain/src/shared/db.ts:29:17
+ ❯ wakeDueWaits apps/worker/src/quota-scheduler/index.ts:121:15
+ ❯ tests/tasks/PW-049/quota.int.test.ts:303:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/tasks/PW-049/quota.int.test.ts > PW-049 review fixes > n2: a wait left open by a lost run is closed when the next run hits the quota again
+AssertionError: expected 'QUEUED' to be 'WAITING_QUOTA' // Object.is equality
+
+Expected: "WAITING_QUOTA"
+Received: "QUEUED"
+
+ ❯ tests/tasks/PW-049/quota.int.test.ts:314:38
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 12 passed (16)
+   Start at  03:10:37
+   Duration  7.11s (tests 68%, transform 25%, import 7%)
+
+exit 1

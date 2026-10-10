@@ -23,3 +23,10 @@ KILLED grant on finished job
 KILLED wrapper swallows enter
 # after added test
 KILLED future observations used (2)
+# review fixes
+KILLED R: whole head compared again
+KILLED R: own place not checked
+KILLED R: probe under the locks
+KILLED R: leftover wait not closed
+KILLED R: dead-end message
+KILLED R: allowed overrides nothing (unknown with blocked resumes)

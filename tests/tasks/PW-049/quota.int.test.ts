@@ -54,7 +54,7 @@ afterAll(async () => {
 const call = (who: string, method: 'GET' | 'POST', url: string, payload?: unknown) => app.inject({ method, url, headers: H[who], payload: payload as object | undefined });
 
 // a paper that may send to claude_agent, an approved plan, and a draft request for it
-async function world() {
+async function world(opts: { afterParagraph?: boolean } = {}) {
   const p = (await call('alice', 'POST', '/api/papers', { working_title: 'quota paper', article_type: 'research_article' })).json();
   await pool.query("UPDATE paper_projects SET external_send_policy = 'allow_selected', allowed_providers = '{claude_agent}' WHERE id = $1", [p.id]);
   const s = (await call('alice', 'POST', `/api/papers/${p.id}/story/revisions`, { parent_revision_id: null, brief: { purpose: 'Show the result', audience: 'x', known_facts: [], missing_material: [], avoid_claims: [] }, story: { question: 'q', main_message: 'm', novelty: 'n', evidence_links: [], competing_explanations: [], presentation_order: [], limitations: [] } })).json();
@@ -70,8 +70,12 @@ async function world() {
   const o = (await call('alice', 'POST', `/api/papers/${p.id}/outline/revisions`, { parent_revision_id: null, story_revision_id: s.id, nodes: [{ node_id: nodeId, parent_node_id: null, section: 'Results', role: 'result', paragraph_goal: 'Root induction', claim_ids: [c.id], evidence_ids: [e.id], requires_evidence: false, allowed_interpretation: '', exclusions: [], transition: '', word_budget_min: null, word_budget_max: null }] })).json();
   await call('alice', 'POST', `/api/papers/${p.id}/outline/revisions/${o.id}/approve`, { intent: 'approve_outline', content_hash: o.content_hash });
   const d = (await call('alice', 'POST', `/api/papers/${p.id}/documents`, { kind: 'manuscript' })).json();
-  const r = await call('alice', 'POST', `/api/papers/${p.id}/writer/requests`, { mode: 'draft', outline_revision_id: o.id, node_id: nodeId, document_id: d.document.id, base_revision_id: d.head.id, idempotency_key: randomUUID() });
-  return { paperId: p.id as string, jobId: r.json().job.id as string, documentId: d.document.id as string, headId: d.head.id as string };
+  let head = d.head.id as string;
+  // optionally a paragraph the new one is to follow (its place)
+  const after = { type: 'paragraph', attrs: { id: randomUUID() }, content: [{ type: 'text', text: 'ABC1 was measured by qPCR.' }] };
+  if (opts.afterParagraph) head = (await call('alice', 'POST', `/api/papers/${p.id}/documents/${d.document.id}/saves`, { expected_head_revision_id: head, content_json: { type: 'doc', content: [after] }, schema_version: 1, reason: 'manual' })).json().id;
+  const r = await call('alice', 'POST', `/api/papers/${p.id}/writer/requests`, { mode: 'draft', outline_revision_id: o.id, node_id: nodeId, document_id: d.document.id, base_revision_id: head, ...(opts.afterParagraph ? { after_block_id: after.attrs.id } : {}), idempotency_key: randomUUID() });
+  return { paperId: p.id as string, jobId: r.json().job.id as string, documentId: d.document.id as string, headId: head, after };
 }
 type W = Awaited<ReturnType<typeof world>>;
 const jitter = () => 60_000;
@@ -81,9 +85,9 @@ const status = async (w: W) => (await pool.query('SELECT status, last_error FROM
 const min = (n: number) => n * 60_000;
 // each test uses its own login so observations of other tests do not mix in
 let profile = 0;
-async function scenario(buckets: { bucket: string; resetsIn: number | null }[]) {
+async function scenario(buckets: { bucket: string; resetsIn: number | null }[], opts: { afterParagraph?: boolean } = {}) {
   profile++;
-  const w = await world();
+  const w = await world(opts);
   const auth = `p${profile}`;
   const now = Date.now();
   for (const b of buckets) await recordQuota(pool, { provider: 'claude_agent', authProfileId: auth, bucket: b.bucket, eventKey: randomUUID(), observedAt: new Date(now - 1000).toISOString(), data: { status: 'rejected', used_percent: 100, resets_at: b.resetsIn === null ? null : new Date(now + b.resetsIn).toISOString() } });
@@ -225,9 +229,10 @@ describe('TST-049B: never run unconditionally', () => {
     await grant(b.w, 72);
     await pool.query("UPDATE paper_projects SET allowed_providers = '{codex}' WHERE id = $1", [b.w.paperId]);
     expect((await wakeDueWaits(pool, { now: new Date(b.now + min(32)), probe: probeOf('allowed').p, jitterMs: jitter }))[0]).toMatchObject({ decision: 'to_user', reason: 'policy_changed' });
-    const c = await scenario([{ bucket: 'five_hour', resetsIn: min(30) }]);
+    // the paragraph the draft was to follow is edited while the job waits
+    const c = await scenario([{ bucket: 'five_hour', resetsIn: min(30) }], { afterParagraph: true });
     await grant(c.w, 72);
-    await call('alice', 'POST', `/api/papers/${c.w.paperId}/documents/${c.w.documentId}/saves`, { expected_head_revision_id: c.w.headId, content_json: { type: 'doc', content: [{ type: 'paragraph', attrs: { id: randomUUID() }, content: [{ type: 'text', text: 'typed meanwhile' }] }] }, schema_version: 1, reason: 'manual' });
+    await call('alice', 'POST', `/api/papers/${c.w.paperId}/documents/${c.w.documentId}/saves`, { expected_head_revision_id: c.w.headId, content_json: { type: 'doc', content: [{ ...c.w.after, content: [{ type: 'text', text: 'ABC1 was measured by RNA-seq.' }] }] }, schema_version: 1, reason: 'manual' });
     expect((await wakeDueWaits(pool, { now: new Date(c.now + min(32)), probe: probeOf('allowed').p, jitterMs: jitter }))[0]).toMatchObject({ decision: 'stale', reason: 'document_changed' });
     expect((await status(c.w)).status).toBe('STALE');
   });
@@ -253,5 +258,65 @@ describe('TST-049B: never run unconditionally', () => {
     await grant(w2, 72);
     const [d1, d2] = await Promise.all([1, 2].map(() => wakeDueWaits(pool, { now: new Date(now + min(32)), probe: probeOf('allowed').p, jitterMs: jitter })));
     expect([...d1!, ...d2!]).toEqual([{ job_id: w2.jobId, decision: 'resumed', reason: null }]);
+  });
+});
+
+// PW-049 review (approve with MINOR/NIT): m2, m3, m4, n1, n2
+describe('PW-049 review fixes', () => {
+  test('m2: a bucket still blocked without a reset needs the provider\'s confirmation for the whole login', async () => {
+    const { w, auth, now } = await scenario([{ bucket: 'five_hour', resetsIn: min(30) }]);
+    await grant(w, 72);
+    await recordQuota(pool, { provider: 'claude_agent', authProfileId: auth, bucket: 'weekly', eventKey: randomUUID(), observedAt: new Date(now + min(1)).toISOString(), data: { status: 'rejected', used_percent: 100, resets_at: null } });
+    // the five-hour window reset, the weekly one did not: "cannot tell" is not enough
+    expect(await wakeDueWaits(pool, { now: new Date(now + min(32)), probe: probeOf('unknown').p, jitterMs: jitter })).toEqual([{ job_id: w.jobId, decision: 'rescheduled', reason: 'availability_unknown' }]);
+    // the provider confirms the login can be used now (the Probe contract: every limit of this login)
+    const next = (await listQuotaWaits(pool, w.paperId, w.jobId)).at(-1)!;
+    expect(await wakeDueWaits(pool, { now: new Date(new Date(next.wake_at).getTime() + 1), probe: probeOf('allowed').p, jitterMs: jitter })).toEqual([{ job_id: w.jobId, decision: 'resumed', reason: null }]);
+  });
+
+  test('m3: what the owner is told does not offer a step that does not exist', async () => {
+    const a = await scenario([{ bucket: 'five_hour', resetsIn: min(30) }]);
+    await wakeDueWaits(pool, { now: new Date(a.now + min(32)), probe: probeOf('allowed').p, jitterMs: jitter });
+    const s = await status(a.w);
+    expect(s.last_error).not.toMatch(/resume or cancel/);
+    expect(s.last_error).toMatch(/ask again|cancel/);
+  });
+
+  test('m4: an edit elsewhere in the manuscript does not end the wait; a change at the job\'s own place does', async () => {
+    const a = await scenario([{ bucket: 'five_hour', resetsIn: min(30) }]);
+    await grant(a.w, 72);
+    // the draft goes at the end (no place chosen): a new paragraph does not move its place
+    await call('alice', 'POST', `/api/papers/${a.w.paperId}/documents/${a.w.documentId}/saves`, { expected_head_revision_id: a.w.headId, content_json: { type: 'doc', content: [{ type: 'paragraph', attrs: { id: randomUUID() }, content: [{ type: 'text', text: 'typed meanwhile' }] }] }, schema_version: 1, reason: 'manual' });
+    expect((await wakeDueWaits(pool, { now: new Date(a.now + min(32)), probe: probeOf('allowed').p, jitterMs: jitter }))[0]).toMatchObject({ decision: 'resumed' });
+  });
+
+  test('n1: the provider is asked while nothing is locked', async () => {
+    const { w, now } = await scenario([{ bucket: 'five_hour', resetsIn: min(30) }]);
+    await grant(w, 72);
+    let lockedDuringProbe = true;
+    const probe: Probe = async () => {
+      const c = await pool.connect();
+      try {
+        await c.query('BEGIN');
+        await c.query("SET LOCAL lock_timeout = '200ms'");
+        await c.query('SELECT 1 FROM jobs WHERE id = $1 FOR UPDATE', [w.jobId]);
+        await c.query("SELECT 1 FROM quota_waits WHERE job_id = $1 AND state = 'waiting' FOR UPDATE", [w.jobId]);
+        lockedDuringProbe = false;
+      } finally { await c.query('ROLLBACK'); c.release(); }
+      return 'allowed';
+    };
+    expect((await wakeDueWaits(pool, { now: new Date(now + min(32)), probe, jitterMs: jitter }))[0]).toMatchObject({ decision: 'resumed' });
+    expect(lockedDuringProbe).toBe(false);
+  });
+
+  test('n2: a wait left open by a lost run is closed when the next run hits the quota again', async () => {
+    const { w, auth, now } = await scenario([{ bucket: 'five_hour', resetsIn: min(30) }]);
+    // as if the run that entered the wait lost its lease before the job became WAITING_QUOTA
+    await pool.query("UPDATE jobs SET status = 'QUEUED', last_error = 'lease lost' WHERE id = $1", [w.jobId]);
+    const writer: Writer = { id: 'mock', label: 'MOCK', async write() { throw new QuotaExceeded('usage limit reached', { provider: 'claude_agent', authProfileId: auth }); } };
+    const out = await processDelivery(pool, { job_id: w.jobId, paper_id: w.paperId, intent: 'draft_paragraph' }, { workerId: 'w2', leaseMs: 60_000, handlers: withQuotaWaits(pool, writerHandlers(pool, writer), { jitterMs: jitter, now: () => new Date(now + min(1)) }) });
+    expect(out.outcome).toBe('failed');
+    expect((await status(w)).status).toBe('WAITING_QUOTA');
+    expect((await listQuotaWaits(pool, w.paperId, w.jobId)).map((x) => [x.attempt, x.state, x.reason])).toEqual([[1, 'closed', 'superseded'], [2, 'waiting', null]]);
   });
 });

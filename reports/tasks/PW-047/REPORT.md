@@ -82,4 +82,4 @@ PW-048: context 예산
   - 그래서 `recordCheckpoint`와 `recordCheckpointIn`으로 명시적으로 나눴다.
 - mutation(`mutation.log` 하단): 13종 중 12종 탐지
   - 살아남은 "23505 → CONFLICT 변환 제거"는 이제 행 잠금이 쓰기를 순서대로 세워 도달할 수 없다. 방어로 남긴다(동등).
-- 회귀: (아래 채움)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 481, contracts 17, 브라우저 95 (`pnpm-test-review.log`)

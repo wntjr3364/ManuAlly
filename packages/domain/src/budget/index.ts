@@ -8,9 +8,12 @@
 //   A free run (the MOCK) or a subscription login (limited by quota, not charged per call) needs no money
 //   budget. Paid overage and reset credits are never reserved (the table refuses them).
 // - settleReservation(): the run's cost from the usage ledger (reports since the run began, before the next
-//   run of the job): its cumulative session deltas if it reported any, else its turns, else its messages —
-//   never two scopes added together, never a duplicate (the ledger keeps one row per event key). A cost
-//   not reported is UNKNOWN, never 0.
+//   run of the job), per provider session: its cumulative session deltas if it reported any, else its
+//   turns, else its messages — never two scopes added together, never a duplicate (the ledger keeps one row
+//   per event key). Reports that name no session belong to the whole run (as in the ledger's summary). A
+//   cost not reported is UNKNOWN, never 0 — unless the run never reached the provider (no run token or
+//   run process for its fence): then it cost nothing (review m2).
+// - settleOrphanReservations(): reservations of runs that ended without settling (a crash, a lost lease).
 // - useJobLimit(): bounded actions per job (one repair, three searches).
 import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
 
@@ -34,16 +37,17 @@ export async function setBudget(pool: TxPool, a: { ownerId: string; body: unknow
   const limit = usd(b.limit_usd, 'limit_usd');
   const runLimit = b.run_limit_usd === undefined || b.run_limit_usd === null ? null : usd(b.run_limit_usd, 'run_limit_usd');
   if (runLimit !== null && b.scope !== 'paper') throw bad('a per-run limit belongs to a paper budget', 'run_limit_usd');
+  if (runLimit !== null && runLimit > limit) throw bad('the per-run limit cannot be above the budget', 'run_limit_usd');
   let paperId: string | null = null;
   let provider: string | null = null;
   if (b.scope === 'paper') {
     if (typeof b.paper_id !== 'string' || !UUID_RE.test(b.paper_id) || !(await pool.query('SELECT 1 FROM paper_projects WHERE id = $1 AND owner_id = $2', [b.paper_id, a.ownerId])).rowCount) throw new DomainError('NOT_FOUND', 'paper not found');
     paperId = b.paper_id;
-  } else if (b.paper_id !== undefined) throw bad('only a paper budget names a paper', 'paper_id');
+  } else if (b.paper_id !== undefined && b.paper_id !== null) throw bad('only a paper budget names a paper', 'paper_id');
   if (b.scope === 'provider') {
     if (!['mock', 'claude_agent', 'codex'].includes(b.provider as string)) throw bad('provider must be mock, claude_agent or codex', 'provider');
     provider = b.provider as string;
-  } else if (b.provider !== undefined) throw bad('only a provider budget names a provider', 'provider');
+  } else if (b.provider !== undefined && b.provider !== null) throw bad('only a provider budget names a provider', 'provider');
   return (await pool.query('INSERT INTO budgets (owner_id, scope, paper_id, provider, limit_usd, run_limit_usd) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, scope, paper_id, provider, limit_usd, run_limit_usd, created_at',
     [a.ownerId, b.scope, paperId, provider, limit, runLimit])).rows[0];
 }
@@ -107,23 +111,48 @@ export async function settleReservation(pool: TxPool, a: { reservationId: string
     if (r.state !== 'reserved') throw new DomainError('CONFLICT', 'this reservation is already settled');
     // this run's reports: since it began, before the job's next run (times compared in the database, at
     // its precision)
-    const rows = (await tx.query<{ scope: string; cost_usd_estimate: string | null; delta_cost_usd: string | null }>(
+    const rows = (await tx.query<{ scope: string; native_session_id: string | null; cost_usd_estimate: string | null; delta_cost_usd: string | null }>(
       `WITH me AS (SELECT job_id, created_at FROM budget_reservations WHERE id = $1),
             nxt AS (SELECT min(b.created_at) AS at FROM budget_reservations b, me WHERE b.job_id = me.job_id AND b.created_at > me.created_at)
-       SELECT u.scope, u.cost_usd_estimate, u.delta_cost_usd FROM usage_events u, me, nxt
+       SELECT u.scope, u.native_session_id, u.cost_usd_estimate, u.delta_cost_usd FROM usage_events u, me, nxt
        WHERE u.job_id = me.job_id AND u.created_at >= me.created_at AND (nxt.at IS NULL OR u.created_at < nxt.at) ORDER BY u.created_at`,
       [r.id])).rows;
-    const session = rows.filter((x) => x.scope === 'session');
-    const turns = rows.filter((x) => x.scope === 'turn');
-    const counted = session.length ? session.map((x) => x.delta_cost_usd) : turns.length ? turns.map((x) => x.cost_usd_estimate) : rows.map((x) => x.cost_usd_estimate);
+    // per provider session (a run may replace its session, PW-048; review m4); reports without a session
+    // describe the run's requests as a whole, so then the run is one group
+    const groups = new Map<string, typeof rows>();
+    const whole = rows.some((x) => x.native_session_id === null);
+    for (const x of rows) { const k = whole ? '' : x.native_session_id!; groups.set(k, [...(groups.get(k) ?? []), x]); }
     let cost = 0;
     let unknown = false;
-    for (const v of counted) { if (v === null) unknown = true; else cost += Number(v); }
-    // no report at all: nothing is known about a charged run; a free or subscription run costs nothing per call
-    if (!rows.length && r.cost_class === 'metered') unknown = true;
+    for (const g of groups.values()) {
+      const session = g.filter((x) => x.scope === 'session');
+      const turns = g.filter((x) => x.scope === 'turn');
+      const counted = session.length ? session.map((x) => x.delta_cost_usd) : turns.length ? turns.map((x) => x.cost_usd_estimate) : g.map((x) => x.cost_usd_estimate);
+      for (const v of counted) { if (v === null) unknown = true; else cost += Number(v); }
+    }
+    // no report at all: a charged run that reached the provider is not known; one that never did (stopped
+    // by a gate, a policy or a drift before the call) cost nothing; a free or subscription run costs nothing
+    if (!rows.length && r.cost_class === 'metered') {
+      const reached = (await tx.query(
+        `SELECT 1 FROM budget_reservations b WHERE b.id = $1 AND (EXISTS (SELECT 1 FROM agent_run_tokens t WHERE t.job_id = b.job_id AND t.job_fencing_token = b.fencing_token)
+           OR EXISTS (SELECT 1 FROM run_processes p WHERE p.job_id = b.job_id AND p.fencing_token = b.fencing_token))`, [r.id])).rowCount;
+      unknown = !!reached;
+    }
     return (await tx.query<Reservation>(`UPDATE budget_reservations SET state = 'settled', settled_usd = $2, settled_unknown = $3, settled_at = clock_timestamp() WHERE id = $1 RETURNING ${COLS}`,
       [r.id, Math.round(cost * 10_000) / 10_000, unknown])).rows[0]!;
   });
+}
+
+// reservations whose run ended without settling: the job runs under another fence now, or not at all
+export async function settleOrphanReservations(pool: TxPool, limit = 100): Promise<number> {
+  const ids = (await pool.query<{ id: string }>(
+    `SELECT b.id FROM budget_reservations b JOIN jobs j ON j.id = b.job_id
+     WHERE b.state = 'reserved' AND (j.status <> 'RUNNING' OR j.fencing_token <> b.fencing_token) ORDER BY b.created_at LIMIT $1`, [limit])).rows;
+  let n = 0;
+  for (const { id } of ids) {
+    try { await settleReservation(pool, { reservationId: id }); n++; } catch (e) { if (!(e instanceof DomainError && e.code === 'CONFLICT')) throw e; }
+  }
+  return n;
 }
 
 export async function listReservations(db: Queryable, paperId: string, jobId: string): Promise<Reservation[]> {
@@ -133,11 +162,14 @@ export async function listReservations(db: Queryable, paperId: string, jobId: st
 
 export async function budgetStatus(db: Queryable, ownerId: string, paperId: string) {
   const paper = await latestBudget(db, ownerId, 'paper', paperId, null);
-  const s = (await db.query<{ reserved: string; settled: string }>(
+  const s = (await db.query<{ reserved: string; settled: string; counted: string }>(
     `SELECT coalesce(sum(estimate_usd) FILTER (WHERE state = 'reserved'), 0)::numeric(14, 4)::text AS reserved,
-            coalesce(sum(settled_usd) FILTER (WHERE state = 'settled'), 0)::numeric(14, 4)::text AS settled
+            coalesce(sum(settled_usd) FILTER (WHERE state = 'settled'), 0)::numeric(14, 4)::text AS settled,
+            ${SPENT}::numeric(14, 4)::text AS counted
      FROM budget_reservations WHERE owner_id = $1 AND paper_id = $2 AND cost_class = 'metered'`, [ownerId, paperId])).rows[0]!;
-  return { paper: { limit_usd: paper?.limit_usd ?? null, run_limit_usd: paper?.run_limit_usd ?? null }, reserved_usd: s.reserved, settled_usd: s.settled };
+  const app = await latestBudget(db, ownerId, 'app', null, null);
+  // counted_usd: what the guard counts against the paper budget (an unknown cost at least its estimate; n2)
+  return { paper: { limit_usd: paper?.limit_usd ?? null, run_limit_usd: paper?.run_limit_usd ?? null }, app: { limit_usd: app?.limit_usd ?? null }, reserved_usd: s.reserved, settled_usd: s.settled, counted_usd: s.counted };
 }
 
 export const JOB_LIMITS = { repair: 1, search: 3 } as const;

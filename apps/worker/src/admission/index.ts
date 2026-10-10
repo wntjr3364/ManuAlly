@@ -48,7 +48,8 @@ export function withAdmission<K extends string>(pool: TxPool, handlers: Record<K
       try {
         return await handler(job, ctx);
       } finally {
-        await settleReservation(pool, { reservationId: r.id });
+        // a settlement that fails must not hide the run's own outcome (review n5); the sweep settles it later
+        await settleReservation(pool, { reservationId: r.id }).catch((e) => console.error('settlement failed:', e instanceof Error ? e.message : e));
       }
     };
   }

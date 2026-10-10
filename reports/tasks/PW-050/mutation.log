@@ -29,3 +29,12 @@ KILLED provider budget across providers (2)
 KILLED other run's reports (2)
 KILLED paper budget across papers (param)
 KILLED provider budget across providers (param)
+# review fixes
+KILLED R: no-call run unknown
+KILLED R: whole run one group
+KILLED R: orphan sweep touches current run
+KILLED R: orphan sweep never
+KILLED R: status counts settled only
+KILLED R: run limit above budget
+KILLED R: null paper refused
+KILLED R: settle failure masks

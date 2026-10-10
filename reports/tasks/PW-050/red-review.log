@@ -1,0 +1,129 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-050/budget.int.test.ts (19 tests | 6 failed) 2366ms
+   ❯ PW-050 review fixes (6)
+     × m2: a metered run that never reached the provider costs a known 0, not its estimate 39ms
+     × m3: a reservation left by a crashed run is settled by the sweep 37ms
+     × m4: the scope rule applies per provider session (a run that replaced its session) 40ms
+     × n2: the status shows what counts against the budget (an unknown cost at least its estimate) 29ms
+     × n3: a per-run limit above the budget is refused; an explicit null paper on an app budget is accepted 8ms
+     × n5: a settlement that fails does not hide the run's own outcome 29ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-050/budget.int.test.ts > PW-050 review fixes > m2: a metered run that never reached the provider costs a known 0, not its estimate
+AssertionError: expected [ [ '0.0000', true ] ] to deeply equal [ [ '0.0000', false ] ]
+
+- Expected
++ Received
+
+  [
+    [
+      "0.0000",
+-     false,
++     true,
+    ],
+  ]
+
+ ❯ tests/tasks/PW-050/budget.int.test.ts:263:102
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/tasks/PW-050/budget.int.test.ts > PW-050 review fixes > m3: a reservation left by a crashed run is settled by the sweep
+TypeError: settleOrphanReservations is not a function
+ ❯ tests/tasks/PW-050/budget.int.test.ts:285:18
+    283|     // the current run's own reservation is not touched
+    284|     await admit(p, { job: c.job, fencingToken: c.fencingToken });
+    285|     expect(await settleOrphanReservations(pool)).toBe(1);
+       |                  ^
+    286|     expect((await listReservations(pool, p, job.id)).map((r) => [r.sta…
+    287|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/tasks/PW-050/budget.int.test.ts > PW-050 review fixes > m4: the scope rule applies per provider session (a run that replaced its session)
+AssertionError: expected { …(14) } to match object { settled_usd: '0.1700', …(1) }
+(12 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "settled_unknown": false,
+-   "settled_usd": "0.1700",
++   "settled_usd": "0.1000",
+  }
+
+ ❯ tests/tasks/PW-050/budget.int.test.ts:299:68
+    297|     // the first session reported cumulative totals (0.10), the second…
+    298|     await u('session', s1, 0.1); await u('turn', s1, 0.1); await u('tu…
+    299|     expect(await settleReservation(pool, { reservationId: r.id })).toM…
+       |                                                                    ^
+    300|   });
+    301|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/tasks/PW-050/budget.int.test.ts > PW-050 review fixes > n2: the status shows what counts against the budget (an unknown cost at least its estimate)
+AssertionError: expected { paper: { …(2) }, …(2) } to match object { counted_usd: '0.6000', …(1) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "counted_usd": "0.6000",
+    "paper": {
+      "limit_usd": "5.0000",
+    },
+  }
+
+ ❯ tests/tasks/PW-050/budget.int.test.ts:309:76
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/tasks/PW-050/budget.int.test.ts > PW-050 review fixes > n3: a per-run limit above the budget is refused; an explicit null paper on an app budget is accepted
+AssertionError: expected 201 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 201
+
+ ❯ tests/tasks/PW-050/budget.int.test.ts:314:107
+    312|   test('n3: a per-run limit above the budget is refused; an explicit n…
+    313|     const p = await paper();
+    314|     expect((await setBudget({ scope: 'paper', paper_id: p, limit_usd: …
+       |                                                                                                           ^
+    315|     expect((await setBudget({ scope: 'app', paper_id: null, provider: …
+    316|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/tasks/PW-050/budget.int.test.ts > PW-050 review fixes > n5: a settlement that fails does not hide the run's own outcome
+AssertionError: expected 'QUEUED' to be 'WAITING_USER' // Object.is equality
+
+Expected: "WAITING_USER"
+Received: "QUEUED"
+
+ ❯ tests/tasks/PW-050/budget.int.test.ts:328:98
+    326|     } }, { provider: 'mock', authMode: 'none', estimateUsd: () => null…
+    327|     await processDelivery(pool, { job_id: job.id, paper_id: p, intent:…
+    328|     expect((await pool.query('SELECT status FROM jobs WHERE id = $1', …
+       |                                                                                                  ^
+    329|   });
+    330| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 13 passed (19)
+   Start at  03:46:18
+   Duration  4.36s (tests 56%, transform 34%, import 9%)
+
+exit 1

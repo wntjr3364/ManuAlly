@@ -17,7 +17,7 @@ import { buildServer } from '../../../apps/api/src/server.ts';
 import { createOwner } from '../../../apps/api/src/auth/owners.ts';
 import { claimJob, enqueueJob } from '../../../packages/domain/src/jobs/index.ts';
 import { recordUsage } from '../../../packages/domain/src/usage/index.ts';
-import { listReservations, settleReservation, useJobLimit } from '../../../packages/domain/src/budget/index.ts';
+import { listReservations, settleOrphanReservations, settleReservation, useJobLimit } from '../../../packages/domain/src/budget/index.ts';
 import { admitRun, withAdmission, type CostClassOf } from '../../../apps/worker/src/admission/index.ts';
 import { processDelivery, JobOutcomeError } from '../../../apps/worker/src/queue/index.ts';
 
@@ -248,5 +248,84 @@ describe('TST-050B: at a limit — no API switch, no extra payment, no reset cre
     await expect(admit(p, { ...j, fencingToken: j.fencingToken - 1 }, { provider: 'mock', authMode: 'none', estimateUsd: null })).rejects.toMatchObject({ code: 'CONFLICT' });
     const st = (await call('alice', 'GET', `/api/papers/${p}/budget`)).json();
     expect(st).toMatchObject({ paper: { limit_usd: null }, reserved_usd: '0.0000', settled_usd: '0.0000' });
+  });
+});
+
+// PW-050 review (approve with MINOR/NIT): m2, m3, m4, n2, n3, n5
+describe('PW-050 review fixes', () => {
+  test('m2: a metered run that never reached the provider costs a known 0, not its estimate', async () => {
+    const p = await paper();
+    await setBudget({ scope: 'paper', paper_id: p, limit_usd: 1 });
+    const { job } = await enqueueJob(pool, { paperId: p, ownerId: ids.alice!, intent: 'review', idempotencyKey: randomUUID(), payload: { note: 'gate' } });
+    // the handler stops before any provider call (a gate, a policy, a drift)
+    const handlers = withAdmission(pool, { review: async () => { throw new JobOutcomeError('draft gate: not approved', 'FAILED'); } }, { provider: 'codex', authMode: 'metered_test', estimateUsd: () => 0.8, costClassOf: metered });
+    await processDelivery(pool, { job_id: job.id, paper_id: p, intent: 'review' }, { workerId: 'w1', leaseMs: 60_000, handlers });
+    expect((await listReservations(pool, p, job.id)).map((r) => [r.settled_usd, r.settled_unknown])).toEqual([['0.0000', false]]);
+    // the budget is still free for a real run
+    await admit(p, await runningJob(p), { estimateUsd: 0.8 });
+    // a run that did reach the provider (a run token for its fence) but reported nothing stays UNKNOWN
+    const j = await runningJob(p);
+    const r = await admit(p, j, { estimateUsd: 0.1 });
+    await pool.query("INSERT INTO agent_run_tokens (token_hash, owner_id, paper_id, tools, provider, job_id, job_fencing_token, expires_at) VALUES ($1, $2, $3, '{get_story}', 'codex', $4, $5, clock_timestamp() + interval '1 hour')", ['a'.repeat(64), ids.alice, p, j.job.id, j.fencingToken]);
+    expect(await settleReservation(pool, { reservationId: r.id })).toMatchObject({ settled_unknown: true });
+  });
+
+  test('m3: a reservation left by a crashed run is settled by the sweep', async () => {
+    const p = await paper();
+    await setBudget({ scope: 'paper', paper_id: p, limit_usd: 10 });
+    const { job } = await enqueueJob(pool, { paperId: p, ownerId: ids.alice!, intent: 'review', idempotencyKey: randomUUID(), payload: { note: 'crash' } });
+    let c = (await claimJob(pool, { jobId: job.id, workerId: 'w1', leaseMs: 60_000 }))!;
+    await admit(p, { job: c.job, fencingToken: c.fencingToken });
+    await recordUsage(pool, { paperId: p, jobId: job.id, provider: 'codex', nativeSessionId: 'crash', eventKey: randomUUID(), data: { scope: 'turn', input_tokens: 1, output_tokens: 1, cost_usd_estimate: 0.05, context_window: null } });
+    // the worker died: the job is taken again; the old reservation is still 'reserved'
+    await pool.query("UPDATE jobs SET status = 'QUEUED', lease_owner = NULL, lease_expires_at = NULL WHERE id = $1", [job.id]);
+    c = (await claimJob(pool, { jobId: job.id, workerId: 'w2', leaseMs: 60_000 }))!;
+    // the current run's own reservation is not touched
+    await admit(p, { job: c.job, fencingToken: c.fencingToken });
+    // (other tests' unsettled runs are swept too)
+    expect(await settleOrphanReservations(pool)).toBeGreaterThanOrEqual(1);
+    expect((await listReservations(pool, p, job.id)).map((r) => [r.state, r.settled_usd])).toEqual([['settled', '0.0500'], ['reserved', null]]);
+  });
+
+  test('m4: the scope rule applies per provider session (a run that replaced its session)', async () => {
+    const p = await paper();
+    await setBudget({ scope: 'paper', paper_id: p, limit_usd: 10 });
+    const j = await runningJob(p);
+    const r = await admit(p, j);
+    const s1 = `s1-${randomUUID()}`;
+    const s2 = `s2-${randomUUID()}`;
+    const u = (scope: 'turn' | 'session', session: string, cost: number) => recordUsage(pool, { paperId: p, jobId: j.job.id, provider: 'codex', nativeSessionId: session, eventKey: randomUUID(), data: { scope, input_tokens: 1, output_tokens: 1, cost_usd_estimate: cost, context_window: null } });
+    // the first session reported cumulative totals (0.10), the second only turns (0.05 + 0.02)
+    await u('session', s1, 0.1); await u('turn', s1, 0.1); await u('turn', s2, 0.05); await u('turn', s2, 0.02);
+    expect(await settleReservation(pool, { reservationId: r.id })).toMatchObject({ settled_usd: '0.1700', settled_unknown: false });
+  });
+
+  test('n2: the status shows what counts against the budget (an unknown cost at least its estimate)', async () => {
+    const p = await paper();
+    await setBudget({ scope: 'paper', paper_id: p, limit_usd: 5 });
+    const j = await runningJob(p);
+    const r = await admit(p, j, { estimateUsd: 0.6 });
+    await recordUsage(pool, { paperId: p, jobId: j.job.id, provider: 'codex', nativeSessionId: `n2-${randomUUID()}`, eventKey: randomUUID(), data: { scope: 'turn', input_tokens: 1, output_tokens: 1, cost_usd_estimate: null, context_window: null } });
+    await settleReservation(pool, { reservationId: r.id });
+    expect((await call('alice', 'GET', `/api/papers/${p}/budget`)).json()).toMatchObject({ counted_usd: '0.6000', paper: { limit_usd: '5.0000' } });
+  });
+
+  test('n3: a per-run limit above the budget is refused; an explicit null paper on an app budget is accepted', async () => {
+    const p = await paper();
+    expect((await setBudget({ scope: 'paper', paper_id: p, limit_usd: 1, run_limit_usd: 2 })).statusCode).toBe(422);
+    expect((await setBudget({ scope: 'app', paper_id: null, provider: null, limit_usd: 1 }, 'bob')).statusCode).toBe(201);
+  });
+
+  test('n5: a settlement that fails does not hide the run\'s own outcome', async () => {
+    const p = await paper();
+    const { job } = await enqueueJob(pool, { paperId: p, ownerId: ids.alice!, intent: 'review', idempotencyKey: randomUUID(), payload: { note: 'n5' } });
+    const handlers = withAdmission(pool, { review: async (jj) => {
+      // something settles the reservation first: the wrapper's own settlement then fails
+      const [res] = await listReservations(pool, p, jj.id);
+      await settleReservation(pool, { reservationId: res!.id });
+      throw new JobOutcomeError('needs the owner', 'WAITING_USER');
+    } }, { provider: 'mock', authMode: 'none', estimateUsd: () => null });
+    await processDelivery(pool, { job_id: job.id, paper_id: p, intent: 'review' }, { workerId: 'w1', leaseMs: 60_000, handlers });
+    expect((await pool.query('SELECT status FROM jobs WHERE id = $1', [job.id])).rows[0].status).toBe('WAITING_USER');
   });
 });

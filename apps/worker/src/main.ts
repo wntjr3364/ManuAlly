@@ -14,15 +14,23 @@ import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
 import { reconcileRunProcesses } from './lifecycle/index.ts';
 import { wakeDueWaits, withQuotaWaits } from './quota-scheduler/index.ts';
 import { withAdmission } from './admission/index.ts';
+import { settleOrphanReservations } from '@pw/domain/budget/index.ts';
+import type { JobHandler } from './queue/index.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const url = process.env.PW_DATABASE_URL;
   if (!url) throw new Error('PW_DATABASE_URL is not set (see .env.example / `pnpm db:dev start`)');
   selectProvider(process.env); // refuses anything but an admitted provider
   const pool = new pg.Pool({ connectionString: url, max: 6 });
+  const admitted = <K extends string>(h: Record<K, JobHandler>) => withAdmission(pool, h, { provider: 'mock', authMode: 'none', estimateUsd: () => null });
   const worker = startLocalWorker(pool, {
-    handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()), ...storyHandlers(pool, createMockStoryGenerator()), ...profileHandlers(pool, createMockProfileGenerator()), // PW-050: admitted (and settled) per run; the MOCK is free and needs no money budget
-      ...withAdmission(pool, withQuotaWaits(pool, writerHandlers(pool, createMockWriter())), { provider: 'mock', authMode: 'none', estimateUsd: () => null }), ...reviewerHandlers(pool, createMockReviewer()), ...pdfHandlers(pool, { assetDir: defaultAssetDir() }) },
+    handlers: {
+      // PW-050: every AI job is admitted (and settled) per run, with the provider it runs on — the MOCK is
+      // free; a real provider configured here must name its login so its cost class is known (review m1)
+      ...admitted(selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 }))), ...admitted(curationHandlers(pool, createMockAssessor())), ...admitted(storyHandlers(pool, createMockStoryGenerator())),
+      ...admitted(profileHandlers(pool, createMockProfileGenerator())), ...admitted(withQuotaWaits(pool, writerHandlers(pool, createMockWriter()))), ...admitted(reviewerHandlers(pool, createMockReviewer())),
+      ...pdfHandlers(pool, { assetDir: defaultAssetDir() }),
+    },
     onError: (e) => console.error('worker error:', e instanceof Error ? e.message : e),
   });
   // RFC-010: provider run processes left by a crashed worker (or of cancelled jobs) are ended on start
@@ -33,7 +41,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // PW-049: quota waits that are due are decided every minute. No provider offers a verified availability
   // check yet, so the probe cannot tell: a known reset that passed resumes, an unknown one keeps waiting.
   const wake = () => wakeDueWaits(pool, { now: new Date(), probe: async () => 'unknown' }).catch((e) => console.error('quota scheduler error:', e instanceof Error ? e.message : e));
-  const quotaTimer = setInterval(() => void wake(), 60_000);
+  // PW-050: reservations of runs that ended without settling (a crash, a lost lease)
+  const sweep = () => settleOrphanReservations(pool).catch((e) => console.error('settlement sweep error:', e instanceof Error ? e.message : e));
+  const quotaTimer = setInterval(() => { void wake(); void sweep(); }, 60_000);
   const stop = async () => { clearInterval(timer); clearInterval(quotaTimer); await worker.stop(); await pool.end(); process.exit(0); };
   process.on('SIGINT', () => void stop());
   process.on('SIGTERM', () => void stop());

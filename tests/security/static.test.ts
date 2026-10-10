@@ -19,7 +19,7 @@ const matching = (re: RegExp) => source.filter((f) => re.test(code(f))).sort();
 // a module named in any form: import (either quote), export from, dynamic import(), require(), createRequire()(…)
 const MODULE = (names: string) => new RegExp(`['"\`](node:)?(${names})['"\`]`);
 // fetch called or taken as a value (not a property like cfg.fetch, a route path or a method of another object)
-const FETCH_USE = /(?<![\w.$])fetch\s*\(|\b(globalThis|window|self|global)\s*\.\s*fetch\b|(?<![\w.$'"`\/])fetch(?![\w$?:'"`\/(<])/;
+const FETCH_USE = /(?<![\w.$])fetch\s*\(|\b(globalThis|window|self|global)\s*\.\s*fetch\b|(?<![\w.$'"`/])fetch(?![\w$?:'"`/(<])/;
 
 describe('TST-059A: secrets', () => {
   const SECRET = /sk-ant-[A-Za-z0-9_-]{16,}|\bsk-[A-Za-z0-9]{32,}|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|xox[baprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}/;

@@ -86,6 +86,8 @@ const respond = (w: W, commentId: string, b: Record<string, unknown>) => call('P
 const check = (w: W) => call('POST', `/api/papers/${w.paperId}/submissions/check`, { document_id: w.documentId });
 const freeze = (w: W, o: Record<string, unknown> = {}) => call('POST', `/api/papers/${w.paperId}/submissions`, { intent: 'freeze_submission', document_id: w.documentId, expected_revision_id: w.head, status: 'submission_ready', label: 'Journal of Plant Studies, first submission', target: 'Journal of Plant Studies', ...o });
 const kinds = (xs: { kind: string }[]) => xs.map((x) => x.kind);
+// submission-ready with exactly the warnings the check showed confirmed
+const freezeReady = async (w: W, o: Record<string, unknown> = {}) => freeze(w, { confirm_warnings: kinds((await check(w)).json().warnings), ...o });
 
 describe('TST-058A: responses tied to real edits; the frozen submission never changes', () => {
   test('a comment records the revision it was made on; "addressed" needs a changed block in a later revision', async () => {
@@ -138,7 +140,7 @@ describe('TST-058A: responses tied to real edits; the frozen submission never ch
     await save(w, body(w, 'Roots respond within two hours'));
     expect((await respond(w, c.id, { status: 'addressed', text: 'We now give the timing.', links: [{ revision_id: w.head, block_id: w.P1 }] })).statusCode).toBe(201);
     const frozenHead = w.head;
-    const r = await freeze(w);
+    const r = await freezeReady(w);
     expect(r.statusCode, r.body).toBe(201);
     const s = r.json();
     expect(s).toMatchObject({ status: 'submission_ready', revision_id: frozenHead, document_id: w.documentId, label: 'Journal of Plant Studies, first submission', target: 'Journal of Plant Studies', checks: { blocking: [] } });
@@ -225,21 +227,55 @@ describe('TST-058B: never "changed" for unchanged text; never submission-ready w
     expect(kinds(k.blocking)).toContain('open_scientific_finding');
   });
 
-  test('warnings need the owner\'s confirmation; a stale expected revision, a missing intent or another owner are refused', async () => {
+  test('warnings need the owner\'s confirmation of each kind shown; a stale expected revision, a missing intent or another owner are refused', async () => {
     const w = await paper({ year: null }); // a reference without a year: a warning, not a blocker
     const k = (await check(w)).json();
     expect(k.blocking).toEqual([]);
-    expect(kinds(k.warnings)).toContain('incomplete_reference');
+    expect(kinds(k.warnings)).toEqual(expect.arrayContaining(['incomplete_reference', 'scientific_check_not_run', 'consistency_not_checked']));
     const r = await freeze(w);
     expect(r.statusCode).toBe(409);
     expect(r.json()).toMatchObject({ reason: 'CONFIRM_WARNINGS', warnings: expect.arrayContaining([expect.objectContaining({ kind: 'incomplete_reference' })]) });
-    expect((await freeze(w, { expected_revision_id: randomUUID(), confirm_warnings: true })).json()).toMatchObject({ reason: 'STALE' });
-    expect((await freeze(w, { intent: undefined, confirm_warnings: true })).statusCode).toBe(422);
-    expect((await freeze(w, { status: 'final', confirm_warnings: true })).statusCode).toBe(422);
-    expect((await call('POST', `/api/papers/${w.paperId}/submissions`, { intent: 'freeze_submission', document_id: w.documentId, expected_revision_id: w.head, status: 'submission_ready', label: 'x', confirm_warnings: true }, 'bob')).statusCode).toBe(404);
-    const ok = await freeze(w, { confirm_warnings: true });
+    // review m3: confirming some kinds is not confirming all; a blanket "yes" is not accepted
+    const part = await freeze(w, { confirm_warnings: ['incomplete_reference'] });
+    expect(part.statusCode).toBe(409);
+    expect(part.json().unconfirmed).toEqual(expect.arrayContaining(['scientific_check_not_run', 'consistency_not_checked']));
+    expect((await freeze(w, { confirm_warnings: true })).statusCode).toBe(422);
+    const all = kinds(k.warnings);
+    expect((await freeze(w, { expected_revision_id: randomUUID(), confirm_warnings: all })).json()).toMatchObject({ reason: 'STALE' });
+    expect((await freeze(w, { intent: undefined, confirm_warnings: all })).statusCode).toBe(422);
+    expect((await freeze(w, { status: 'final', confirm_warnings: all })).statusCode).toBe(422);
+    // review n1: names are single lines
+    expect((await freeze(w, { label: 'R2\n\n| fake | row |', confirm_warnings: all })).statusCode).toBe(422);
+    expect((await call('POST', `/api/papers/${w.paperId}/submissions`, { intent: 'freeze_submission', document_id: w.documentId, expected_revision_id: w.head, status: 'submission_ready', label: 'x', confirm_warnings: all }, 'bob')).statusCode).toBe(404);
+    const ok = await freeze(w, { confirm_warnings: all });
     expect(ok.statusCode, ok.body).toBe(201);
     expect(ok.json()).toMatchObject({ status: 'submission_ready', checks: { blocking: [], warnings: expect.arrayContaining([expect.objectContaining({ kind: 'incomplete_reference' })]) }, confirmed_by: expect.any(String) });
+  });
+
+  test('review m1: a paragraph never checked, or checked on other wording, is not a pass', async () => {
+    const w = await paper();
+    const owner = (await pool.query('SELECT owner_id FROM paper_projects WHERE id = $1', [w.paperId])).rows[0].owner_id;
+    const notRun = async () => ((await check(w)).json().warnings as { kind: string; count: number }[]).find((x) => x.kind === 'scientific_check_not_run')?.count ?? 0;
+    expect(await notRun()).toBe(2); // both paragraphs
+    await pool.query(`INSERT INTO scientific_check_runs (paper_id, document_id, revision_id, block_id, gate_version, status, findings, created_by) VALUES ($1, $2, $3, $4, 'synthetic-1', 'VERIFIED', '[]', $5)`, [w.paperId, w.documentId, w.head, w.P1, owner]);
+    expect(await notRun()).toBe(1);
+    await save(w, body(w, 'Roots respond within two hours'));
+    expect(await notRun()).toBe(2); // checked on other wording
+    // an undecided check on other wording is not a pass either
+    await pool.query(`INSERT INTO scientific_check_runs (paper_id, document_id, revision_id, block_id, gate_version, status, findings, created_by) VALUES ($1, $2, $3, $4, 'synthetic-1', 'UNKNOWN', '[]', $5)`, [w.paperId, w.documentId, w.head, w.P2, owner]);
+    expect(kinds((await check(w)).json().warnings)).toContain('scientific_check_unknown');
+    await save(w, body(w, 'Roots respond within two hours', [], 'The second paragraph changed.'));
+    expect(await notRun()).toBe(2);
+  });
+
+  test('review m2: text left to fill in blocks; "XX" asks; the unchecked whole-document consistency is always said', async () => {
+    const w = await paper();
+    await save(w, body(w, 'Roots respond in TODO hours', [], 'XX patients were enrolled [needs_input].'));
+    const k = (await check(w)).json();
+    const p = (k.blocking as { kind: string; examples: string[] }[]).find((x) => x.kind === 'placeholder_text')!;
+    expect(p.examples).toEqual(expect.arrayContaining(['TODO', '[needs_input]']));
+    expect(kinds(k.warnings)).toEqual(expect.arrayContaining(['placeholder_like_xx', 'consistency_not_checked']));
+    expect((await freezeReady(w)).statusCode).toBe(409);
   });
 
   test('the database refuses a submission-ready row with a blocker', async () => {

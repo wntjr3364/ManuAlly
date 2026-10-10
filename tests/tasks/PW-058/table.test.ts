@@ -21,7 +21,7 @@ describe('blocks and the response table', () => {
     expect(blocksOf(null).size).toBe(0);
   });
   test('the table escapes pipes and line breaks, says what was not answered and where a claimed change is missing', () => {
-    const s = { label: 'J1', target: 'Journal', status: 'draft', revision_id: 'r', docx_sha256: 'a'.repeat(64), responses: [
+    const s = { label: 'J1 | x', target: 'Journal', status: 'draft', revision_id: 'r', docx_sha256: 'a'.repeat(64), responses: [
       { position: 1, round: 'R1', reviewer: 'Rev | 1', comment: 'line one\nline | two', status: 'addressed', response: 'done', links: [{ heading: 'Results', change: 'changed', holds: false }] },
       { position: 2, round: 'R1', reviewer: 'Rev 2', comment: 'x', status: null, response: null, links: [] },
     ] } as unknown as Submission;
@@ -32,6 +32,7 @@ describe('blocks and the response table', () => {
     expect(rows[0]).toContain('Results (changed, 지금 원고에 없음)');
     expect(rows[1]).toContain('답 없음');
     expect(md).toContain('상태: 초안');
+    expect(md.split('\n')[0]).toBe('# J1 \\| x');
     for (const r of rows) expect(r.split(/(?<!\\)\|/).length).toBe(8); // 6 cells
   });
 });

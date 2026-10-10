@@ -13,3 +13,10 @@ KILLED stale expected accepted
 KILLED intent not required
 KILLED gate on head skipped (snapshot before check)
 KILLED response table no pipe escape
+# review fixes (m1 not-run, m2 placeholders/consistency, m3 confirmed kinds, n1 single-line names)
+KILLED m1 never-checked counts as pass
+KILLED m1 changed-since-check counts as pass
+KILLED m2 placeholders not blocking
+KILLED m2 consistency note dropped
+KILLED m3 any confirmation confirms all
+KILLED n1 multi-line labels allowed

@@ -100,7 +100,8 @@ export function SubmissionPanel({ paperId, documentId, headRevisionId, canChange
     } finally { setBusy(false); await load(); }
   };
   const freeze = (status: 'draft' | 'submission_ready') => act(async () => {
-    await api('POST', `/api/papers/${paperId}/submissions`, { intent: 'freeze_submission', document_id: documentId, expected_revision_id: headRevisionId, status, label, target: target || null, confirm_warnings: confirm });
+    // only the warnings shown here are confirmed; any other one sends the owner back to look at it
+    await api('POST', `/api/papers/${paperId}/submissions`, { intent: 'freeze_submission', document_id: documentId, expected_revision_id: headRevisionId, status, label, target: target || null, confirm_warnings: confirm && checks ? checks.warnings.map((w) => w.kind) : [] });
     setChecks(null);
     setConfirm(false);
   });
@@ -147,7 +148,7 @@ export function SubmissionPanel({ paperId, documentId, headRevisionId, canChange
         <label>이름<input value={label} onChange={(e) => setLabel(e.target.value)} data-testid="submission-label" /></label>
         <label>학술지<input value={target} onChange={(e) => setTarget(e.target.value)} /></label>
       </div>
-      <label><input type="checkbox" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} data-testid="confirm-warnings" /> 경고를 확인했고 이 버전을 제출용으로 확정합니다</label>
+      <label><input type="checkbox" checked={confirm} disabled={!checks || checks.warnings.length === 0} onChange={(e) => setConfirm(e.target.checked)} data-testid="confirm-warnings" /> 위 경고를 확인했고 이 버전을 제출용으로 확정합니다</label>
       <div className="toolbar">
         <button type="button" className="primary" disabled={busy || !canChange || !label.trim()} onClick={() => void freeze('submission_ready')}>제출용으로 확정</button>
         <button type="button" disabled={busy || !canChange || !label.trim()} onClick={() => void freeze('draft')}>초안으로 고정</button>

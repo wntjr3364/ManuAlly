@@ -30,17 +30,19 @@ export interface Link { revision_id: string; block_id: string; change: 'changed'
 // ---- blocks of a stored revision -------------------------------------------------------------------------
 type Node = { type?: string; text?: string; attrs?: Record<string, unknown>; content?: Node[] };
 const textOf = (n: Node): string => (n.type === 'text' ? n.text ?? '' : n.type === 'citation' ? '[cite]' : n.type === 'figure_ref' ? '[fig]' : (n.content ?? []).map(textOf).join(n.type === 'table_row' ? ' | ' : ''));
-interface Block { hash: string; text: string; heading: string | null }
+interface Block { hash: string; text: string; heading: string | null; paragraph: boolean }
 export function blocksOf(content: unknown): Map<string, Block> {
   const out = new Map<string, Block>();
   let heading: string | null = null;
   for (const b of ((content as Node)?.content ?? [])) {
     const id = b.attrs?.id;
     if (b.type === 'heading') heading = textOf(b).trim() || heading;
-    if (typeof id === 'string') out.set(id, { hash: contentHash(b), text: textOf(b).trim(), heading: b.type === 'heading' ? textOf(b).trim() : heading });
+    if (typeof id === 'string') out.set(id, { hash: contentHash(b), text: textOf(b).trim(), heading: b.type === 'heading' ? textOf(b).trim() : heading, paragraph: b.type === 'paragraph' });
   }
   return out;
 }
+const PLACEHOLDER = /\bTODO\b|\bTBD\b|\bFIXME\b|\?\?\?+|\[needs_input\]|\[citation needed\]|\[\s*\?\s*\]/gi;
+const XX = /(?<![A-Za-z])XX(?![A-Za-z])/;
 const clip = (s: string, n = 300) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
 async function revisionContent(db: Queryable, paperId: string, documentId: string, revisionId: string): Promise<unknown | null> {
@@ -74,11 +76,18 @@ const label = (v: unknown, field: string, max: number) => {
   if (typeof v !== 'string' || !v.trim() || v.length > max || !storable(v)) throw new DomainError('INVALID', `${field} must be 1–${max} characters`, field);
   return v.trim();
 };
+// a name on one line (labels end up in headings and table cells; review n1)
+const line = (v: unknown, field: string, max: number) => {
+  const x = label(v, field, max);
+  // eslint-disable-next-line no-control-regex -- control characters are refused on purpose
+  if (/[\u0000-\u001f\u007f\u2028\u2029]/.test(x)) throw new DomainError('INVALID', `${field} must be a single line`, field);
+  return x;
+};
 
 export async function addComment(pool: TxPool, a: { paperId: string; ownerId: string; body: unknown }): Promise<Comment> {
   const b = (a.body && typeof a.body === 'object' ? a.body : {}) as Record<string, unknown>;
-  const round = label(b.round ?? 'R1', 'round', 40);
-  const reviewer = label(b.reviewer, 'reviewer', 80);
+  const round = line(b.round ?? 'R1', 'round', 40);
+  const reviewer = line(b.reviewer, 'reviewer', 80);
   const text = label(b.text, 'text', 20000);
   return inTransaction(pool, async (tx) => {
     await tx.query("SELECT set_config('pw.actor', $1, true)", [`owner:${a.ownerId}`]);
@@ -194,6 +203,10 @@ const NOTE: Record<string, string> = {
   open_scientific_finding: '결정하지 않은 과학 검토 지적이 그대로인 문단에 있습니다',
   open_finding_stale: '결정하지 않은 검토 지적이 있던 문단이 그 뒤 바뀌었습니다',
   open_writing_finding: '결정하지 않은 글쓰기 검토 지적이 있습니다',
+  scientific_check_not_run: '과학 검사를 하지 않았거나 검사 뒤 바뀐 문단이 있습니다(통과로 치지 않습니다)',
+  placeholder_text: '채워 넣지 않은 자리표시(TODO, TBD, ???, [needs_input] 등)가 남아 있습니다',
+  placeholder_like_xx: '"XX"가 있습니다 — 채워 넣을 자리인지 확인하세요(염색체 표기 등이면 그대로 두세요)',
+  consistency_not_checked: '전체 일관성(초록↔결과 수치·결론, Methods↔분석, 약어 첫 정의, 자금·저자 기여·데이터 가용성 문단)은 앱이 검사하지 않았습니다 — 직접 확인하세요',
   archive_incomplete: '원본 묶음에 빠진 원본이 있습니다',
   archive_unverified: '원본 묶음이 자체 검증을 통과하지 못했습니다',
 };
@@ -225,15 +238,23 @@ export async function checks(db: Queryable, a: { paperId: string; documentId: st
     if (!cache.has(revisionId)) cache.set(revisionId, blocksOf(await revisionContent(db, a.paperId, a.documentId, revisionId)));
     return cache.get(revisionId)!.get(blockId)?.hash ?? null;
   };
-  const runs = (await db.query<{ block_id: string; revision_id: string; status: string }>(
-    `SELECT DISTINCT ON (block_id) block_id, revision_id, status FROM scientific_check_runs WHERE paper_id = $1 AND document_id = $2 ORDER BY block_id, created_at DESC, id DESC`, [a.paperId, a.documentId])).rows;
-  for (const r of runs) {
-    const cur = now.get(r.block_id);
-    if (!cur || (r.status !== 'FAILED' && r.status !== 'UNKNOWN')) continue;
-    const same = (await asRead(r.revision_id, r.block_id)) === cur.hash;
+  const runs = new Map((await db.query<{ block_id: string; revision_id: string; status: string }>(
+    `SELECT DISTINCT ON (block_id) block_id, revision_id, status FROM scientific_check_runs WHERE paper_id = $1 AND document_id = $2 ORDER BY block_id, created_at DESC, id DESC`, [a.paperId, a.documentId])).rows.map((r) => [r.block_id, r]));
+  // every paragraph as it stands: a check that failed on this wording blocks; never checked, or checked on
+  // other wording, or undecided, is not a pass (review m1)
+  for (const [id, cur] of now) {
+    if (!cur.paragraph || !cur.text) continue;
+    const r = runs.get(id);
     const where = clip(cur.text, 80);
-    if (r.status === 'FAILED') (same ? blocking : warnings).add(same ? 'scientific_check_failed' : 'scientific_check_stale', where);
-    else if (same) warnings.add('scientific_check_unknown', where);
+    const same = r ? (await asRead(r.revision_id, id)) === cur.hash : false;
+    if (r?.status === 'FAILED') (same ? blocking : warnings).add(same ? 'scientific_check_failed' : 'scientific_check_stale', where);
+    else if (r?.status === 'UNKNOWN' && same) warnings.add('scientific_check_unknown', where);
+    else if (!r || !same) warnings.add('scientific_check_not_run', where);
+  }
+  // text left to fill in (review m2)
+  for (const cur of now.values()) {
+    for (const m of cur.text.match(PLACEHOLDER) ?? []) blocking.add('placeholder_text', m);
+    if (XX.test(cur.text)) warnings.add('placeholder_like_xx', clip(cur.text, 80));
   }
   const findings = (await db.query<{ kind: string; block_id: string; revision_id: string; quote: string }>(
     `SELECT f.kind, r.block_id, r.revision_id, f.quote FROM review_findings f JOIN review_runs r ON r.id = f.run_id AND r.paper_id = f.paper_id
@@ -245,6 +266,8 @@ export async function checks(db: Queryable, a: { paperId: string; documentId: st
     if (!same) warnings.add('open_finding_stale', clip(f.quote, 80));
     else (f.kind === 'scientific' ? blocking : warnings).add(f.kind === 'scientific' ? 'open_scientific_finding' : 'open_writing_finding', clip(f.quote, 80));
   }
+  // what the app does not check is said, every time (spec 10 "전체 일관성 검사"; review m2)
+  warnings.add('consistency_not_checked');
   return { blocking: blocking.list(), warnings: warnings.list() };
 }
 
@@ -272,14 +295,17 @@ export async function freezeSubmission(pool: TxPool, a: { paperId: string; owner
   if (b.intent !== 'freeze_submission') throw new DomainError('INVALID', 'freezing needs the explicit intent "freeze_submission"', 'intent');
   if (b.status !== 'draft' && b.status !== 'submission_ready') throw new DomainError('INVALID', 'status must be draft or submission_ready', 'status');
   const ready = b.status === 'submission_ready';
-  const name = label(b.label, 'label', 200);
-  const target = b.target === undefined || b.target === null ? null : label(b.target, 'target', 200);
-  if (b.confirm_warnings !== undefined && typeof b.confirm_warnings !== 'boolean') throw new DomainError('INVALID', 'confirm_warnings must be true or false', 'confirm_warnings');
+  const name = line(b.label, 'label', 200);
+  const target = b.target === undefined || b.target === null ? null : line(b.target, 'target', 200);
+  // the warning kinds the owner saw and confirmed; a warning that was not shown is not confirmed (review m3)
+  const confirmed = b.confirm_warnings ?? [];
+  if (!Array.isArray(confirmed) || confirmed.length > 50 || confirmed.some((k) => typeof k !== 'string' || k.length > 60)) throw new DomainError('INVALID', 'confirm_warnings must be the list of warning kinds the owner confirmed', 'confirm_warnings');
   const h = await head(pool, a.paperId, b.document_id);
   if (b.expected_revision_id !== h.revision_id) throw refuse('STALE', 'the manuscript changed since it was checked; check again', { head_revision_id: h.revision_id });
   const gate = (c: Checks) => {
     if (ready && c.blocking.length) throw refuse('NOT_SUBMISSION_READY', '해결해야 할 문제가 있어 제출용으로 확정할 수 없습니다(초안으로는 확정할 수 있습니다)', { blocking: c.blocking, warnings: c.warnings });
-    if (ready && c.warnings.length && b.confirm_warnings !== true) throw refuse('CONFIRM_WARNINGS', '경고를 확인해야 제출용으로 확정할 수 있습니다', { warnings: c.warnings });
+    const unseen = c.warnings.filter((w) => !(confirmed as string[]).includes(w.kind));
+    if (ready && unseen.length) throw refuse('CONFIRM_WARNINGS', '경고를 확인해야 제출용으로 확정할 수 있습니다', { warnings: c.warnings, unconfirmed: unseen.map((w) => w.kind) });
   };
   gate(await checks(pool, { paperId: a.paperId, documentId: h.document_id, content: h.content, report: await deps.render(h) }));
   // frozen: the snapshot pins the revisions; checked again on the archive's own render
@@ -324,8 +350,8 @@ export function responseTable(s: Submission): string {
     return `| ${r.position} | ${cell(`${r.round} ${r.reviewer}`)} | ${cell(r.comment)} | ${r.status ? STATUS_KO[r.status] ?? r.status : '답 없음'} | ${cell(r.response ?? '')} | ${cell(where)} |`;
   });
   return [
-    `# ${s.label}`, '',
-    `- 상태: ${s.status === 'submission_ready' ? '제출용 확정' : '초안'}${s.target ? ` · 대상: ${s.target}` : ''}`,
+    `# ${cell(s.label)}`, '',
+    `- 상태: ${s.status === 'submission_ready' ? '제출용 확정' : '초안'}${s.target ? ` · 대상: ${cell(s.target)}` : ''}`,
     `- 원고 버전: ${s.revision_id} · DOCX SHA-256: ${s.docx_sha256}`, '',
     '| # | 리뷰어 | 의견 | 답 | 답변 | 수정한 곳 |', '|---|---|---|---|---|---|', ...rows, '',
   ].join('\n');

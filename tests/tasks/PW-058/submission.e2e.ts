@@ -59,7 +59,11 @@ test('TST-058A/B: comment → blocked freeze → edit → answer tied to the edi
   await expect(panel.getByTestId('response')).toContainText('수정함');
 
   await panel.getByRole('button', { name: '제출 전 검사' }).click();
-  await expect(panel.getByTestId('checks-clean')).toBeVisible();
+  // nothing blocks; what the app did not check is shown and must be confirmed
+  await expect(panel.getByTestId('blocking')).toHaveCount(0);
+  await expect(panel.locator('[data-testid="warnings"] [data-kind="scientific_check_not_run"]')).toBeVisible();
+  await expect(panel.locator('[data-testid="warnings"] [data-kind="consistency_not_checked"]')).toBeVisible();
+  await panel.getByTestId('confirm-warnings').check();
   await panel.getByRole('button', { name: '제출용으로 확정' }).click();
   const frozen = panel.getByTestId('frozen-submission');
   await expect(frozen).toHaveAttribute('data-status', 'submission_ready', { timeout: 30_000 });

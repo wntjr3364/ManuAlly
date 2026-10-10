@@ -136,3 +136,4 @@ PW-056: DOCX·CSL export
 - n1: 100만 자를 넘는 문단이 "invalid document"(CORRUPT)로 거부되던 것을 이유를 밝힌 `TOO_LARGE`로 바꿨다. unit 1, mutation 1.
 - GREEN: unit 45, typecheck·lint 통과
 - 리뷰 결론: approve. n1 반영은 작은 수정이라 재리뷰 없이 닫는다(최종 회귀는 아래).
+- 최종 회귀: `pnpm test` exit 0 — unit 489, integration 596, contracts 17, 브라우저 98, spike 시험 실패 0 (`pnpm-test-final.log`)

@@ -1,5 +1,5 @@
 # P05 Gate — 과학 글쓰기 엔진 (PW-039 ~ PW-046)
-작성: 2026-10-10 · 상태: **사용자 위임에 따라 진행 — 실제 AI 공급자 실행과 사람 blind rubric은 아직 하지 않음**
+작성: 2026-10-10 · 상태: **P05 구현 완료(PW-039~046 독립 리뷰 approve), 사용자 위임에 따라 진행 — 실제 AI 공급자 실행과 사람 blind rubric은 아직 하지 않음**
 
 ## 사용자 결정
 - 사용자 지시(2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라". 이 gate의 결정은 위임에 따라 권장안으로 기록한다. 사용자는 언제든 되돌릴 수 있다.
@@ -26,7 +26,7 @@
 | PW-043 | 결정적 과학 gate: 수치·단위·그룹·통계·n·인용·주장 강도 | unit 18, 통합 6, 브라우저 1, mutation 33 | approve |
 | PW-044 | 검토 지적·사람 결정·한 번의 고쳐 쓰기 | 통합 12, 브라우저 1, mutation 24(+동등 1) | approve |
 | PW-045 | hard case 30·human rubric gate: unsafe 0, release not_ready | unit 63, mutation 33 | approve |
-| PW-046 | 유형별 섹션 제안, 개요로 원고 골격, 계획의 섹션에 문단 | 통합 17, 브라우저 2, mutation 33 | (리뷰 결과는 PROGRESS) |
+| PW-046 | 유형별 섹션 제안, 개요로 원고 골격, 계획의 섹션에 문단 | 통합 17, 브라우저 2, mutation 33 | 리뷰(MAJOR 1, MINOR 4)·재리뷰(MAJOR: 제목+## 섹션 회귀)·3차 approve(MINOR 2는 남은 위험) |
 
 최종 회귀 `pnpm test` exit 0: unit 406, integration 468, contracts 17, 브라우저 95 (`reports/tasks/PW-046/pnpm-test-rereview.log`).
 
@@ -35,6 +35,7 @@
 - **release quality는 not_ready다.** 사람 평가가 없다.
 - 과학 gate는 영어 중심 휴리스틱이다. 동의어·단위 변환이 없어 unknown이나 거짓 실패 쪽으로 기운다(안전한 쪽).
 - 섹션 이름은 정규화한 글자 일치다(앞 번호·대소문자 무시, 번역·동의어 없음). 골격은 섹션 수준 제목만 만든다.
+- 논문 제목 판별은 휴리스틱이다. 제목 앞에 문단이 있거나 `# References` 같은 최상위 제목이 더 있으면 제목을 놓친다. 이때 골격이 섹션을 중복 추가하고 기본 위치 문단이 원고 끝에 붙는다. 사용자가 보고 되돌릴 수 있다.
 - **이전 phase에서 넘어온 항목은 아직 열려 있다.** 실제 IME, Firefox/Safari, 배포, 실제 provider, 외부 서지 서비스 live, PW-015 브라우저 일회성 실패.
 
 ## 다음

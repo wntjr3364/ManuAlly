@@ -84,7 +84,7 @@ PW-049: 할당량 대기·재개
 - mutation(`mutation.log` 하단): 13종 모두 탐지
   - 처음 살아남은 2종(compaction 뒤 추정 미초기화, window를 대체값에서만 읽음)은 시험을 더한 뒤 탐지했다. 그중 하나가 위의 window 유지 수정을 드러냈다.
   - 패턴 오류 1종은 다른 형태로 다시 돌려 탐지했다.
-- 회귀: (아래 채움)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 502, contracts 17, 브라우저 95 (`pnpm-test-review.log`)
 - 남은 위험(추가)
   - 재시도는 첫 단계부터 다시 보낸다(비용·할당량).
   - 추정은 하한이다(system prompt, 도구 정의, 도구 결과는 세지 않음). 공급자 보고가 있으면 그것을 쓴다.

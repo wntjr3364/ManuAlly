@@ -28,7 +28,7 @@
 | PW-045 | hard case 30·human rubric gate: unsafe 0, release not_ready | unit 63, mutation 33 | approve |
 | PW-046 | 유형별 섹션 제안, 개요로 원고 골격, 계획의 섹션에 문단 | 통합 7, 브라우저 2, mutation 13 | (리뷰 결과는 PROGRESS) |
 
-최종 회귀는 `reports/tasks/PW-046/REPORT.md`에 적는다.
+최종 회귀 `pnpm test` exit 0: unit 406, integration 458, contracts 17, 브라우저 95 (`reports/tasks/PW-046/pnpm-test.log`).
 
 ## 다음 phase로 넘기는 위험 (확인만)
 - **모든 AI 경로가 MOCK 기준이다.** 실제 모델의 지시 준수·형식 오류율은 모른다. 형식이 다르면 거부되고 사용자에게 보인다.

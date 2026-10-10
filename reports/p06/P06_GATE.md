@@ -30,7 +30,7 @@
 | PW-053 | 장애 주입: 실제 SIGKILL(호출 중, commit 안), DB 53100, ENOSPC, 문서·승인 변경, 취소 | 통합 13, mutation 7 | approve(결함 2건 수정: 디스크 포화 재시도, 호출 중 계획 변경) |
 | PW-054 | 실행 제어 패널, 다시 시작(사용자 행위), unknown 표시, 자동 재개는 제안까지 | unit 7, 통합 9, 브라우저 1, mutation 18 | approve(MINOR 반영: 잠금 순서, 다음 행동, 패널 갱신) |
 
-최종 회귀: `reports/tasks/PW-054/pnpm-test.log`(아래 PW-054 REPORT에 결과).
+최종 회귀 `pnpm test` exit 0: unit 444, integration 590, contracts 17, 브라우저 97 (`reports/tasks/PW-054/pnpm-test-review.log`).
 
 ## 운영 reliability 확인 (spec 08·12)
 | 조건 | 상태 | 근거 |

@@ -81,3 +81,5 @@ P06 gate(`reports/p06/P06_GATE.md`) 뒤 P07: PW-055
 - RED(`red-review.log`): unit 1(nextStepText 없음), 통합 2(교착 500, next_state 없음)
 - GREEN: unit 7, 통합 9, 브라우저 1, typecheck·lint 통과
 - mutation(`mutation.log` 하단): 3종 모두 탐지
+- 회귀(리뷰 반영): `pnpm test` exit 0 — unit 444, integration 590, contracts 17, 브라우저 97 (`pnpm-test-review.log`)
+- 리뷰 결론: approve(MAJOR 없음). 반영분은 작은 수정(RED→GREEN, mutation 3/3, 전체 회귀 통과)이라 재리뷰 없이 닫는다.

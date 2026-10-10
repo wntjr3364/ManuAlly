@@ -42,9 +42,12 @@
   - `apps/worker/src/errors/index.ts`
   - `db/migrations/pw_052_0001_run_errors.sql`
   - `tests/tasks/PW-052/classify.test.ts`(unit 27)
-  - `tests/tasks/PW-052/errors.int.test.ts`(통합 15)
+  - `db/migrations/pw_052_0002_deferred_runs.sql`(리뷰 반영)
+  - `tests/tasks/PW-052/errors.int.test.ts`(통합 15, 리뷰 반영 뒤 17)
   - `tests/tasks/PW-052/runs-reason.e2e.ts`(브라우저 1)
 - 범위 밖(RFC-013 부록)
+  - `packages/domain/src/jobs/index.ts`(`deferJob`, 리뷰 반영)
+  - `apps/worker/src/queue/index.ts`(`JobDeferred`, 결과 `deferred`, 리뷰 반영)
   - `packages/providers/package.json`(export 하나)
   - `apps/worker/src/main.ts`(조합)
   - `apps/web/src/features/runs/RunsTab.tsx`(사유 표시)
@@ -64,7 +67,7 @@
     - detail 500자 자르기 없음: 시험 문자열(`x`×5000)이 통째로 지워져 자르기에 닿지 않았다. 보통 단어로 된 긴 메시지로 바꿨다.
     - 작업을 잃은 실행이 기록함: 실행 중 취소 시험을 더했다.
   - 첫 실행의 redaction mutation 하나는 패턴 인용 오류로 적용되지 않았다. 고쳐 다시 돌렸고, 키·불투명 문자열 둘 다 탐지했다.
-- 회귀: `pnpm test` (`pnpm-test.log`, 아래 결과)
+- 회귀(리뷰 전): `pnpm test` exit 0 — unit 433, integration 566, contracts 17, 브라우저 96 (`pnpm-test.log`)
 
 ## 보안·과학적 실패 경로
 - 계정 문제(401/403)는 quota로 보지 않고 재시도하지 않는다. 사용자가 다시 로그인해야 한다. 앱은 로그인 정보를 읽거나 복사하지 않는다.
@@ -76,8 +79,29 @@
 - **실제 공급자 오류는 쓰지 않았다**(실제 CLI 호출 금지). Claude/Codex 메시지와 HTTP 형태는 합성 fixture다. 실제 CLI가 다른 문구나 코드로 오류를 내면 unknown(FAILED, 재시도 없음)으로 떨어진다. 안전한 쪽이지만 안내가 덜 구체적이다. 사용자 PC의 live smoke에서 확인해야 한다.
 - WAITING_AUTH, WAITING_BUDGET, WAITING_USER 작업을 다시 큐에 넣는 화면은 없다. 사용자는 새로 요청한다(기존 동작).
 - `run_errors`를 보는 API·화면은 없다. 실행 탭은 작업의 `last_error`만 보인다.
-- circuit breaker는 DB 기록으로 판단한다. 여러 worker가 같은 순간에 각각 한 번 더 부를 수는 있다.
+- circuit breaker는 DB 기록으로 판단한다. 잠그지 않으므로 여러 worker가 같은 순간에 각각 한 번 더 부를 수 있다. half-open 시험 호출은 없다. 마지막 과부하 5분 뒤 닫힌다(review n1).
+- `classifyEvent`는 아직 운영 코드에서 쓰지 않는다. 실제 adapter의 오류 사건을 handler가 던지는 경로에 붙일 때 쓴다(review n3).
+- 실행 탭의 사유는 작업의 `last_error`다. PW-047/049/050의 옛 메시지는 "안내 + [종류]" 형식이 아니다(owner에게 안전한 문장이지만 형식이 다름, review n4).
+- 메시지 패턴은 영어 문구만 안다. 로그인 문구와 한도 문구가 함께 있으면 로그인 문제로 본다(호출하지 않는 쪽).
 - 지금 main.ts의 공급자는 MOCK(`authProfileId: 'none'`)이다. 실제 공급자를 붙일 때 로그인 id를 넘겨야 circuit이 로그인별로 나뉜다.
 
 ## 다음
 PW-053: Crash·disk full·stale 재개 시험
+
+## 리뷰 (73e756f): changes requested — MAJOR 1, MINOR 3, NIT 4
+| 지적 | 처리 | 시험 |
+|---|---|---|
+| M1: circuit이 열린 동안 작업이 재시도 지연(2, 4초) 안에 시도 3회를 다 써서 FAILED가 됨("나중에 재시도" 안내와 다름). 과부하 한 번이 5분 동안 오는 모든 작업을 실패시킴. 매 claim이 예산 실행(PW-050)도 하나씩 씀 | circuit 검사를 `withCircuitBreaker`로 떼어 **승인 바깥**에 둔다(main.ts). 열려 있으면 실행은 아무것도 부르지 않고 `JobDeferred`를 던진다. 큐는 `deferJob`으로 작업을 QUEUED로 되돌린다. 이때 claim이 센 시도를 돌려주고(attempts−1, 같은 token), circuit이 닫힐 때까지 dispatch를 미룬다. 한 작업의 미룸은 6번(`CIRCUIT.maxDeferrals`)까지이고, 그 뒤에는 호출 없이 FAILED다. job guard(migration `pw_052_0002`)는 `deferJob`이 트랜잭션에 표시(`pw.defer_run`)했을 때만 RUNNING→QUEUED, attempts−1, 같은 token을 허락한다 | main.ts와 같은 조합으로 circuit을 연다. 새 작업을 6번 배달하면 매번 `deferred`, QUEUED, attempts 0, 호출 0, 예산 예약 0, circuit_open 기록 6이다. 다음 dispatch는 약 5분 뒤다. 7번째에는 호출 없이 FAILED다. circuit이 닫히면(시계 이동) 작업이 돌아 SUCCEEDED, attempts 1이다. guard: 표시 없음, −2, FAILED로, token 변경은 거절하고 정확한 미룸만 허락한다. 안에서 던진 미룸은 오류 처리를 그대로 지나간다 |
+| m1: 메시지만 있을 때 한도 패턴이 로그인 패턴보다 먼저 맞음("Authentication failed: too many requests" → quota 대기 → 깨어나 다시 호출) | 로그인 패턴을 먼저 본다. 둘 다 있으면 로그인 문제(호출 없음) | unit: 두 문구가 섞인 메시지 2개 → auth, 한도만 → quota |
+| m2: base64 키(`+/`), 짧은 `ghp_` 토큰, `x-api-key: …`가 detail에 남음 | 긴 불투명 문자열에 `+/=`를 포함한다. `key/token/secret/password/authorization/cookie` 뒤 `:`/`=` 값을 지운다(Basic/Bearer 포함). `ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`, `github_pat_`, `AKIA`, `xai-` 접두를 지운다 | unit: 6가지 키, 5가지 label 형식이 지워진다. 보통 문장("the key point failed")은 남는다 |
+| m3: 흔한 메시지가 unknown으로 떨어짐 | "credit balance is too low"는 auth다(API-key 과금이며 v1은 구독 로그인만 쓴다, WAITING_AUTH). "stream ended unexpectedly", "socket hang up", "premature close", "other side closed", "connection reset"은 network다(재시도 3회 안) | unit |
+| n1: half-open 없음, 잠금 없는 판단 | 남은 위험으로 기록 | — |
+| n2: 403 + 한도 type도 로그인 문제로 봄 | **반영하지 않음.** spec 08은 401/403을 WAITING_AUTH로 정한다. 잘못 고른 "다시 로그인"은 호출하지 않는 안전한 쪽이다. 반대로 고르면 권한 문제에서 깨어날 때마다 다시 호출한다 | unit: 403 + rate_limit_error → auth |
+| n3: `classifyEvent` 미사용 | 남은 위험으로 기록 | — |
+| n4: 옛 경로의 WAITING 사유 형식 | 남은 위험으로 기록(PW-054 실행 상태 UI에서 맞춘다) | — |
+
+- RED(`red-review.log`): unit 3개(m1–m3), 통합 1개(M1 circuit 시험)가 실패한다.
+- GREEN: unit 31, 통합 17, typecheck·lint 통과
+- mutation(`mutation.log` 하단): 12종 모두 탐지
+  - 처음 살아남은 2종 가운데 m1 변이는 로그인 패턴이 여전히 먼저여서 순서 변이가 아니었다. 순서를 뒤집는 변이로 다시 돌렸다.
+  - 다른 1종(미룸이 오류 처리를 지나감)은 시험을 더한 뒤 탐지했다.

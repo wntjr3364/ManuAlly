@@ -1,0 +1,109 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-052/classify.test.ts (31 tests | 3 failed) 38ms
+   ❯ review fixes (PW-052 review m1–m3) (4)
+     × m1: a message naming both a login failure and a limit is a login problem (no wait, no call) 10ms
+     × m2: common secret shapes are redacted from the detail 2ms
+     × m3: a billing message is an account question; a cut-off stream is a network error 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-052/classify.test.ts > review fixes (PW-052 review m1–m3) > m1: a message naming both a login failure and a limit is a login problem (no wait, no call)
+AssertionError: expected { class: 'quota', …(6) } to match object { class: 'auth', next: 'WAITING_AUTH' }
+(5 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "class": "auth",
+-   "next": "WAITING_AUTH",
++   "class": "quota",
++   "next": "WAITING_QUOTA",
+  }
+
+ ❯ tests/tasks/PW-052/classify.test.ts:92:113
+     90| describe('review fixes (PW-052 review m1–m3)', () => {
+     91|   test('m1: a message naming both a login failure and a limit is a log…
+     92|     expect(c({ provider: 'claude_agent', message: 'Authentication fail…
+       |                                                                                                                 ^
+     93|     expect(c({ provider: 'codex', message: 'Not logged in. Rate limit …
+     94|     // a plain limit message stays a limit
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/tasks/PW-052/classify.test.ts > review fixes (PW-052 review m1–m3) > m2: common secret shapes are redacted from the detail
+AssertionError: AbCdEfGh+IjKlMnOp/QrStUvWx+YzAbCdEf/GhIjKl==: expected 'codex: request failed with AbCdEfGh+I…' not to contain 'AbCdEfGh+IjKlMnOp/QrStUvWx+YzAbCdEf/G…'
+
+Expected: "AbCdEfGh+IjKlMnOp/QrStUvWx+YzAbCdEf/GhIjKl=="
+Received: "codex: request failed with AbCdEfGh+IjKlMnOp/QrStUvWx+YzAbCdEf/GhIjKl== in it"
+
+ ❯ tests/tasks/PW-052/classify.test.ts:104:26
+    102|     for (const sec of secrets) {
+    103|       const d = c({ provider: 'codex', message: `request failed with $…
+    104|       expect(d, sec).not.toContain(sec);
+       |                          ^
+    105|       expect(d).toContain('[redacted]');
+    106|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/tasks/PW-052/classify.test.ts > review fixes (PW-052 review m1–m3) > m3: a billing message is an account question; a cut-off stream is a network error
+AssertionError: expected { class: 'unknown', …(6) } to match object { class: 'auth', …(2) }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "class": "auth",
+-   "next": "WAITING_AUTH",
++   "class": "unknown",
++   "next": "FAILED",
+    "retry": false,
+  }
+
+ ❯ tests/tasks/PW-052/classify.test.ts:114:117
+    112|   });
+    113|   test('m3: a billing message is an account question; a cut-off stream…
+    114|     expect(c({ provider: 'claude_agent', message: 'Your credit balance…
+       |                                                                                                                     ^
+    115|     for (const m of ['stream ended unexpectedly', 'socket hang up', 'P…
+    116|       expect(c({ provider: 'codex', message: m }), m).toMatchObject({ …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 28 passed (31)
+   Start at  04:43:25
+   Duration  441ms (transform 62%, tests 23%, import 12%, worker 3%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-052/errors.int.test.ts (15 tests | 1 failed) 1744ms
+   ❯ TST-052B: no quota wait and no repeated model call on a login problem; overload stops the calls (6)
+     × repeated overload opens the circuit: the next jobs do not call the provider until it closes 11ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-052/errors.int.test.ts > TST-052B: no quota wait and no repeated model call on a login problem; overload stops the calls > repeated overload opens the circuit: the next jobs do not call the provider until it closes
+TypeError: withCircuitBreaker is not a function
+ ❯ tests/tasks/PW-052/errors.int.test.ts:124:22
+    122|     let now = () => new Date();
+    123|     // as composed in apps/worker/src/main.ts: the circuit outside adm…
+    124|     const handlers = withCircuitBreaker(pool, withAdmission(pool, with…
+       |                      ^
+    125|       calls++;
+    126|       if (overloaded) throw httpErr(529, 'overloaded_error');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 passed (15)
+   Start at  04:43:26
+   Duration  2.79s (tests 68%, transform 26%, import 6%)
+

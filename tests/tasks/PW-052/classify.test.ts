@@ -86,3 +86,38 @@ describe('TST-052B: a login problem is never a quota wait and never retried', ()
     expect(k.detail).toContain('[redacted]');
   });
 });
+
+describe('review fixes (PW-052 review m1–m3)', () => {
+  test('m1: a message naming both a login failure and a limit is a login problem (no wait, no call)', () => {
+    expect(c({ provider: 'claude_agent', message: 'Authentication failed: too many requests for this login' })).toMatchObject({ class: 'auth', next: 'WAITING_AUTH' });
+    expect(c({ provider: 'codex', message: 'Not logged in. Rate limit info unavailable.' })).toMatchObject({ class: 'auth' });
+    // a plain limit message stays a limit
+    expect(c({ provider: 'codex', message: 'Too many requests, slow down' })).toMatchObject({ class: 'quota' });
+  });
+  test('m2: common secret shapes are redacted from the detail', () => {
+    const secrets = [
+      'AbCdEfGh+IjKlMnOp/QrStUvWx+YzAbCdEf/GhIjKl==',
+      'ghp_shortish12345', 'gho_abcDEF123', 'github_pat_11ABCDEFG0abc', 'AKIAIOSFODNN7EXAMPLE', 'xai-abcdef123456',
+    ];
+    for (const sec of secrets) {
+      const d = c({ provider: 'codex', message: `request failed with ${sec} in it` }).detail;
+      expect(d, sec).not.toContain(sec);
+      expect(d).toContain('[redacted]');
+    }
+    for (const [msg, sec] of [['x-api-key: abcDEF123456789xyz', 'abcDEF123456789xyz'], ['password=hunter2 rejected', 'hunter2'], ['Authorization: Basic dXNlcjpwYXNz', 'dXNlcjpwYXNz'], ['token: "t0k3n-val"', 't0k3n-val'], ['secret=s3cr3t;', 's3cr3t']] as const) {
+      expect(c({ provider: 'codex', message: msg }).detail, msg).not.toContain(sec);
+    }
+    // ordinary words survive
+    expect(c({ provider: 'codex', message: 'the key point failed' }).detail).toContain('the key point failed');
+  });
+  test('m3: a billing message is an account question; a cut-off stream is a network error', () => {
+    expect(c({ provider: 'claude_agent', message: 'Your credit balance is too low to access the Anthropic API.' })).toMatchObject({ class: 'auth', next: 'WAITING_AUTH', retry: false });
+    for (const m of ['stream ended unexpectedly', 'socket hang up', 'Premature close', 'terminated: other side closed']) {
+      expect(c({ provider: 'codex', message: m }), m).toMatchObject({ class: 'network', retry: true });
+    }
+  });
+  test('n2 (declined): a 403 stays a login problem even with a limit type (spec 08: 401/403 → WAITING_AUTH)', () => {
+    expect(c({ provider: 'codex', httpStatus: 403, errorType: 'rate_limit_error' })).toMatchObject({ class: 'auth' });
+  });
+});
+

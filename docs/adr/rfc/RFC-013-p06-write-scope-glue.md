@@ -50,3 +50,8 @@ User decision / reviewer:
   - `apps/worker/src/main.ts`: 모든 AI handler를 승인(PW-050) ⊃ quota 대기(PW-049) ⊃ 오류 분류(PW-052) 순으로 감싼다. Writer의 별도 `withQuotaWaits`는 이 조합으로 옮겼다.
   - `apps/web/src/features/runs/RunsTab.tsx`: FAILED뿐 아니라 STALE, WAITING_* 작업에도 사유(다음 행동 포함)를 보인다.
   - `run_errors` 조회 API는 만들지 않았다(남은 위험).
+  - 리뷰 반영(M1)
+    - `apps/worker/src/queue/index.ts`: `JobDeferred`와 배달 결과 `deferred`. 일을 시작하지 않은 실행을 시도로 세지 않고 미룬다.
+    - `packages/domain/src/jobs/index.ts`: `deferJob`(fenced, 시도 하나 반환, dispatch 지연)
+    - 공유 함수 변경(migration `pw_052_0002`): `pw_job_guard`가 `pw.defer_run` 표시가 있는 트랜잭션에서만 RUNNING→QUEUED, attempts−1, 같은 token을 허락한다. 다른 규칙은 그대로다.
+    - `apps/worker/src/main.ts`: `withCircuitBreaker`를 승인 바깥에 둔다(미룸이 예산 실행을 쓰지 않게).

@@ -42,20 +42,27 @@ const TYPE: Record<string, ErrorClass> = {
   budget_exhausted: 'budget', evidence_missing: 'evidence_missing', schema_violation: 'schema', document_conflict: 'conflict',
 };
 const NETWORK_CODES = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN', 'ENOTFOUND', 'EPIPE', 'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT'];
-// read only without a structured signal; conservative (a wrong "retry" is worse than a wrong "report")
+// read only without a structured signal; conservative (a wrong "retry" is worse than a wrong "report").
+// Login before limit: a message naming both is a login problem, which stops without a call (review m1).
 const MESSAGE: [RegExp, ErrorClass][] = [
+  // a credit balance is the API-key billing of the provider, which v1 does not use: log in with the subscription
+  [/\b(invalid api key|please (?:run )?\/?log ?in|log in again|not logged in|refresh token (?:has )?expired|unauthori[sz]ed|authentication failed|credit balance is too low)\b/i, 'auth'],
   [/\b(usage limit|rate limit|rate-limited|quota (?:exceeded|reached)|hit your usage limit|too many requests)\b/i, 'quota'],
-  [/\b(invalid api key|please (?:run )?\/?log ?in|log in again|not logged in|refresh token (?:has )?expired|unauthori[sz]ed|authentication failed)\b/i, 'auth'],
   [/\b(overloaded|service unavailable)\b/i, 'overloaded'],
   [/\bno space left on device\b/i, 'disk_full'],
+  [/\b(stream ended unexpectedly|socket hang up|premature close|other side closed|connection reset)\b/i, 'network'],
 ];
-
 const str = (v: unknown) => (typeof v === 'string' ? v : null);
-// what may never be stored from a provider's message: keys and tokens (sk-…, Bearer …, long opaque strings)
+// what may never be stored from a provider's message: keys and tokens — known prefixes (sk-…, ghp_…, AKIA…),
+// the value after a key/token/secret/password/authorization label, Bearer tokens, and long opaque strings
+// (base64 included). Conservative: a long path or id may be redacted too (review m2).
+const OPAQUE = 'A-Za-z0-9_+/=-';
 export const redact = (t: string) => t
-  .replace(/\b(?:sk|pk|rk|sess|xox[abp])-[A-Za-z0-9_-]{4,}/gi, '[redacted]')
+  .replace(/\b(?:sk|pk|rk|sess|xai|xox[abp])-[A-Za-z0-9_-]{4,}/gi, '[redacted]')
+  .replace(/\b(?:gh[pousr]_[A-Za-z0-9]{3,}|github_pat_[A-Za-z0-9_]{4,}|AKIA[0-9A-Z]{12,})/g, '[redacted]')
+  .replace(/\b((?:x-)?api[-_ ]?key|key|token|secret|password|passwd|authorization|cookie)(\s*[:=]\s*)(["']?)(?:(?:Basic|Bearer)\s+)?[^\s"';,]+/gi, '$1$2$3[redacted]')
   .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
-  .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[redacted]');
+  .replace(new RegExp(`(?<![${OPAQUE}])[${OPAQUE}]{32,}`, 'g'), '[redacted]');
 function fromError(e: unknown): Partial<ErrorInput> {
   if (!e || typeof e !== 'object') return { message: typeof e === 'string' ? e : null };
   const o = e as Record<string, unknown>;

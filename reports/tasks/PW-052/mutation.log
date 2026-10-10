@@ -20,3 +20,17 @@ KILLED no redaction (long opaque)
 KILLED no key redaction
 KILLED no detail clip
 KILLED stale run records
+# review fixes (M1 deferral, m1 order, m2 redaction, m3 patterns)
+KILLED M1 deferral counts attempt
+KILLED M1 deferral as retry
+KILLED M1 deferral unbounded
+KILLED M1 delay not until close
+KILLED M1 guard without flag
+KILLED M1 guard any decrement
+KILLED m2 no label redaction
+KILLED m2 no gh/aws prefixes
+KILLED m2 base64 split
+KILLED m3 no network messages
+# re-run: pass-through test added; m1 as a real order reversal (first m1 mutant left auth first: not a mutation of the order)
+KILLED M1 deferral passes error handling
+KILLED m1 quota before auth (order reversed)

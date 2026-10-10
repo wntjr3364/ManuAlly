@@ -6,7 +6,7 @@
 //   fencing token) decides; a duplicate, late or mismatched message changes nothing.
 import { PgBoss } from 'pg-boss';
 import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '@pw/domain/shared/db.ts';
-import { FAIL_NEXT, TERMINAL, claimJob, completeJob, failJob, heartbeatJob, type Job, type JobMessage } from '@pw/domain/jobs/index.ts';
+import { FAIL_NEXT, TERMINAL, claimJob, completeJob, deferJob, failJob, heartbeatJob, type Job, type JobMessage } from '@pw/domain/jobs/index.ts';
 
 export type { JobMessage };
 export const QUEUE_NAME = 'pw-jobs';
@@ -88,7 +88,17 @@ export class JobOutcomeError extends Error {
   }
 }
 
-export type DeliveryOutcome = 'completed' | 'duplicate' | 'skipped' | 'rejected' | 'failed' | 'lost_lease';
+// A run that did not start its work and should wait: re-queued after delaySecs without counting the
+// attempt (PW-052 circuit breaker). Whoever throws it bounds how often.
+export class JobDeferred extends Error {
+  readonly delaySecs: number;
+  constructor(message: string, delaySecs: number) {
+    super(message);
+    this.delaySecs = delaySecs;
+  }
+}
+
+export type DeliveryOutcome = 'completed' | 'duplicate' | 'skipped' | 'rejected' | 'failed' | 'deferred' | 'lost_lease';
 
 export async function processDelivery(pool: TxPool, msg: JobMessage, opts: { workerId: string; leaseMs: number; handlers: Partial<Record<string, JobHandler>> }): Promise<{ outcome: DeliveryOutcome; detail?: string }> {
   if (!msg || typeof msg.job_id !== 'string' || !UUID_RE.test(msg.job_id) || typeof msg.paper_id !== 'string') return { outcome: 'rejected', detail: 'malformed message' };
@@ -113,6 +123,10 @@ export async function processDelivery(pool: TxPool, msg: JobMessage, opts: { wor
   } catch (e) {
     if (e instanceof DomainError && e.code === 'CONFLICT' && /lease lost/.test(e.message)) return { outcome: 'lost_lease' };
     try {
+      if (e instanceof JobDeferred) {
+        await deferJob(pool, { jobId: job.id, fencingToken, error: e.message, delaySecs: e.delaySecs });
+        return { outcome: 'deferred', detail: e.message };
+      }
       await failJob(pool, { jobId: job.id, fencingToken, error: e instanceof Error ? e.message : String(e), next: e instanceof JobOutcomeError ? e.next : 'retry' });
     } catch (f) {
       if (f instanceof DomainError && f.code === 'CONFLICT') return { outcome: 'lost_lease' };

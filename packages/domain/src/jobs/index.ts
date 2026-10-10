@@ -237,6 +237,24 @@ export async function failJob(pool: TxPool, a: { jobId: string; fencingToken: nu
   });
 }
 
+// Puts a run back without counting it: the run did not start its work (no model call) because the
+// provider is paused (circuit breaker, PW-052). The job is dispatched again after delaySecs; the attempt
+// its claim counted is returned. The caller bounds how often a job is deferred.
+export async function deferJob(pool: TxPool, a: { jobId: string; fencingToken: number; error: string; delaySecs: number }): Promise<Job> {
+  if (!Number.isFinite(a.delaySecs) || a.delaySecs < 0) throw new DomainError('INVALID', 'delaySecs must be a non-negative number', 'delaySecs');
+  return inTransaction(pool, async (tx) => {
+    const j = await lockRunning(tx, a.jobId, a.fencingToken);
+    await setActor(tx, `worker:${j.lease_owner}`);
+    await tx.query("SELECT set_config('pw.dispatch_delay_secs', $1, true), set_config('pw.defer_run', 'on', true)", [String(Math.ceil(a.delaySecs))]);
+    const { rows } = await tx.query<Job>(
+      `UPDATE jobs SET status = 'QUEUED', attempts = attempts - 1, last_error = $2, lease_owner = NULL, lease_expires_at = NULL
+       WHERE id = $1 RETURNING ${PUBLIC}`,
+      [a.jobId, a.error.slice(0, 1000)],
+    );
+    return rows[0]!;
+  });
+}
+
 // The owner stops a job. A running worker then fails its fencing check and changes nothing.
 export async function cancelJob(pool: TxPool, a: { paperId: string; jobId: string; ownerId: string }): Promise<Job> {
   if (!UUID_RE.test(a.jobId)) throw new DomainError('NOT_FOUND', 'job not found');

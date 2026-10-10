@@ -14,7 +14,7 @@ import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
 import { reconcileRunProcesses } from './lifecycle/index.ts';
 import { wakeDueWaits, withQuotaWaits } from './quota-scheduler/index.ts';
 import { withAdmission } from './admission/index.ts';
-import { withErrorHandling } from './errors/index.ts';
+import { withCircuitBreaker, withErrorHandling } from './errors/index.ts';
 import type { JobHandler } from './queue/index.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -22,8 +22,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!url) throw new Error('PW_DATABASE_URL is not set (see .env.example / `pnpm db:dev start`)');
   selectProvider(process.env); // refuses anything but an admitted provider
   const pool = new pg.Pool({ connectionString: url, max: 6 });
-  // admission (PW-050) around quota waits (PW-049) around error classification (PW-052), for every AI job
-  const admitted = <K extends string>(h: Record<K, JobHandler>) => withAdmission(pool, withQuotaWaits(pool, withErrorHandling(pool, h, { provider: 'mock', authProfileId: 'none' })), { provider: 'mock', authMode: 'none', estimateUsd: () => null });
+  // for every AI job: the circuit breaker (PW-052; an open circuit defers the job before admission takes a run)
+  // around admission (PW-050) around quota waits (PW-049) around error classification (PW-052)
+  const provider = { provider: 'mock', authProfileId: 'none' };
+  const admitted = <K extends string>(h: Record<K, JobHandler>) => withCircuitBreaker(pool, withAdmission(pool, withQuotaWaits(pool, withErrorHandling(pool, h, provider)), { provider: 'mock', authMode: 'none', estimateUsd: () => null }), provider);
   const worker = startLocalWorker(pool, {
     handlers: {
       // PW-050: every AI job is admitted (and settled) per run, with the provider it runs on — the MOCK is

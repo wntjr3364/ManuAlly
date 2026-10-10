@@ -38,7 +38,7 @@
 - GREEN: 기록·보고서·pilot을 만든 뒤 10개 통과.
 
 ## 회귀와 감사
-- `pnpm test` exit 0(`test.log`: unit 640, 통합 673, contracts 17, 브라우저 101, spikes·evals·pack-check). capability 근거의 전체 회귀는 이 로그를 가리킨다.
+- `pnpm test` exit 0(리뷰 반영 후 26a51cc, `test.log`: unit 642, 통합 673, contracts 17, 브라우저 101, spikes·evals·pack-check). 재리뷰 NIT 시험 1개는 그 뒤 추가했고 PW-062 unit 13개로 확인했다. capability 근거의 전체 회귀는 이 로그를 가리킨다.
 - 보안 감사를 깨끗한 커밋 1dbf54a에서 다시 실행했다: `pending_manual`, 자동 9개 영역 통과, 열린 finding 없음(F-02는 PW-061에서 수정). 기록 `reports/release/audit-run.log`, `reports/security/audit.json`.
 
 ## Mutation(`mutation.log`)

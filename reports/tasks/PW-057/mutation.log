@@ -28,3 +28,10 @@ KILLED pdf service unavailable as 500
 KILLED R2 service reads latest caption ignoring snapshot time (semantic)
 KILLED R2 service ignores verifier
 NOTE service reads non-shareable for share: equivalent — buildArchive leaves non-shareable originals out before looking at their bytes; only read time and the size limit differ
+# review fixes (M1, m1, m2, licence_conflict)
+KILLED M1 render may be missing
+KILLED M1 render may point at a non-manuscript
+KILLED m1 share holds non-shareable original
+KILLED asset not under its own hash
+KILLED licence conflict ignored
+KILLED m2 not_run passes

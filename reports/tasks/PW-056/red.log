@@ -1,0 +1,146 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/export/docx/render.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/export/docx/render.test.ts [ tests/export/docx/render.test.ts ]
+Error: Cannot find module '../../../packages/exports/src/docx/index.ts' imported from /home/user/ManuAlly/tests/export/docx/render.test.ts
+ ❯ tests/export/docx/render.test.ts:10:1
+      8| import { createHash } from 'node:crypto';
+      9| import { bibliography } from '../../../packages/editor-core/src/index.…
+     10| import { renderDocx, cslJson, RENDERER_VERSION } from '../../../packag…
+       | ^
+     11| import { parseDocx } from '../../../packages/domain/src/imports/docx/i…
+     12| import { openZip } from '../../../packages/domain/src/imports/docx/zip…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  07:41:36
+   Duration  462ms (worker 97%, environment 3%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-056/export.int.test.ts (5 tests | 5 failed) 1355ms
+   ❯ TST-056A: an export of a stored revision, stored and downloadable as made (4)
+     × DOCX: made from the head revision, clean, with the computed labels, bibliography and legend; downloaded byte for byte 64ms
+     × CSL-JSON: the stored records of the cited references with their ids 38ms
+     × an export is kept as made: later edits do not change it; it is never updated or deleted 38ms
+     × refusals: unknown format, another paper's document, another owner 25ms
+   ❯ TST-056B: unlinked citations make a draft, not a clean export (1)
+     × a citation number typed as text and a citation to a reference no longer in the paper 27ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-056/export.int.test.ts > TST-056A: an export of a stored revision, stored and downloadable as made > DOCX: made from the head revision, clean, with the computed labels, bibliography and legend; downloaded byte for byte
+AssertionError: {"message":"Route POST:/api/papers/f97220e1-b3cd-436a-bad8-8f9efc0b8440/exports not found","error":"Not Found","statusCode":404}: expected 404 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 404
+
+ ❯ tests/tasks/PW-056/export.int.test.ts:68:34
+     66|     const w = await paper();
+     67|     const r = await call('POST', `/api/papers/${w.paperId}/exports`, {…
+     68|     expect(r.statusCode, r.body).toBe(201);
+       |                                  ^
+     69|     const e = r.json();
+     70|     expect(e).toMatchObject({ format: 'docx', revision_id: w.head, sta…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/tasks/PW-056/export.int.test.ts > TST-056A: an export of a stored revision, stored and downloadable as made > CSL-JSON: the stored records of the cited references with their ids
+AssertionError: expected { …(3) } to deeply equal [ ObjectContaining{…} ]
+
+- Expected:
+[
+  ObjectContaining {
+    "DOI": "10.1234/jps.2020.1",
+    "id": "27fae1a0-7649-4a85-9c17-cf6a40bea832",
+    "title": "Root signals under drought",
+    "type": "article-journal",
+  },
+]
+
++ Received:
+{
+  "error": "Not Found",
+  "message": "Route GET:/api/papers/fc3540bc-da27-41fb-a36d-f9f1663aa8de/exports/undefined/file not found",
+  "statusCode": 404,
+}
+
+ ❯ tests/tasks/PW-056/export.int.test.ts:90:35
+     88|     const file = await call('GET', `/api/papers/${w.paperId}/exports/$…
+     89|     expect(file.headers['content-type']).toContain('application/json');
+     90|     expect(JSON.parse(file.body)).toEqual([expect.objectContaining({ i…
+       |                                   ^
+     91|   });
+     92|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/tasks/PW-056/export.int.test.ts > TST-056A: an export of a stored revision, stored and downloadable as made > an export is kept as made: later edits do not change it; it is never updated or deleted
+AssertionError: expected '882b3e4dc132da256aee88aea970d7123d037…' to be undefined // Object.is equality
+
+- Expected:
+undefined
+
++ Received:
+"882b3e4dc132da256aee88aea970d7123d037e0df6bd619325425d1ad0e9e0c2"
+
+ ❯ tests/tasks/PW-056/export.int.test.ts:98:72
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/tasks/PW-056/export.int.test.ts > TST-056A: an export of a stored revision, stored and downloadable as made > refusals: unknown format, another paper's document, another owner
+AssertionError: expected 404 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 404
+
+ ❯ tests/tasks/PW-056/export.int.test.ts:105:127
+    103|   test('refusals: unknown format, another paper\'s document, another o…
+    104|     const w = await paper();
+    105|     expect((await call('POST', `/api/papers/${w.paperId}/exports`, { d…
+       |                                                                                                                               ^
+    106|     const other = await paper();
+    107|     expect((await call('POST', `/api/papers/${w.paperId}/exports`, { d…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/tasks/PW-056/export.int.test.ts > TST-056B: unlinked citations make a draft, not a clean export > a citation number typed as text and a citation to a reference no longer in the paper
+AssertionError: expected undefined to be 'draft_with_errors' // Object.is equality
+
+- Expected:
+"draft_with_errors"
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-056/export.int.test.ts:118:22
+    116|     const w = await paper([{ type: 'paragraph', attrs: { id: randomUUI…
+    117|     const e = (await call('POST', `/api/papers/${w.paperId}/exports`, …
+    118|     expect(e.status).toBe('draft_with_errors');
+       |                      ^
+    119|     expect(e.report.issues).toContainEqual(expect.objectContaining({ k…
+    120|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed (5)
+   Start at  07:44:39
+   Duration  3.50s (transform 48%, tests 41%, import 11%)
+

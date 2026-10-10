@@ -1,0 +1,15 @@
+Drought marker paper
+Introduction
+In Arabidopsis thaliana, H2O loss rises 103 fold (strong) as shown [1, p. 4] and [2] (see Figure 1 and Table 1).
+Again [1] & <safe> "quotes".
+Group
+Fold
+drought
+2.4
+
+References
+[1] Kim, J. (2020). Root signals under drought. Journal of Plant Studies. https://doi.org/10.1234/jps.2020.1
+[2] Lee, A., & Park, M. (2019). A second study.
+Figure and table legends
+Figure 1. ABC1 induction in roots under drought (n = 3).
+Table 1. Fold changes

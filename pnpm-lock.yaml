@@ -85,6 +85,9 @@ importers:
       '@pw/editor-core':
         specifier: workspace:*
         version: link:../../packages/editor-core
+      '@pw/exports':
+        specifier: workspace:*
+        version: link:../../packages/exports
       '@pw/providers':
         specifier: workspace:*
         version: link:../../packages/providers
@@ -224,7 +227,14 @@ importers:
         specifier: 1.12.1
         version: 1.12.1
 
-  packages/exports: {}
+  packages/exports:
+    dependencies:
+      '@pw/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@pw/editor-core':
+        specifier: workspace:*
+        version: link:../editor-core
 
   packages/providers: {}
 

@@ -10,6 +10,7 @@
     "@pw/contracts": "workspace:*",
     "@pw/domain": "workspace:*",
     "@pw/editor-core": "workspace:*",
+    "@pw/exports": "workspace:*",
     "@pw/providers": "workspace:*",
     "@pw/search": "workspace:*",
     "fastify": "5.12.5",

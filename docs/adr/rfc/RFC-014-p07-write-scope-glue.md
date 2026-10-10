@@ -39,3 +39,12 @@ User decision / reviewer:
     - `source_text`는 docx일 때만 NULL이고, 그때 `source_bytes`는 반드시 있다.
     - 표는 여전히 불변이다.
   - spec 10 "원본 asset을 먼저 불변 저장"과의 차이(review m3): 원본은 미리 보기와 같은 트랜잭션에 받은 그대로 저장된다. 읽을 수 없는 파일과 변경 추적 선택 전 업로드는 거부하고 저장하지 않는다. 사용자의 파일은 사용자에게 그대로 있다.
+- PW-056
+  - 새 route 폴더 `apps/api/src/exports/**`, `apps/api/src/server.ts`(등록)
+  - 새 화면 폴더 `apps/web/src/features/exports/**`, `apps/web/src/features/versions/VersionsTab.tsx`(내보내기 패널)
+  - `packages/exports/package.json`(`@pw/domain`, `@pw/editor-core` workspace 연결, `./*` export), `apps/api/package.json`(`@pw/exports`), `pnpm-lock.yaml`. workspace 내부 연결뿐이고 외부 의존성은 없다.
+  - **결정(위임)**: P00의 "pandoc + citeproc 별도 프로세스" 대신 앱이 DOCX를 직접 쓴다.
+    - pandoc 설치가 필요 없다(sudo 없는 서버).
+    - 화면과 같은 고정 렌더러를 쓴다(번호·참고문헌 일치).
+    - 결정적 바이트다.
+    - 학술지 CSL 양식 적용은 citeproc 버전 고정 RFC가 있을 때까지 하지 않는다. CSL-JSON 내보내기로 대신한다.

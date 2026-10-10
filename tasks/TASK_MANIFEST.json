@@ -1819,7 +1819,7 @@
       "id": "PW-056",
       "phase": "P07",
       "title": "DOCX·CSL export",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-055"
       ],

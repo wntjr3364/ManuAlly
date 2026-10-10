@@ -1,0 +1,17 @@
+KILLED unresolved citation not an error
+KILLED typed citations not checked
+KILLED author-year typed not checked
+KILLED unresolved figure not an error
+KILLED no draft header
+KILLED uncited references listed
+KILLED marks dropped
+KILLED headings as normal
+KILLED no escaping
+KILLED non-deterministic zip
+KILLED math not reported
+KILLED incomplete ref not reported
+KILLED export of another document
+KILLED csl uncited included
+# re-run: readback seam test; corrected locator pattern
+KILLED readback ignored
+KILLED locator dropped

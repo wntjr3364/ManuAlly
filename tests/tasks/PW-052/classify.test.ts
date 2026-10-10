@@ -107,6 +107,9 @@ describe('review fixes (PW-052 review m1–m3)', () => {
     for (const [msg, sec] of [['x-api-key: abcDEF123456789xyz', 'abcDEF123456789xyz'], ['password=hunter2 rejected', 'hunter2'], ['Authorization: Basic dXNlcjpwYXNz', 'dXNlcjpwYXNz'], ['token: "t0k3n-val"', 't0k3n-val'], ['secret=s3cr3t;', 's3cr3t']] as const) {
       expect(c({ provider: 'codex', message: msg }).detail, msg).not.toContain(sec);
     }
+    // re-review n1: a UUID (job or request id) is kept; a UUID-like key with more is not
+    expect(c({ provider: 'codex', message: 'job 3f2b8c1e-4a5d-4e6f-8a9b-0c1d2e3f5d4e failed' }).detail).toContain('3f2b8c1e-4a5d-4e6f-8a9b-0c1d2e3f5d4e');
+    expect(c({ provider: 'codex', message: 'key 3f2b8c1e-4a5d-4e6f-8a9b-0c1d2e3f5d4eAbCdEf0123 failed' }).detail).not.toContain('AbCdEf0123');
     // ordinary words survive
     expect(c({ provider: 'codex', message: 'the key point failed' }).detail).toContain('the key point failed');
   });

@@ -34,3 +34,5 @@ KILLED m3 no network messages
 # re-run: pass-through test added; m1 as a real order reversal (first m1 mutant left auth first: not a mutation of the order)
 KILLED M1 deferral passes error handling
 KILLED m1 quota before auth (order reversed)
+# re-review n1 (UUID kept)
+KILLED n1 UUID exemption too wide

@@ -57,12 +57,14 @@ const str = (v: unknown) => (typeof v === 'string' ? v : null);
 // the value after a key/token/secret/password/authorization label, Bearer tokens, and long opaque strings
 // (base64 included). Conservative: a long path or id may be redacted too (review m2).
 const OPAQUE = 'A-Za-z0-9_+/=-';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const redact = (t: string) => t
   .replace(/\b(?:sk|pk|rk|sess|xai|xox[abp])-[A-Za-z0-9_-]{4,}/gi, '[redacted]')
   .replace(/\b(?:gh[pousr]_[A-Za-z0-9]{3,}|github_pat_[A-Za-z0-9_]{4,}|AKIA[0-9A-Z]{12,})/g, '[redacted]')
   .replace(/\b((?:x-)?api[-_ ]?key|key|token|secret|password|passwd|authorization|cookie)(\s*[:=]\s*)(["']?)(?:(?:Basic|Bearer)\s+)?[^\s"';,]+/gi, '$1$2$3[redacted]')
   .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
-  .replace(new RegExp(`(?<![${OPAQUE}])[${OPAQUE}]{32,}`, 'g'), '[redacted]');
+  // a UUID (a job or request id) is not a secret and stays readable (re-review n1)
+  .replace(new RegExp(`(?<![${OPAQUE}])[${OPAQUE}]{32,}`, 'g'), (m) => (UUID.test(m) ? m : '[redacted]'));
 function fromError(e: unknown): Partial<ErrorInput> {
   if (!e || typeof e !== 'object') return { message: typeof e === 'string' ? e : null };
   const o = e as Record<string, unknown>;

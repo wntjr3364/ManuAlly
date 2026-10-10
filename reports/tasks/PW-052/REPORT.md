@@ -82,6 +82,7 @@
 - circuit breaker는 DB 기록으로 판단한다. 잠그지 않으므로 여러 worker가 같은 순간에 각각 한 번 더 부를 수 있다. half-open 시험 호출은 없다. 마지막 과부하 5분 뒤 닫힌다(review n1).
 - `classifyEvent`는 아직 운영 코드에서 쓰지 않는다. 실제 adapter의 오류 사건을 handler가 던지는 경로에 붙일 때 쓴다(review n3).
 - 실행 탭의 사유는 작업의 `last_error`다. PW-047/049/050의 옛 메시지는 "안내 + [종류]" 형식이 아니다(owner에게 안전한 문장이지만 형식이 다름, review n4).
+- 미룬 claim도 실행 수(`billingAccount.runs`)에 들어간다(호출 없음, re-review n2). `JobDeferred`의 상한은 던지는 쪽이 진다(n3). circuit은 앱 시계와 DB 시계를 섞는다. worker와 DB가 다른 호스트면 시계 차이만큼 열림·닫힘이 어긋난다(n4).
 - 메시지 패턴은 영어 문구만 안다. 로그인 문구와 한도 문구가 함께 있으면 로그인 문제로 본다(호출하지 않는 쪽).
 - 지금 main.ts의 공급자는 MOCK(`authProfileId: 'none'`)이다. 실제 공급자를 붙일 때 로그인 id를 넘겨야 circuit이 로그인별로 나뉜다.
 
@@ -105,3 +106,15 @@ PW-053: Crash·disk full·stale 재개 시험
 - mutation(`mutation.log` 하단): 12종 모두 탐지
   - 처음 살아남은 2종 가운데 m1 변이는 로그인 패턴이 여전히 먼저여서 순서 변이가 아니었다. 순서를 뒤집는 변이로 다시 돌렸다.
   - 다른 1종(미룸이 오류 처리를 지나감)은 시험을 더한 뒤 탐지했다.
+- 회귀(리뷰 반영): `pnpm test` exit 0 — unit 437, integration 568, contracts 17, 브라우저 96 (`pnpm-test-review.log`)
+
+## 재리뷰 (eefd689): approve — NIT 4
+| 지적 | 처리 | 시험 |
+|---|---|---|
+| n1: 긴 불투명 문자열 규칙이 UUID(작업·요청 id)와 긴 경로도 지움 | UUID 모양 전체는 남긴다. 경로는 계속 지운다(`/`가 든 base64 키와 구별하지 않는 보수적 선택) | unit: UUID는 남고, UUID 뒤에 더 붙은 문자열은 지워진다. mutation 1종 탐지 |
+| n2: 미룬 claim도 fencing token을 올려 PW-051 `billingAccount.runs`(= token)가 호출 없는 claim을 셈 | 남은 위험으로 기록한다. runs는 "claim 수"이고 이미 "공급자 전에 멈춘 실행도 포함"이라고 안내한다(PW-051 m2). 과금 사용량(`sessions_with_usage`)은 영향받지 않는다 | — |
+| n3: `JobDeferred`의 상한은 던지는 쪽에만 있음 | 남은 위험으로 기록한다. 지금 던지는 곳은 circuit breaker 하나이고 6번 상한이 있다. 새 호출자는 자기 상한을 가져야 한다(`JobDeferred` 주석) | — |
+| n4: circuit 판단이 앱 시계와 DB 시계(`provider_overloads.created_at`)를 섞음 | 남은 위험으로 기록한다. 지금 배치는 worker와 DB가 같은 호스트다(개인 PC, 연구실 서버) | — |
+
+- GREEN: unit 31, 통합 17, typecheck·lint 통과
+- 리뷰 결론: approve. n1 반영은 작은 수정(unit 31, mutation 1/1)이라 재리뷰 없이 닫는다.

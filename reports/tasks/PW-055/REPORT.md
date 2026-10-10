@@ -123,3 +123,16 @@ PW-056: DOCX·CSL export
 - GREEN: unit 44, 통합 6(+PW-021 9), 브라우저 1(parser version `pw-docx-import-5`)
 - mutation(`mutation.log` 하단): 5종 모두 탐지
   - "모든 댓글 추적" 변이는 1만 규모 시험에서 살아남았다(200자 제한만으로 3초 안). 5만 규모로 시험을 키운 뒤 탐지했다.
+- 회귀(4차 반영): `pnpm test`는 exit 1이었다. unit 488, integration 596, contracts 17, 브라우저 98은 모두 통과했다. 실패는 P00 spike 시험 하나다(`tests/tasks/PW-004/isolation.test.mjs` "interrupt ends the run and its process group only": 손자 프로세스가 아직 살아 있음, `pnpm-test-fourth.log`).
+  - **원인**
+    - 이 시험은 프로세스를 pid로만 확인했다.
+    - 이 기계의 `pid_max`는 32768이다. 전체 시험 중에는 PostgreSQL backend, 브라우저, node 프로세스가 많이 생겨 pid가 빨리 돈다.
+    - 손자는 SIGINT로 곧 죽는다. 그 pid가 100ms 안에 다른 프로세스에 다시 쓰이면, 시험은 손자가 살아 있다고 잘못 본다.
+  - 혼자 20번 돌리면(유휴 10, CPU 부하 10) 재현되지 않았다. pid 재사용은 pid_max와 그 실행의 프로세스 수로만 설명된다.
+  - **수정**: 시험이 프로세스를 pid와 시작 시각(`/proc/<pid>/stat` 22번째 필드)으로 확인한다. 실행기(`spikes/isolation/runner.mjs`)는 이미 pid와 시작 시각으로 정리하고 있었다. 시험을 끄거나 건너뛰지 않았다.
+
+## 5차 리뷰 (a6f4218): approve — NIT 1
+- R2, m1, m2 해결을 확인했다. 마지막 훑기에서 입력 크기보다 빨리 자라는 작업은 없었다. 미종료 필드 63겹 × 15만 run은 3.2초로, 최대 64배라 받아들일 만하다.
+- n1: 100만 자를 넘는 문단이 "invalid document"(CORRUPT)로 거부되던 것을 이유를 밝힌 `TOO_LARGE`로 바꿨다. unit 1, mutation 1.
+- GREEN: unit 45, typecheck·lint 통과
+- 리뷰 결론: approve. n1 반영은 작은 수정이라 재리뷰 없이 닫는다(최종 회귀는 아래).

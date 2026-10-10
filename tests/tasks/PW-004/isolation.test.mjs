@@ -141,18 +141,26 @@ test('TST-004A: interrupt ends the run and its process group only', async (t) =>
   const gcPidFile = path.join(run.cwd, 'grandchild.pid');
   for (let i = 0; i < 100 && !fs.existsSync(gcPidFile); i++) await new Promise((r) => setTimeout(r, 30));
   const grandchild = Number(fs.readFileSync(gcPidFile, 'utf8'));
+  // a process is its pid AND its start time: with pid_max 32768 and a busy machine (the full test run forks
+  // many processes) a pid freed by the killed grandchild can be reused within the wait below
+  const startOf = (pid) => {
+    try { return fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1].split(' ')[19]; } catch { return null; }
+  };
+  const grandchildStart = startOf(grandchild);
+  const bystanderStart = startOf(bystander.pid);
   const result = await cancelRun(handle, { graceMs: 1500 });
   assert.equal(result.signals[0], 'SIGINT');
   assert.ok(result.exited);
   await new Promise((r) => setTimeout(r, 100));
   // A killed process can linger as a zombie when PID 1 does not reap orphans (seen in the dev
   // container); a zombie runs no code, so it counts as terminated.
-  const alive = (pid) => {
+  const alive = (pid, start) => {
     try { process.kill(pid, 0); } catch { return false; }
+    if (start !== null && startOf(pid) !== start) return false; // the pid now belongs to another process
     try { return !/^State:\s+Z/m.test(fs.readFileSync(`/proc/${pid}/status`, 'utf8')); } catch { return true; }
   };
-  assert.equal(alive(grandchild), false, 'grandchild in the run process group must be gone');
-  assert.equal(alive(bystander.pid), true, 'unrelated process must survive');
+  assert.equal(alive(grandchild, grandchildStart), false, 'grandchild in the run process group must be gone');
+  assert.equal(alive(bystander.pid, bystanderStart), true, 'unrelated process must survive');
 });
 
 test('TST-004A: the original research folder and the read-only input copy are both unchanged after a tampering run', async (t) => {

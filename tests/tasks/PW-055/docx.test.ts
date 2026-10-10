@@ -394,3 +394,11 @@ describe('fourth review m1 / m2', () => {
     expect(loss(out.report, 'field')).toMatchObject({ count: 1, examples: [expect.stringContaining('important result 2.4-fold')] });
   });
 });
+
+describe('fifth review n1', () => {
+  test('a paragraph longer than the editor allows is refused as too large, with that reason', () => {
+    let err: unknown;
+    try { parseDocx(makeDocx(p(r('ten chars.').repeat(110_000))), {}); } catch (e) { err = e; }
+    expect(err).toMatchObject({ reason: 'TOO_LARGE', message: expect.stringContaining('longer than 1,000,000 characters') });
+  });
+});

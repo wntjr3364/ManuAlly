@@ -26,6 +26,7 @@ export const DOCX_PARSER_VERSION = 'pw-docx-import-5';
 export const MAX_BLOCKS = 50_000;
 // fields nest a few levels in real documents; anything deeper is refused (each open field sees every text)
 export const MAX_FIELD_DEPTH = 64;
+export const MAX_PARAGRAPH_CHARS = 1_000_000;
 // what is kept of a text only for the report's examples (they are cut to 120 characters)
 const EXAMPLE_CHARS = 200;
 export type TrackedChoice = 'accept' | 'reject';
@@ -226,6 +227,9 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
   const state = { characters: 0, inNote: 0, inUnknown: 0, carry: null as { content: Inline[] } | null };
   const push = (b: Block) => {
     if (blocks.length >= MAX_BLOCKS) throw new DocxError(`more than ${MAX_BLOCKS} paragraphs and tables`, 'TOO_LARGE');
+    // the editor keeps a paragraph's text under a million characters (fifth review n1: say so, not "invalid")
+    const longest = b.type === 'table' ? Math.max(0, ...b.content.flatMap((row) => row.content.map((cell) => plain(cell.content).length))) : plain(b.content).length;
+    if (longest > MAX_PARAGRAPH_CHARS) throw new DocxError(`a paragraph is longer than ${MAX_PARAGRAPH_CHARS.toLocaleString('en')} characters`, 'TOO_LARGE');
     blocks.push(b);
   };
   const plain = (xs: Inline[]) => xs.map((i) => i.text).join('');

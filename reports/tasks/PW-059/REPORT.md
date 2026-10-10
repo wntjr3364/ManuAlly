@@ -1,5 +1,5 @@
 # PW-059 — Security release audit — REPORT
-상태: in_review (2026-10-10) — 독립 리뷰 1차 changes requested(MAJOR 1, MINOR 5, NIT 3) → 반영. 재리뷰 changes requested(MAJOR 1, MINOR 1) → 반영, 3차 리뷰 요청
+상태: in_review (2026-10-10) — 독립 리뷰 1차 changes requested(MAJOR 1, MINOR 5, NIT 3) → 반영. 재리뷰 changes requested(MAJOR 1, MINOR 1) → 반영. 3차 리뷰 **approve**(NIT 2 → 문서 반영)
 
 보안 감사 보고서는 `reports/security/RELEASE_AUDIT.md`, 게이트 기록은 `reports/security/audit.json`이다.
 게이트 결정은 `reports/security/audit.json`에 있다. 수동 확인 2건이 남아 있으므로 `pending_manual`이 기대값이다.
@@ -106,6 +106,11 @@
   - 감사 보고서의 "어떤 route나 worker로도…" 문장을 외래 키에 한정했다. id 배열과 원고 안 id는 3·4항으로 따로 적었다.
 - **m1**: 수동 확인을 `manual-checks.json`에서 지우면 게이트가 allowed가 되었다. `REQUIRED_MANUAL`(MAN-LIVE-SANDBOX, MAN-DEPLOY-TLS)이 빠지거나 필수가 아니면 거절한다. 시험을 추가했다.
 - mutation 6종: 5종을 잡았다. 무효 1종(시험 자신의 단정을 바꾼 것)은 소스 쪽 심기(검토 목록에서 열 하나 제거)로 대신했고, 그것도 잡았다.
+
+## 3차 리뷰(approve) — NIT 반영
+- n1: 자유 계획 이름표(PW-010 설계, UUID가 아닌 글)는 여전히 "근거 필요"를 채운다. F-05 기록에 무결성 보장이 아니라 계획 표시라고 적었다(`findings.json`, `RELEASE_AUDIT.md`).
+- n2: story의 `evidence_links`는 사용자가 쓴 글이다. 어디서도 id로 풀지 않는다고 감사 보고서 4항에 적었다.
+- 문서만 바뀌었다(코드·시험 변경 없음). pack-check로 확인했다.
 
 ## 감사 실행과 회귀(리뷰 반영 후)
 - 감사: 깨끗한 커밋 `199bf58`에서 `node --experimental-strip-types tests/security/run-audit.ts` → exit 2(`pending_manual`), `dirty: false`, 자동 9개 영역 통과. 기록 `audit-run.log`, `reports/security/audit.json`.

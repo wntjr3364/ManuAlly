@@ -65,7 +65,7 @@
     4. **원고 안의 id**(인용 `referenceId`, 그림 참조 `targetId`): 사용자의 수동 편집이므로 저장은 막지 않는다(제품 불변조건). 대신 논문 안에서만 풀린다.
        - 다른 논문의 문헌·그림은 내보내기에서 `unresolved_citation`·`unresolved_figure` 오류가 된다. 이 오류는 제출판 freeze를 막는다.
        - 그 내용(제목 등)은 보고서에도 파일에도 나오지 않는다(표적 시험).
-       - JSON 문서 안의 다른 id(스냅샷 manifest 등)는 서버가 만든다.
+       - JSON 문서 안의 다른 id(스냅샷 manifest 등)는 서버가 만든다. 예외는 story의 `evidence_links`다. 사용자가 쓴 글이고 id처럼 보이는 문자열이 있을 수 있지만, 어디서도 id로 풀지 않고 글로만 읽는다(3차 리뷰 n2).
 
 ## Findings
 | ID | 심각도 | 상태 | 내용 | 근거 |
@@ -73,7 +73,7 @@
 | F-01 | high | fixed | AI 실행 로그인 프로필이 개발자 CLI 상태일 수 있었다. 리뷰 n2: 옮겨 둔 상태 포함. | `credentials.test.ts`, RED `red-F01.log` |
 | F-03 | high | fixed | 전송 정책을 실제 전송 지점(`runProviderTurn`)에서 확인하지 않았다. 선택 수정·curation worker는 자체 확인도 없었다. 지금은 mock만 연결되어 있어 잠재 위험이다. | `send-policy.int.test.ts`, RED `red-F03.log` |
 | F-04 | low | fixed | sandbox 가용성 확인이 worker 환경 전체를 받았다. | `static.test.ts` |
-| F-05 | medium | fixed | 개요 노드의 주장·근거 id가 형식만 확인되어, 다른 논문의 근거로 "근거 필요"를 채울 수 있었다(내용 유출은 없음: 읽는 쪽이 논문으로 거른다). 재리뷰 M1'. | `sweep.int.test.ts` 표적 2종, `schema.int.test.ts`, RED `red-F05.log` |
+| F-05 | medium | fixed | 개요 노드의 주장·근거 id가 형식만 확인되어, 다른 논문의 근거로 "근거 필요"를 채울 수 있었다(내용 유출은 없음: 읽는 쪽이 논문으로 거른다). 재리뷰 M1'. 자유 계획 이름표(UUID가 아닌 글, PW-010 설계)는 여전히 "근거 필요"를 채운다. 이것은 무결성 보장이 아니라 계획 표시다(3차 리뷰 n1). | `sweep.int.test.ts` 표적 2종, `schema.int.test.ts`, RED `red-F05.log` |
 | F-02 | low | open | 웹 앱 CSP·frame-ancestors·Referrer-Policy가 없다. | PW-061 배포에서 다룬다. |
 
 ## spec 09 대조(리뷰 m5 반영)

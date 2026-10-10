@@ -81,7 +81,7 @@
 | PW-048 | in_review | (P06) | REQ-048 / TST-048A,B | 통합 21(리뷰 반영), mutation 21+13종 탐지, `pnpm test` exit 0(리뷰 반영) | 대역 세션만(실제 adapter 연결·Codex compaction RPC는 live smoke), 지금 Claude·Codex 모두 새 세션 경로(compaction 미검증), 모델 window 표 없음 |
 | PW-049 | in_review | (P06) | REQ-049 / TST-049A,B | 통합 16(리뷰 반영), mutation 23+6종 탐지(+동등 1), `pnpm test` exit 0(리뷰 반영) | 실제 가용성 probe 없음(worker는 "모름"), 실제 429 연결은 provider run 경로, 허락·대기 화면 없음(API만), quota 재개가 재시도 횟수를 씀 |
 | PW-050 | in_review | (P06) | REQ-050 / TST-050A,B | 통합 19(리뷰 반영), mutation 30+8종 탐지, `pnpm test` exit 0(리뷰 반영) | 실제 공급자 비용 보고 미시험, 구독의 유료 추가 사용 차단은 공급자 설정(live smoke), 예산 화면 없음, WAITING_BUDGET 재개 경로 없음, 공급자 쪽 유료 추가 사용 감지 불가 |
-| PW-051 | in_review | (P06) | REQ-051 / TST-051A,B | 통합 11, mutation 11종 탐지, `pnpm test` (기록 예정) | 실제 프로세스 kill·DB 끊김 미시험(lease 만료를 DB에서 흉내), 공급자 호출 중복은 막지 않음(at-least-once로 보고) |
+| PW-051 | in_review | (P06) | REQ-051 / TST-051A,B | 통합 11, mutation 11종 탐지, `pnpm test` exit 0 | 실제 프로세스 kill·DB 끊김 미시험(lease 만료를 DB에서 흉내), 공급자 호출 중복은 막지 않음(at-least-once로 보고) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

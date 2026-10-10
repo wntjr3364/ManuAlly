@@ -34,7 +34,7 @@
 - mutation(`mutation.log`): 11종 모두 탐지
   - 기존 fence(heartbeat, 완료)를 끄는 mutation도 이 시험이 잡는다.
   - 처음 살아남은 2종은 시험을 더한 뒤 탐지했다: 다시 잡힌 작업에 사건을 남김, 미정산 예약 정산 없음. 첫째에는 시험 hook(`afterRecover`)을 더했다.
-- 회귀: (아래 채움)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 549, contracts 17, 브라우저 95 (`pnpm-test.log`)
 
 ## 보안·과학적 실패 경로
 - 결과는 현재 fence의 실행만 저장한다. 옛 실행은 무엇도 바꾸지 못한다.

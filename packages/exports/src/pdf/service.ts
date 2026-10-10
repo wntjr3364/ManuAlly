@@ -35,7 +35,9 @@ export async function createPdfExport(pool: TxPool, a: { paperId: string; ownerI
     throw e;
   }
   const check = textCheck(pdf.text, headingsOf(head.content_json));
-  const issues: (Issue | (Omit<Issue, 'kind'> & { kind: 'pdf_text_missing' }))[] = [...docx.report.issues];
+  const issues: (Issue | (Omit<Issue, 'kind'> & { kind: 'pdf_text_missing' | 'pdf_text_not_checked' }))[] = [...docx.report.issues];
+  // text never read back is not a pass (review m2)
+  if (check.status === 'not_run') issues.push({ kind: 'pdf_text_not_checked', severity: 'warning', count: 1, examples: [], note: 'PDF 본문을 확인하지 못했습니다(pdftotext 없음) — PDF를 직접 열어 확인하세요' });
   if (check.status === 'failed') issues.push({ kind: 'pdf_text_missing', severity: 'warning', count: check.missing.length, examples: check.missing.slice(0, 5), note: 'PDF에서 일부 제목을 찾지 못했습니다 — 글꼴이나 변환 결과를 확인하세요' });
   const status = docx.report.status === 'draft_with_errors' ? 'draft_with_errors' : issues.length ? 'needs_attention' : 'clean';
   const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');

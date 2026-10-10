@@ -8,7 +8,9 @@
 // it is never shown as complete.
 // verifyArchive(): needs nothing but the archive. Every listed file must be there with its hash and size, no
 // other file may be, the references must be the snapshot's revisions, and the DOCX is rendered again from the
-// archive's own manuscript, references and figures and must come out byte for byte the same.
+// archive's own manuscript, references and figures and must come out byte for byte the same. A share bundle
+// may hold only originals with a shareable licence. (The references are checked against the manifest's list:
+// consistency inside the archive, not proof against the database.)
 // A share bundle (purpose 'share', for co-authors, a journal or a repository) carries only originals whose
 // licence allows passing them on; the owner's private copy carries them all.
 import { createHash } from 'node:crypto';
@@ -194,7 +196,27 @@ export function verifyArchive(bytes: Buffer): Verification {
   for (const n of zip.names) if (n !== 'manifest.json' && !listed.has(n)) problems.push(`${n} is in the archive but not in the manifest`);
   // what the manifest says was left out is not in it
   for (const x of manifest.excluded) if (zip.names.includes(`assets/${x?.sha256}`)) problems.push(`assets/${x?.sha256} is listed as left out but is in the archive`);
-  // the references are the snapshot's revisions
+  // what each document is: an archive holding a manuscript or an output must say how the output was made
+  // (review M1: a manifest without `render` must not skip the re-render)
+  const kinds = new Map<string, string>();
+  for (const [p, b] of read) {
+    if (!p.startsWith('documents/')) continue;
+    try { kinds.set(p, String((JSON.parse(b.toString('utf8')) as ArchiveDocument).kind)); } catch { problems.push(`${p} is not a valid document file`); }
+  }
+  const hasOutput = manifest.files.some((f) => typeof f?.path === 'string' && f.path.startsWith('outputs/'));
+  const hasManuscript = [...kinds.values()].includes('manuscript');
+  if (!manifest.render && (hasOutput || hasManuscript)) problems.push('the manifest does not say how its output was made (render is missing) although the archive holds a manuscript or an output');
+  if (manifest.render && kinds.get(`documents/${manifest.render.document_id}.json`) !== 'manuscript') problems.push('the rendered document is not a manuscript listed in the archive');
+  // a share bundle carries only originals whose licence allows passing them on (review m1), each stored
+  // under its own hash
+  for (const f of manifest.files) {
+    if (typeof f?.path !== 'string' || !f.path.startsWith('assets/')) continue;
+    if (f.role !== 'asset' || f.path !== `assets/${f.sha256}`) problems.push(`${f.path} is not stored under its own hash as an original`);
+    if (manifest.purpose !== 'private' && !shareable(String(f.license))) problems.push(`${f.path} (licence ${f.license ?? 'none'}) is in a ${manifest.purpose} archive but its licence does not allow sharing`);
+  }
+  if (manifest.purpose !== 'share' && manifest.purpose !== 'private') problems.push(`unknown purpose ${JSON.stringify(manifest.purpose)}`);
+  // the references agree with the manifest's list of reference revisions (consistency inside the archive;
+  // which revisions a snapshot pinned is known only to the database that made it)
   const csl = read.get('references.csl.json');
   let refs: ArchiveReference[] = [];
   if (csl) {
@@ -205,7 +227,7 @@ export function verifyArchive(bytes: Buffer): Verification {
         return { reference_id: String(id), bibliographic_revision_id: String(rev), csl: rest };
       });
       const want = JSON.stringify(manifest.references.map((r) => [r.reference_id, r.bibliographic_revision_id]));
-      if (JSON.stringify(refs.map((r) => [r.reference_id, r.bibliographic_revision_id])) !== want) problems.push('references.csl.json does not hold the snapshot\'s reference revisions');
+      if (JSON.stringify(refs.map((r) => [r.reference_id, r.bibliographic_revision_id])) !== want) problems.push('references.csl.json does not match the reference revisions the manifest lists');
     } catch { problems.push('references.csl.json is not valid CSL-JSON'); }
   }
   // the output, rendered again from the archive's own files

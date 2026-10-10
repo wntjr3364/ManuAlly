@@ -166,6 +166,42 @@ describe('the verifier refuses what a hand-made archive could hide', () => {
     const b = rebuilt((f, m) => [...f, [`assets/${(m.excluded as { sha256: string }[])[0]!.sha256}`, pdf]]);
     expect(verifyArchive(b).problems).toEqual(expect.arrayContaining([expect.stringContaining('listed as left out')]));
   });
+  test('review M1: a swapped output with `render` removed from the manifest does not verify', () => {
+    const forged = Buffer.from('not the app\'s render');
+    const b = rebuilt((f, m) => {
+      m.render = null;
+      (m.files as ManifestLike[]).forEach((x) => { if (x.path === 'outputs/manuscript.docx') { x.sha256 = sha(forged); x.bytes = forged.length; } });
+      return f.map(([n, x]): [string, Buffer] => [n, n === 'outputs/manuscript.docx' ? forged : x]);
+    });
+    expect(verifyArchive(b)).toMatchObject({ ok: false, problems: expect.arrayContaining([expect.stringContaining('render is missing')]) });
+    // outputs removed too: the manuscript still needs its render
+    const c = rebuilt((f, m) => {
+      m.render = null;
+      m.files = (m.files as ManifestLike[]).filter((x) => !x.path.startsWith('outputs/'));
+      return f.filter(([n]) => !n.startsWith('outputs/'));
+    });
+    expect(verifyArchive(c).ok).toBe(false);
+    // render pointing at a document that is not a manuscript
+    const d = rebuilt((f, m) => { (m.render as { document_id: string }).document_id = '99999999-0000-4000-8000-0000000000aa'; return f; });
+    expect(verifyArchive(d)).toMatchObject({ ok: false, problems: expect.arrayContaining([expect.stringContaining('not a manuscript')]) });
+  });
+  test('review m1: a private archive relabelled as share does not verify', () => {
+    const { bytes } = buildArchive(input({ purpose: 'private' }));
+    const z = openZip(bytes);
+    const m = JSON.parse(z.read('manifest.json')!.toString());
+    m.purpose = 'share';
+    const relabelled = writeZip([['manifest.json', Buffer.from(JSON.stringify(m))], ...z.names.filter((n) => n !== 'manifest.json').map((n): [string, Buffer] => [n, z.read(n)!])]);
+    expect(verifyArchive(relabelled)).toMatchObject({ ok: false, problems: expect.arrayContaining([expect.stringContaining('all-rights-reserved')]) });
+    expect(verifyArchive(bytes).ok).toBe(true);
+  });
+  test('an original stored under a name that is not its hash does not verify', () => {
+    const b = rebuilt((f, m) => {
+      const x = Buffer.from('other bytes');
+      (m.files as ManifestLike[]).push({ path: `assets/${'0'.repeat(64)}`, sha256: sha(x), bytes: x.length, role: 'asset', license: 'cc-by' } as ManifestLike);
+      return [...f, [`assets/${'0'.repeat(64)}`, x]];
+    });
+    expect(verifyArchive(b)).toMatchObject({ ok: false, problems: expect.arrayContaining([expect.stringContaining('under its own hash')]) });
+  });
   test('a manifest edited to say complete over a missing original still fails (the file is not there)', () => {
     const a = input().assets.map((x) => (x.kind === 'figure_file' ? { ...x, bytes: null } : x));
     const { bytes } = buildArchive(input({ assets: a }));

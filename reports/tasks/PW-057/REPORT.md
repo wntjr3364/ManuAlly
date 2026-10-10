@@ -1,5 +1,5 @@
 # PW-057 — PDF·재현 source archive — REPORT
-상태: in_review (2026-10-10)
+상태: in_review (2026-10-10) — 독립 리뷰 1차 changes requested(MAJOR 1, MINOR 3, NIT 3) → 반영, 재리뷰 요청
 
 ## 무엇을 했나
 - **읽기용 PDF**(`packages/exports/src/pdf`)
@@ -49,7 +49,7 @@
     - 같은 이름이 두 번 나오지 않는다.
     - 위험한 경로(`..` 등)가 없다.
     - 넣지 않았다는 원본이 실제로 없다.
-    - CSL-JSON이 스냅샷의 문헌 revision이다.
+    - CSL-JSON이 manifest가 적은 문헌 revision과 일치한다(묶음 안의 일관성 확인이다. 스냅샷이 실제로 고정한 revision인지는 만든 DB만 안다 — 리뷰 n1).
     - 묶음의 원고·문헌·그림으로 DOCX와 검사 보고를 다시 만들면 바이트가 같다(`reproduced`). manifest까지 고쳐 출력물을 바꿔치기해도 여기서 잡힌다(시험).
     - incomplete 묶음은 통과하지 않는다.
   - 저장
@@ -135,10 +135,24 @@
 - Microsoft Word·Acrobat에서 열어 보지 않았다(LibreOffice·pdftotext만).
 - PDF의 배치·글꼴은 설치된 글꼴에 따른다. 한글 글꼴이 없는 서버에서는 한글 제목이 빠져 `pdf_text_missing` 경고가 날 수 있다.
 - 그림 파일의 라이선스를 바꿀 경로가 아직 없다(PW-036의 정책 변경은 원문 PDF만 받는다). 그래서 자기 그림도 공유용 묶음에서 빠진다(`licence_unknown`). 보관용에는 들어간다. 그림 정책 결정 경로는 후속 RFC 대상이다.
-- 묶음은 메모리에서 만든다. 원본 합계 상한은 1 GiB, ZIP은 32비트(4 GiB 미만)다. 매우 큰 원본 모음은 거부된다.
+- 묶음은 메모리에서 만들고 검증하며, 내려받기도 한 번에 읽는다. 원본 합계 상한은 256 MiB다(리뷰 m3). 이보다 큰 보관용 묶음은 거부된다. 스트리밍 생성은 후속 과제다.
 - 저장 트랜잭션이 실패하면 asset 저장소에 묶음 blob이 남을 수 있다(content-addressed라 해는 없고, 정리 작업은 없다).
 - 공유용 판단은 내보낼 때의 최신 라이선스 결정을 쓴다(스냅샷 시점 아님). 권리 판단은 현재 지식이 맞다는 판단이다.
 - 학술지 CSL 양식은 여전히 적용하지 않는다(PW-056 결정).
+
+## 독립 리뷰(1차: changes requested) — 반영
+- **M1**: manifest에서 `render`를 지우면 다시 렌더를 건너뛰어 바꿔치기한 DOCX가 complete로 통과했다.
+  - 원고 문서나 `outputs/`가 있으면 `render`가 반드시 있어야 하고, `render.document_id`는 묶음의 manuscript 문서여야 한다.
+  - 리뷰 probe를 시험으로 옮겼다(출력물 제거, 다른 문서 지정 포함).
+- **m1**: 보관용 묶음의 `purpose`를 share로 고치면 통과했다.
+  - share 묶음의 모든 `assets/*`는 공유 가능 라이선스여야 한다.
+  - 원본은 자기 해시 이름으로만 있어야 한다(시험).
+- **m2**: pdftotext가 없어 본문을 확인하지 못한 PDF가 clean이었다.
+  - 이제 경고 `pdf_text_not_checked`가 붙고 `needs_attention`이다(통합 시험).
+- **m3**: 묶음을 메모리에서 만든다. 원본 합계 상한을 1 GiB에서 256 MiB로 낮췄다. 스트리밍 생성은 남은 위험이다.
+- **n1**: 검증 문구를 "manifest와 일치"로 바꿨다(코드 메시지·이 보고서).
+- **n2**: 철회 표시는 스냅샷 시점이 아니라 내보낼 때의 철회 공지다. 라이선스와 같이 현재 지식을 쓴다. 그래서 같은 스냅샷이라도 나중에 철회 공지가 생기면 묶음의 DOCX 검사 보고가 달라진다. `manifest.render.retracted`에 기록된다.
+- **n3**: 기록 저장 실패 시 저장소에 묶음 blob이 남는다(위 남은 위험). PW-060 백업·정리에서 다룬다.
 
 ## 다음
 PW-058(Reviewer·제출판 freeze)

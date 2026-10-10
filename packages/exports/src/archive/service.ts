@@ -11,6 +11,8 @@ import { getExport, retractedOf, type ExportRecord } from '../docx/service.ts';
 import { ARCHIVE_ZIP_LIMITS, buildArchive, shareable, verifyArchive, type ArchiveAsset, type ArchivePurpose } from './index.ts';
 
 const PURPOSES: readonly ArchivePurpose[] = ['share', 'private'];
+// the archive is built and verified in memory: the originals it takes are capped (review m3)
+export const MAX_ORIGINALS_BYTES = 256 * 1024 * 1024;
 
 async function snapshotData(db: Queryable, paperId: string, snapshotId: string) {
   const snap = (await db.query<{ id: string; label: string; created_at: Date; story_revision_id: string | null; outline_revision_id: string | null; citation_style: string; style_version: string }>(
@@ -74,7 +76,7 @@ export async function createArchiveExport(pool: TxPool, a: { paperId: string; ow
   const notShareable = new Set(d.assets.filter((x) => !shareable(x.license)).map((x) => x.sha256));
   const taken = d.assets.filter((x) => purpose === 'private' || (shareable(x.license) && !notShareable.has(x.sha256)));
   const total = taken.reduce((n, x) => n + Number(x.byte_size), 0);
-  if (total > ARCHIVE_ZIP_LIMITS.totalUnpacked / 2) throw new DomainError('INVALID', `the originals come to ${Math.round(total / 1048576)} MiB, more than an archive holds (${ARCHIVE_ZIP_LIMITS.totalUnpacked / 2 / 1048576} MiB)`, 'purpose');
+  if (total > MAX_ORIGINALS_BYTES) throw new DomainError('INVALID', `the originals come to ${Math.round(total / 1048576)} MiB, more than an archive holds (${MAX_ORIGINALS_BYTES / 1048576} MiB); make a share archive or contact the operator`, 'purpose');
   const assets: ArchiveAsset[] = [];
   for (const x of d.assets) {
     if (!taken.includes(x)) { assets.push({ ...x, bytes: null }); continue; }

@@ -254,6 +254,21 @@ describe('the reading PDF through the API', () => {
     expect(sha(f.rawPayload)).toBe(e.sha256);
   }, 180_000);
 
+  test('review m2: without pdftotext the PDF\'s text is not checked, and the export is not clean', async () => {
+    expect(soffice, 'LibreOffice (soffice) is needed for the PDF tests: install it or set PW_SOFFICE').toBeTruthy();
+    const w = await paper();
+    const old = process.env.PW_PDFTOTEXT;
+    process.env.PW_PDFTOTEXT = '/nonexistent/pdftotext';
+    try {
+      const e = (await call('POST', `/api/papers/${w.paperId}/exports`, { format: 'pdf', document_id: w.documentId })).json();
+      expect(e.status).toBe('needs_attention');
+      expect(e.report.pdf.text_check.status).toBe('not_run');
+      expect(e.report.issues.map((i: { kind: string }) => i.kind)).toContain('pdf_text_not_checked');
+    } finally {
+      if (old === undefined) delete process.env.PW_PDFTOTEXT; else process.env.PW_PDFTOTEXT = old;
+    }
+  }, 180_000);
+
   test('no LibreOffice: a plain 409 naming it, and nothing stored', async () => {
     const w = await paper();
     const before = (await call('GET', `/api/papers/${w.paperId}/exports`)).json().length;

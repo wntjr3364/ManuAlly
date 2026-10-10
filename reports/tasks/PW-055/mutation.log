@@ -44,3 +44,5 @@ KILLED n2 nested boxes twice
 KILLED n1 any Choice preferred
 KILLED n3 bare text dropped
 KILLED m2' first paragraph's style (two-site mutant: the merged paragraph takes the first paragraph's level)
+# third review fix (R1' repeated note references)
+KILLED R1' notes re-read per reference

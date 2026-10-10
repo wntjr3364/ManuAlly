@@ -85,7 +85,7 @@
 | PW-052 | in_review | (P06) | REQ-052 / TST-052A,B | unit 31, 통합 17(리뷰 반영), 브라우저 1, mutation 21+12+1종 탐지, `pnpm test` exit 0(리뷰 전·리뷰 반영) | 실제 공급자 오류 문구 미검증(합성), run_errors 조회 화면 없음, WAITING_AUTH/BUDGET/USER 재개 화면 없음 |
 | PW-053 | in_review | (P06) | REQ-053 / TST-053A,B | 통합 13(실제 SIGKILL, DB 53100·ENOSPC 주입; 리뷰 반영), mutation 7종 탐지, `pnpm test` exit 0 | 실제 FS 포화·전원 차단·PG 서버 사망 미시험(sudo 없음), blob ENOSPC 미시험; 결함 2건 수정(디스크 포화 재시도→안전 중단, 호출 중 계획 변경→STALE) |
 | PW-054 | in_review | (P06) | REQ-054 / TST-054A,B | unit 7, 통합 9, 브라우저 1(스크린샷 2), mutation 15+3종 탐지, `pnpm test` exit 0(리뷰 반영) | 실제 공급자 값 미확인(MOCK), 다시 시작은 시도 수를 되돌리지 않음, 문맥 예산 고리 미연결(문맥 줄 늘 unknown), 예산 화면 없음 |
-| PW-055 | in_review | (P07) | REQ-055 / TST-055A,B | unit 38, 통합 6, 브라우저 1(스크린샷 2), mutation 16+22+6종 탐지(+동등 1), `pnpm test` exit 0(리뷰 전·1차 반영), 재리뷰 반영 회귀 진행 | MS Word 원본 파일로 미시험(LibreOffice·pandoc·수작업 fixture), 인용 필드 재연결 없음 |
+| PW-055 | in_review | (P07) | REQ-055 / TST-055A,B | unit 39, 통합 6, 브라우저 1(스크린샷 2), mutation 16+22+6+1종 탐지(+동등 1), `pnpm test` exit 0(리뷰 전·1·2차 반영), 3차 반영 회귀 진행 | MS Word 원본 파일로 미시험(LibreOffice·pandoc·수작업 fixture), 인용 필드 재연결 없음 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

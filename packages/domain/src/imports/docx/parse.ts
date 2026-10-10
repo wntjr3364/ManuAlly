@@ -22,7 +22,7 @@ import { validateDocument } from '@pw/editor-core';
 import { openZip, ZipError, type ZipFailure } from './zip.ts';
 import { child, descendants, elements, parseXml, textOf, XmlError, type XEl } from './xml.ts';
 
-export const DOCX_PARSER_VERSION = 'pw-docx-import-3';
+export const DOCX_PARSER_VERSION = 'pw-docx-import-4';
 export const MAX_BLOCKS = 50_000;
 export type TrackedChoice = 'accept' | 'reject';
 export type DocxLossKind =
@@ -213,6 +213,7 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
   const report = new Report();
   const blocks: Block[] = [];
   const notes: string[] = [];
+  const noteNumber = new Map<string, number>();
   const boxes: string[] = [];
   const anchors = new Map<string, string>(); // comment id → anchored text so far
   const open = new Set<string>();
@@ -328,9 +329,19 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
               break;
             }
             const kind = c.name === 'w:footnoteReference' ? 'footnote' : 'endnote';
+            const key = `${kind}:${c.attrs['w:id']}`;
+            // each note is read once: a repeated reference shows the first number (Word references a note
+            // once; re-reading it per reference would multiply the work: third review R1')
+            const seen = noteNumber.get(key);
+            if (seen !== undefined) {
+              report.add('other', `repeated note reference: ${key} → [${seen}]`);
+              emit(`[${seen}]`, []);
+              break;
+            }
             const n = notes.length + 1;
+            noteNumber.set(key, n);
             notes.push(''); // the number is taken before the note is read
-            const el = noteEl.get(`${kind}:${c.attrs['w:id']}`);
+            const el = noteEl.get(key);
             // read like body text: the tracked-change choice and fields apply inside notes too
             state.inNote++;
             let t: string;

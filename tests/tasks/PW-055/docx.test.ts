@@ -332,3 +332,21 @@ describe('re-review n1 / n3', () => {
     expect(loss(out.report, 'other')).toBeDefined();
   });
 });
+
+// PW-055 third review: MAJOR R1'
+describe("third review R1': many references to one note read it once", () => {
+  test('10,000 references to one large note: read once, each repeat shows the first number and is reported; fast, small', () => {
+    const fn = `<w:footnote w:id="2"><w:p>${r('ten chars.').repeat(2000)}</w:p></w:footnote>`;
+    const refs = '<w:r><w:footnoteReference w:id="2"/></w:r>'.repeat(10_000);
+    const doc = makeDocx(p(`${r('x')}${refs}`), { footnotes: fn });
+    const t0 = Date.now();
+    const out = parseDocx(doc, {});
+    expect(Date.now() - t0).toBeLessThan(2000);
+    const blocks = out.doc.content as Block[];
+    expect(blocks.length).toBe(2);
+    expect(text(blocks[0]!)).toBe(`x${'[1]'.repeat(10_000)}`);
+    expect(text(blocks[1]!).startsWith('[1] ten chars.ten chars.')).toBe(true);
+    expect(loss(out.report, 'footnote')!.count).toBe(1);
+    expect(loss(out.report, 'other')).toMatchObject({ count: 9_999, examples: [expect.stringMatching(/repeated note reference/)] });
+  });
+});

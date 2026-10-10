@@ -1,0 +1,27 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-055/docx.test.ts (39 tests | 1 failed | 38 skipped) 13115ms
+   ❯ third review R1': many references to one note read it once (1)
+     × 10,000 references to one large note: read once, each repeat shows the first number and is reported; fast, small 13112ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > third review R1': many references to one note read it once > 10,000 references to one large note: read once, each repeat shows the first number and is reported; fast, small
+AssertionError: expected 13097 to be less than 2000
+ ❯ tests/tasks/PW-055/docx.test.ts:344:29
+    342|     const t0 = Date.now();
+    343|     const out = parseDocx(doc, {});
+    344|     expect(Date.now() - t0).toBeLessThan(2000);
+       |                             ^
+    345|     const blocks = out.doc.content as Block[];
+    346|     expect(blocks.length).toBe(2);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 38 skipped (39)
+   Start at  06:56:28
+   Duration  14.28s (tests 94%, transform 5%, import 1%)
+

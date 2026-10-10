@@ -99,3 +99,14 @@ PW-056: DOCX·CSL export
 - mutation(`mutation.log` 하단): 6종 모두 탐지
   - 처음 m2' 변이는 값이 같은 식(`level ?? null`)이라 무효였다. 두 곳을 바꾸는 올바른 변이(앞 문단의 수준을 씀)로 다시 돌려 탐지했다.
 - 남은 위험(재리뷰 확인): 한계 안 최악(각 부분 50만 요소 가까이) 3.7초·733 MB로 요청 스레드에서 돈다.
+- 회귀(재리뷰 반영): `pnpm test` exit 0 — unit 482, integration 596, contracts 17, 브라우저 98 (`pnpm-test-rereview.log`)
+
+## 3차 리뷰 (f8dd667): changes requested — MAJOR 1(R1'), NIT 1 (나머지는 모두 해결 확인)
+| 지적 | 처리 | 시험 |
+|---|---|---|
+| R1': 같은 각주를 가리키는 본문 참조마다 각주 전체를 다시 읽음(2 KB 파일로 수 시간·수십 GB 가능) | 각 각주·미주는 한 번만 읽는다. 같은 각주의 두 번째 참조부터는 처음 번호(`[1]`)를 보이고 `other`("repeated note reference")로 보고한다. 이로써 읽는 글의 양은 각 부분 크기(10 MiB) 합을 넘지 않는다 | 큰 각주 하나에 참조 1만 개 → 2초 안, 블록 2개, `[1]`×1만, 각주 보고 1, 반복 보고 9,999(RED: 13초) |
+| n1: 한계 안 최악은 여전히 요청 스레드에서 몇 초 | 남은 위험으로 기록(위) | — |
+
+- RED(`red-third.log`): 13초로 시간 한계 실패
+- GREEN: unit 39, 통합 6(+PW-021 9), 브라우저 1(parser version `pw-docx-import-4`)
+- mutation: 1종 탐지

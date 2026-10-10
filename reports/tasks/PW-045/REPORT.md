@@ -80,3 +80,19 @@
 
 ## 다음
 PW-046: 개요→집필 연구자 workflow(P05 마지막)
+
+## 리뷰 반영 (1차, changes requested — MAJOR 1, MINOR 1, NIT 3)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR: 새 규칙이 맞는 과학 문장을 실패시켜 AI 제안·고쳐 쓰기를 막음 | **유의성**: p는 자기 절(쉼표, 세미콜론, but/whereas/while/although/though로 나눔)의 "significant"에만 묶는다. "not (statistically) significant", "no significant", "non-significant", "did not reach", "failed to reach", "n.s.", "biologically/clinically significant"는 통계적 유의 주장이 아니다. **n**: 생물 수는 "per group/condition…"일 때만 n이다(replicates는 그대로). 맞춰진 사실이 없을 때의 n 대조는 그 문장이 기록된 사실의 대상을 말할 때만 실패하고, 아니면 unknown이다 | 리뷰어 probe 7문장과 "ABC1 was measured after 20 plants were transferred"는 실패가 없다. 여전히 잡는 것: 유의라 쓴 0.08, 대상을 말한 6 replicates, 수치와 함께인 n=5, "12 plants per group" |
+| MINOR: "led to", "results in"이 관찰 주장 위에서 실패 | 단정적 인과(causes/caused, is responsible for, demonstrates that, proves that)만 실패다. "led to", "results in", "drives"는 `causal_wording` unknown으로 보여 준다(실험 조작이면 정당) | led to·results in → 실패 아님, causes → 실패 |
+| NIT: 실행기가 gate UNKNOWN을 NEEDS_EVIDENCE로 봄 | 사례마다 `applicable_as_ai_proposal`와 `stopped_by`를 기록한다. AI 후보는 gate와 Writer 수치 검사를 함께 거친다(더 엄격한 쪽). UNKNOWN만 있는 후보는 "적용 가능"으로 정직하게 남긴다(SCI-005). SCI-025 실행 문장은 측정 대상을 말하게 했다(이유를 `note`에 적음) | SCI-002 gate가 멈춤, SCI-001 Writer 수치 검사가 멈춤, SCI-005 적용 가능. 연도(2019)는 gate가 읽지 않아도 Writer 검사가 멈춤 |
+| NIT: release 요약이 빈약 | `for_user`: hard-case 요약, 미실행 사례와 판단 주체, 기대보다 약하게 막히는 AI 후보 목록, rubric 평가자 수·held-out·critical과 **기준별 평균(baseline 대 candidate)**. 결과는 여전히 `declared_pass: false`다 | 기준별 평균, 미실행 목록 |
+| NIT: 중복 평가 | 같은 문단·평가자·후보의 두 번째 평가는 오류다 | 중복 → 오류 |
+
+- RED(`red-review.log`): a576c5b 구현으로 리뷰 시험 8개가 실패한다(probe 7문장과 led to/results in).
+- GREEN: unit(PW-045·scientific) 63, PW-043 unit 18 그대로 통과.
+- mutation(`mutation.log` 하단): 8종 모두 탐지.
+  - 처음 살아남은 2종(생물 수를 n으로 봄, 실행기가 Writer 수치 검사를 무시)은 구별하는 시험을 더한 뒤 탐지했다.
+- 회귀: `pnpm test` exit 0 — unit 406, integration 451, contracts 17, 브라우저 93 (`pnpm-test-review.log`)
+- 작업자 재시작으로 전체 회귀 실행이 한 번 끊겼다. 파일에는 남은 mutation이 없음을 확인하고 다시 돌렸다.

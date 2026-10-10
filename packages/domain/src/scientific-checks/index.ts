@@ -72,7 +72,8 @@ const APPROX_BEFORE = /(?:[~≈∼]|\b(?:about|approximately|approx\.?|nearly|ro
 const NOT_A_QUANTITY_BEFORE = /(?:fig(?:ure)?s?\.?|tables?|panels?|eqs?\.?|equations?|ref\.?|suppl(?:ementary)?\.?|chapters?|sections?|sect\.?|days?\s+of|lines?)\s*$/i;
 const LABEL_BEFORE = /(?:^|[^\p{L}\p{N}])(p|q|fdr|padj|p\.adj|adj(?:usted)?\.?\s*p|n)(?:[- ]?values?)?\s*(<=|>=|[<>≤≥=]|(?:was|were|is|of)(?![\p{L}]))\s*$/iu;
 // "6 independent biological replicates" states n (SCI-025); technical replicates are not n
-const REPLICATES_AFTER = /^\s+(?:independent\s+)?(?:biological\s+)?(?:replicates?|plants|animals|mice|patients|individuals|subjects)(?![\p{L}])/iu;
+// (review MAJOR: "20 plants were transferred" is a count, not n — organisms count as n only "per group")
+const REPLICATES_AFTER = /^\s+(?:(?:independent\s+)?(?:biological\s+)?replicates?(?![\p{L}])|(?:plants|animals|mice|patients|individuals|subjects|seedlings)\s+per\s+(?:group|condition|genotype|treatment|line)(?![\p{L}]))/iu;
 const normUnit = (u: string) => {
   const s = u.replace(/^[\s-]+/, '').replace(/μ/g, 'µ').trim();
   if (/^(fold|[×x])$/.test(s)) return 'fold';
@@ -91,6 +92,8 @@ const numberOf = (raw: string) => {
 interface Mention {
   kind: 'quantity' | 'statistic' | 'sample_size' | 'dispersion' | 'unreadable';
   text: string; value: number; unit: string; label: 'p' | 'q' | 'n' | null; comparator: string; sentence: number; approximate: boolean;
+  // where in the sentence the number is (statistics are bound to their own clause)
+  at?: number;
 }
 function mentionsOf(sentences: string[]): Mention[] {
   const out: Mention[] = [];
@@ -119,7 +122,7 @@ function mentionsOf(sentences: string[]): Mention[] {
         // the mention starts at the label itself (not the character before it)
         const start = before.length - label[0].length + /^[^\p{L}\p{N}]*/u.exec(label[0])![0].length;
         const comparator = /^[a-z]/i.test(label[2]!) ? '=' : label[2]!.replace('<=', '≤').replace('>=', '≥');
-        out.push({ kind: kind === 'n' ? 'sample_size' : 'statistic', text: s.slice(start, m.index! + m[0].length).trim(), value, unit: '', label: kind, comparator, sentence: si, approximate });
+        out.push({ kind: kind === 'n' ? 'sample_size' : 'statistic', text: s.slice(start, m.index! + m[0].length).trim(), value, unit: '', label: kind, comparator, sentence: si, approximate, at: m.index! });
         continue;
       }
       const reps = REPLICATES_AFTER.exec(rest);
@@ -165,7 +168,30 @@ const idTokens = (s: string) => new Set((s.toLowerCase().replace(/(?:fig(?:ure)?
 // Comparative words between the group and its comparison: "X than Y", "X compared with Y", "X vs Y"
 const COMPARATIVE = /\b(?:than|compared\s+(?:with|to)|relative\s+to|versus|vs\.?|over)(?![\p{L}])/giu;
 
-const CAUSAL = /\b(?:caused?|causes|causing|leads? to|led to|results? in|resulted in|drives?|drove|is responsible for|demonstrat(?:e|es|ed) that)\b/i;
+// a cause stated outright fails over an observation; experimental wording ("led to", "results in") is
+// shown for the owner to judge (review MINOR)
+const CAUSAL = /\b(?:caused?|causes|causing|(?:is|are) responsible for|demonstrat(?:e|es|ed) that|proves? that)\b/i;
+const CAUSAL_WORDING = /\b(?:leads? to|led to|results? in|resulted in|drives?|drove)\b/i;
+// "not (statistically) significant", "no significant", "did not reach significance", "n.s.", and
+// significance that is not statistical ("biologically significant")
+const NOT_SIGNIFICANT = /\b(?:not|no|non-?|in|never)\s+(?:\w+\s+)?significan|\bnon-?significan|\bn\.s\.|\b(?:did|does|do)\s+not\s+reach|\bfailed\s+to\s+reach|\b(?:biologically|clinically|practically|physiologically)\s+significan/i;
+const CLAUSE_SEP = /[;,]|\b(?:but|whereas|while|although|though)\b/gi;
+function clauseAt(sentence: string, at: number): string {
+  let start = 0;
+  let end = sentence.length;
+  for (const m of sentence.matchAll(CLAUSE_SEP)) {
+    if (m.index! + m[0].length <= at) start = m.index! + m[0].length;
+    else if (m.index! >= at) { end = m.index!; break; }
+  }
+  return sentence.slice(start, end);
+}
+function namesEntity(sentence: string, f: GateFact): boolean {
+  const own = idTokens(f.entity);
+  if (own.size) { const named = idTokens(sentence); return [...own].every((t) => named.has(t)); }
+  const words = wordsOf(f.entity);
+  const sw = wordsOf(sentence);
+  return words.size > 0 && [...words].every((w) => sw.has(w));
+}
 const CERTAIN = /\b(?:confirm(?:s|ed)?|prove[sdn]?|proven|demonstrat(?:e|es|ed)|establish(?:es|ed)|conclusively|definitively|unequivocally)\b/i;
 // a claim of priority needs a systematic search behind it (PW-045 SCI-005): never verified here
 const PRIORITY = /\b(?:for the first time|first (?:study|report|demonstration|evidence|time)|never (?:before|been) (?:shown|reported|described)|unprecedented)\b/i;
@@ -253,8 +279,9 @@ export function scientificGate(input: GateInput): GateResult {
     // what the text itself gets wrong, whatever the facts (PW-045 SCI-002, SCI-016)
     if (m.kind === 'statistic') {
       if (m.comparator === '=' && (m.value <= 0 || m.value > 1)) { findings.push({ check: 'statistic', verdict: 'fail', text: m.text, reason: 'impossible_probability' }); continue; }
-      const s = sentences[m.sentence]!;
-      const significant = /\bsignificant(?:ly)?\b/i.test(s) && !/\b(?:not|no|non-?|in)\s*significant|\bnon-?significant/i.test(s);
+      // only the clause this p belongs to, and only a statistical claim of significance (review MAJOR)
+      const s = clauseAt(sentences[m.sentence]!, m.at ?? 0);
+      const significant = /\bsignificant(?:ly)?\b/i.test(s) && !NOT_SIGNIFICANT.test(s);
       if (m.label === 'p' && significant && ['=', '>', '≥'].includes(m.comparator) && m.value >= ALPHA) { findings.push({ check: 'statistic', verdict: 'fail', text: m.text, reason: 'significance_misstated' }); continue; }
     }
     if (!facts.length) {
@@ -268,9 +295,11 @@ export function scientificGate(input: GateInput): GateResult {
         if (!same && other) { findings.push({ check: 'statistic', verdict: 'fail', text: m.text, reason: 'p_q_mismatch' }); continue; }
       }
       if (m.kind === 'sample_size') {
-        const recorded = input.facts.filter((f) => f.n !== null);
-        if (recorded.length && !recorded.some((f) => f.n === m.value)) { findings.push({ check: 'sample_size', verdict: 'fail', text: m.text, reason: 'n_mismatch', candidates: recorded.map((f) => f.id) }); continue; }
-        if (!recorded.length) { findings.push({ check: 'sample_size', verdict: 'unknown', text: m.text, reason: 'no_n_recorded' }); continue; }
+        // an n contradicts a fact only when the sentence names that fact's entity (review MAJOR: an n in
+        // Methods usually describes another measurement)
+        const named = input.facts.filter((f) => f.n !== null && namesEntity(sentences[m.sentence]!, f));
+        if (named.length && !named.some((f) => f.n === m.value)) { findings.push({ check: 'sample_size', verdict: 'fail', text: m.text, reason: 'n_mismatch', candidates: named.map((f) => f.id) }); continue; }
+        if (!input.facts.some((f) => f.n !== null)) { findings.push({ check: 'sample_size', verdict: 'unknown', text: m.text, reason: 'no_n_recorded' }); continue; }
       }
       findings.push({ check: kind, verdict: 'unknown', text: m.text, reason: 'no_matched_fact' });
       continue;
@@ -349,6 +378,7 @@ export function scientificGate(input: GateInput): GateResult {
     // stronger than the approved claim: a cause stated over an observation, certainty over a hypothesis
     // or interpretation (PW-045 SCI-004, SCI-029) — measured against the claim's kind, not a word list
     else if (c.kind === 'observation' && CAUSAL.test(top.s) && !CAUSAL.test(c.text)) findings.push({ check: 'claim', verdict: 'fail', text: top.s, reason: 'causal_overstatement', claim_id: c.id });
+    else if (c.kind === 'observation' && CAUSAL_WORDING.test(top.s) && !CAUSAL_WORDING.test(c.text) && !CAUSAL.test(c.text)) findings.push({ check: 'claim', verdict: 'unknown', text: top.s, reason: 'causal_wording', claim_id: c.id });
     else if ((c.kind === 'hypothesis' || c.kind === 'interpretation') && CERTAIN.test(top.s) && !CERTAIN.test(c.text)) findings.push({ check: 'claim', verdict: 'fail', text: top.s, reason: 'certainty_overstatement', claim_id: c.id });
     else findings.push({ check: 'claim', verdict: 'pass', text: top.s, claim_id: c.id });
   }

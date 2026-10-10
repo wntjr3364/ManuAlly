@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P04 완료(사용자 위임), RFC-010 approve, P05 진행**. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 리뷰 approve. PW-043 리뷰 approve. PW-044 리뷰 approve. PW-045 in_review(리뷰 대기).
+- 현재 단계: **P04 완료(사용자 위임), RFC-010 approve, P05 진행**. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 리뷰 approve. PW-043 리뷰 approve. PW-044 리뷰 approve. PW-045 in_review(1차 리뷰 반영, 재리뷰 대기).
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).
@@ -75,7 +75,7 @@
 | PW-042 | in_review | (P05) | REQ-042 / TST-042A,B | 통합 12, unit 36, 브라우저 1(리뷰 반영), mutation 28+13종 탐지, `pnpm test` exit 0 | MOCK writer만(실제 공급자 prompt·live는 사용자 PC), 주장 반영은 생성기 선언(의미 검토는 PW-043), 단위·그룹 매칭 없음 |
 | PW-043 | in_review | (P05) | REQ-043 / TST-043A,B | unit 18, 통합 6, 브라우저 1(리뷰 반영), mutation 20+13종 탐지, `pnpm test` exit 0 | 영어 중심 휴리스틱, 그룹 동의어·단위 변환 없음(unknown/불일치 쪽), 주장 극성은 낱말 겹침 |
 | PW-044 | in_review | (P05) | REQ-044 / TST-044A,B | 통합 12, 브라우저 1(리뷰 반영), mutation 18+6종 탐지(+동등 1), `pnpm test` exit 0 | MOCK 검토자만, 지적 의미는 미검사(형식만), 품질 평가는 PW-045 |
-| PW-045 | in_review | (P05) | REQ-045 / TST-045A,B | hard case 30(일치 23, 의도된 엄격 2, 미실행 5, unsafe 0), unit 48, mutation 25종 탐지, `pnpm test` exit 0 | 사람 blind rubric 미실행(권리 확인 문단 없음), 결정적 판단 밖 5개는 검토자+사용자 |
+| PW-045 | in_review | (P05) | REQ-045 / TST-045A,B | hard case 30(일치 23, 의도된 엄격 2, 미실행 5, unsafe 0), unit 63(리뷰 반영), mutation 25+8종 탐지, `pnpm test` exit 0 | 사람 blind rubric 미실행(권리 확인 문단 없음), 결정적 판단 밖 5개는 검토자+사용자 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

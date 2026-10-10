@@ -8,7 +8,9 @@
         "layer": "gate",
         "expected": "NEEDS_EVIDENCE",
         "actual": "NEEDS_EVIDENCE",
-        "detail": "sample_size:unknown:no_n_recorded",
+        "detail": "sample_size:unknown:no_n_recorded; numbers not in the contract: 48",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "Writer number check (PW-042)",
         "status": "match"
       },
       {
@@ -18,6 +20,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "statistic:fail:significance_misstated",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -27,6 +31,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "statistic:fail:p_q_mismatch",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -36,6 +42,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "claim:fail:causal_overstatement",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -45,6 +53,8 @@
         "expected": "NEEDS_EVIDENCE",
         "actual": "NEEDS_EVIDENCE",
         "detail": "claim:unknown:priority_claim",
+        "applicable_as_ai_proposal": true,
+        "stopped_by": null,
         "status": "match"
       },
       {
@@ -53,7 +63,9 @@
         "layer": "gate",
         "expected": "NEEDS_EVIDENCE",
         "actual": "NEEDS_EVIDENCE",
-        "detail": "quantity:unknown:no_matching_fact",
+        "detail": "quantity:unknown:no_matching_fact; numbers not in the contract: 37",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "Writer number check (PW-042)",
         "status": "match"
       },
       {
@@ -63,6 +75,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "quantity:fail:unit_mismatch",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -71,7 +85,9 @@
         "layer": "gate",
         "expected": "BLOCK",
         "actual": "BLOCK",
-        "detail": "quantity:fail:sign_mismatch",
+        "detail": "quantity:fail:sign_mismatch; numbers not in the contract: 0.4",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -81,6 +97,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "comparison:fail:comparison_contradicts_facts",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -90,6 +108,8 @@
         "expected": "BLOCK",
         "actual": null,
         "detail": "not_run: figure numbers written as plain text are not mapped to figure records; figure references are atoms — decided by figure cross-reference check (PW-019 figure_ref atoms; PW-058 export) + user",
+        "applicable_as_ai_proposal": null,
+        "stopped_by": null,
         "status": "not_run"
       },
       {
@@ -99,6 +119,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "citation:fail:citation_not_found",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -108,6 +130,8 @@
         "expected": "NEEDS_EVIDENCE",
         "actual": "NEEDS_EVIDENCE",
         "detail": "section_not_read",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "profile source check (PW-041)",
         "status": "match"
       },
       {
@@ -116,7 +140,9 @@
         "layer": "gate",
         "expected": "NEEDS_EVIDENCE",
         "actual": "NEEDS_EVIDENCE",
-        "detail": "quantity:unknown:no_matching_fact",
+        "detail": "quantity:unknown:no_matching_fact; numbers not in the contract: 42",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "Writer number check (PW-042)",
         "status": "match"
       },
       {
@@ -126,6 +152,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "claim:fail:negation_changed",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -134,7 +162,9 @@
         "layer": "gate",
         "expected": "ALLOW",
         "actual": "NEEDS_EVIDENCE",
-        "detail": "quantity:unknown:no_matching_fact",
+        "detail": "quantity:unknown:no_matching_fact; numbers not in the contract: 0.46",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "Writer number check (PW-042)",
         "status": "known_deviation"
       },
       {
@@ -143,7 +173,9 @@
         "layer": "gate",
         "expected": "BLOCK",
         "actual": "BLOCK",
-        "detail": "statistic:fail:impossible_probability",
+        "detail": "statistic:fail:impossible_probability; numbers not in the contract: 0",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -153,6 +185,8 @@
         "expected": "WARN",
         "actual": null,
         "detail": "not_run: whether a required limitation is missing needs the plan and a reading of the whole Discussion — decided by PW-044 reviewer (section_role / missing_counterevidence) + user",
+        "applicable_as_ai_proposal": null,
+        "stopped_by": null,
         "status": "not_run"
       },
       {
@@ -162,6 +196,8 @@
         "expected": "WARN",
         "actual": "WARN",
         "detail": "enumerated_list",
+        "applicable_as_ai_proposal": true,
+        "stopped_by": null,
         "status": "match"
       },
       {
@@ -171,6 +207,8 @@
         "expected": "ALLOW",
         "actual": "ALLOW",
         "detail": "no signal",
+        "applicable_as_ai_proposal": true,
+        "stopped_by": null,
         "status": "match"
       },
       {
@@ -180,6 +218,8 @@
         "expected": "WARN",
         "actual": null,
         "detail": "not_run: hype is a judgement about this paragraph; the product keeps no word blacklist (spec 06) — decided by PW-044 reviewer (overclaim) + user",
+        "applicable_as_ai_proposal": null,
+        "stopped_by": null,
         "status": "not_run"
       },
       {
@@ -189,6 +229,8 @@
         "expected": "ALLOW",
         "actual": "ALLOW",
         "detail": "NOT_APPLICABLE",
+        "applicable_as_ai_proposal": true,
+        "stopped_by": null,
         "status": "match"
       },
       {
@@ -198,6 +240,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "scope_exceeded: the answer must be one paragraph (no line breaks or headings)",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "Writer answer reader (PW-042)",
         "status": "match"
       },
       {
@@ -207,6 +251,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "citations, citation_positions",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "proposal guard (PW-017)",
         "status": "match"
       },
       {
@@ -216,6 +262,8 @@
         "expected": "BLOCK",
         "actual": null,
         "detail": "not_run: organism names are not recorded identifiers the gate can contradict; a fact without a number is not checked — decided by PW-044 reviewer + user",
+        "applicable_as_ai_proposal": null,
+        "stopped_by": null,
         "status": "not_run"
       },
       {
@@ -224,7 +272,9 @@
         "layer": "gate",
         "expected": "BLOCK",
         "actual": "BLOCK",
-        "detail": "sample_size:fail:n_mismatch",
+        "detail": "sample_size:fail:n_mismatch; numbers not in the contract: 6",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -233,7 +283,9 @@
         "layer": "gate",
         "expected": "NEEDS_EVIDENCE",
         "actual": "NEEDS_EVIDENCE",
-        "detail": "quantity:unknown:no_matching_fact",
+        "detail": "quantity:unknown:no_matching_fact; numbers not in the contract: 9.2",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "Writer number check (PW-042)",
         "status": "match"
       },
       {
@@ -243,6 +295,8 @@
         "expected": "BLOCK",
         "actual": null,
         "detail": "not_run: whether a cited source supports the statement needs that source's text and a reading of it — decided by literature evidence (PW-036/037) + PW-044 reviewer + user",
+        "applicable_as_ai_proposal": null,
+        "stopped_by": null,
         "status": "not_run"
       },
       {
@@ -252,6 +306,8 @@
         "expected": "WARN",
         "actual": "BLOCK",
         "detail": "citation:fail:citation_retracted",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "known_deviation"
       },
       {
@@ -261,6 +317,8 @@
         "expected": "BLOCK",
         "actual": "BLOCK",
         "detail": "claim:fail:certainty_overstatement",
+        "applicable_as_ai_proposal": false,
+        "stopped_by": "scientific gate (PW-043)",
         "status": "match"
       },
       {
@@ -270,6 +328,8 @@
         "expected": "WARN",
         "actual": "WARN",
         "detail": "copied_from_source",
+        "applicable_as_ai_proposal": true,
+        "stopped_by": null,
         "status": "match"
       }
     ],
@@ -287,6 +347,24 @@
     "status": "not_run",
     "reason": "권리와 외부 전송이 확인된 실제 문단이 아직 없다(최소 10개 필요). 사용자가 문단을 제공하고 사람이 blind로 평가해야 한다. 모델 자체평가나 AI 탐지 점수로 대신하지 않는다.",
     "errors": [],
+    "means": {
+      "baseline": {
+        "fact_preservation": null,
+        "story_alignment": null,
+        "paragraph_logic": null,
+        "concision": null,
+        "genre_fit": null,
+        "academic_style": null
+      },
+      "candidate": {
+        "fact_preservation": null,
+        "story_alignment": null,
+        "paragraph_logic": null,
+        "concision": null,
+        "genre_fit": null,
+        "academic_style": null
+      }
+    },
     "summary": {
       "rated_paragraphs": 0,
       "held_out": 0,
@@ -300,6 +378,67 @@
     "reasons": [
       "hard cases: 5 need AI review and the user (not run here)",
       "human rubric: not run (no rights-cleared paragraphs yet)"
-    ]
+    ],
+    "for_user": {
+      "hard_cases": {
+        "total": 30,
+        "match": 23,
+        "known_deviation": 2,
+        "stricter": 0,
+        "unsafe": 0,
+        "not_run": 5
+      },
+      "not_run_cases": [
+        {
+          "id": "SCI-010",
+          "detail": "not_run: figure numbers written as plain text are not mapped to figure records; figure references are atoms — decided by figure cross-reference check (PW-019 figure_ref atoms; PW-058 export) + user"
+        },
+        {
+          "id": "SCI-017",
+          "detail": "not_run: whether a required limitation is missing needs the plan and a reading of the whole Discussion — decided by PW-044 reviewer (section_role / missing_counterevidence) + user"
+        },
+        {
+          "id": "SCI-020",
+          "detail": "not_run: hype is a judgement about this paragraph; the product keeps no word blacklist (spec 06) — decided by PW-044 reviewer (overclaim) + user"
+        },
+        {
+          "id": "SCI-024",
+          "detail": "not_run: organism names are not recorded identifiers the gate can contradict; a fact without a number is not checked — decided by PW-044 reviewer + user"
+        },
+        {
+          "id": "SCI-027",
+          "detail": "not_run: whether a cited source supports the statement needs that source's text and a reading of it — decided by literature evidence (PW-036/037) + PW-044 reviewer + user"
+        }
+      ],
+      "ai_proposals_still_applicable": [
+        "SCI-005",
+        "SCI-018",
+        "SCI-030"
+      ],
+      "rubric": {
+        "rated_paragraphs": 0,
+        "held_out": 0,
+        "raters": 0,
+        "critical": 0,
+        "means": {
+          "baseline": {
+            "fact_preservation": null,
+            "story_alignment": null,
+            "paragraph_logic": null,
+            "concision": null,
+            "genre_fit": null,
+            "academic_style": null
+          },
+          "candidate": {
+            "fact_preservation": null,
+            "story_alignment": null,
+            "paragraph_logic": null,
+            "concision": null,
+            "genre_fit": null,
+            "academic_style": null
+          }
+        }
+      }
+    }
   }
 }

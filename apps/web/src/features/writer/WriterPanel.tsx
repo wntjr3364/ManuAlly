@@ -25,7 +25,7 @@ const GATE_REASON: Record<string, string> = {
   negation_changed: '주장의 부정이 바뀜', direction_changed: '주장의 증감 방향이 바뀜', claim_not_found: '주장이 문단에 보이지 않음',
   entity_mismatch: '다른 대상(유전자·계통 이름)에 붙임', entity_not_stated: '어느 대상인지 없음', comparison_order_unclear: '어느 쪽이 대조군인지 분명하지 않음',
   sign_mismatch: '부호가 반대', impossible_probability: '0 이하이거나 1보다 큰 확률', significance_misstated: '유의 수준(0.05)을 넘는 p를 유의하다고 씀',
-  causal_overstatement: '관찰 주장을 인과로 씀', certainty_overstatement: '가설·해석을 확정된 것처럼 씀', priority_claim: '최초·전례 없음 주장(체계적 검토 필요)', comparison_contradicts_facts: '그룹 비교가 기록된 값과 반대', ambiguous_number: '쉼표 때문에 수를 하나로 읽을 수 없음', dispersion_not_recorded: '편차(SD·SE)가 기록되지 않음',
+  causal_overstatement: '관찰 주장을 인과로 씀', causal_wording: '관찰 주장에 인과처럼 읽히는 표현(led to·results in) — 실험 조작이면 괜찮음', certainty_overstatement: '가설·해석을 확정된 것처럼 씀', priority_claim: '최초·전례 없음 주장(체계적 검토 필요)', comparison_contradicts_facts: '그룹 비교가 기록된 값과 반대', ambiguous_number: '쉼표 때문에 수를 하나로 읽을 수 없음', dispersion_not_recorded: '편차(SD·SE)가 기록되지 않음',
 };
 function FindingLine({ f }: { f: Finding }) {
   const mark = f.verdict === 'pass' ? '✓' : f.verdict === 'fail' ? '✗' : '?';

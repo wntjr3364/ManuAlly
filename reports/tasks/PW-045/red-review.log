@@ -1,0 +1,229 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-045/gate-extensions.test.ts (18 tests | 8 failed) 75ms
+   ❯ review MAJOR/MINOR (a576c5b): correct prose is not failed (11)
+     × Differences in leaf area were not statistically significant (p > 0.05). 10ms
+     × ABC1 changed significantly (p = 0.003), but ABC2 did not (p = 0.21). 3ms
+     × This difference is biologically significant even though p = 0.08. 2ms
+     × We transferred 20 plants to soil and grew them for 2 weeks. 1ms
+     × Forty mice were housed per cage; 12 mice were used for each group. 1ms
+     × Root length was scored in five independent experiments (n = 5). 1ms
+     × A total n of 12 seedlings was sampled. 1ms
+     × experimental wording ("led to", "results in") over an observation is not a failure; "causes" still is 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-045/gate-extensions.test.ts > review MAJOR/MINOR (a576c5b): correct prose is not failed > Differences in leaf area were not statistically significant (p > 0.05).
+AssertionError: expected [ { check: 'statistic', …(3) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "check": "statistic",
++     "reason": "significance_misstated",
++     "text": "p > 0.05",
++     "verdict": "fail",
++   },
++ ]
+
+ ❯ tests/tasks/PW-045/gate-extensions.test.ts:78:73
+     76|     'A total n of 12 seedlings was sampled.',
+     77|   ])('%s', (t) => {
+     78|     expect(run(t, [abc1]).findings.filter((f) => f.verdict === 'fail')…
+       |                                                                         ^
+     79|   });
+     80|   test('the same rules still fail what is wrong', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/tasks/PW-045/gate-extensions.test.ts > review MAJOR/MINOR (a576c5b): correct prose is not failed > ABC1 changed significantly (p = 0.003), but ABC2 did not (p = 0.21).
+AssertionError: expected [ { check: 'statistic', …(3) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "check": "statistic",
++     "reason": "significance_misstated",
++     "text": "p = 0.21",
++     "verdict": "fail",
++   },
++ ]
+
+ ❯ tests/tasks/PW-045/gate-extensions.test.ts:78:73
+     76|     'A total n of 12 seedlings was sampled.',
+     77|   ])('%s', (t) => {
+     78|     expect(run(t, [abc1]).findings.filter((f) => f.verdict === 'fail')…
+       |                                                                         ^
+     79|   });
+     80|   test('the same rules still fail what is wrong', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  tests/tasks/PW-045/gate-extensions.test.ts > review MAJOR/MINOR (a576c5b): correct prose is not failed > This difference is biologically significant even though p = 0.08.
+AssertionError: expected [ { check: 'statistic', …(3) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "check": "statistic",
++     "reason": "significance_misstated",
++     "text": "p = 0.08",
++     "verdict": "fail",
++   },
++ ]
+
+ ❯ tests/tasks/PW-045/gate-extensions.test.ts:78:73
+     76|     'A total n of 12 seedlings was sampled.',
+     77|   ])('%s', (t) => {
+     78|     expect(run(t, [abc1]).findings.filter((f) => f.verdict === 'fail')…
+       |                                                                         ^
+     79|   });
+     80|   test('the same rules still fail what is wrong', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  tests/tasks/PW-045/gate-extensions.test.ts > review MAJOR/MINOR (a576c5b): correct prose is not failed > We transferred 20 plants to soil and grew them for 2 weeks.
+AssertionError: expected [ { check: 'sample_size', …(4) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "candidates": [
++       "f",
++     ],
++     "check": "sample_size",
++     "reason": "n_mismatch",
++     "text": "20 plants",
++     "verdict": "fail",
++   },
++ ]
+
+ ❯ tests/tasks/PW-045/gate-extensions.test.ts:78:73
+     76|     'A total n of 12 seedlings was sampled.',
+     77|   ])('%s', (t) => {
+     78|     expect(run(t, [abc1]).findings.filter((f) => f.verdict === 'fail')…
+       |                                                                         ^
+     79|   });
+     80|   test('the same rules still fail what is wrong', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  tests/tasks/PW-045/gate-extensions.test.ts > review MAJOR/MINOR (a576c5b): correct prose is not failed > Forty mice were housed per cage; 12 mice were used for each group.
+AssertionError: expected [ { check: 'sample_size', …(4) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "candidates": [
++       "f",
++     ],
++     "check": "sample_size",
++     "reason": "n_mismatch",
++     "text": "12 mice",
++     "verdict": "fail",
++   },
++ ]
+
+ ❯ tests/tasks/PW-045/gate-extensions.test.ts:78:73
+     76|     'A total n of 12 seedlings was sampled.',
+     77|   ])('%s', (t) => {
+     78|     expect(run(t, [abc1]).findings.filter((f) => f.verdict === 'fail')…
+       |                                                                         ^
+     79|   });
+     80|   test('the same rules still fail what is wrong', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  tests/tasks/PW-045/gate-extensions.test.ts > review MAJOR/MINOR (a576c5b): correct prose is not failed > Root length was scored in five independent experiments (n = 5).
+AssertionError: expected [ { check: 'sample_size', …(4) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "candidates": [
++       "f",
++     ],
++     "check": "sample_size",
++     "reason": "n_mismatch",
++     "text": "n = 5",
++     "verdict": "fail",
++   },
++ ]
+
+ ❯ tests/tasks/PW-045/gate-extensions.test.ts:78:73
+     76|     'A total n of 12 seedlings was sampled.',
+     77|   ])('%s', (t) => {
+     78|     expect(run(t, [abc1]).findings.filter((f) => f.verdict === 'fail')…
+       |                                                                         ^
+     79|   });
+     80|   test('the same rules still fail what is wrong', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  tests/tasks/PW-045/gate-extensions.test.ts > review MAJOR/MINOR (a576c5b): correct prose is not failed > A total n of 12 seedlings was sampled.
+AssertionError: expected [ { check: 'sample_size', …(4) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "candidates": [
++       "f",
++     ],
++     "check": "sample_size",
++     "reason": "n_mismatch",
++     "text": "n of 12",
++     "verdict": "fail",
++   },
++ ]
+
+ ❯ tests/tasks/PW-045/gate-extensions.test.ts:78:73
+     76|     'A total n of 12 seedlings was sampled.',
+     77|   ])('%s', (t) => {
+     78|     expect(run(t, [abc1]).findings.filter((f) => f.verdict === 'fail')…
+       |                                                                         ^
+     79|   });
+     80|   test('the same rules still fail what is wrong', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  tests/tasks/PW-045/gate-extensions.test.ts > review MAJOR/MINOR (a576c5b): correct prose is not failed > experimental wording ("led to", "results in") over an observation is not a failure; "causes" still is
+AssertionError: expected 'fail' not to be 'fail' // Object.is equality
+ ❯ tests/tasks/PW-045/gate-extensions.test.ts:88:122
+     86|   test('experimental wording ("led to", "results in") over an observat…
+     87|     const obs = [{ id: 'c', kind: 'observation', text: 'Drought treatm…
+     88|     expect(of(run('Drought treatment led to a 2.4-fold induction of AB…
+       |                                                                                                                          ^
+     89|     const loss = [{ id: 'l', kind: 'observation', text: 'Loss of ABC1 …
+     90|     expect(of(run('Loss of ABC1 results in shorter roots.', [], loss),…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 10 passed (18)
+   Start at  23:55:31
+   Duration  544ms (transform 62%, tests 24%, import 12%, worker 2%)
+
+exit 1

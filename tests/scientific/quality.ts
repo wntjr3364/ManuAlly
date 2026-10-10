@@ -18,7 +18,7 @@ export interface RubricEntry {
 export interface RubricFile { status: 'not_run' | 'recorded'; reason?: string; entries: RubricEntry[] }
 
 const ENTRY_KEYS = ['paragraph_id', 'set', 'rights_confirmed', 'rater_kind', 'rater', 'blind', 'candidate', 'scores', 'reasons', 'critical_flags'];
-export function validateRubric(file: unknown): { errors: string[]; summary: { rated_paragraphs: number; held_out: number; raters: number; critical: number } } {
+export function validateRubric(file: unknown): { errors: string[]; means: Record<'baseline' | 'candidate', Record<string, number | null>>; summary: { rated_paragraphs: number; held_out: number; raters: number; critical: number } } {
   const errors: string[] = [];
   const f = (file ?? {}) as Partial<RubricFile> & Record<string, unknown>;
   const extra = Object.keys(f).filter((k) => !['status', 'reason', 'entries'].includes(k));
@@ -41,8 +41,21 @@ export function validateRubric(file: unknown): { errors: string[]; summary: { ra
     }
     if (!Array.isArray(e.critical_flags) || e.critical_flags.some((x) => !(CRITICAL_FLAGS as readonly string[]).includes(x))) errors.push(`${at}: critical_flags must list known flags`);
   });
+  // one rating per paragraph, rater and candidate (review NIT)
+  const seen = new Set<string>();
+  entries.forEach((e, i) => {
+    const k = `${e.paragraph_id}|${e.rater}|${e.candidate}`;
+    if (seen.has(k)) errors.push(`entries[${i}]: duplicate rating of ${e.paragraph_id} by ${e.rater} for ${e.candidate}`);
+    seen.add(k);
+  });
+  // the means per criterion, baseline and candidate side by side, for the user's decision
+  const means = (cand: string) => Object.fromEntries(CRITERIA.map((c) => {
+    const v = entries.filter((e) => e.candidate === cand).map((e) => e.scores?.[c]).filter((x): x is number => Number.isInteger(x));
+    return [c, v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 100) / 100 : null];
+  }));
   return {
     errors,
+    means: { baseline: means('baseline'), candidate: means('candidate') },
     summary: {
       rated_paragraphs: new Set(entries.map((e) => e.paragraph_id)).size,
       held_out: new Set(entries.filter((e) => e.set === 'held_out').map((e) => e.paragraph_id)).size,
@@ -68,5 +81,14 @@ export function releaseQuality(suite: ReturnType<typeof runSuite>, rubric: unkno
     if (r.summary.critical) reasons.push(`human rubric: ${r.summary.critical} ratings with critical flags (not offset by averages)`);
   }
   const blocking = reasons.filter((x) => !x.startsWith('ignored:') && !x.includes('need AI review'));
-  return { declared_pass: false as const, outcome: blocking.length ? 'not_ready' as const : 'ready_for_user_decision' as const, reasons };
+  return {
+    declared_pass: false as const, outcome: blocking.length ? 'not_ready' as const : 'ready_for_user_decision' as const, reasons,
+    // what the user decides on (review NIT): no single score
+    for_user: {
+      hard_cases: suite.summary,
+      not_run_cases: suite.results.filter((x) => x.status === 'not_run').map((x) => ({ id: x.id, detail: x.detail })),
+      ai_proposals_still_applicable: suite.results.filter((x) => x.applicable_as_ai_proposal === true && x.expected !== 'ALLOW').map((x) => x.id),
+      rubric: { ...r.summary, means: r.means },
+    },
+  };
 }

@@ -25,3 +25,13 @@ KILLED quality: AI scores count
 KILLED quality: extra rubric fields accepted
 KILLED quality: declares pass
 KILLED quality: too few paragraphs accepted
+
+# review fixes (a576c5b review: MAJOR, MINOR, NITs)
+KILLED significance over the whole sentence
+KILLED negated significance not recognised
+KILLED n against unnamed facts
+KILLED weak causal wording fails
+KILLED runner claims UNKNOWN stops a proposal
+KILLED duplicate ratings accepted
+KILLED organism counts as n
+KILLED runner ignores the Writer number check

@@ -524,7 +524,7 @@
       "rationale": "기술반복/생물반복 혼동.",
       "run": {
         "layer": "gate",
-        "text": "The study had 6 independent biological replicates.",
+        "text": "ABC1 expression was measured in 6 independent biological replicates.",
         "facts": [
           {
             "id": "f1",
@@ -537,7 +537,8 @@
             "n": 3,
             "statistics": []
           }
-        ]
+        ],
+        "note": "the gate attributes an n to a recorded fact only when the sentence names what was measured (PW-045 review); without it the n is unknown and an AI draft is still stopped by the Writer number check"
       }
     },
     {

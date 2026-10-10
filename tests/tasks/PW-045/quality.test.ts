@@ -74,3 +74,28 @@ describe('TST-045B: no release "pass" from AI-detector scores, self-evaluation o
     expect(q.reasons.some((r) => r.includes('unsafe'))).toBe(false);
   });
 });
+
+describe('review NITs (a576c5b)', () => {
+  test('each result says whether the candidate, as an AI proposal, could still be applied and what stops it', () => {
+    const s = runSuite();
+    const by = (id: string) => s.results.find((r) => r.id === id)!;
+    expect(by('SCI-002')).toMatchObject({ applicable_as_ai_proposal: false, stopped_by: 'scientific gate (PW-043)' });
+    expect(by('SCI-001')).toMatchObject({ applicable_as_ai_proposal: false, stopped_by: 'Writer number check (PW-042)' });
+    // a priority claim is only shown (UNKNOWN): the owner can still apply it — said, not hidden
+    expect(by('SCI-005')).toMatchObject({ actual: 'NEEDS_EVIDENCE', applicable_as_ai_proposal: true, stopped_by: null });
+    expect(releaseQuality(s, rubricFile()).for_user.ai_proposals_still_applicable).toContain('SCI-005');
+  });
+  test('an AI candidate meets the Writer number check too: a number the gate does not read (a year) still needs evidence', () => {
+    const c: HardCase = { id: 'X', name: 'year_in_draft', candidate: '', expected: 'NEEDS_EVIDENCE', run: { layer: 'gate', text: 'Samples from 2019 were used.', facts: [] } };
+    expect(runCase(c)).toMatchObject({ status: 'match', actual: 'NEEDS_EVIDENCE', stopped_by: 'Writer number check (PW-042)' });
+  });
+  test('the user decides on means per criterion for baseline and candidate, raters and the not-run cases; duplicates are refused', () => {
+    const entries = [entry(1), { ...entry(1), candidate: 'baseline' as const, scores: Object.fromEntries(CRITERIA.map((c) => [c, 3])) as RubricEntry['scores'] }];
+    const v = validateRubric({ status: 'recorded', entries });
+    expect(v.means.candidate.concision).toBe(4);
+    expect(v.means.baseline.concision).toBe(3);
+    expect(validateRubric({ status: 'recorded', entries: [entry(1), entry(1)] }).errors[0]).toMatch(/duplicate rating/);
+    const q = releaseQuality(runSuite(), rubricFile());
+    expect(q.for_user.not_run_cases.map((x) => x.id)).toEqual(['SCI-010', 'SCI-017', 'SCI-020', 'SCI-024', 'SCI-027']);
+  });
+});

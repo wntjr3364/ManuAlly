@@ -23,7 +23,9 @@ describe('significance and impossible probabilities', () => {
 describe('replicates and units', () => {
   const f = fact({ id: 'f', entity: 'ABC1', metric: 'fold change', value_text: '2.4', unit: 'fold', n: 3 });
   test('"N biological replicates" is n: a different recorded n fails, the same is not a failure; technical replicates are not n', () => {
-    expect(of(run('We used 6 independent biological replicates.', [f]), 'sample_size')[0]).toMatchObject({ verdict: 'fail', reason: 'n_mismatch' });
+    // the sentence names what was measured: then its n contradicts the record (an unattributed n is unknown)
+    expect(of(run('ABC1 was measured in 6 independent biological replicates.', [f]), 'sample_size')[0]).toMatchObject({ verdict: 'fail', reason: 'n_mismatch' });
+    expect(of(run('We used 6 independent biological replicates.', [f]), 'sample_size')[0]).toMatchObject({ verdict: 'unknown' });
     expect(of(run('We used 3 biological replicates.', [f]), 'sample_size')[0]).toMatchObject({ verdict: 'unknown' });
     expect(of(run('Each sample had 2 technical replicates.', [f]), 'sample_size')).toEqual([]);
   });
@@ -59,5 +61,37 @@ describe('claim strength against the approved claim', () => {
   test('a claim of priority is never verified here', () => {
     expect(of(run('This is the first study to show it.'), 'claim')[0]).toMatchObject({ verdict: 'unknown', reason: 'priority_claim' });
     expect(run('We first measured ABC1, then ABC2.').status).toBe('NOT_APPLICABLE');
+  });
+});
+
+describe('review MAJOR/MINOR (a576c5b): correct prose is not failed', () => {
+  const abc1 = fact({ id: 'f', entity: 'ABC1', metric: 'fold change', value_text: '2.4', unit: 'fold', group_label: 'drought', comparison: 'control', n: 3, statistics: [{ kind: 'p_value', value_text: '0.003' }] });
+  test.each([
+    'Differences in leaf area were not statistically significant (p > 0.05).',
+    'ABC1 changed significantly (p = 0.003), but ABC2 did not (p = 0.21).',
+    'This difference is biologically significant even though p = 0.08.',
+    'The change did not reach significance (p = 0.07).',
+    'Leaf area showed no significant change (p = 0.4).',
+    'We transferred 20 plants to soil and grew them for 2 weeks.',
+    'Forty mice were housed per cage; 12 mice were used for each group.',
+    'Root length was scored in five independent experiments (n = 5).',
+    'A total n of 12 seedlings was sampled.',
+    // the entity is named, so an organism count read as n would contradict it: it is a count, not n
+    'ABC1 was measured after 20 plants were transferred to soil.',
+  ])('%s', (t) => {
+    expect(run(t, [abc1]).findings.filter((f) => f.verdict === 'fail')).toEqual([]);
+  });
+  test('the same rules still fail what is wrong', () => {
+    expect(of(run('ABC1 was significantly induced (p = 0.08).', [abc1]), 'statistic')[0]).toMatchObject({ verdict: 'fail', reason: 'significance_misstated' });
+    expect(of(run('ABC1 expression was measured in 6 independent biological replicates.', [abc1]), 'sample_size')[0]).toMatchObject({ verdict: 'fail', reason: 'n_mismatch' });
+    expect(of(run('ABC1 was induced 2.4-fold under drought (n = 5).', [abc1]), 'sample_size')[0]).toMatchObject({ verdict: 'fail', reason: 'n_mismatch' });
+    expect(of(run('ABC1 was compared in 12 plants per group.', [abc1]), 'sample_size')[0]).toMatchObject({ verdict: 'fail', reason: 'n_mismatch' });
+  });
+  test('experimental wording ("led to", "results in") over an observation is not a failure; "causes" still is', () => {
+    const obs = [{ id: 'c', kind: 'observation', text: 'Drought treatment induced ABC1 2.4-fold in roots.' }];
+    expect(of(run('Drought treatment led to a 2.4-fold induction of ABC1 in roots.', [], obs), 'claim')[0]?.verdict).not.toBe('fail');
+    const loss = [{ id: 'l', kind: 'observation', text: 'Loss of ABC1 is associated with shorter roots.' }];
+    expect(of(run('Loss of ABC1 results in shorter roots.', [], loss), 'claim')[0]?.verdict).not.toBe('fail');
+    expect(of(run('Loss of ABC1 causes shorter roots.', [], loss), 'claim')[0]).toMatchObject({ verdict: 'fail', reason: 'causal_overstatement' });
   });
 });

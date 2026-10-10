@@ -1,0 +1,145 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts (13 tests | 6 failed) 2952ms
+   ❯ PW-046 review fixes (6)
+     × MAJOR 1: a missing section with no earlier section present goes before its outline successor 99ms
+     × MINOR 1: only top-level headings are sections; new headings take that level 79ms
+     × MINOR 2: numbered headings are the outline's sections 74ms
+     × MINOR 3 / NIT 3: paragraphs of one section keep the order they are applied in; an edit inside the section does not stale them, a changed heading does 299ms
+     × MINOR 4: a profile role reaches the writer for the plan's section by the same name comparison 145ms
+     × NIT 1: only a section that is a procedure may enumerate, not one that mentions the word 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > PW-046 review fixes > MAJOR 1: a missing section with no earlier section present goes before its outline successor
+AssertionError: expected [ '#Results', 'My results.', …(3) ] to deeply equal [ '#Introduction', '#Results', …(3) ]
+
+- Expected
++ Received
+
+  [
+-   "#Introduction",
+    "#Results",
+    "My results.",
+    "#Discussion",
+    "My discussion.",
++   "#Introduction",
+  ]
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:203:28
+    201|     const head = await save(x, [h('Results'), para('My results.'), h('…
+    202|     expect((await scaffold(x, head)).json().added).toEqual(['Introduct…
+    203|     expect(await shape(x)).toEqual(['#Introduction', '#Results', 'My r…
+       |                            ^
+    204|     // the Introduction plan's paragraph then goes under Introduction,…
+    205|     await draft(x, x.nodes[0]!.node_id, (await doc(x)).head.id);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > PW-046 review fixes > MINOR 1: only top-level headings are sections; new headings take that level
+AssertionError: expected [ 'Conclusion' ] to deeply equal [ 'Results', 'Conclusion' ]
+
+- Expected
++ Received
+
+  [
+-   "Results",
+    "Conclusion",
+  ]
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:212:52
+    210|     const x = await paper('research_article', ['Results', 'Conclusion'…
+    211|     let head = await save(x, [h('Discussion'), para('d1'), h('Results'…
+    212|     expect((await scaffold(x, head)).json().added).toEqual(['Results',…
+       |                                                    ^
+    213|     expect(await shape(x)).toEqual(['#Discussion', 'd1', '#Results', '…
+    214|     expect((await doc(x)).head.content_json.content.slice(-2).map((b) …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > PW-046 review fixes > MINOR 2: numbered headings are the outline's sections
+AssertionError: expected { …(3) } to match object { added: [], revision_id: null }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "added": [],
+-   "revision_id": null,
++   "added": [
++     "Introduction",
++     "Results",
++   ],
++   "revision_id": "e08f5341-91c2-47ce-89cc-4c50f6037a4e",
+  }
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:226:46
+    224|     const x = await paper('research_article', ['Introduction', 'Result…
+    225|     const head = await save(x, [h('1. Introduction'), para('i'), h('2.…
+    226|     expect((await scaffold(x, head)).json()).toMatchObject({ added: []…
+       |                                              ^
+    227|     await draft(x, x.nodes[1]!.node_id, head);
+    228|     expect((await shape(x)).map((s) => (s.startsWith('#') || s.length …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > PW-046 review fixes > MINOR 3 / NIT 3: paragraphs of one section keep the order they are applied in; an edit inside the section does not stale them, a changed heading does
+AssertionError: expected '64c3009b-2e70-4619-a8fc-705345a4a97f' to be undefined // Object.is equality
+
+- Expected:
+undefined
+
++ Received:
+"64c3009b-2e70-4619-a8fc-705345a4a97f"
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:258:33
+    256|     blocks = (await doc(x)).head.content_json.content;
+    257|     expect(shapeOf(blocks).map((s) => (s.startsWith('#') ? s : 'p'))).…
+    258|     expect(blocks[3]!.attrs.id).toBe(a3.json().new_block_id);
+       |                                 ^
+    259|     // the section's heading renamed: the fourth is STALE
+    260|     await save(x, blocks.map((b, i) => (i === 0 ? { ...b, content: [{ …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > PW-046 review fixes > MINOR 4: a profile role reaches the writer for the plan's section by the same name comparison
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "Name each component before its interface",
+- ]
++ []
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:275:49
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > PW-046 review fixes > NIT 1: only a section that is a procedure may enumerate, not one that mentions the word
+AssertionError: expected [] to deeply equal [ 'enumerated_list' ]
+
+- Expected
++ Received
+
+- [
+-   "enumerated_list",
+- ]
++ []
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:282:182
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 7 passed (13)
+   Start at  00:55:58
+   Duration  5.16s (tests 60%, transform 32%, import 9%)
+
+exit 1

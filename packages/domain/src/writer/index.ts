@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import { EDITOR_SCHEMA_VERSION, ReplacementError, atomNodesIn, blockHash, buildReplacement, findBlock, parseDocument, schema, validateDocument } from '@pw/editor-core';
 import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
-import { nodeSection, sectionEnd } from '../manuscript-structure/index.ts';
+import { nodeSection, sectionEndOf, sectionHeading } from '../manuscript-structure/index.ts';
 import { enqueueJob } from '../jobs/index.ts';
 import { checkDraftGate } from '../outlines/index.ts';
 import { unresolvedNodes } from '../outline-impact/index.ts';
@@ -21,12 +21,14 @@ type PMNode = ReturnType<typeof parseDocument>;
 export interface ParagraphProposal {
   id: string; paper_id: string; job_id: string; document_id: string; base_revision_id: string; outline_revision_id: string; node_id: string;
   mode: WriterMode; after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null;
+  // a draft placed by default at the end of its plan's section (PW-046): that section's heading
+  section_heading_id: string | null; section_heading_hash: string | null;
   contract: Record<string, unknown>; contract_hash: string; paragraph: Record<string, unknown> | null; missing: string[];
   checks: { check: string; result: string; details?: string }[]; warnings: string[]; claim_ids: string[]; fact_ids: string[];
   generator: string; generator_label: string | null; proposal_hash: string; status: string; status_reason: string | null;
   applied_revision_id: string | null; new_block_id: string | null; decided_at: string | null; created_at: string;
 }
-const COLUMNS = `id, paper_id, job_id, document_id, base_revision_id, outline_revision_id, node_id, mode, after_block_id, after_block_hash, block_id, expected_block_hash, contract, contract_hash,
+const COLUMNS = `id, paper_id, job_id, document_id, base_revision_id, outline_revision_id, node_id, mode, after_block_id, after_block_hash, block_id, expected_block_hash, section_heading_id, section_heading_hash, contract, contract_hash,
   paragraph, missing, checks, warnings, claim_ids, fact_ids, generator, generator_label, proposal_hash, status, status_reason, applied_revision_id, new_block_id, decided_at, created_at`;
 
 export async function documentAt(db: Queryable, paperId: string, documentId: string, revisionId: string): Promise<PMNode | null> {
@@ -94,20 +96,22 @@ export async function requestParagraph(pool: TxPool, a: { paperId: string; owner
     if (!n) throw new DomainError('INVALID', `${field} is not a block of this revision`, field);
     return n;
   };
-  let place: { after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null };
+  let place: { after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null; section_heading_id: string | null; section_heading_hash: string | null };
   if (mode === 'draft') {
     if (b.block_id !== undefined && b.block_id !== null) throw new DomainError('INVALID', 'a new paragraph is placed with after_block_id', 'block_id');
     // not placed by the owner: at the end of the plan's own section when the manuscript has its heading
-    // (PW-046), otherwise at the end of the manuscript
-    const after = b.after_block_id === undefined || b.after_block_id === null
-      ? sectionEnd(content, await nodeSection(pool, gate.outline_revision_id, gate.node_id))
-      : id(b.after_block_id, 'after_block_id');
-    place = { after_block_id: after ? (after.attrs.id as string) : null, after_block_hash: after ? await blockHash(after) : null, block_id: null, expected_block_hash: null };
+    // (PW-046; the section's end is taken again when it is applied), otherwise at the end of the manuscript
+    const heading = b.after_block_id === undefined || b.after_block_id === null ? sectionHeading(content, await nodeSection(pool, gate.outline_revision_id, gate.node_id)) : null;
+    const after = heading ? sectionEndOf(content, heading.attrs.id as string) : b.after_block_id === undefined || b.after_block_id === null ? null : id(b.after_block_id, 'after_block_id');
+    place = {
+      after_block_id: after ? (after.attrs.id as string) : null, after_block_hash: after ? await blockHash(after) : null, block_id: null, expected_block_hash: null,
+      section_heading_id: heading ? (heading.attrs.id as string) : null, section_heading_hash: heading ? await blockHash(heading) : null,
+    };
   } else {
     if (b.after_block_id !== undefined && b.after_block_id !== null) throw new DomainError('INVALID', 'a correction names the paragraph with block_id', 'after_block_id');
     const n = id(b.block_id, 'block_id');
     if (n.type.name !== 'paragraph') throw new DomainError('INVALID', 'only a paragraph can be corrected or rewritten here', 'block_id');
-    place = { after_block_id: null, after_block_hash: null, block_id: n.attrs.id as string, expected_block_hash: await blockHash(n) };
+    place = { after_block_id: null, after_block_hash: null, block_id: n.attrs.id as string, expected_block_hash: await blockHash(n), section_heading_id: null, section_heading_hash: null };
   }
   return enqueueJob(pool, {
     paperId: a.paperId, ownerId: a.ownerId, intent: 'draft_paragraph', idempotencyKey: b.idempotency_key,
@@ -116,13 +120,14 @@ export async function requestParagraph(pool: TxPool, a: { paperId: string; owner
 }
 
 export async function insertParagraphProposalIn(tx: Queryable, p: Omit<ParagraphProposal, 'id' | 'proposal_hash' | 'status' | 'status_reason' | 'applied_revision_id' | 'new_block_id' | 'decided_at' | 'created_at'> & { status: 'PENDING' | 'CHECK_FAILED' | 'NEEDS_EVIDENCE' | 'NO_CHANGE' | 'STALE'; status_reason: string | null }) {
-  const proposalHash = contentHash({ mode: p.mode, document_id: p.document_id, base_revision_id: p.base_revision_id, after_block_id: p.after_block_id, after_block_hash: p.after_block_hash, block_id: p.block_id, expected_block_hash: p.expected_block_hash, contract_hash: p.contract_hash, paragraph: p.paragraph, checks: p.checks });
+  const proposalHash = contentHash({ mode: p.mode, document_id: p.document_id, base_revision_id: p.base_revision_id, after_block_id: p.after_block_id, after_block_hash: p.after_block_hash, block_id: p.block_id, expected_block_hash: p.expected_block_hash, ...(p.section_heading_id ? { section_heading_id: p.section_heading_id, section_heading_hash: p.section_heading_hash } : {}), contract_hash: p.contract_hash, paragraph: p.paragraph, checks: p.checks });
   return (await tx.query<ParagraphProposal>(
     `INSERT INTO paragraph_proposals (paper_id, job_id, document_id, base_revision_id, outline_revision_id, node_id, mode, after_block_id, after_block_hash, block_id, expected_block_hash, contract, contract_hash,
-       paragraph, missing, checks, warnings, claim_ids, fact_ids, generator, generator_label, proposal_hash, status, status_reason)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING ${COLUMNS}`,
+       paragraph, missing, checks, warnings, claim_ids, fact_ids, generator, generator_label, proposal_hash, status, status_reason, section_heading_id, section_heading_hash)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26) RETURNING ${COLUMNS}`,
     [p.paper_id, p.job_id, p.document_id, p.base_revision_id, p.outline_revision_id, p.node_id, p.mode, p.after_block_id, p.after_block_hash, p.block_id, p.expected_block_hash, JSON.stringify(p.contract), p.contract_hash,
-      p.paragraph ? JSON.stringify(p.paragraph) : null, JSON.stringify(p.missing), JSON.stringify(p.checks), p.warnings, p.claim_ids, p.fact_ids, p.generator, p.generator_label, proposalHash, p.status, p.status_reason])).rows[0]!;
+      p.paragraph ? JSON.stringify(p.paragraph) : null, JSON.stringify(p.missing), JSON.stringify(p.checks), p.warnings, p.claim_ids, p.fact_ids, p.generator, p.generator_label, proposalHash, p.status, p.status_reason,
+      p.section_heading_id, p.section_heading_hash])).rows[0]!;
 }
 
 export async function listParagraphProposals(db: Queryable, paperId: string, documentId: unknown) {
@@ -136,8 +141,13 @@ export async function getParagraphProposal(db: Queryable, paperId: string, id: s
 
 // Whether the proposal's place is as it was when it was asked for (review MINOR 3): the paragraph it
 // corrects, or the block a new paragraph follows, unchanged. Edits elsewhere do not matter; the
-// proposal's own place is never rebased.
-export async function placeHolds(doc: PMNode, p: Pick<ParagraphProposal, 'mode' | 'after_block_id' | 'after_block_hash' | 'block_id' | 'expected_block_hash'>): Promise<boolean> {
+// proposal's own place is never rebased. A paragraph placed at its section's end (PW-046) needs only
+// that section's heading unchanged: it goes after the section's end as it is when applied.
+export async function placeHolds(doc: PMNode, p: Pick<ParagraphProposal, 'mode' | 'after_block_id' | 'after_block_hash' | 'block_id' | 'expected_block_hash' | 'section_heading_id' | 'section_heading_hash'>): Promise<boolean> {
+  if (p.mode === 'draft' && p.section_heading_id) {
+    const h = topBlock(doc, p.section_heading_id);
+    return !!h && h.type.name === 'heading' && (await blockHash(h)) === p.section_heading_hash;
+  }
   const id = p.mode === 'draft' ? p.after_block_id : p.block_id;
   if (id === null) return true; // appended at the end
   const n = topBlock(doc, id);
@@ -191,11 +201,14 @@ export async function applyParagraphProposal(pool: TxPool, a: { paperId: string;
     const paragraph = schema.nodeFromJSON({ ...p.paragraph!, attrs: { id: newId } });
     const blocks: PMNode[] = [];
     if (p.mode === 'draft') {
-      if (p.after_block_id === null) {
+      // at its section's end as it is now (PW-046 review MINOR 3: paragraphs of one section keep the
+      // order they are applied in), else after the block it was asked for, else at the end
+      const anchor = p.section_heading_id ? (sectionEndOf(doc, p.section_heading_id)!.attrs.id as string) : p.after_block_id;
+      if (anchor === null) {
         doc.forEach((n) => blocks.push(n));
         blocks.push(paragraph);
       } else {
-        doc.forEach((n) => { blocks.push(n); if (n.attrs.id === p.after_block_id) blocks.push(paragraph); });
+        doc.forEach((n) => { blocks.push(n); if (n.attrs.id === anchor) blocks.push(paragraph); });
       }
     } else {
       const { node } = findBlock(doc, p.block_id!);

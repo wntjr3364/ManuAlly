@@ -26,7 +26,7 @@
 | PW-043 | 결정적 과학 gate: 수치·단위·그룹·통계·n·인용·주장 강도 | unit 18, 통합 6, 브라우저 1, mutation 33 | approve |
 | PW-044 | 검토 지적·사람 결정·한 번의 고쳐 쓰기 | 통합 12, 브라우저 1, mutation 24(+동등 1) | approve |
 | PW-045 | hard case 30·human rubric gate: unsafe 0, release not_ready | unit 63, mutation 33 | approve |
-| PW-046 | 유형별 섹션 제안, 개요로 원고 골격, 계획의 섹션에 문단 | 통합 7, 브라우저 2, mutation 13 | (리뷰 결과는 PROGRESS) |
+| PW-046 | 유형별 섹션 제안, 개요로 원고 골격, 계획의 섹션에 문단 | 통합 13, 브라우저 2, mutation 25 | (리뷰 결과는 PROGRESS) |
 
 최종 회귀 `pnpm test` exit 0: unit 406, integration 458, contracts 17, 브라우저 95 (`reports/tasks/PW-046/pnpm-test.log`).
 
@@ -34,7 +34,7 @@
 - **모든 AI 경로가 MOCK 기준이다.** 실제 모델의 지시 준수·형식 오류율은 모른다. 형식이 다르면 거부되고 사용자에게 보인다.
 - **release quality는 not_ready다.** 사람 평가가 없다.
 - 과학 gate는 영어 중심 휴리스틱이다. 동의어·단위 변환이 없어 unknown이나 거짓 실패 쪽으로 기운다(안전한 쪽).
-- 섹션 이름은 글자 일치다(번역·동의어 없음). 골격은 level-1 제목만 만든다.
+- 섹션 이름은 정규화한 글자 일치다(앞 번호·대소문자 무시, 번역·동의어 없음). 골격은 섹션 수준 제목만 만든다.
 - **이전 phase에서 넘어온 항목은 아직 열려 있다.** 실제 IME, Firefox/Safari, 배포, 실제 provider, 외부 서지 서비스 live, PW-015 브라우저 일회성 실패.
 
 ## 다음

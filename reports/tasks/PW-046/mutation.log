@@ -11,3 +11,17 @@ KILLED profile sections back to IMRaD names
 KILLED template not separate per type
 KILLED section names compared case-sensitively
 KILLED scaffold ignores expected head
+# review fixes
+KILLED R: no insertion before the outline successor
+KILLED R: section level always 1
+KILLED R: any heading level is a section
+KILLED R: leading section numbers kept
+KILLED R: trailing punctuation kept
+KILLED R: apply after the request-time block
+SURVIVED R: placeHolds ignores the section heading
+KILLED R: heading hash not compared
+KILLED R: writer role matched exactly
+KILLED R: profile section limit 60
+KILLED R: exemption regex not anchored
+KILLED R: worker drops the section heading
+KILLED R: placeHolds ignores the section heading (after test fix)

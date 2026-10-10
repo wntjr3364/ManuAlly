@@ -76,7 +76,7 @@
 | PW-043 | in_review | (P05) | REQ-043 / TST-043A,B | unit 18, 통합 6, 브라우저 1(리뷰 반영), mutation 20+13종 탐지, `pnpm test` exit 0 | 영어 중심 휴리스틱, 그룹 동의어·단위 변환 없음(unknown/불일치 쪽), 주장 극성은 낱말 겹침 |
 | PW-044 | in_review | (P05) | REQ-044 / TST-044A,B | 통합 12, 브라우저 1(리뷰 반영), mutation 18+6종 탐지(+동등 1), `pnpm test` exit 0 | MOCK 검토자만, 지적 의미는 미검사(형식만), 품질 평가는 PW-045 |
 | PW-045 | in_review | (P05) | REQ-045 / TST-045A,B | hard case 30(일치 23, 의도된 엄격 2, 미실행 5, unsafe 0), unit 63(리뷰 반영), mutation 25+8종 탐지, `pnpm test` exit 0 | 사람 blind rubric 미실행(권리 확인 문단 없음), 결정적 판단 밖 5개는 검토자+사용자 |
-| PW-046 | in_review | (P05) | REQ-046 / TST-046A,B | 통합 7, 브라우저 2(연구 논문·소프트웨어 논문), mutation 13종 탐지, `pnpm test` exit 0(재실행; 첫 실행은 이 Task E2E의 인용 단언 오류로 2 실패 — 고침) | MOCK writer만(문헌 인용 문단은 MOCK에서 끝까지 시험 불가), 섹션 이름은 글자 일치(동의어 없음), 골격은 level-1 제목만 |
+| PW-046 | in_review | (P05) | REQ-046 / TST-046A,B | 통합 13(리뷰 반영), 브라우저 2(연구 논문·소프트웨어 논문), mutation 13+12종 탐지, `pnpm test` (리뷰 반영 회귀 기록 예정; 리뷰 전 첫 실행은 이 Task E2E의 인용 단언 오류로 2 실패 — 고침) | MOCK writer만(문헌 인용 문단은 MOCK에서 끝까지 시험 불가), 섹션 이름은 정규화한 글자 일치(동의어 없음), 프로필 비IMRaD 역할은 출처 없는 규칙만 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

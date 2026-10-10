@@ -413,7 +413,9 @@ export function scientificGate(input: GateInput): GateResult {
 // ("1. … 2. …") where a paragraph of prose is asked for. A section that describes a procedure may
 // enumerate its steps: Methods, a protocol, a software paper's implementation, installation or usage
 // (PW-046: no report-style list by force, and none forbidden where it belongs).
-const PROCEDURE_SECTION = /method|protocol|procedure|implementation|install|usage|availability|tutorial|workflow/i;
+// the section's name must be such a section, not merely mention the word (review NIT 1: not
+// "Methodological limitations", "Antibiotic usage", "Discussion of methods")
+const PROCEDURE_SECTION = /^(?:\d+(?:\.\d+)*[.)]?\s+)?(?:(?:materials|experimental|statistical|online|star)\s+(?:and\s+)?)?(?:methods?|protocols?|procedures?|implementation|installation|usage|tutorial|workflow|(?:(?:data|code|software|resource)\s+)?availability)(?:\s+and\s+\w+)?\s*$/i;
 export function proseSignals(text: string, section: string | null): string[] {
   const items = text.match(/(?:^|\s)\(?\d{1,2}[.)]\s+\p{Lu}/gu) ?? [];
   return items.length >= 2 && !PROCEDURE_SECTION.test(section ?? '') ? ['enumerated_list'] : [];

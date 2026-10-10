@@ -171,7 +171,7 @@ export function parseProfileContent(raw: unknown, journalRule: boolean): Profile
       const r = obj(v, `section_roles[${i}]`);
       only(r, ['section', 'role', 'principles', 'counterexamples'], `section_roles[${i}]`);
       return {
-        section: str(r.section, `section_roles[${i}].section`, 1, 60).replace(/\s+/g, ' '), role: str(r.role, `section_roles[${i}].role`, 1, 300),
+        section: str(r.section, `section_roles[${i}].section`, 1, 120).replace(/\s+/g, ' '), role: str(r.role, `section_roles[${i}].role`, 1, 300),
         principles: arr(r.principles, `section_roles[${i}].principles`, 20).map((p, j) => rule(p, `section_roles[${i}].principles[${j}]`)),
         counterexamples: arr(r.counterexamples, `section_roles[${i}].counterexamples`, 20).map((p, j) => rule(p, `section_roles[${i}].counterexamples[${j}]`)),
       };

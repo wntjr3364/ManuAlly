@@ -20,14 +20,14 @@
   - `packages/domain/src/manuscript-structure/index.ts`(새 파일)
     - `SECTION_TEMPLATES` / `sectionTemplate()`: 유형별 섹션 **제안**(`enforced: false`). 연구 논문은 Introduction·Results·Discussion·Methods다. 소프트웨어·리소스는 Introduction·Implementation·Usage·Validation·Availability다. 방법론은 Introduction·Method·Validation·Protocol이다. 리뷰는 Introduction·Perspectives다. 단보와 기타는 제안이 없다.
     - `scaffoldFromOutline()`: "개요로 원고 골격 만들기"
-      - 활성 승인 개요의 섹션(첫 등장 순, 중복 제거)을 level-1 제목으로 넣는다.
-      - **없는 제목만** 넣는다. 같은 이름의 제목은 수준·대소문자·공백과 상관없이 있는 것으로 본다.
-      - 빠진 섹션은 개요에서 앞선 섹션의 끝 다음에 들어간다(하위 제목 포함). 앞선 섹션이 없으면 끝에 들어간다.
+      - 활성 승인 개요의 섹션(첫 등장 순, 중복 제거)을 원고의 섹션 수준(가장 높은 제목 수준, 없으면 1) 제목으로 넣는다.
+      - **없는 섹션만** 넣는다. 같은 이름(대소문자·공백·앞 번호·끝 구두점 무시)의 섹션 수준 제목을 있는 것으로 본다(리뷰 반영).
+      - 빠진 섹션은 개요에서 앞선 섹션의 끝 다음에 들어간다(하위 제목 포함). 앞선 섹션이 없으면 뒤따르는 섹션의 제목 앞, 둘 다 없으면 끝이다(리뷰 반영).
       - 사용자가 쓴 글은 바꾸거나 옮기지 않는다.
       - expected head가 맞아야 한다(다르면 409). 활성 승인 개요여야 한다(아니면 409 `outline_not_active`). 원고 문서만 된다(아니면 422).
       - 사용자의 편집이다(revision reason `manual`). 한 트랜잭션 안에서 문서 head를 잠그고 쓴다.
     - `sectionEnd()`: 그 섹션의 마지막 블록. 같거나 높은 수준의 다음 제목 앞까지다.
-  - `packages/domain/src/writer/index.ts`: 위치를 고르지 않은 새 문단은 **계획의 섹션 끝**에 들어간다. 원고에 그 제목이 없으면 이전처럼 원고 끝이다. 사용자가 고른 위치는 그대로 따른다. 적용 때의 CAS·STALE 규칙(PW-042)은 같다.
+  - `packages/domain/src/writer/index.ts`: 위치를 고르지 않은 새 문단은 **계획의 섹션 끝**에 들어간다. 원고에 그 제목이 없으면 이전처럼 원고 끝이다. 사용자가 고른 위치는 그대로 따른다. 기본 위치 문단은 섹션 제목을 기억해 적용 때의 섹션 끝에 들어가고, 제목이 바뀌었을 때만 STALE이다(리뷰 반영). 그 밖의 CAS·STALE 규칙(PW-042)은 같다.
   - `packages/domain/src/revisions/index.ts`: `appendRevisionIn`의 reason에 `manual`을 더했다(DB check는 이미 허용).
   - `packages/domain/src/writing-profile/index.ts`: 섹션 역할의 섹션 이름은 그 논문의 것이다(자유 텍스트 1–60자). 근거 출처의 섹션은 여전히 문헌에서 읽은 섹션이다. AI 제안에서는 읽은 섹션이 그 역할을 받치지 않으면 여전히 `section_not_read`로 빠진다.
   - `packages/domain/src/scientific-checks/index.ts` `proseSignals`: 절차를 쓰는 섹션(method, protocol, procedure, implementation, install, usage, availability, tutorial, workflow를 이름에 포함)의 번호 목록은 경고하지 않는다. Discussion 등의 번호 목록은 그대로 경고다.
@@ -56,7 +56,7 @@
 - mutation(`mutation.log`): 13종 모두 탐지
   - 섹션 끝(수준 비교 2), 대소문자, 활성 개요 확인, 원고 종류 확인, 없는 것만 더함, 앞 섹션 뒤 위치, 중복 제거, expected head 무시, Writer 기본 위치, prose 예외, 프로필 IMRaD 이름, 유형별 제안
 - 첫 전체 회귀(`regression-1-failed.log`): exit 1, 브라우저 2개 실패. 마지막에 이 E2E에 더한 "문단이 계획의 문헌을 인용한다"는 단언이 틀렸다. 위의 이유로 MOCK에서는 발췌가 보류된다(제품의 의도된 동작). 단언을 "인용 없음"으로 고쳤다. 고치기 전 커밋(7c57279)은 이 실패를 품은 채 push되었다.
-- 회귀: `pnpm test` exit 0 — unit 406, integration 458, contracts 17, 브라우저 95 (`pnpm-test.log`)
+- 회귀(리뷰 전): `pnpm test` exit 0 — unit 406, integration 458, contracts 17, 브라우저 95 (`pnpm-test.log`)
 
 ## 보안·과학적 실패 경로
 - 골격 만들기는 사용자 행위다. AI가 부르지 않는다. 제목만 더하고 본문을 바꾸지 않는다. 낡은 head면 덮어쓰지 않고 409다.
@@ -69,8 +69,34 @@
 - 문헌 단계는 서재 참고문헌과 검증된 발췌를 미리 넣은 상태에서 시작한다. 검색→채택 화면(PW-031~033)은 각 Task의 브라우저 시험이 다룬다. 이 시험에서 다시 돌리지 않았다.
 - **MOCK writer로는 문헌 인용이 있는 문단을 끝까지 시험할 수 없다.** Writer는 공급자 id로 근거 범위를 정한다(PW-037). `mock`은 논문이 허용할 수 있는 공급자가 아니다(`claude_agent`, `codex`만). 그래서 발췌는 언제나 보류되고, 계획에 연결된 참고문헌(`linked_to_node`)이 생기지 않는다. 브라우저 시험은 이 안전한 결과(인용 없음)를 확인한다. 연결된 참고문헌을 인용하는 경로는 계약 unit 시험(PW-042)만 다룬다. 실제 공급자 live smoke에서 확인할 항목이다.
 - 섹션 이름 일치는 정규화한 글자 그대로다. "Methods"와 "Materials and Methods"는 다른 섹션이다. 번역·동의어는 보지 않는다.
-- 골격은 level-1 제목만 만든다. 개요의 하위 계층(parent_node_id)은 제목 수준으로 옮기지 않는다.
-- prose 예외는 섹션 이름의 낱말로 판단한다. 이름이 예외 낱말을 품은 다른 섹션(예: "Methodological limitations")의 목록도 경고하지 않는다(경고일 뿐이라 영향이 작다).
+- 골격은 섹션 수준 제목만 만든다. 개요의 하위 계층(parent_node_id)은 제목 수준으로 옮기지 않는다.
+- prose 예외는 섹션 이름이 절차 섹션 이름 자체일 때만이다(리뷰 반영). 목록에 없는 절차 섹션 이름(예: "Sample preparation")의 단계 목록은 경고된다(경고일 뿐이다).
 
 ## 다음
 P05 gate 보고(`reports/p05/P05_GATE.md`) → P06(PW-047~054)
+
+## 리뷰 반영 (1차, changes requested — MAJOR 1, MINOR 4, NIT 4)
+| 지적 | 수정 | 시험 |
+|---|---|---|
+| MAJOR 1: 앞선 섹션이 원고에 없으면 빠진 섹션이 원고 끝에 붙음(Results·Discussion만 있는 원고에 Introduction이 맨 뒤) | 빠진 섹션은 개요에서 앞선 섹션의 끝 다음에 들어간다. 앞선 것이 없으면 **개요에서 뒤따르는 첫 섹션의 제목 앞**에 들어간다. 둘 다 없을 때만 끝이다 | Introduction이 Results 앞에 들어간다. Introduction 계획의 문단도 Introduction 아래로 간다 |
+| MINOR 1: 같은 이름의 하위 제목(level 2)을 섹션으로 봄 | 섹션은 원고의 **가장 높은 제목 수준**의 제목뿐이다. 새 제목도 그 수준을 받는다. 하위 제목은 섹션이 아니다 | ##Results 하위 제목이 있어도 #Results가 추가되고, ##Limitations는 Discussion 아래에 남는다. level-2로 쓰는 원고는 level-2 섹션을 받는다 |
+| MINOR 2: 번호 붙은 제목("1. Introduction")을 못 알아봄 | `sectionKey`가 앞 번호(2., 2.1, IV.)와 끝 구두점(:, ., ;)을 무시한다(골격, 기본 위치, 화면 중복 제거 모두) | "1. Introduction", "2. Results:"가 있으면 아무것도 더하지 않는다. Results 계획의 문단은 "2. Results:" 아래로 간다 |
+| MINOR 3: 같은 head에서 요청한 같은 섹션의 문단들이 적용 순서와 거꾸로 들어감 | 기본 위치로 놓인 새 문단은 섹션 제목(id·hash)을 기억한다(`pw_046_0001_section_placement.sql`). 적용 때 **그때의 섹션 끝** 다음에 들어간다. 제목이 바뀌거나 없어졌을 때만 STALE이다 | 같은 head의 두 문단이 적용 순서대로 들어간다. 섹션 마지막 문단을 사용자가 고친 뒤에도 다음 문단이 적용되고 섹션 끝에 들어간다. 제목을 바꾸면 STALE이다 |
+| MINOR 4: 프로필 섹션 역할과 계획 섹션의 비교가 정확 일치 | Writer와 검토자가 `sectionKey`로 비교한다. 프로필 섹션 이름은 120자까지 받는다(개요와 같음). 남은 한계는 아래 "남은 위험"에 적었다 | 소문자 "implementation" 역할의 원칙이 "Implementation" 계획의 계약(`style.section_principles`)에 들어간다. 120자 이름이 저장된다 |
+| NIT 1: 목록 예외 정규식이 너무 넓음 | 섹션 이름 **자체가** 절차 섹션일 때만 예외다(앞 번호와 "Materials and", "Data" 같은 수식어 허용) | Methodological limitations, Antibiotic usage, Discussion of methods, Nutrient availability의 목록은 경고다. 2. Methods, Data availability, Experimental procedures, Installation and usage는 경고가 아니다 |
+| NIT 2: 저장 안내 문구가 동작과 다름 | "저장된 뒤 만들 수 있습니다"로 바꿨다(버튼은 저장 전 비활성) | 문구만 바꿨다 |
+| NIT 3: 기본 위치가 새 STALE 원인을 만들었는데 보고서가 "같다"고 함 | MINOR 3의 수정으로 사라졌다. 기본 위치 문단은 섹션 제목만 본다 | MINOR 3 시험 |
+| NIT 4: 화면의 중복 제거가 서버와 다름 | 화면도 서버와 같은 비교(공백, 대소문자, 앞 번호)를 쓴다 | 표시만 바꿨다 |
+
+- RED(`red-review.log`): 리뷰한 구현(0c1b842)에서 리뷰 시험 6개가 모두 실패한다.
+- GREEN: 통합 13
+  - MINOR 3 시험은 처음에 두 가지가 약했다.
+    - 적용 응답에 없는 `new_block_id`를 비교해, 순서 비교가 아무것도 확인하지 않았다.
+    - "섹션 제목 검사 끔" mutation이 살아남았다.
+  - 고친 뒤의 시험: 문단 id는 제안 목록에서 읽는다. 셋째 문단은 둘째가 섹션 끝일 때 요청하고, 사용자는 바로 그 둘째 문단을 고친다. 고친 뒤 mutation은 탐지된다.
+- mutation(`mutation.log` 하단): 12종 모두 탐지(1종은 시험 보강 뒤)
+- 범위 밖 추가(RFC-012 부록): `apps/worker/src/writer/index.ts`(payload의 섹션 제목, 역할 비교), `apps/worker/src/reviewer/index.ts`(역할 비교), `packages/domain/src/scientific-review/index.ts`(고쳐 쓰기 payload의 빈 섹션 제목). migration은 이 Task 범위다.
+- 남은 위험(추가)
+  - 프로필 역할의 **근거 출처**는 여전히 문헌에서 읽은 IMRaD 섹션이다. 역할 섹션과 정확히 같아야 출처로 인정된다(`sectionServes`). 그래서 "Implementation", "Materials and Methods" 같은 역할은 출처 없는 사용자 규칙만 가질 수 있다.
+  - AI 프로필 제안은 IMRaD 섹션만 낸다. 화면에는 역할 편집이 없고, 소프트웨어 섹션 역할은 API로만 만든다.
+  - 섹션이 없는 원고에 넣는 골격은 level 1이다.

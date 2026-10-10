@@ -2,10 +2,13 @@
 // Resource/Software/Methods papers get a structure that fits them, never a forced IMRaD).
 // - Section templates are suggestions per article type, shown while the user writes the outline; no
 //   section is required and any section name is accepted.
-// - "Scaffold" is the user's act: the approved outline's sections, in outline order, become level-1
-//   headings of the manuscript. Only headings that are missing are added (a heading of the same name,
-//   any level, case and spacing aside, counts); the user's text is never changed or moved. It needs the
-//   active approved outline and the head the user is looking at (a moved head is a conflict).
+// - "Scaffold" is the user's act: the approved outline's sections, in outline order, become the
+//   headings of the manuscript. Only sections that are missing are added; the user's text is never
+//   changed or moved. It needs the active approved outline and the head the user is looking at (a
+//   moved head is a conflict).
+// - Sections are the manuscript's top-level headings (its highest heading level); names compare without
+//   case, spacing or a leading number. A missing section goes after its outline predecessor's section,
+//   else before its outline successor, else at the end; new headings take the section level.
 // - sectionEnd(): where a new paragraph of a section goes by default — after the last block of that
 //   section (before the next heading of the same or a higher level).
 import { randomUUID } from 'node:crypto';
@@ -51,16 +54,33 @@ export function sectionTemplate(articleType: string) {
   return { article_type: type, enforced: false as const, sections: SECTION_TEMPLATES[type] };
 }
 
-export const sectionKey = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+// a section's name for comparison: Unicode-normalised, spacing collapsed, case ignored, without a
+// leading section number ("2.", "2.1", "IV.") or trailing punctuation (review MINOR 2: imported
+// manuscripts number their headings)
+export const sectionKey = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim()
+  .replace(/^(?:\d+(?:\.\d+)*[.)]?|[IVX]+[.)])\s+/i, '').replace(/[\s.:;]+$/, '').toLowerCase();
 const textOf = (n: PMNode) => n.textContent;
+const blocksOf = (doc: PMNode) => { const out: PMNode[] = []; doc.forEach((n) => out.push(n)); return out; };
+// the manuscript's section level: its highest heading level (1 when it has none). Only headings of this
+// level are sections; a same-name subsection is not (review MINOR 1)
+export const sectionLevel = (doc: PMNode) => {
+  const levels = blocksOf(doc).filter((n) => n.type.name === 'heading').map((n) => n.attrs.level as number);
+  return levels.length ? Math.min(...levels) : 1;
+};
+const isSection = (n: PMNode, level: number) => n.type.name === 'heading' && (n.attrs.level as number) === level;
 
-// the block after which a new paragraph of `section` goes, or null when the manuscript has no such heading
-export function sectionEnd(doc: PMNode, section: string): PMNode | null {
+// the section heading of `section` in the manuscript, or null
+export function sectionHeading(doc: PMNode, section: string): PMNode | null {
   const key = sectionKey(section);
   if (!key) return null;
-  const blocks: PMNode[] = [];
-  doc.forEach((n) => blocks.push(n));
-  const at = blocks.findIndex((n) => n.type.name === 'heading' && sectionKey(textOf(n)) === key);
+  const level = sectionLevel(doc);
+  return blocksOf(doc).find((n) => isSection(n, level) && sectionKey(textOf(n)) === key) ?? null;
+}
+// the last block of the section that heading `headingId` opens (before the next heading of the same or a
+// higher level), or null when the heading is not a top-level block
+export function sectionEndOf(doc: PMNode, headingId: string): PMNode | null {
+  const blocks = blocksOf(doc);
+  const at = blocks.findIndex((n) => n.attrs.id === headingId && n.type.name === 'heading');
   if (at < 0) return null;
   const level = blocks[at]!.attrs.level as number;
   let end = at;
@@ -70,6 +90,11 @@ export function sectionEnd(doc: PMNode, section: string): PMNode | null {
     end = i;
   }
   return blocks[end]!;
+}
+// where a new paragraph of `section` goes by default: after the last block of that section
+export function sectionEnd(doc: PMNode, section: string): PMNode | null {
+  const h = sectionHeading(doc, section);
+  return h ? sectionEndOf(doc, h.attrs.id as string) : null;
 }
 
 export async function scaffoldFromOutline(pool: TxPool, a: { paperId: string; ownerId: string; documentId: string; body: unknown }) {
@@ -89,24 +114,26 @@ export async function scaffoldFromOutline(pool: TxPool, a: { paperId: string; ow
     if (kind !== 'manuscript') throw new DomainError('INVALID', 'only a manuscript is built from the outline', 'document_id');
     const doc = (await documentAt(tx, a.paperId, a.documentId, head))!;
     const sections = await outlineSections(tx, outlineId);
+    const level = sectionLevel(doc);
     const present = new Set<string>();
-    doc.forEach((n) => { if (n.type.name === 'heading') present.add(sectionKey(textOf(n))); });
+    doc.forEach((n) => { if (isSection(n, level)) present.add(sectionKey(textOf(n))); });
     const missing = sections.filter((s) => !present.has(sectionKey(s)));
     if (!missing.length) return { added: [] as string[], revision_id: null, head_revision_id: head };
     const blocks: unknown[] = [];
     doc.forEach((n) => blocks.push(n.toJSON()));
-    // a missing section goes after the section that precedes it in the outline (when that one exists),
-    // otherwise at the end; nothing the user wrote moves
+    const indexOf = (id: unknown) => blocks.findIndex((x) => (x as { attrs: { id: string } }).attrs.id === id);
+    // a missing section goes after the section that precedes it in the outline; with none present, before
+    // the first present section that follows it (review MAJOR 1); with neither, at the end. Nothing the
+    // user wrote moves.
     for (const s of missing) {
       const idx = sections.indexOf(s);
-      const heading = { type: 'heading', attrs: { id: randomUUID(), level: 1 }, content: [{ type: 'text', text: s }] };
+      const heading = { type: 'heading', attrs: { id: randomUUID(), level }, content: [{ type: 'text', text: s }] };
+      const current = schema.nodeFromJSON({ type: 'doc', content: blocks });
       const prev = sections.slice(0, idx).reverse().find((x) => present.has(sectionKey(x)));
+      const next = sections.slice(idx + 1).find((x) => present.has(sectionKey(x)));
       let at = blocks.length;
-      if (prev !== undefined) {
-        // after the end of `prev`'s section (its next heading of the same or a higher level)
-        const end = sectionEnd(schema.nodeFromJSON({ type: 'doc', content: blocks }), prev);
-        if (end) at = blocks.findIndex((x) => (x as { attrs: { id: string } }).attrs.id === end.attrs.id) + 1;
-      }
+      if (prev !== undefined) at = indexOf(sectionEnd(current, prev)!.attrs.id) + 1;
+      else if (next !== undefined) at = indexOf(sectionHeading(current, next)!.attrs.id);
       blocks.splice(at, 0, heading);
       present.add(sectionKey(s));
     }

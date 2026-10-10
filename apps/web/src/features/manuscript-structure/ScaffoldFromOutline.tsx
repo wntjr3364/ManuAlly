@@ -4,6 +4,8 @@
 import { useEffect, useState } from 'react';
 import { api, errorText } from '../../app/api.ts';
 
+const sectionKey = (s: string) => s.normalize('NFKC').replace(/\s+/g, ' ').trim().replace(/^(?:\d+(?:\.\d+)*[.)]?|[IVX]+[.)])\s+/i, '').replace(/[\s.:;]+$/, '').toLowerCase();
+
 export function ScaffoldFromOutline({ paperId, documentId, headId, clean, onDone }: { paperId: string; documentId: string; headId: string; clean: boolean; onDone: () => void }) {
   const [outlineId, setOutlineId] = useState<string | null>(null);
   const [sections, setSections] = useState<string[]>([]);
@@ -15,8 +17,9 @@ export function ScaffoldFromOutline({ paperId, documentId, headId, clean, onDone
         setOutlineId(o.active?.id ?? null);
         if (!o.active) return;
         const full = await api<{ nodes: { section: string }[] }>('GET', `/api/papers/${paperId}/outline/revisions/${o.active.id}`);
+        // the same comparison as the server's (spacing, case, a leading number)
         const seen = new Set<string>();
-        setSections(full.nodes.map((n) => n.section.trim()).filter((s) => s && !seen.has(s.toLowerCase()) && seen.add(s.toLowerCase())));
+        setSections(full.nodes.map((n) => n.section.replace(/\s+/g, ' ').trim()).filter((s) => s && !seen.has(sectionKey(s)) && seen.add(sectionKey(s))));
       })
       .catch((e) => setError(errorText(e)));
   }, [paperId, headId]);
@@ -37,7 +40,7 @@ export function ScaffoldFromOutline({ paperId, documentId, headId, clean, onDone
       <h2>원고 골격</h2>
       <p className="hint">승인된 개요의 섹션: {sections.join(' · ') || '(섹션 이름 없음)'} — 원고에 없는 섹션 제목만 개요 순서대로 추가합니다. 쓴 글은 바꾸지 않습니다.</p>
       <button type="button" onClick={build} disabled={!clean || !sections.length}>개요로 원고 골격 만들기</button>
-      {!clean && <span className="hint"> 저장되지 않은 편집이 있으면 먼저 저장됩니다.</span>}
+      {!clean && <span className="hint"> 저장되지 않은 편집이 있습니다 — 저장된 뒤 만들 수 있습니다.</span>}
       {msg && <p role="status">{msg}</p>}
       {error && <p role="alert" className="error">{error}</p>}
     </section>

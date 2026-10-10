@@ -74,7 +74,8 @@ User decision / reviewer:
 - PW-046
   - 새 도메인 폴더 `packages/domain/src/manuscript-structure/**`(유형별 섹션 제안, 개요로 원고 골격 만들기, 섹션 끝 위치)
   - `packages/domain/src/revisions/index.ts`(`appendRevisionIn` reason에 `manual`: 골격 만들기는 사용자의 편집)
-  - `packages/domain/src/writer/index.ts`(위치를 고르지 않은 새 문단은 계획의 섹션 끝에)
+  - `packages/domain/src/writer/index.ts`(위치를 고르지 않은 새 문단은 계획의 섹션 끝에; 리뷰 반영: 섹션 제목을 기억해 적용 때의 섹션 끝에)
+  - 리뷰 반영: `apps/worker/src/writer/index.ts`(payload의 섹션 제목, 프로필 역할 비교), `apps/worker/src/reviewer/index.ts`(프로필 역할 비교), `packages/domain/src/scientific-review/index.ts`(고쳐 쓰기 payload의 빈 섹션 제목)
   - `packages/domain/src/writing-profile/index.ts`(섹션 역할의 섹션 이름은 그 논문의 것: 자유 텍스트 1–60자)
   - `packages/domain/src/scientific-checks/index.ts`(`proseSignals`: 절차를 쓰는 섹션 — Methods, Protocol, Implementation, Installation, Usage 등 — 의 번호 목록은 경고가 아님)
   - 새 route 폴더 `apps/api/src/manuscript-structure/**`, `apps/api/src/server.ts`(등록)

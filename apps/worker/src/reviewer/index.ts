@@ -18,6 +18,7 @@ import { gateFacts, gateReferences } from '@pw/domain/scientific-checks/records.
 import { FINDING_CATEGORIES, insertReviewRunIn } from '@pw/domain/scientific-review/index.ts';
 import { nodeScopeFor } from '@pw/search/retrieval/index.ts';
 import { numbersIn } from '../story/index.ts';
+import { sectionKey } from '@pw/domain/manuscript-structure/index.ts';
 import { JobOutcomeError, type JobHandler } from '../queue/index.ts';
 
 export interface ReviewInput {
@@ -180,7 +181,7 @@ async function loadInput(db: Queryable, job: Job, p: ReturnType<typeof payloadOf
     style: {
       profile_revision_id: profile?.id ?? null,
       claim_strength_policy: profile?.content.claim_strength_policy ?? '',
-      section_principles: (profile?.content.section_roles ?? []).filter((r) => r.section === section).flatMap((r) => r.principles.map((x) => x.text)),
+      section_principles: (profile?.content.section_roles ?? []).filter((r) => sectionKey(r.section) === sectionKey(section ?? '')).flatMap((r) => r.principles.map((x) => x.text)),
       terminology: (profile?.content.terminology ?? []).map((t) => ({ term: t.term, preferred: t.preferred, avoid: t.avoid })),
     },
     categories: FINDING_CATEGORIES,

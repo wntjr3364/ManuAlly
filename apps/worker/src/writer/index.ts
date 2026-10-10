@@ -21,6 +21,7 @@ import { listReferences } from '@pw/domain/references/index.ts';
 import { checkReplacement } from '@pw/domain/proposals/guard.ts';
 import { blockText, buildParagraph, documentAt, insertParagraphProposalIn, paragraphItems, placeHolds, type WriterMode } from '@pw/domain/writer/index.ts';
 import { noticesOf } from '@pw/domain/literature/index.ts';
+import { sectionKey } from '@pw/domain/manuscript-structure/index.ts';
 import { proseSignals, scientificGate, type Finding } from '@pw/domain/scientific-checks/index.ts';
 import { gateFacts } from '@pw/domain/scientific-checks/records.ts';
 import { nodeScopeFor } from '@pw/search/retrieval/index.ts';
@@ -30,7 +31,7 @@ import { JobOutcomeError, type JobHandler } from '../queue/index.ts';
 
 export interface Writer { id: 'mock' | 'claude_agent' | 'codex'; label: string | null; write(contract: ParagraphContract): Promise<unknown> }
 type Check = { check: string; result: 'pass' | 'fail' | 'unknown' | 'not_applicable'; details?: string; finding?: Finding };
-interface Payload { mode: WriterMode; outline_revision_id: string; node_id: string; document_id: string; base_revision_id: string; after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null; instruction: string }
+interface Payload { mode: WriterMode; outline_revision_id: string; node_id: string; document_id: string; base_revision_id: string; after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null; section_heading_id: string | null; section_heading_hash: string | null; instruction: string }
 
 const CONTEXT_CHARS = 1500;
 const MAX_CITABLE = 200;
@@ -47,7 +48,13 @@ function payloadOf(job: Job): Payload {
     || (p.after_block_id !== null && !uuid(p.after_block_id)) || (p.after_block_id !== null) !== (typeof p.after_block_hash === 'string') || (p.block_id !== null && !uuid(p.block_id)) || typeof p.instruction !== 'string') {
     throw new JobOutcomeError('writer payload is malformed', 'FAILED');
   }
-  return p as unknown as Payload;
+  // the section heading of a default-placed draft (PW-046; absent in older jobs and in corrections)
+  const sectionHeadingId = p.section_heading_id ?? null;
+  const sectionHeadingHash = p.section_heading_hash ?? null;
+  if ((sectionHeadingId !== null && (!uuid(sectionHeadingId) || p.mode !== 'draft' || p.after_block_id === null)) || (sectionHeadingId === null) !== (sectionHeadingHash === null) || (sectionHeadingHash !== null && typeof sectionHeadingHash !== 'string')) {
+    throw new JobOutcomeError('writer payload is malformed', 'FAILED');
+  }
+  return { ...p, section_heading_id: sectionHeadingId, section_heading_hash: sectionHeadingHash } as unknown as Payload;
 }
 
 async function buildContract(db: Queryable, job: Job, p: Payload, provider: string, storyRevisionId: string) {
@@ -65,7 +72,8 @@ async function buildContract(db: Queryable, job: Job, p: Payload, provider: stri
   const original = p.block_id ? blocks[at]! : null;
   const profile = await activeProfile(db, job.paper_id);
   const pc = profile?.content;
-  const role = pc?.section_roles.filter((r) => r.section === scope.node.section) ?? [];
+  // the profile's roles for this plan's section, names compared as the manuscript compares them (PW-046)
+  const role = pc?.section_roles.filter((r) => sectionKey(r.section) === sectionKey(scope.node.section)) ?? [];
   const evidenceRefs = new Set((await db.query<{ reference_id: string }>('SELECT reference_id FROM evidence_records WHERE paper_id = $1 AND id = ANY($2::uuid[]) AND reference_id IS NOT NULL', [job.paper_id, scope.evidence.map((e) => e.id)])).rows.map((r) => r.reference_id));
   const all = await listReferences(db, job.paper_id);
   const refs = all.slice(0, MAX_CITABLE);
@@ -198,7 +206,7 @@ export function writerHandlers(pool: TxPool, writer: Writer): Record<'draft_para
       }
       const base = {
         paper_id: job.paper_id, job_id: job.id, document_id: p.document_id, base_revision_id: p.base_revision_id, outline_revision_id: p.outline_revision_id, node_id: p.node_id,
-        mode: p.mode, after_block_id: p.after_block_id, after_block_hash: p.after_block_hash, block_id: p.block_id, expected_block_hash: p.expected_block_hash, contract: contract as unknown as Record<string, unknown>, contract_hash: contractHash,
+        mode: p.mode, after_block_id: p.after_block_id, after_block_hash: p.after_block_hash, block_id: p.block_id, expected_block_hash: p.expected_block_hash, section_heading_id: p.section_heading_id, section_heading_hash: p.section_heading_hash, contract: contract as unknown as Record<string, unknown>, contract_hash: contractHash,
         generator: writer.id, generator_label: writer.label,
       };
       let row: Parameters<typeof insertParagraphProposalIn>[1];

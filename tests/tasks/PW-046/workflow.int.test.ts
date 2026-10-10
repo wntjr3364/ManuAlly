@@ -188,3 +188,108 @@ describe('TST-046B: no forced IMRaD, no report lists by force, novelty untouched
     expect(r.statusCode, r.body).toBe(201);
   });
 });
+
+// PW-046 review (changes requested): MAJOR 1, MINOR 1–4, NIT 1 and 3
+describe('PW-046 review fixes', () => {
+  const h = (t: string, level = 1) => ({ type: 'heading', attrs: { id: randomUUID(), level }, content: [{ type: 'text', text: t }] });
+  const para = (t: string) => ({ type: 'paragraph', attrs: { id: randomUUID() }, content: [{ type: 'text', text: t }] });
+  const save = async (x: P, content: unknown[]) => (await call('alice', 'POST', `/api/papers/${x.paperId}/documents/${x.documentId}/saves`, { expected_head_revision_id: (await doc(x)).head.id, content_json: { type: 'doc', content }, schema_version: 1, reason: 'manual' })).json().id as string;
+  const shape = async (x: P) => shapeOf((await doc(x)).head.content_json.content);
+
+  test('MAJOR 1: a missing section with no earlier section present goes before its outline successor', async () => {
+    const x = await paper('research_article', ['Introduction', 'Results', 'Discussion']);
+    const head = await save(x, [h('Results'), para('My results.'), h('Discussion'), para('My discussion.')]);
+    expect((await scaffold(x, head)).json().added).toEqual(['Introduction']);
+    expect(await shape(x)).toEqual(['#Introduction', '#Results', 'My results.', '#Discussion', 'My discussion.']);
+    // the Introduction plan's paragraph then goes under Introduction, not at the end
+    await draft(x, x.nodes[0]!.node_id, (await doc(x)).head.id);
+    expect((await shape(x)).map((s) => (s.startsWith('#') || s.startsWith('My') ? s : 'p'))).toEqual(['#Introduction', 'p', '#Results', 'My results.', '#Discussion', 'My discussion.']);
+  });
+
+  test('MINOR 1: only top-level headings are sections; new headings take that level', async () => {
+    const x = await paper('research_article', ['Results', 'Conclusion']);
+    let head = await save(x, [h('Discussion'), para('d1'), h('Results', 2), para('sub'), h('Limitations', 2), para('lim')]);
+    expect((await scaffold(x, head)).json().added).toEqual(['Results', 'Conclusion']);
+    expect(await shape(x)).toEqual(['#Discussion', 'd1', '#Results', 'sub', '#Limitations', 'lim', '#Results', '#Conclusion']);
+    expect((await doc(x)).head.content_json.content.slice(-2).map((b) => (b as unknown as { attrs: { level: number } }).attrs.level)).toEqual([1, 1]);
+    // a manuscript whose sections are level 2 gets level-2 sections
+    const y = await paper('research_article', ['Introduction', 'Results']);
+    head = await save(y, [h('Introduction', 2), para('intro')]);
+    await scaffold(y, head);
+    const blocks = (await doc(y)).head.content_json.content as unknown as { type: string; attrs: { level?: number } }[];
+    expect(blocks.map((b) => b.attrs.level ?? null)).toEqual([2, null, 2]);
+  });
+
+  test('MINOR 2: numbered headings are the outline\'s sections', async () => {
+    const x = await paper('research_article', ['Introduction', 'Results']);
+    const head = await save(x, [h('1. Introduction'), para('i'), h('2. Results:'), para('r'), h('III. Discussion'), para('d')]);
+    expect((await scaffold(x, head)).json()).toMatchObject({ added: [], revision_id: null });
+    await draft(x, x.nodes[1]!.node_id, head);
+    expect((await shape(x)).map((s) => (s.startsWith('#') || s.length === 1 ? s : 'p'))).toEqual(['#1. Introduction', 'i', '#2. Results:', 'r', 'p', '#III. Discussion', 'd']);
+  });
+
+  test('MINOR 3 / NIT 3: paragraphs of one section keep the order they are applied in; an edit inside the section does not stale them, a changed heading does', async () => {
+    const x = await paper('research_article', ['Results', 'Results', 'Discussion']);
+    await scaffold(x, x.head);
+    const head = (await doc(x)).head.id;
+    const ask = async (nodeId: string, base: string) => {
+      const r = await call('alice', 'POST', `/api/papers/${x.paperId}/writer/requests`, { mode: 'draft', outline_revision_id: x.outlineId, node_id: nodeId, document_id: x.documentId, base_revision_id: base, idempotency_key: randomUUID() });
+      await processDelivery(pool, { job_id: r.json().job.id, paper_id: x.paperId, intent: 'draft_paragraph' }, { workerId: 'w1', leaseMs: 60_000, handlers: writerHandlers(pool, createMockWriter()) });
+      return (await call('alice', 'GET', `/api/papers/${x.paperId}/writer/proposals?document_id=${x.documentId}`)).json()[0];
+    };
+    const apply = (p: { id: string; proposal_hash: string; base_revision_id: string }) => call('alice', 'POST', `/api/papers/${x.paperId}/writer/proposals/${p.id}/apply`, { intent: 'apply_paragraph', proposal_hash: p.proposal_hash, expected_revision_id: p.base_revision_id });
+    const blockOf = async (p: { id: string }) => {
+      const id = (await call('alice', 'GET', `/api/papers/${x.paperId}/writer/proposals?document_id=${x.documentId}`)).json().find((q: { id: string }) => q.id === p.id).new_block_id as string;
+      expect(id).toMatch(/^[0-9a-f-]{36}$/);
+      return id;
+    };
+    const first = await ask(x.nodes[0]!.node_id, head);
+    const second = await ask(x.nodes[1]!.node_id, head);
+    const a1 = await apply(first);
+    expect(a1.statusCode, a1.body).toBe(200);
+    expect((await apply(second)).statusCode).toBe(200);
+    let blocks = (await doc(x)).head.content_json.content;
+    const ids = blocks.map((b) => b.attrs.id);
+    // heading, first, second (before the fix the second landed before the first)
+    expect(ids.slice(0, 3)).toEqual([ids[0], await blockOf(first), await blockOf(second)]);
+    // asked now, the section's end is the second paragraph; the user then edits that paragraph: the
+    // third still applies (it is placed by its section, not by that paragraph), at the section's end
+    const head1 = (await doc(x)).head.id;
+    const third = await ask(x.nodes[1]!.node_id, head1);
+    const fourth = await ask(x.nodes[1]!.node_id, head1);
+    expect(third.after_block_id).toBe(ids[2]);
+    const edited = blocks.map((b) => (b.attrs.id === ids[2] ? { ...b, content: [{ type: 'text', text: 'Edited by the owner.' }] } : b));
+    await save(x, edited);
+    const a3 = await apply(third);
+    expect(a3.statusCode, a3.body).toBe(200);
+    blocks = (await doc(x)).head.content_json.content;
+    expect(shapeOf(blocks).map((s) => (s.startsWith('#') ? s : 'p'))).toEqual(['#Results', 'p', 'p', 'p', '#Discussion']);
+    expect(blocks[3]!.attrs.id).toBe(await blockOf(third));
+    // the section's heading renamed: the fourth is STALE
+    await save(x, blocks.map((b, i) => (i === 0 ? { ...b, content: [{ type: 'text', text: 'Findings' }] } : b)));
+    expect((await apply(fourth)).json()).toMatchObject({ reason: 'STALE' });
+  });
+
+  test('MINOR 4: a profile role reaches the writer for the plan\'s section by the same name comparison', async () => {
+    const x = await paper('software_resource', ['Background', 'Implementation']);
+    const content = {
+      article_type: 'software_resource', target_audience: 'tool users', preferred_english_variant: 'US', concision_preference: 'concise', claim_strength_policy: '',
+      terminology: [], section_roles: [{ section: 'implementation', role: 'describe the design', principles: [{ text: 'Name each component before its interface', sources: [] }], counterexamples: [] }],
+      rhetoric_patterns: [], anti_examples: [], accepted_examples: [],
+    };
+    const r = await call('alice', 'POST', `/api/papers/${x.paperId}/writing-profile/revisions`, { parent_revision_id: null, content });
+    await call('alice', 'POST', `/api/papers/${x.paperId}/writing-profile/revisions/${r.json().id}/approve`, { intent: 'approve_profile', content_hash: r.json().content_hash });
+    await scaffold(x, x.head);
+    await draft(x, x.nodes[1]!.node_id, (await doc(x)).head.id);
+    const p = (await call('alice', 'GET', `/api/papers/${x.paperId}/writer/proposals?document_id=${x.documentId}`)).json()[0];
+    expect(p.contract.style.section_principles).toEqual(['Name each component before its interface']);
+    // a section name as long as an outline's is accepted
+    const long = await call('alice', 'POST', `/api/papers/${x.paperId}/writing-profile/revisions`, { parent_revision_id: r.json().id, content: { ...content, section_roles: [{ section: 'S'.repeat(120), role: 'x', principles: [], counterexamples: [] }] } });
+    expect(long.statusCode, long.body).toBe(201);
+  });
+
+  test('NIT 1: only a section that is a procedure may enumerate, not one that mentions the word', () => {
+    for (const s of ['Methodological limitations', 'Antibiotic usage', 'Discussion of methods', 'Nutrient availability']) expect(proseSignals('1. One thing. 2. Another thing.', s)).toEqual(['enumerated_list']);
+    for (const s of ['2. Methods', 'Data availability', 'Experimental procedures', 'Installation and usage']) expect(proseSignals('1. One thing. 2. Another thing.', s)).toEqual([]);
+  });
+});

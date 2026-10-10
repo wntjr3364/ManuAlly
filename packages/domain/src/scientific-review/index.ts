@@ -117,7 +117,7 @@ export async function requestRepair(pool: TxPool, a: { paperId: string; ownerId:
       if (!block || (await blockHash(block)) !== run.block_hash) throw new DomainError('CONFLICT', 'the paragraph changed since it was reviewed; review it again', undefined, { details: { reason: 'paragraph_changed' } });
       const out = await enqueueJob(tx, {
         paperId: a.paperId, ownerId: a.ownerId, intent: 'draft_paragraph', idempotencyKey: b.idempotency_key,
-        payload: { mode: 'rewrite', outline_revision_id: plan.outline_revision_id, node_id: plan.node_id, document_id: run.document_id, base_revision_id: head, after_block_id: null, after_block_hash: null, block_id: run.block_id, expected_block_hash: run.block_hash, instruction },
+        payload: { mode: 'rewrite', outline_revision_id: plan.outline_revision_id, node_id: plan.node_id, document_id: run.document_id, base_revision_id: head, after_block_id: null, after_block_hash: null, section_heading_id: null, section_heading_hash: null, block_id: run.block_id, expected_block_hash: run.block_hash, instruction },
       });
       // the key named an existing job (another repair's): say so, rather than "already repaired" (review NIT)
       if (!out.created) throw new DomainError('CONFLICT', 'this idempotency key was already used for another request', 'idempotency_key');

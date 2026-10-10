@@ -1,0 +1,20 @@
+# PW-061 RED: the code was written before its tests (out of order); the tests were then run against the rules taken out
+=== RED: deployment check with no rules
+     × storage: a container layer or memory, no cap, a tiny cap, or unbounded logs are refused 9ms
+     × the data root must be a dedicated, private folder of the user, outside the app and developer CLI state 2ms
+     × network: only loopback is listened on; plain http only for this machine 1ms
+     × the production database is never the test or development one, and a remote one needs verified TLS 1ms
+     × versions: only exact pins; a changed version needs a passed upgrade check first 2ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 4 passed (9)
+=== RED: server without the hardening headers
+     × run: API and web on loopback with the hardening headers; the built app works under them in a browser 60053ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 8 skipped (9)
+=== RED: AI pause wrapper that does nothing (handlers returned unwrapped)
+     × paused: an AI job is not started and uses no attempt; after the pause it runs 46ms
+     × a pause that comes while a job runs: its result is not applied, and the job runs again later 18ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected 'completed' to be 'deferred' // Object.is equality
+AssertionError: expected 'completed' to be 'deferred' // Object.is equality
+      Tests  2 failed | 2 passed (4)

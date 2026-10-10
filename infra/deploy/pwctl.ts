@@ -45,7 +45,7 @@ export async function installedVersions(pins: Pins, env: Env, pool: pg.Pool | nu
   if ('node' in pins) have.node = process.versions.node;
   if ('pnpm_lock' in pins) have.pnpm_lock = lockfileSha(APP_DIR);
   if ('postgres' in pins && pool) {
-    try { have.postgres = String(Math.floor(Number((await pool.query<{ v: string }>('SHOW server_version_num')).rows[0]!.v) / 10000)); } catch { have.postgres = null; }
+    try { have.postgres = String(Math.floor(Number((await pool.query<{ v: string }>("SELECT current_setting('server_version_num') AS v")).rows[0]!.v) / 10000)); } catch { have.postgres = null; }
   }
   if (pins.libreoffice !== undefined && pins.libreoffice !== null) {
     const s = await findSoffice(env as NodeJS.ProcessEnv);
@@ -114,7 +114,13 @@ function health(cfg: DeployConfig): Promise<{ ok: boolean; status: number | null
     req.on('error', () => resolve({ ok: false, status: null, headers: {} }));
   });
 }
-const alive = (pid: unknown) => { if (typeof pid !== 'number' || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch { return false; } };
+// a process that exists and has not ended (an exited process its parent has not collected yet is a zombie:
+// it has stopped, whatever kill(0) says)
+const alive = (pid: unknown) => {
+  if (typeof pid !== 'number' || pid <= 0) return false;
+  try { process.kill(pid, 0); } catch { return false; }
+  try { return fs.readFileSync(`/proc/${pid}/stat`, 'utf8').replace(/^.*\) /s, '')[0] !== 'Z'; } catch { return true; }
+};
 function lastBackup(cfg: DeployConfig): { dir: string; created_at: string; age_hours: number } | 'none' | 'UNKNOWN' {
   if (!cfg.backup_dir) return 'UNKNOWN';
   let best: { dir: string; created_at: string } | null = null;
@@ -137,16 +143,16 @@ export async function status(cfg: DeployConfig, env: Env) {
   const pool = new pg.Pool({ connectionString: env[cfg.database_url_env], max: 1, connectionTimeoutMillis: 5000 });
   let db: Record<string, unknown>;
   try {
-    const s = await schemaState(pool);
-    const ops = (await pool.query('SELECT ai_paused, ai_reason, ai_changed_at, disk_pressure, disk_used_bytes, disk_cap_bytes, disk_checked_at FROM ops_controls')).rows[0];
-    const queue = Object.fromEntries((await pool.query<{ status: string; n: number }>('SELECT status, count(*)::int AS n FROM jobs GROUP BY status ORDER BY status')).rows.map((r) => [r.status, r.n]));
-    const runningAi = (await pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM jobs WHERE status = 'RUNNING' AND ${AI_INTENTS_SQL}`)).rows[0]!.n;
-    const oldest = (await pool.query<{ s: number | null }>("SELECT extract(epoch FROM clock_timestamp() - min(created_at))::int AS s FROM jobs WHERE status = 'QUEUED'")).rows[0]!.s;
-    db = {
-      reachable: true, schema: s, queue, running_ai_jobs: runningAi, oldest_queued_s: oldest,
-      ai: { paused: ops.ai_paused, reason: ops.ai_reason, since: ops.ai_changed_at },
-      disk: ops.disk_checked_at ? { used_bytes: Number(ops.disk_used_bytes), cap_bytes: Number(ops.disk_cap_bytes), pressure: ops.disk_pressure, checked_at: ops.disk_checked_at } : 'UNKNOWN',
-    };
+    await pool.query('SELECT 1');
+    db = { reachable: true, schema: await schemaState(pool) };
+    // each part on its own: a database without the operations tables still reports what it can
+    const part = async (k: string, f: () => Promise<unknown>) => { try { db[k] = await f(); } catch { db[k] = 'UNKNOWN'; } };
+    const ops = await pool.query('SELECT ai_paused, ai_reason, ai_changed_at, disk_pressure, disk_used_bytes, disk_cap_bytes, disk_checked_at FROM ops_controls').then((r) => r.rows[0], () => null);
+    db.ai = ops ? { paused: ops.ai_paused, reason: ops.ai_reason, since: ops.ai_changed_at } : 'UNKNOWN';
+    db.disk = ops?.disk_checked_at ? { used_bytes: Number(ops.disk_used_bytes), cap_bytes: Number(ops.disk_cap_bytes), pressure: ops.disk_pressure, checked_at: ops.disk_checked_at } : 'UNKNOWN';
+    await part('queue', async () => Object.fromEntries((await pool.query<{ status: string; n: number }>('SELECT status, count(*)::int AS n FROM jobs GROUP BY status ORDER BY status')).rows.map((r) => [r.status, r.n])));
+    await part('running_ai_jobs', async () => (await pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM jobs WHERE status = 'RUNNING' AND ${AI_INTENTS_SQL}`)).rows[0]!.n);
+    await part('oldest_queued_s', async () => (await pool.query<{ s: number | null }>("SELECT extract(epoch FROM clock_timestamp() - min(created_at))::int AS s FROM jobs WHERE status = 'QUEUED'")).rows[0]!.s);
   } catch (e) { db = { reachable: false, error: (e as Error).message.slice(0, 200) }; } finally { await pool.end(); }
   const logs = fs.existsSync(dirs(cfg).logs) ? usedBytes(dirs(cfg).logs) : 'UNKNOWN';
   return { processes, health: { ok: h.ok, status: h.status }, db, last_backup: lastBackup(cfg), logs_bytes: logs };

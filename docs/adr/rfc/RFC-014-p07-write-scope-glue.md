@@ -109,3 +109,6 @@ User decision / reviewer:
   - `tests/e2e/manual-paper/manual-paper.e2e.ts`(회귀 수정, 시험만): 스냅샷 이름을 `exact`로 찾는다. PW-057의 묶음 내보내기 스냅샷 선택에도 같은 이름이 option으로 나온다. 목록 갱신이 확인보다 먼저 끝나면 두 요소가 잡혀 실패했다(경합). 제품 동작은 바뀌지 않는다.
 - PW-060
   - `tests/security/static.test.ts`(PW-059 정적 점검의 검토 목록): `infra/backup/backup.ts`를 자식 프로세스 허용 모듈에 넣는다. pg_dump·pg_restore를 만든 환경(PATH와 PG* 연결 변수)으로만 실행한다. 비밀번호는 환경에만 있고 명령줄에는 없다. 정적 점검이 새 모듈을 잡은 것이 의도된 동작이다.
+- PW-061
+  - `apps/worker/src/ai-pause/index.ts`(새 파일), `apps/worker/src/main.ts`: AI 작업 handler를 가장 바깥에서 `withAiPause`로 감싼다(spec 12 "비상 중단"). 운영자가 AI를 멈추면 새 AI 작업은 시도 횟수를 쓰지 않고 기다린다. 멈춘 동안 끝난 호출의 결과는 적용하지 않는다. PDF 해석과 수동 편집은 그대로다.
+  - `tests/security/static.test.ts`(PW-059 검토 목록): `infra/deploy/pwctl.ts`를 자식 프로세스 모듈(supervisor, 만든 환경)과 네트워크 모듈(loopback health 확인)에 넣는다.

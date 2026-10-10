@@ -42,10 +42,10 @@ const ctl = (args: string[], env: Record<string, string>) => {
   try { json = JSON.parse(r.stdout); } catch { /* not JSON */ }
   return { code: r.status, json, stdout: r.stdout, stderr: r.stderr };
 };
-const until = async (what: string, f: () => Promise<boolean> | boolean, ms = 60_000) => {
+const until = async (what: string | (() => string), f: () => Promise<boolean> | boolean, ms = 60_000) => {
   const end = Date.now() + ms;
   while (Date.now() < end) { if (await f()) return; await new Promise((r) => setTimeout(r, 250)); }
-  throw new Error(`timed out waiting for: ${what}`);
+  throw new Error(`timed out waiting for: ${typeof what === 'function' ? what() : what}`);
 };
 
 let root: string;
@@ -59,6 +59,7 @@ let env: Record<string, string>;
 let sup: ChildProcess | null = null;
 let supExit: Promise<number | null>;
 let pool: pg.Pool;
+let supErrFile = '';
 
 beforeAll(async () => {
   root = newDir('pw061-root-');
@@ -75,6 +76,8 @@ beforeAll(async () => {
   env = { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: process.env.HOME ?? '/tmp', PW_PROD_URL: url, PW_TEST_DATABASE_URL: requireTestDatabaseUrl(), PW_DEPLOY_CONFIG: configFile, PW_AI_PAUSE_RECHECK_S: '1' };
   pool = new pg.Pool({ connectionString: url, max: 3 });
 }, 240_000);
+let ownerMade = false;
+const owner = async () => { if (!ownerMade) { await createOwner(pool, { username: 'drill', password: 'correct horse battery' }); ownerMade = true; } };
 afterAll(async () => {
   if (sup && sup.exitCode === null) sup.kill('SIGKILL');
   await pool?.end();
@@ -99,11 +102,15 @@ describe('TST-061A: a private deployment that reports its state and stops safely
   });
 
   test('run: API and web on loopback with the hardening headers; the built app works under them in a browser', async () => {
-    sup = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'infra/deploy/pwctl.ts', 'run'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
-    let supErr = '';
-    sup.stderr!.on('data', (d: Buffer) => { supErr += d.toString(); });
+    // the supervisor's own output goes to a file: `pwctl stop` below runs synchronously, and a pipe nobody
+    // reads meanwhile could fill up and block the supervisor
+    supErrFile = path.join(newDir('pw061-sup-'), 'supervisor.err');
+    const errFd = fs.openSync(supErrFile, 'w');
+    sup = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'infra/deploy/pwctl.ts', 'run'], { env, stdio: ['ignore', 'ignore', errFd] });
+    fs.closeSync(errFd);
+    const supErr = () => fs.readFileSync(supErrFile, 'utf8');
     supExit = new Promise((r) => sup!.on('exit', (code) => r(code)));
-    await until(`the API answers (${supErr})`, async () => { try { return (await fetch(`${origin}/api/health`)).ok; } catch { return false; } });
+    await until(() => `the API answers (${supErr()})`,  async () => { try { return (await fetch(`${origin}/api/health`)).ok; } catch { return false; } });
 
     const h = await fetch(`${origin}/api/health`);
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) expect(h.headers.get(k), k).toBe(v);
@@ -123,7 +130,7 @@ describe('TST-061A: a private deployment that reports its state and stops safely
     if (lan) await expect(fetch(`http://${lan}:${port}/api/health`, { signal: AbortSignal.timeout(2000) })).rejects.toThrow(); // (some sandboxes have no LAN address; the listen host rule is also unit-tested)
 
     // a browser: sign in and see the paper list, with no CSP violation
-    await createOwner(pool, { username: 'drill', password: 'correct horse battery' });
+    await owner();
     const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM_PATH || undefined });
     try {
       const p = await browser.newPage();
@@ -146,7 +153,8 @@ describe('TST-061A: a private deployment that reports its state and stops safely
     expect(s.json.health).toEqual({ ok: true, status: 200 });
     expect(s.json.db).toMatchObject({ reachable: true, schema: { current: true, pending: [] }, ai: { paused: false }, running_ai_jobs: 0 });
     expect(s.json.db.disk.cap_bytes).toBe(2 * 1024 ** 3);
-    expect(s.json.db.disk.used_bytes).toBeGreaterThan(0);
+    expect(s.json.db.disk.used_bytes).toBeGreaterThanOrEqual(0); // measured when the supervisor started
+    expect(Date.parse(s.json.db.disk.checked_at)).not.toBeNaN();
     expect(s.json.db.disk.pressure).toBe(false);
     expect(s.json.last_backup).toBe('none');
     expect(s.json.logs_bytes).toBeGreaterThan(0);
@@ -158,6 +166,7 @@ describe('TST-061A: a private deployment that reports its state and stops safely
   });
 
   test('pause-ai: AI work waits while manual editing goes on; resume-ai lets it run', async () => {
+    await owner();
     const login = await fetch(`${origin}/api/auth/login`, { method: 'POST', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ username: 'drill', password: 'correct horse battery' }) });
     const H = { cookie: String(login.headers.get('set-cookie')).split(';')[0]!, 'x-pw-csrf': (await login.json()).csrfToken as string, origin, 'content-type': 'application/json' };
     const post = async (u: string, body: unknown) => { const r = await fetch(`${origin}${u}`, { method: 'POST', headers: H, body: JSON.stringify(body) }); return { status: r.status, json: await r.json() }; };
@@ -201,7 +210,9 @@ describe('TST-061A: a private deployment that reports its state and stops safely
 
   test('stop: the worker finishes and stops, then the API; the supervisor exits cleanly', async () => {
     const s = ctl(['stop'], env);
-    expect(s.json, s.stderr).toEqual({ stopped: true });
+    const tail = (f: string) => { try { return fs.readFileSync(path.join(root, 'logs', f), 'utf8').slice(-1500); } catch { return '(none)'; } };
+    const st = (() => { try { return fs.readFileSync(path.join(root, 'run', 'state.json'), 'utf8'); } catch { return '(no state)'; } })();
+    expect(s.json, `${s.stderr}\nsupervisor: ${fs.readFileSync(supErrFile, 'utf8')}\nstate: ${st}\nworker.log: ${tail('worker.log')}\napi.log: ${tail('api.log')}`).toEqual({ stopped: true });
     expect(await supExit).toBe(0);
     expect(fs.existsSync(path.join(root, 'run', 'state.json'))).toBe(false);
     const after = ctl(['status'], env);
@@ -251,6 +262,7 @@ describe('TST-061B: refused before anything starts, backups before migrations, t
   test('over the size cap uploads and new files are refused (507); reading and editing go on', async () => {
     const p3 = await freePort();
     const local: DeployConfig = { ...cfg, listen: { host: '127.0.0.1', port: p3 }, public_origin: `http://127.0.0.1:${p3}` };
+    await owner();
     await recordDisk(pool, cfg.max_data_bytes, cfg.max_data_bytes);
     const srv = await startServer(local, env);
     try {

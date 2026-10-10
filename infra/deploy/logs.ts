@@ -7,7 +7,16 @@ import path from 'node:path';
 export class RotatingLog {
   private fd: number;
   private size: number;
-  constructor(private readonly dir: string, private readonly name: string, private readonly maxBytes: number, private readonly keep: number) {
+  private readonly dir: string;
+  private readonly name: string;
+  private readonly maxBytes: number;
+  private readonly keep: number;
+  // (plain fields: node's type stripping does not accept parameter properties)
+  constructor(dir: string, name: string, maxBytes: number, keep: number) {
+    this.dir = dir;
+    this.name = name;
+    this.maxBytes = maxBytes;
+    this.keep = keep;
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     this.fd = fs.openSync(this.file(0), 'a', 0o600);
     this.size = fs.fstatSync(this.fd).size;

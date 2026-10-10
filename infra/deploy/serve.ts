@@ -70,7 +70,7 @@ export async function startServer(cfg: DeployConfig, env: Record<string, string 
   const dist = path.resolve(cfg.web_dist);
   const index = path.join(dist, 'index.html');
   if (!fs.existsSync(index)) throw new Error(`web_dist has no index.html (${dist}); build the web app first`);
-  app.get('/*', async (req, reply) => {
+  const web = async (req: { url: string }, reply: import('fastify').FastifyReply) => {
     const rel = decodeURIComponent(String(req.url).split('?')[0]!);
     if (rel.startsWith('/api/')) return reply.code(404).send({ error: 'not_found' });
     const file = path.resolve(dist, `.${rel}`);
@@ -79,7 +79,10 @@ export async function startServer(cfg: DeployConfig, env: Record<string, string 
     reply.header('content-type', TYPES[ext] ?? 'application/octet-stream');
     reply.header('cache-control', target === index ? 'no-cache' : 'public, max-age=3600');
     return reply.send(fs.readFileSync(target));
-  });
+  };
+  // the app shell is public (it holds no data; every /api route keeps its own session check)
+  app.get('/', { config: { public: true } }, web);
+  app.get('/*', { config: { public: true } }, web);
 
   await app.listen({ host: cfg.listen.host, port: cfg.listen.port });
   return { app, pool, close: async () => { clearInterval(timer); await app.close(); await pool.end(); } };

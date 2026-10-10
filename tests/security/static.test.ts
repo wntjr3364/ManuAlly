@@ -45,6 +45,7 @@ describe('TST-059A: egress — outbound network only from reviewed modules', () 
     'infra/sandbox/probe.mjs': 'sandbox self-test: shows that network, sockets and files outside are unreachable (PW-026)',
     'infra/sandbox/sandbox.ts': 'starts bubblewrap with the network namespace removed; Unix sockets only (PW-026)',
     'packages/domain/src/asset-policy/index.ts': 'net.isIP for address classification only; no connection',
+    'infra/deploy/pwctl.ts': 'status: GET /api/health of this installation on its loopback listen address (the deploy check refuses any other) (PW-061)',
   };
   const FETCH: Record<string, string> = {
     'apps/web/src/app/api.ts': 'browser → this app\'s own API (same origin)',
@@ -85,6 +86,7 @@ describe('TST-059A: least privilege for child processes and credentials', () => 
     'infra/sandbox/forwarder.mjs': 'inside the sandbox: starts the CLI with the environment it was given (RFC-010)',
     'infra/sandbox/probe.mjs': 'sandbox self-test commands (PW-026)',
     'infra/backup/backup.ts': 'pg_dump / pg_restore with a built env: PATH and the PG* connection variables (the password there, never in argv) (PW-060)',
+    'infra/deploy/pwctl.ts': 'the supervisor: API and worker with a built env (childEnv: PATH, HOME, TMPDIR, the DB URL, named settings); verify-upgrade commands with PATH/HOME/test DB URL only (PW-061)',
   };
   const importers = () => matching(MODULE('child_process'));
   // spawns that inherit on purpose: inside the sandbox, the environment is the one sandbox.ts built

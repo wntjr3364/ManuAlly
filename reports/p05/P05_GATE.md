@@ -26,9 +26,9 @@
 | PW-043 | 결정적 과학 gate: 수치·단위·그룹·통계·n·인용·주장 강도 | unit 18, 통합 6, 브라우저 1, mutation 33 | approve |
 | PW-044 | 검토 지적·사람 결정·한 번의 고쳐 쓰기 | 통합 12, 브라우저 1, mutation 24(+동등 1) | approve |
 | PW-045 | hard case 30·human rubric gate: unsafe 0, release not_ready | unit 63, mutation 33 | approve |
-| PW-046 | 유형별 섹션 제안, 개요로 원고 골격, 계획의 섹션에 문단 | 통합 13, 브라우저 2, mutation 25 | (리뷰 결과는 PROGRESS) |
+| PW-046 | 유형별 섹션 제안, 개요로 원고 골격, 계획의 섹션에 문단 | 통합 17, 브라우저 2, mutation 33 | (리뷰 결과는 PROGRESS) |
 
-최종 회귀 `pnpm test` exit 0: unit 406, integration 464, contracts 17, 브라우저 95 (`reports/tasks/PW-046/pnpm-test-review.log`).
+최종 회귀 `pnpm test` exit 0: unit 406, integration 468, contracts 17, 브라우저 95 (`reports/tasks/PW-046/pnpm-test-rereview.log`).
 
 ## 다음 phase로 넘기는 위험 (확인만)
 - **모든 AI 경로가 MOCK 기준이다.** 실제 모델의 지시 준수·형식 오류율은 모른다. 형식이 다르면 거부되고 사용자에게 보인다.

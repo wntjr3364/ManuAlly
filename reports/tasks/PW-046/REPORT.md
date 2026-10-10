@@ -113,6 +113,7 @@ P05 gate 보고(`reports/p05/P05_GATE.md`) → P06(PW-047~054)
 - RED(`red-rereview.log`): R1 제목 시험과 NIT 시험이 727ecd0 구현에서 실패한다. 맨 앞 섹션 이름 시험은 처음부터 통과한다(MINOR 1 보호의 회귀 방지).
 - GREEN: 통합 17(맨 앞 제목이 개요 섹션인 경우 1개 추가)
 - mutation(`mutation.log` 하단): 8종 모두 탐지
+- 회귀: `pnpm test` exit 0 — unit 406, integration 468, contracts 17, 브라우저 95 (`pnpm-test-rereview.log`)
   - 제목 판별, 알려진 이름, 개요 이름, Writer·골격의 개요 이름 전달, 두 자리 숫자, Usage Notes, 콜론 부제
 - 남은 위험(추가)
   - 제목 판별은 휴리스틱이다. 섹션처럼 쓴 맨 앞 제목의 이름이 알려진 이름도 개요 섹션도 아니면 제목으로 본다.

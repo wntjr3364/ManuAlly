@@ -274,14 +274,14 @@ describe('TST-061B: refused before anything starts, backups before migrations, t
       const paper = await fetch(`${o}/api/papers`, { method: 'POST', headers: { ...H, 'content-type': 'application/json' }, body: JSON.stringify({ working_title: 'Pressure', article_type: 'research_article' }) });
       expect(paper.status).toBe(201);
       const id = (await paper.json()).id;
-      const up = await fetch(`${o}/api/papers/${id}/assets?license=cc-by`, { method: 'POST', headers: { ...H, 'content-type': 'application/pdf' }, body: Buffer.from('%PDF-1.4 drill') });
+      const up = await fetch(`${o}/api/papers/${id}/assets?license=cc-by`, { method: 'POST', headers: { ...H, 'content-type': 'application/pdf' }, body: new Uint8Array(Buffer.from('%PDF-1.4 drill')) });
       expect(up.status).toBe(507);
       expect((await up.json()).error).toBe('disk_pressure');
       expect((await fetch(`${o}/api/papers/${id}`, { headers: H })).status).toBe(200);
       // when space is back an upload works, and a served original keeps its own, stricter policy (PW-034 sandbox)
       await recordDisk(pool, 1, cfg.max_data_bytes);
       await new Promise((r) => setTimeout(r, 5500)); // the server re-reads the flag every 5 s
-      const ok = await fetch(`${o}/api/papers/${id}/assets?license=cc-by`, { method: 'POST', headers: { ...H, 'content-type': 'application/pdf' }, body: PAPER_V1() });
+      const ok = await fetch(`${o}/api/papers/${id}/assets?license=cc-by`, { method: 'POST', headers: { ...H, 'content-type': 'application/pdf' }, body: new Uint8Array(PAPER_V1()) });
       expect(ok.status, await ok.clone().text()).toBe(201);
       const content = await fetch(`${o}/api/papers/${id}/assets/${(await ok.json()).id}/content`, { headers: H });
       expect(content.status).toBe(200);

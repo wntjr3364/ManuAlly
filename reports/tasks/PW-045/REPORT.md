@@ -96,3 +96,9 @@ PW-046: 개요→집필 연구자 workflow(P05 마지막)
   - 처음 살아남은 2종(생물 수를 n으로 봄, 실행기가 Writer 수치 검사를 무시)은 구별하는 시험을 더한 뒤 탐지했다.
 - 회귀: `pnpm test` exit 0 — unit 406, integration 451, contracts 17, 브라우저 93 (`pnpm-test-review.log`)
 - 작업자 재시작으로 전체 회귀 실행이 한 번 끊겼다. 파일에는 남은 mutation이 없음을 확인하고 다시 돌렸다.
+
+## 재리뷰 (e130e00): approve
+- 확인: MAJOR, MINOR, NIT 모두 닫힘. 리뷰어 실행: unit 80/80, 통합 PW-043·044 18/18.
+- probe 결과
+  - 맞는 문장 9개(유의하지 않음 표기 5가지, 생물 수, 대상 없는 n, per group, results in)는 실패가 없다.
+  - 진짜 오류 4개(0.07·0.08을 유의라 함, ABC1의 n=5 대 기록 3, causes)는 여전히 실패다.

@@ -190,3 +190,34 @@ describe('TST-054B: unknown is not 0; auto-resume is not an approval', () => {
     expect((await pool.query('SELECT count(*)::int AS n FROM document_revisions WHERE document_id = $1', [w.documentId])).rows[0].n).toBe(1);
   });
 });
+
+// PW-054 review m1: the owner's resume and the quota scheduler take the same locks in the same order (the
+// job's open wait, then the job), so a resume during a wake-up waits instead of failing with a deadlock
+describe('PW-054 review fixes', () => {
+  test('m1: a resume while the scheduler holds the wait and then takes the job does not deadlock', async () => {
+    const w = await waiting();
+    const c = await pool.connect();
+    try {
+      await c.query('BEGIN');
+      await c.query("SELECT id FROM quota_waits WHERE job_id = $1 AND state = 'waiting' FOR UPDATE", [w.jobId]);
+      const resumed = call('POST', `/api/papers/${w.paperId}/jobs/${w.jobId}/resume`, { intent: 'resume_job' });
+      await new Promise((r) => setTimeout(r, 300)); // the resume now waits for the wait row
+      await c.query("SET LOCAL lock_timeout = '5s'");
+      await c.query('SELECT id FROM jobs WHERE id = $1 FOR UPDATE', [w.jobId]);
+      await c.query('COMMIT');
+      const r = await resumed;
+      expect(r.statusCode, r.body).toBe(200);
+      expect(r.json().status).toBe('QUEUED');
+    } finally {
+      await c.query('ROLLBACK').catch(() => {});
+      c.release();
+    }
+  });
+
+  test('m2: the last classified error says which state it led to, so an older run\'s next step is not shown for a newer stop', async () => {
+    const w = await waiting();
+    const c = (await control(w)).json();
+    expect(c.last_error).toMatchObject({ class: 'quota', next_state: 'WAITING_QUOTA' });
+  });
+});
+

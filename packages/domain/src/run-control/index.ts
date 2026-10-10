@@ -17,7 +17,7 @@ export interface RunControl {
   context: { tokens: number | null; window: number | null; source: 'provider_reported' | 'estimated' | 'unknown'; observed_at: string | null };
   quota_waits: Pick<QuotaWait, 'attempt' | 'provider' | 'wake_at' | 'reset_known' | 'state' | 'reason' | 'decided_at'>[];
   auto_resume: { state: 'allowed' | 'not_allowed' | 'expired'; expires_at: string | null };
-  last_error: { class: string; action: string; provider: string; retry_after_s: number | null; created_at: string } | null;
+  last_error: { class: string; action: string; next_state: string; provider: string; retry_after_s: number | null; created_at: string } | null;
   actions: { cancel: boolean; resume: boolean; auto_resume: boolean };
 }
 
@@ -35,7 +35,7 @@ export async function runControl(db: Queryable, paperId: string, jobId: string):
   const grant = (await db.query<{ kind: string; expires_at: string | null }>('SELECT kind, expires_at FROM auto_resume_grants WHERE job_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1', [jobId])).rows[0];
   const state = await autoResumeAt(db, jobId, new Date());
   const err = (await db.query<NonNullable<RunControl['last_error']>>(
-    'SELECT class, action, provider, retry_after_s, created_at FROM run_errors WHERE job_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1', [jobId])).rows[0] ?? null;
+    'SELECT class, action, next_state, provider, retry_after_s, created_at FROM run_errors WHERE job_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1', [jobId])).rows[0] ?? null;
   const open = !FINISHED.includes(job.status);
   return {
     job, checkpoint: cp, context, quota_waits: waits,
@@ -49,14 +49,24 @@ export async function resumeJob(pool: TxPool, a: { paperId: string; ownerId: str
   const b = (a.body && typeof a.body === 'object' ? a.body : {}) as Record<string, unknown>;
   if (b.intent !== 'resume_job' || Object.keys(b).length !== 1) throw new DomainError('INVALID', 'resuming needs the explicit intent "resume_job" and nothing else', 'intent');
   if (!UUID_RE.test(a.jobId)) throw new DomainError('NOT_FOUND', 'job not found');
-  return inTransaction(pool, async (tx) => {
-    await tx.query("SELECT set_config('pw.actor', $1, true)", [`owner:${a.ownerId}`]);
-    const j = (await tx.query<{ status: string }>('SELECT status FROM jobs WHERE id = $1 AND paper_id = $2 FOR UPDATE', [a.jobId, a.paperId])).rows[0];
-    if (!j) throw new DomainError('NOT_FOUND', 'job not found');
-    if (!WAITING.includes(j.status)) throw new DomainError('CONFLICT', `only a waiting job can be resumed; this one is ${j.status}`);
-    await tx.query("UPDATE quota_waits SET state = 'closed', reason = 'resumed by the owner', decided_at = clock_timestamp() WHERE job_id = $1 AND state = 'waiting'", [a.jobId]);
-    // dispatched again at once (jobs_dispatch trigger)
-    await tx.query("SELECT set_config('pw.dispatch_delay_secs', '0', true)");
-    return (await tx.query('UPDATE jobs SET status = \'QUEUED\' WHERE id = $1 RETURNING id, intent, status, attempts, last_error, created_at, finished_at', [a.jobId])).rows[0];
-  });
+  try {
+    return await inTransaction(pool, async (tx) => resumeIn(tx, a));
+  } catch (e) {
+    // a lock cycle with a concurrent writer (the order below follows the scheduler's): nothing changed
+    if ((e as { code?: string }).code === '40P01') throw new DomainError('CONFLICT', 'the job was being changed at the same moment; try again', undefined, { details: { reason: 'BUSY' } });
+    throw e;
+  }
+}
+
+async function resumeIn(tx: Queryable, a: { paperId: string; ownerId: string; jobId: string }) {
+  await tx.query("SELECT set_config('pw.actor', $1, true)", [`owner:${a.ownerId}`]);
+  // locks in the quota scheduler's order (wakeDueWaits): the job's open wait first, then the job (review m1)
+  await tx.query("SELECT id FROM quota_waits WHERE job_id = $1 AND paper_id = $2 AND state = 'waiting' FOR UPDATE", [a.jobId, a.paperId]);
+  const j = (await tx.query<{ status: string }>('SELECT status FROM jobs WHERE id = $1 AND paper_id = $2 FOR UPDATE', [a.jobId, a.paperId])).rows[0];
+  if (!j) throw new DomainError('NOT_FOUND', 'job not found');
+  if (!WAITING.includes(j.status)) throw new DomainError('CONFLICT', `only a waiting job can be resumed; this one is ${j.status}`);
+  await tx.query("UPDATE quota_waits SET state = 'closed', reason = 'resumed by the owner', decided_at = clock_timestamp() WHERE job_id = $1 AND state = 'waiting'", [a.jobId]);
+  // dispatched again at once (jobs_dispatch trigger)
+  await tx.query("SELECT set_config('pw.dispatch_delay_secs', '0', true)");
+  return (await tx.query('UPDATE jobs SET status = \'QUEUED\' WHERE id = $1 RETURNING id, intent, status, attempts, last_error, created_at, finished_at', [a.jobId])).rows[0];
 }

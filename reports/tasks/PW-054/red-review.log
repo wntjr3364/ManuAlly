@@ -1,0 +1,88 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-054/format.test.ts (7 tests | 1 failed) 17ms
+   ❯ PW-054 review m2: the next step belongs to the current stop (1)
+     × a classified error's step is shown only when it led to the current state; otherwise the state's own step 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-054/format.test.ts > PW-054 review m2: the next step belongs to the current stop > a classified error's step is shown only when it led to the current state; otherwise the state's own step
+TypeError: nextStepText is not a function
+ ❯ tests/tasks/PW-054/format.test.ts:58:12
+     56| describe('PW-054 review m2: the next step belongs to the current stop'…
+     57|   test('a classified error\'s step is shown only when it led to the cu…
+     58|     expect(nextStepText('WAITING_AUTH', { action: 'log_in_again', next…
+       |            ^
+     59|     // an earlier network error (retried) must not describe a later bu…
+     60|     const t = nextStepText('WAITING_BUDGET', { action: 'none', next_st…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  05:43:50
+   Duration  382ms (transform 61%, import 25%, tests 10%, worker 4%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-054/run-control.int.test.ts (9 tests | 2 failed) 4789ms
+   ❯ PW-054 review fixes (2)
+     × m1: a resume while the scheduler holds the wait and then takes the job does not deadlock 1156ms
+     × m2: the last classified error says which state it led to, so an older run's next step is not shown for a newer stop 165ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-054/run-control.int.test.ts > PW-054 review fixes > m1: a resume while the scheduler holds the wait and then takes the job does not deadlock
+AssertionError: {"error":"internal"}: expected 500 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 500
+
+ ❯ tests/tasks/PW-054/run-control.int.test.ts:209:36
+    207|       await c.query('COMMIT');
+    208|       const r = await resumed;
+    209|       expect(r.statusCode, r.body).toBe(200);
+       |                                    ^
+    210|       expect(r.json().status).toBe('QUEUED');
+    211|     } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/tasks/PW-054/run-control.int.test.ts > PW-054 review fixes > m2: the last classified error says which state it led to, so an older run's next step is not shown for a newer stop
+AssertionError: expected { class: 'quota', …(4) } to match object { class: 'quota', …(1) }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "class": "quota",
+-   "next_state": "WAITING_QUOTA",
+  }
+
+ ❯ tests/tasks/PW-054/run-control.int.test.ts:220:26
+    218|     const w = await waiting();
+    219|     const c = (await control(w)).json();
+    220|     expect(c.last_error).toMatchObject({ class: 'quota', next_state: '…
+       |                          ^
+    221|   });
+    222| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 7 passed (9)
+   Start at  05:43:52
+   Duration  7.65s (tests 64%, transform 29%, import 7%)
+
+  Transform  transforming modules took 2.14s · 29% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

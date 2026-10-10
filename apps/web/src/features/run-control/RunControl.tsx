@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errorText } from '../../app/api.ts';
 import { statusLabel } from '../runs/run-state.ts';
 import { UNKNOWN } from '../usage/format.ts';
-import { actionText, autoResumeText, checkpointText, contextText, waitText, type AutoResume, type Checkpoint, type Context, type Wait } from './format.ts';
+import { autoResumeText, checkpointText, contextText, nextStepText, waitText, type AutoResume, type Checkpoint, type Context, type Wait } from './format.ts';
 
 interface Control {
   job: { id: string; intent: string; status: string; attempts: number; last_error: string | null };
@@ -15,7 +15,7 @@ interface Control {
   context: Context;
   quota_waits: (Wait & { attempt: number; provider: string })[];
   auto_resume: AutoResume;
-  last_error: { class: string; action: string; provider: string } | null;
+  last_error: { class: string; action: string; next_state: string; provider: string } | null;
   actions: { cancel: boolean; resume: boolean; auto_resume: boolean };
 }
 
@@ -32,6 +32,14 @@ export function RunControl({ paperId, jobId, status, onChanged }: { paperId: str
     }
   }, [paperId, jobId]);
   useEffect(() => { void load(); }, [load, status]);
+  // while the job is not finished its waits, checkpoints and readings change without a status change:
+  // read again every 5 s while the panel is open (review m3)
+  const finished = ['SUCCEEDED', 'FAILED', 'CANCELLED', 'STALE'].includes(c?.job.status ?? status);
+  useEffect(() => {
+    if (finished) return;
+    const t = setInterval(() => { void load(); }, 5000);
+    return () => clearInterval(t);
+  }, [finished, load]);
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setError('');
@@ -48,6 +56,7 @@ export function RunControl({ paperId, jobId, status, onChanged }: { paperId: str
   if (!c) return <p className="loading" data-testid="run-control">{error || '불러오는 중…'}</p>;
   const base = `/api/papers/${paperId}/jobs/${jobId}`;
   const stopped = c.job.status === 'FAILED' || c.job.status === 'STALE' || c.job.status.startsWith('WAITING_');
+  const next = nextStepText(c.job.status, c.last_error);
   return (
     <div className="run-control" data-testid="run-control" data-status={c.job.status}>
       {error && <p role="alert" className="error">{error}</p>}
@@ -55,10 +64,10 @@ export function RunControl({ paperId, jobId, status, onChanged }: { paperId: str
         <dt>상태</dt><dd data-testid="ctl-status">{statusLabel({ status: c.job.status, result: null })}{c.job.attempts > 1 ? ` · ${c.job.attempts}번째 시도` : ''}</dd>
         {/* why it stopped or waits: only while it does (a queued or running job's old reason is history) */}
         {stopped && c.job.last_error && <><dt>사유</dt><dd data-testid="ctl-reason">{c.job.last_error.slice(0, 300)}</dd></>}
-        {stopped && c.last_error && <><dt>다음 행동</dt><dd data-testid="ctl-next">{actionText(c.last_error.action)}</dd></>}
+        {next && <><dt>다음 행동</dt><dd data-testid="ctl-next">{next}</dd></>}
         <dt>공급자</dt><dd data-testid="ctl-provider">{c.checkpoint?.provider ?? c.last_error?.provider ?? UNKNOWN}</dd>
         <dt>마지막 checkpoint</dt><dd data-testid="ctl-checkpoint">{checkpointText(c.checkpoint)}</dd>
-        <dt>문맥(마지막 요청)</dt><dd data-testid="ctl-context">{contextText(c.context)}</dd>
+        <dt>문맥(마지막 점검 때)</dt><dd data-testid="ctl-context">{contextText(c.context)}</dd>
         {c.quota_waits.length > 0 && <><dt>한도 대기</dt><dd><ul data-testid="ctl-waits">{c.quota_waits.map((w) => <li key={w.attempt}>{w.attempt}번째 대기 · {w.provider} · {waitText(w)}</li>)}</ul></dd></>}
         <dt>자동 재개</dt><dd data-testid="ctl-auto-resume">{autoResumeText(c.auto_resume)}</dd>
       </dl>

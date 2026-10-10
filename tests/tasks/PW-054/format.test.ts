@@ -3,7 +3,7 @@
 // the next check; auto-resume is described as making a proposal only.
 // TST-054B: unknown usage is never shown as 0 or a precise percentage; auto-resume is not an approval.
 import { describe, expect, test } from 'vitest';
-import { autoResumeText, checkpointText, contextText, waitText } from '../../../apps/web/src/features/run-control/format.ts';
+import { autoResumeText, checkpointText, contextText, nextStepText, waitText } from '../../../apps/web/src/features/run-control/format.ts';
 
 describe('TST-054B: unknown is unknown, an estimate is an estimate', () => {
   test('an unknown context is "알 수 없음" — no 0, no percentage', () => {
@@ -52,3 +52,17 @@ describe('the rest of the panel', () => {
     expect(t).toContain('#3');
   });
 });
+
+describe('PW-054 review m2: the next step belongs to the current stop', () => {
+  test('a classified error\'s step is shown only when it led to the current state; otherwise the state\'s own step', () => {
+    expect(nextStepText('WAITING_AUTH', { action: 'log_in_again', next_state: 'WAITING_AUTH' })).toContain('다시 로그인');
+    // an earlier network error (retried) must not describe a later budget refusal
+    const t = nextStepText('WAITING_BUDGET', { action: 'none', next_state: 'RETRY' });
+    expect(t).not.toContain('자동으로 다시 시도');
+    expect(t).toContain('예산');
+    expect(nextStepText('WAITING_USER', null)).toContain('사유');
+    expect(nextStepText('STALE', null)).toContain('현재 원고');
+    expect(nextStepText('QUEUED', { action: 'wait_for_reset', next_state: 'WAITING_QUOTA' })).toBeNull();
+  });
+});
+

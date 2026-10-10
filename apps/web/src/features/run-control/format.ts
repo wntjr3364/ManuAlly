@@ -46,3 +46,15 @@ const ACTION: Record<string, string> = {
   add_evidence: '근거를 추가·확인한 뒤 다시 요청', ask_again: '현재 원고에서 다시 요청', free_disk_space: '디스크 공간을 확보한 뒤 다시 요청', report: '문제로 보고', none: '자동으로 다시 시도',
 };
 export const actionText = (a: string) => ACTION[a] ?? a;
+
+// the owner's next step for the current stop: a classified error's step only when that error led to this
+// state (an older run's error may describe another stop: review m2); otherwise the state's own step. None
+// while the job is queued or running.
+const BY_STATE: Record<string, string> = {
+  WAITING_QUOTA: '한도가 초기화되기를 기다림 (또는 다시 시작)', WAITING_AUTH: '작업을 돌리는 컴퓨터에서 공급자 CLI로 다시 로그인한 뒤 다시 시작',
+  WAITING_BUDGET: '예산을 정한 뒤 다시 시작', WAITING_USER: '사유를 확인한 뒤 다시 시작하거나 중지', FAILED: '필요하면 다시 요청', STALE: '현재 원고에서 다시 요청',
+};
+export function nextStepText(status: string, last: { action: string; next_state: string } | null): string | null {
+  if (!BY_STATE[status]) return null;
+  return last && last.next_state === status ? actionText(last.action) : BY_STATE[status]!;
+}

@@ -13,3 +13,7 @@ KILLED ui stale reason shown
 KILLED other paper's job readable
 KILLED other paper's job resumable
 KILLED ui resume always
+# review fixes (m1 lock order, m2 next step per state)
+KILLED m1 job locked before wait
+KILLED m2 any error's step
+KILLED m2 step while queued

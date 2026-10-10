@@ -36,3 +36,4 @@ KILLED R: window only from fallback (2)
 KILLED R: window forgotten on switch
 # re-review NIT 1
 SURVIVED RR: compaction resets the estimate to 0
+KILLED RR: compaction resets the estimate to 0 (2)

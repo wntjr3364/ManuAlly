@@ -78,7 +78,7 @@ const usage = (scope: 'message' | 'turn' | 'session', input: number, window: num
 const done = ev('turn_completed', { outcome: 'success', stop_reason: 'end_turn' });
 
 // a fake provider session: each turn reports its (current) request size; compaction confirms or not
-function fakeSessions(o: { sizes: (number | null)[]; window?: number | null; confirmCompact?: boolean | 'error' | 'then_error'; cumulative?: boolean; breakTurn?: number; answerChars?: number; windowOnlyInSession?: boolean; windowOnce?: boolean }) {
+function fakeSessions(o: { sizes: (number | null)[]; window?: number | null; confirmCompact?: boolean | 'error' | 'then_error'; cumulative?: boolean; breakTurn?: number; answerChars?: number; windowOnlyInSession?: boolean; windowOnce?: boolean; answers?: number[] }) {
   const log: string[] = [];
   const starts: string[] = [];
   let turnNo = 0;
@@ -87,7 +87,8 @@ function fakeSessions(o: { sizes: (number | null)[]; window?: number | null; con
     async *turn(prompt: string) {
       const n = turnNo++;
       log.push(`${id}:turn:${prompt}`);
-      yield ev('message_completed', { text: o.answerChars ? 'x'.repeat(o.answerChars) : `answer ${n}` });
+      const len = o.answers?.[n] ?? o.answerChars;
+      yield ev('message_completed', { text: len ? 'x'.repeat(len) : `answer ${n}` });
       if (o.breakTurn === n) return; // the stream ends mid-turn (a tool still running, a crash): no turn_completed
       // the current request size (message scope); cumulative billing totals come as turn/session scope
       // null: this turn reports no size
@@ -316,4 +317,14 @@ describe('PW-048 review fixes (mutation follow-up)', () => {
     // not a stale or zero estimate): no second compaction
     expect((await listContextSwitches(pool, w.paperId, w.job.id)).map((x) => x.kind)).toEqual(['compact_requested', 'compact_confirmed']);
   });
+});
+
+test('re-review NIT 1: after a compaction the size is UNKNOWN until reported, not an estimate from zero', async () => {
+  const w = await world();
+  // ~30k tokens per answer for three steps (compaction), then a ~75k answer: from a zero base that would
+  // read as 75% (a review); the compacted summary's size is not known, so nothing is claimed
+  const f = fakeSessions({ sizes: [null, null, null, null, null], window: 100_000, windowOnce: true, answers: [120_000, 120_000, 120_000, 300_000, 1_000], confirmCompact: true });
+  const five = [...steps, { name: 'draft_summary', prompt: 'draft_summary' }];
+  await runJobTurns(pool, { ...w, factory: f.factory, compactSupport: 'verified', window: null, steps: five, initialPrompt: 'start', ...opts });
+  expect((await listContextSwitches(pool, w.paperId, w.job.id)).map((x) => x.kind)).toEqual(['compact_requested', 'compact_confirmed']);
 });

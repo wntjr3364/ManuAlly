@@ -79,7 +79,7 @@ TST-061B가 보이는 것
   5. `stop`이 끝났지만 거두어지지 않은 supervisor(zombie)를 살아 있다고 보았다(`red.log` 끝). `/proc/<pid>/stat` 상태로 판단한다.
 
 ## 회귀
-- `pnpm test` exit 0(`test.log`: unit 628, 통합 672, contracts 17, 브라우저 101, spikes·evals·pack-check).
+- `pnpm test` exit 0(리뷰 반영 후, `test.log`: unit 630, 통합 673, contracts 17, 브라우저 101, spikes·evals·pack-check).
 
 ## Mutation(`mutation.log`)
 - 빠른 시험 22종 중 21종을 잡았다. 남은 1종(이유 없는 pause)은 DB CHECK가 같은 것을 거부하는 동치다.

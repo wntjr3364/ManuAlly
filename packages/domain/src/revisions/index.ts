@@ -91,10 +91,10 @@ async function append(tx: Queryable, r: { paperId: string; documentId: string; p
   return rows[0]!;
 }
 
-// For callers that change a head inside their own transaction (undo, import): the same document lock,
+// For callers that change a head inside their own transaction (undo, import, the outline scaffold of PW-046): the same document lock,
 // expected-head check and validation as a save.
 export const lockDocumentHead = lockHead;
-export async function appendRevisionIn(tx: Queryable, r: { paperId: string; documentId: string; parent: string; content: unknown; schemaVersion: unknown; ownerId: string; reason: 'undo' | 'import' }): Promise<Revision> {
+export async function appendRevisionIn(tx: Queryable, r: { paperId: string; documentId: string; parent: string; content: unknown; schemaVersion: unknown; ownerId: string; reason: 'undo' | 'import' | 'manual' }): Promise<Revision> {
   validateContent(r.content, r.schemaVersion);
   return append(tx, { ...r, content: r.content as object, schemaVersion: r.schemaVersion as number });
 }

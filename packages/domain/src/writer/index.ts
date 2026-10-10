@@ -8,6 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import { EDITOR_SCHEMA_VERSION, ReplacementError, atomNodesIn, blockHash, buildReplacement, findBlock, parseDocument, schema, validateDocument } from '@pw/editor-core';
 import { DomainError, UUID_RE, inTransaction, type Queryable, type TxPool } from '../shared/db.ts';
+import { nodeSection, sectionEnd } from '../manuscript-structure/index.ts';
 import { enqueueJob } from '../jobs/index.ts';
 import { checkDraftGate } from '../outlines/index.ts';
 import { unresolvedNodes } from '../outline-impact/index.ts';
@@ -96,7 +97,11 @@ export async function requestParagraph(pool: TxPool, a: { paperId: string; owner
   let place: { after_block_id: string | null; after_block_hash: string | null; block_id: string | null; expected_block_hash: string | null };
   if (mode === 'draft') {
     if (b.block_id !== undefined && b.block_id !== null) throw new DomainError('INVALID', 'a new paragraph is placed with after_block_id', 'block_id');
-    const after = b.after_block_id === undefined || b.after_block_id === null ? null : id(b.after_block_id, 'after_block_id');
+    // not placed by the owner: at the end of the plan's own section when the manuscript has its heading
+    // (PW-046), otherwise at the end of the manuscript
+    const after = b.after_block_id === undefined || b.after_block_id === null
+      ? sectionEnd(content, await nodeSection(pool, gate.outline_revision_id, gate.node_id))
+      : id(b.after_block_id, 'after_block_id');
     place = { after_block_id: after ? (after.attrs.id as string) : null, after_block_hash: after ? await blockHash(after) : null, block_id: null, expected_block_hash: null };
   } else {
     if (b.after_block_id !== undefined && b.after_block_id !== null) throw new DomainError('INVALID', 'a correction names the paragraph with block_id', 'after_block_id');

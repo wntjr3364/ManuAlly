@@ -1,0 +1,74 @@
+# PW-046 — 개요→집필 연구자 workflow — REPORT
+상태: in_review (2026-10-10)
+
+## 무엇을 확인했고 무엇이 비어 있었나
+- 확인 전 상태
+  - 개요 노드의 `section`은 이미 자유 텍스트였다. IMRaD를 강제하지 않았다.
+  - 그러나 개요의 섹션과 역할이 원고 구조로 이어지지 않았다.
+    - Writer의 새 문단은 위치를 고르지 않으면 언제나 원고 끝에 붙었다.
+    - 원고에 섹션 제목을 만드는 길은 손으로 치는 것뿐이었다.
+  - 새 논문 화면은 `research_article`만 만들었다. 소프트웨어·리소스 논문을 만들 수 없었다.
+  - 글쓰기 프로필의 섹션 역할은 IMRaD 이름 7개만 받았다. 소프트웨어 논문의 "Implementation" 역할은 거부되었다.
+  - prose 신호는 Methods가 아닌 모든 섹션의 번호 목록을 경고했다. Implementation·Installation·Usage의 단계 목록도 "보고서 목록"으로 경고되었다.
+- 이 Task는 이 빈틈을 메웠다. 기존 승인·정본 규칙은 그대로다.
+
+## 변경 파일
+- 시험(write scope)
+  - `tests/tasks/PW-046/workflow.int.test.ts`(통합 7)
+  - `tests/e2e/scientific-workflow/workflow.e2e.ts`(브라우저 2: 생물학 연구 논문, 소프트웨어 논문)
+- 범위 밖 제품 파일(RFC-012 부록, 새 의존성·migration 없음)
+  - `packages/domain/src/manuscript-structure/index.ts`(새 파일)
+    - `SECTION_TEMPLATES` / `sectionTemplate()`: 유형별 섹션 **제안**(`enforced: false`). 연구 논문은 Introduction·Results·Discussion·Methods다. 소프트웨어·리소스는 Introduction·Implementation·Usage·Validation·Availability다. 방법론은 Introduction·Method·Validation·Protocol이다. 리뷰는 Introduction·Perspectives다. 단보와 기타는 제안이 없다.
+    - `scaffoldFromOutline()`: "개요로 원고 골격 만들기"
+      - 활성 승인 개요의 섹션(첫 등장 순, 중복 제거)을 level-1 제목으로 넣는다.
+      - **없는 제목만** 넣는다. 같은 이름의 제목은 수준·대소문자·공백과 상관없이 있는 것으로 본다.
+      - 빠진 섹션은 개요에서 앞선 섹션의 끝 다음에 들어간다(하위 제목 포함). 앞선 섹션이 없으면 끝에 들어간다.
+      - 사용자가 쓴 글은 바꾸거나 옮기지 않는다.
+      - expected head가 맞아야 한다(다르면 409). 활성 승인 개요여야 한다(아니면 409 `outline_not_active`). 원고 문서만 된다(아니면 422).
+      - 사용자의 편집이다(revision reason `manual`). 한 트랜잭션 안에서 문서 head를 잠그고 쓴다.
+    - `sectionEnd()`: 그 섹션의 마지막 블록. 같거나 높은 수준의 다음 제목 앞까지다.
+  - `packages/domain/src/writer/index.ts`: 위치를 고르지 않은 새 문단은 **계획의 섹션 끝**에 들어간다. 원고에 그 제목이 없으면 이전처럼 원고 끝이다. 사용자가 고른 위치는 그대로 따른다. 적용 때의 CAS·STALE 규칙(PW-042)은 같다.
+  - `packages/domain/src/revisions/index.ts`: `appendRevisionIn`의 reason에 `manual`을 더했다(DB check는 이미 허용).
+  - `packages/domain/src/writing-profile/index.ts`: 섹션 역할의 섹션 이름은 그 논문의 것이다(자유 텍스트 1–60자). 근거 출처의 섹션은 여전히 문헌에서 읽은 섹션이다. AI 제안에서는 읽은 섹션이 그 역할을 받치지 않으면 여전히 `section_not_read`로 빠진다.
+  - `packages/domain/src/scientific-checks/index.ts` `proseSignals`: 절차를 쓰는 섹션(method, protocol, procedure, implementation, install, usage, availability, tutorial, workflow를 이름에 포함)의 번호 목록은 경고하지 않는다. Discussion 등의 번호 목록은 그대로 경고다.
+  - `apps/api/src/manuscript-structure/index.ts`(새 파일), `apps/api/src/server.ts`
+    - `GET /api/papers/:paperId/section-template`
+    - `POST /api/papers/:paperId/documents/:documentId/scaffold`
+  - 화면
+    - `apps/web/src/features/paper/PapersPage.tsx`: 새 논문의 **논문 유형** 선택(연구 논문, 소프트웨어·리소스, 방법론, 리뷰, 단보, 기타)
+    - `apps/web/src/features/paper/StoryOutlineTab.tsx`: 섹션 입력칸의 제안 목록(datalist)과 "흔한 섹션(제안, 필수 아님)" 안내. 어떤 이름이든 쓸 수 있다.
+    - `apps/web/src/features/manuscript-structure/ScaffoldFromOutline.tsx`(새 파일), `apps/web/src/features/paper/ManuscriptTab.tsx`: 원고 tab의 "원고 골격" 카드. 승인된 개요의 섹션을 보여 주고 버튼으로 만든다. 저장되지 않은 편집이 있으면 막는다.
+    - `apps/web/src/features/writer/WriterPanel.tsx`: 기본 위치 문구를 "자동: 계획의 섹션 끝(없으면 원고 끝)"으로 바꿨다.
+
+## 요구사항-시험 매핑
+| REQ / TST | 시험 |
+|---|---|
+| REQ-046-A / TST-046A: 서로 다른 article type의 outline과 섹션 역할이 원고에 반영된다 | 통합: 연구 논문 개요(Introduction·Results·Discussion)가 그 순서의 제목이 된다. Results 계획의 문단은 Results 아래(Discussion 앞)에, Discussion 계획은 끝에, Introduction 계획은 Results 앞에 들어간다. 사용자가 쓴 "introduction" 제목과 문단은 그대로이고 Results만 더해진다. 하위 제목이 있는 Introduction과 Discussion 사이에 Results가 들어간다. 반복된 섹션은 제목 하나다. 낡은 head·다른 개요는 409, 다른 사용자는 404, 원고 아닌 문서는 422다. 다시 하면 아무것도 더하지 않는다. 소프트웨어 프로필이 "Implementation" 역할을 가진다. 브라우저: 두 유형 모두 같은 흐름이다. 논문 유형 선택 → 유형별 제안 → 승인된 개요 → 골격 → 계획의 문단이 그 섹션 아래(문헌 인용 포함) → 교정 요청 뒤에도 그 자리 → 다시 골격은 "모두 있음" |
+| REQ-046-B / TST-046B: 모든 유형을 고정 IMRaD나 보고서 목록으로 강제하거나 사용자 승인 없이 novelty를 바꾸지 않는다 | 통합: 소프트웨어 제안에는 Implementation·Availability가 있고 Methods가 없다. 단보는 제안이 거의 없다(`enforced: false`). 소프트웨어 개요(Background·Implementation·Use cases·Availability)의 원고에 Introduction·Methods·Results·Discussion이 더해지지 않는다. Implementation·Installation·Usage·Materials and Methods·Protocol의 단계 목록은 경고가 아니고 Discussion의 목록은 경고다. 골격·Writer 뒤에도 스토리 revision은 1개이고 novelty는 승인한 그대로다. 브라우저: 소프트웨어 논문 원고에 IMRaD 제목이 없다. 두 유형 모두 스토리 revision 1개, novelty 그대로다 |
+
+## RED → GREEN
+- RED(`red.log`): 통합 6개 중 5개가 이유 있게 실패했다.
+  - scaffold route 없음(404), section-template 없음, 프로필의 "Implementation" 거부(422), prose 신호 목록 경고
+  - novelty 시험은 처음부터 통과했다(기존 Writer가 스토리를 바꾸지 않음). 회귀 방지로 남긴다.
+- GREEN: 통합 7(경계 시험 1개 추가), 브라우저 2
+  - 첫 GREEN 시도에서 하나가 실패했다. 계획에 주장이 없는 섹션은 MOCK writer가 근거 부족을 낸다(의도된 동작). fixture가 모든 계획에 주장·사실을 붙이게 고쳤다.
+  - 브라우저 시험은 구현 뒤에 썼다. 첫 실행 실패는 tab 이름 오기("구상·개요")였다. 구현 전 브라우저 RED는 따로 남기지 않았다.
+- mutation(`mutation.log`): 13종 모두 탐지
+  - 섹션 끝(수준 비교 2), 대소문자, 활성 개요 확인, 원고 종류 확인, 없는 것만 더함, 앞 섹션 뒤 위치, 중복 제거, expected head 무시, Writer 기본 위치, prose 예외, 프로필 IMRaD 이름, 유형별 제안
+- 회귀: (아래 채움)
+
+## 보안·과학적 실패 경로
+- 골격 만들기는 사용자 행위다. AI가 부르지 않는다. 제목만 더하고 본문을 바꾸지 않는다. 낡은 head면 덮어쓰지 않고 409다.
+- 섹션 제안은 강제가 아니다. 개요 저장·승인은 어떤 섹션 이름이든 그대로 받는다(기존 규칙).
+- Writer 기본 위치가 바뀌어도 제안은 여전히 제안이다. 적용 시 그 자리(앞 블록 hash)가 바뀌었으면 STALE이다(PW-042).
+- 스토리·novelty를 바꾸는 길은 이 흐름에 없다. 바꾸려면 사용자가 새 스토리 revision을 승인해야 한다(PW-010·039).
+
+## 미실행 / 남은 위험
+- 실제 공급자(Claude Code·Codex)로 이 흐름을 돌리지 않았다(MOCK writer). 사용자 PC live smoke 대상이다.
+- 문헌 단계는 서재 참고문헌과 검증된 발췌를 미리 넣은 상태에서 시작한다. 검색→채택 화면(PW-031~033)은 각 Task의 브라우저 시험이 다룬다. 이 시험에서 다시 돌리지 않았다.
+- 섹션 이름 일치는 정규화한 글자 그대로다. "Methods"와 "Materials and Methods"는 다른 섹션이다. 번역·동의어는 보지 않는다.
+- 골격은 level-1 제목만 만든다. 개요의 하위 계층(parent_node_id)은 제목 수준으로 옮기지 않는다.
+- prose 예외는 섹션 이름의 낱말로 판단한다. 이름이 예외 낱말을 품은 다른 섹션(예: "Methodological limitations")의 목록도 경고하지 않는다(경고일 뿐이라 영향이 작다).
+
+## 다음
+P05 gate 보고(`reports/p05/P05_GATE.md`) → P06(PW-047~054)

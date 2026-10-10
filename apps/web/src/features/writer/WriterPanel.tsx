@@ -141,7 +141,7 @@ export function WriterPanel({ paperId, documentId, headId, clean, onApplied, ref
           <option value="rewrite">재작성</option>
         </select></label>
         <label>{mode === 'draft' ? '넣을 위치(이 문단 뒤)' : '고칠 문단'} <select value={blockId} onChange={(e) => setBlockId(e.target.value)}>
-          <option value="">{mode === 'draft' ? '원고 끝' : '선택'}</option>
+          <option value="">{mode === 'draft' ? '자동: 계획의 섹션 끝(없으면 원고 끝)' : '선택'}</option>
           {paragraphs.map((b) => <option key={b.id} value={b.id}>{b.text.slice(0, 50) || '(빈 문단)'}</option>)}
         </select></label>
       </div>

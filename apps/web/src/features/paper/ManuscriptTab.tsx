@@ -9,6 +9,7 @@ import { ManuscriptEditor, type DocInfo, type EditorState } from '../../editor/M
 import { ReadOnlyDocument } from '../../editor/ReadOnlyDocument.tsx';
 import { WriterPanel } from '../writer/WriterPanel.tsx';
 import { ReviewPanel } from '../scientific-review/ReviewPanel.tsx';
+import { ScaffoldFromOutline } from '../manuscript-structure/ScaffoldFromOutline.tsx';
 
 // reloadKey: bumped after the versions tab made a new head (restore, undo, import); the editor then
 // opens that head
@@ -45,6 +46,7 @@ export function ManuscriptTab({ paperId, outlineApproved = false, reloadKey = 0,
   return (
     <>
       <ManuscriptEditor key={`${doc.document.id}:${doc.head.id}`} paperId={paperId} info={doc} outlineApproved={outlineApproved} onState={track} />
+      <ScaffoldFromOutline paperId={paperId} documentId={doc.document.id} headId={state?.headRevisionId ?? doc.head.id} clean={state?.clean ?? true} onDone={() => { load().catch((e) => setError(errorText(e))); }} />
       <WriterPanel paperId={paperId} documentId={doc.document.id} headId={state?.headRevisionId ?? doc.head.id} clean={state?.clean ?? true} refreshKey={proposalsKey}
         onApplied={() => { load().catch((e) => setError(errorText(e))); }} />
       <ReviewPanel paperId={paperId} documentId={doc.document.id} headId={state?.headRevisionId ?? doc.head.id} clean={state?.clean ?? true} onRepair={() => setProposalsKey((k) => k + 1)} />

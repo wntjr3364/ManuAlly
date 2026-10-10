@@ -71,3 +71,11 @@ User decision / reviewer:
   - `packages/domain/src/scientific-checks/index.ts`, `records.ts`: hard case가 드러낸 gate 구멍(유의성 오기, 불가능한 p, 낱말 비교어, p/q·n 대조, 몰 단위, 숫자 없는 그룹 비교, 주장 종류 대비 강도, 우선권 주장, prose 신호; `pw-sci-gate-2`)
   - `apps/worker/src/writer/index.ts`(prose 경고), `apps/web/src/features/writer/WriterPanel.tsx`(문구)
   - 기존 시험 기대값(더 엄격해진 방향): `tests/tasks/PW-043/gate.int.test.ts`, `tests/tasks/PW-044/review.int.test.ts`, `tests/tasks/PW-044/review.e2e.ts`
+- PW-046
+  - 새 도메인 폴더 `packages/domain/src/manuscript-structure/**`(유형별 섹션 제안, 개요로 원고 골격 만들기, 섹션 끝 위치)
+  - `packages/domain/src/revisions/index.ts`(`appendRevisionIn` reason에 `manual`: 골격 만들기는 사용자의 편집)
+  - `packages/domain/src/writer/index.ts`(위치를 고르지 않은 새 문단은 계획의 섹션 끝에)
+  - `packages/domain/src/writing-profile/index.ts`(섹션 역할의 섹션 이름은 그 논문의 것: 자유 텍스트 1–60자)
+  - `packages/domain/src/scientific-checks/index.ts`(`proseSignals`: 절차를 쓰는 섹션 — Methods, Protocol, Implementation, Installation, Usage 등 — 의 번호 목록은 경고가 아님)
+  - 새 route 폴더 `apps/api/src/manuscript-structure/**`, `apps/api/src/server.ts`(등록)
+  - 새 화면 `apps/web/src/features/manuscript-structure/**`, `apps/web/src/features/paper/ManuscriptTab.tsx`(원고 골격), `PapersPage.tsx`(논문 유형 선택), `StoryOutlineTab.tsx`(섹션 제안 datalist), `apps/web/src/features/writer/WriterPanel.tsx`(기본 위치 문구)

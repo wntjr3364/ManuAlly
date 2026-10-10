@@ -74,6 +74,8 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
     setEvidence(await api<Evidence[]>('GET', `/api/papers/${paper.id}/evidence`));
   }
   useEffect(() => { load().catch((e) => setError(errorText(e))); }, [paper.id]);
+  const [suggestions, setSuggestions] = useState<{ section: string; role: string }[]>([]);
+  useEffect(() => { api<{ sections: { section: string; role: string }[] }>('GET', `/api/papers/${paper.id}/section-template`).then((t) => setSuggestions(t.sections)).catch(() => setSuggestions([])); }, [paper.id]);
   // what is on screen differs from the stored latest revision: approval would approve something else.
   // Before the first load arrives the screen is compared with an empty form, so text typed early is
   // still protected when leaving.
@@ -153,9 +155,12 @@ export function StoryOutlineTab({ paper, onChange, visible }: { paper: Paper; on
       <section className="card">
         <h2>개요 <span className="status" data-testid="outline-status">{outline?.latest?.status ?? '없음'}</span></h2>
         {!paper.active_story_revision_id && <p className="hint">개요는 승인된 스토리 위에서 작성합니다.</p>}
+        {/* suggestions for this article type only: any section name is accepted (PW-046) */}
+        <datalist id="section-suggestions">{suggestions.map((x) => <option key={x.section} value={x.section}>{x.role}</option>)}</datalist>
+        {suggestions.length > 0 && <p className="hint" data-testid="section-suggestions">이 논문 유형에서 흔한 섹션(제안, 필수 아님): {suggestions.map((x) => x.section).join(' · ')}</p>}
         {nodes.map((n, i) => (
           <div key={n.node_id} className="row" style={{ borderBottom: '1px solid #eef1f5', marginBottom: 8 }}>
-            <label>섹션<input value={n.section} onChange={(e) => setNode(i, { section: e.target.value })} /></label>
+            <label>섹션<input value={n.section} list="section-suggestions" onChange={(e) => setNode(i, { section: e.target.value })} /></label>
             <label>역할<select value={n.role} onChange={(e) => setNode(i, { role: e.target.value })}>{ROLES.map((r) => <option key={r}>{r}</option>)}</select></label>
             <label style={{ gridColumn: 'span 2' }}>문단 목표<textarea value={n.paragraph_goal} onChange={(e) => setNode(i, { paragraph_goal: e.target.value })} /></label>
             <label className="inline"><input type="checkbox" checked={n.requires_evidence} onChange={(e) => setNode(i, { requires_evidence: e.target.checked })} />근거 필요</label>

@@ -410,8 +410,11 @@ export function scientificGate(input: GateInput): GateResult {
 }
 
 // Prose signals a Writer proposal carries as warnings (PW-045, SCI-018/019): an enumerated list
-// ("1. … 2. …") where a paragraph of prose is asked for. Methods may enumerate a protocol.
+// ("1. … 2. …") where a paragraph of prose is asked for. A section that describes a procedure may
+// enumerate its steps: Methods, a protocol, a software paper's implementation, installation or usage
+// (PW-046: no report-style list by force, and none forbidden where it belongs).
+const PROCEDURE_SECTION = /method|protocol|procedure|implementation|install|usage|availability|tutorial|workflow/i;
 export function proseSignals(text: string, section: string | null): string[] {
   const items = text.match(/(?:^|\s)\(?\d{1,2}[.)]\s+\p{Lu}/gu) ?? [];
-  return items.length >= 2 && section !== 'Methods' ? ['enumerated_list'] : [];
+  return items.length >= 2 && !PROCEDURE_SECTION.test(section ?? '') ? ['enumerated_list'] : [];
 }

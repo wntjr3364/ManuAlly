@@ -1,0 +1,122 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts (6 tests | 5 failed) 1923ms
+   ❯ TST-046A: the outline's sections and roles reach the manuscript (2)
+     × a research article: the approved outline's sections become headings in outline order; a paragraph lands in its plan's section 155ms
+     × scaffolding adds only missing sections, keeps what the user wrote, needs the approved outline and the current head 99ms
+   ❯ TST-046B: no forced IMRaD, no report lists by force, novelty untouched (4)
+     × section templates are suggestions per article type; a software paper's are its own 12ms
+     × a software paper's outline (its own sections) becomes its headings; no IMRaD section is added; a protocol list is not flagged 84ms
+     × a writing profile can describe the roles of a software paper's own sections 84ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > TST-046A: the outline's sections and roles reach the manuscript > a research article: the approved outline's sections become headings in outline order; a paragraph lands in its plan's section
+AssertionError: {"message":"Route POST:/api/papers/c63f0697-a6dc-475d-8612-1e9e047254bd/documents/405746d5-f026-4960-ba9a-739962905f77/scaffold not found","error":"Not Found","statusCode":404}: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:91:34
+     89|     const x = await paper('research_article', ['Introduction', 'Result…
+     90|     const r = await scaffold(x, x.head);
+     91|     expect(r.statusCode, r.body).toBe(200);
+       |                                  ^
+     92|     expect(r.json().added).toEqual(['Introduction', 'Results', 'Discus…
+     93|     let d = await doc(x);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > TST-046A: the outline's sections and roles reach the manuscript > scaffolding adds only missing sections, keeps what the user wrote, needs the approved outline and the current head
+AssertionError: expected 404 to be 409 // Object.is equality
+
+- Expected
++ Received
+
+- 409
++ 404
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:116:52
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > TST-046B: no forced IMRaD, no report lists by force, novelty untouched > section templates are suggestions per article type; a software paper's are its own
+AssertionError: expected { …(3) } to match object { …(2) }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "article_type": "software_resource",
+-   "enforced": false,
++   "error": "Not Found",
++   "message": "Route GET:/api/papers/89796bcd-eb7e-4320-8da4-6bbf554fa798/section-template not found",
++   "statusCode": 404,
+  }
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:135:16
+    133|     };
+    134|     const sw = await t('software_resource');
+    135|     expect(sw).toMatchObject({ article_type: 'software_resource', enfo…
+       |                ^
+    136|     expect(sw.sections.map((s: { section: string }) => s.section)).toE…
+    137|     expect(sw.sections.map((s: { section: string }) => s.section)).not…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > TST-046B: no forced IMRaD, no report lists by force, novelty untouched > a software paper's outline (its own sections) becomes its headings; no IMRaD section is added; a protocol list is not flagged
+AssertionError: expected undefined to deeply equal [ Array(4) ]
+
+- Expected:
+[
+  "Background",
+  "Implementation",
+  "Use cases",
+  "Availability",
+]
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:144:54
+    142|   test('a software paper\'s outline (its own sections) becomes its hea…
+    143|     const x = await paper('software_resource', ['Background', 'Impleme…
+    144|     expect((await scaffold(x, x.head)).json().added).toEqual(['Backgro…
+       |                                                      ^
+    145|     const d = await doc(x);
+    146|     const headings = outlineOf(x)(d.head.content_json.content);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/tasks/PW-046/workflow.int.test.ts > TST-046B: no forced IMRaD, no report lists by force, novelty untouched > a writing profile can describe the roles of a software paper's own sections
+AssertionError: {"error":"invalid","message":"section_roles[0].section must be one of Abstract, Introduction, Methods, Results, Results and Discussion, Discussion, Conclusion","field":"content"}: expected 422 to be 201 // Object.is equality
+
+- Expected
++ Received
+
+- 201
++ 422
+
+ ❯ tests/tasks/PW-046/workflow.int.test.ts:173:34
+    171|       rhetoric_patterns: [], anti_examples: [], accepted_examples: [],
+    172|     } });
+    173|     expect(r.statusCode, r.body).toBe(201);
+       |                                  ^
+    174|   });
+    175| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 1 passed (6)
+   Start at  00:15:40
+   Duration  4.03s (tests 50%, transform 39%, import 11%)
+
+exit 1

@@ -4,9 +4,14 @@ import { navigate } from '../../app/router.ts';
 
 export interface Paper { id: string; working_title: string; status: string; updated_at: string; active_story_revision_id: string | null; active_outline_revision_id: string | null }
 
+export const ARTICLE_TYPE_LABELS: Record<string, string> = {
+  research_article: '연구 논문', software_resource: '소프트웨어·리소스', methods: '방법론', review: '리뷰', short_communication: '단보', other: '기타',
+};
+
 export function PapersPage() {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [title, setTitle] = useState('');
+  const [articleType, setArticleType] = useState('research_article');
   const [error, setError] = useState('');
   const load = () => api<Paper[]>('GET', '/api/papers').then(setPapers).catch((e) => setError(errorText(e)));
   useEffect(() => { void load(); }, []);
@@ -15,7 +20,7 @@ export function PapersPage() {
     setError('');
     const submitted = title;
     try {
-      await api('POST', '/api/papers', { working_title: submitted, article_type: 'research_article' });
+      await api('POST', '/api/papers', { working_title: submitted, article_type: articleType });
       // clear only what was sent: a title typed while the request was running is kept
       setTitle((t) => (t === submitted ? '' : t));
       await load();
@@ -29,6 +34,10 @@ export function PapersPage() {
       <section className="card">
         <form onSubmit={create} className="toolbar">
           <label style={{ flex: 1, margin: 0 }}>새 논문 제목<input value={title} onChange={(e) => setTitle(e.target.value)} /></label>
+          {/* the type only suggests sections (PW-046); the outline decides them */}
+          <label style={{ margin: 0 }}>논문 유형<select value={articleType} onChange={(e) => setArticleType(e.target.value)}>
+            {Object.entries(ARTICLE_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select></label>
           <button type="submit" className="primary">새 논문</button>
         </form>
         {error && <p role="alert" className="error">{error}</p>}

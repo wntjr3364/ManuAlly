@@ -1,0 +1,13 @@
+KILLED sectionEnd stops only at a higher heading
+KILLED sectionEnd ignores heading level
+KILLED no active-outline check
+KILLED no manuscript-kind check
+KILLED all outline sections added (no present check)
+KILLED missing sections always appended at the end
+KILLED outline sections not deduplicated
+KILLED writer default placement off
+KILLED procedure sections not exempt from list signal
+KILLED profile sections back to IMRaD names
+KILLED template not separate per type
+KILLED section names compared case-sensitively
+KILLED scaffold ignores expected head

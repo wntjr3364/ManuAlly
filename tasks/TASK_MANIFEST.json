@@ -1500,7 +1500,7 @@
       "id": "PW-046",
       "phase": "P05",
       "title": "개요→집필 연구자 workflow",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-045"
       ],

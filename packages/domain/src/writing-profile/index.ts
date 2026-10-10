@@ -107,7 +107,9 @@ export interface ProfileContent {
   article_type: string; target_audience: string; preferred_english_variant: 'US' | 'UK' | 'unspecified'; concision_preference: 'concise' | 'balanced' | 'detailed';
   claim_strength_policy: string;
   terminology: { term: string; preferred: string; avoid: string[]; note: string }[];
-  section_roles: { section: SectionName; role: string; principles: Rule[]; counterexamples: Rule[] }[];
+  // a role's section is the paper's own (free text, PW-046: a software paper's Implementation, …); its
+  // rules' sources still name the read sections of the references
+  section_roles: { section: string; role: string; principles: Rule[]; counterexamples: Rule[] }[];
   rhetoric_patterns: Rule[]; anti_examples: Rule[];
   accepted_examples: { text: string; source: RuleSource | null }[];
   journal_rule_snapshot?: { text: string; source: string; checked_at: string; article_types: string[] };
@@ -169,7 +171,7 @@ export function parseProfileContent(raw: unknown, journalRule: boolean): Profile
       const r = obj(v, `section_roles[${i}]`);
       only(r, ['section', 'role', 'principles', 'counterexamples'], `section_roles[${i}]`);
       return {
-        section: oneOf(r.section, `section_roles[${i}].section`, SECTIONS), role: str(r.role, `section_roles[${i}].role`, 1, 300),
+        section: str(r.section, `section_roles[${i}].section`, 1, 60).replace(/\s+/g, ' '), role: str(r.role, `section_roles[${i}].role`, 1, 300),
         principles: arr(r.principles, `section_roles[${i}].principles`, 20).map((p, j) => rule(p, `section_roles[${i}].principles[${j}]`)),
         counterexamples: arr(r.counterexamples, `section_roles[${i}].counterexamples`, 20).map((p, j) => rule(p, `section_roles[${i}].counterexamples[${j}]`)),
       };

@@ -290,6 +290,15 @@ export async function createOutlineRevision(pool: TxPool, a: { paperId: string; 
     if (!story.rows[0]) throw new DomainError('NOT_FOUND', 'story revision not found in this paper');
     if (story.rows[0].status !== 'APPROVED') throw invalid('an outline is built on the approved (active) story; approve the story first', 'story_revision_id');
     if ((await latestId(tx, 'outline_revisions', a.paperId)) !== parent) throw new DomainError('CONFLICT', 'the outline changed since you loaded it (stale parent revision); reload before saving');
+    // a record id must be one of this paper's records (PW-059 security audit F-05): another paper's
+    // evidence would otherwise satisfy "requires evidence". Free planning labels (not ids) stay allowed.
+    for (const [key, table] of [['claim_ids', 'claims'], ['evidence_ids', 'evidence_records']] as const) {
+      const ids = [...new Set(nodes.flatMap((n) => n[key]).filter((x) => isUuid(x)).map((x) => x.toLowerCase()))];
+      if (!ids.length) continue;
+      const found = new Set((await tx.query<{ id: string }>(`SELECT id::text AS id FROM ${table} WHERE paper_id = $1 AND id = ANY($2::uuid[])`, [a.paperId, ids])).rows.map((r) => r.id));
+      const foreign = ids.filter((x) => !found.has(x));
+      if (foreign.length) throw new DomainError('INVALID', `${key}: ${foreign[0]} is not a ${table === 'claims' ? 'claim' : 'evidence record'} of this paper`, `nodes.${key}`, { details: { reason: 'not_in_paper' } });
+    }
     const id = randomUUID();
     await tx.query(
       'INSERT INTO outline_revisions (id, paper_id, story_revision_id, parent_revision_id, content_hash, created_by) VALUES ($1, $2, $3, $4, $5, $6)',

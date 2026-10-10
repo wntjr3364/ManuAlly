@@ -10,7 +10,7 @@
   - critical·high 위험을 사용자가 아닌 쪽이 수용했다.
   - `fixed`인데 그것을 보여 주는 시험이 없다.
   - 형식이 잘못됐다.
-- **pending_manual**: 필수 수동 확인이 사용자 기록(누가 = user, 언제, 근거)으로 `reports/security/manual-checks.json`에 없다. 실행기는 이 파일을 읽기만 한다.
+- **pending_manual**: 필수 수동 확인이 사용자 기록(누가 = user, 언제, 근거)으로 `reports/security/manual-checks.json`에 없다. 실행기는 이 파일을 읽기만 한다. 필수 수동 확인 id(`REQUIRED_MANUAL`)가 파일에서 빠지면 거절한다(재리뷰 m1).
 - **allowed**: 나머지. medium·low open finding은 목록으로 보인다.
 - 영역의 결과는 시험 실행기(vitest JSON)에서 읽는다. 파일이 실행되지 않았으면 `not_run`이다.
 
@@ -50,14 +50,22 @@
   - 읽기 route 62개가 모두 소유자에게 2xx로 답한다. 그래서 위의 교차 404는 실제 검사다. 예외 1개(Zotero 키 없음)는 이유와 함께 기록했다.
   - 바꾸기 route 80개 중 17개는 일반 본문이 검증을 지나 id 처리까지 간다.
   - **63개는 일반 본문이 첫 검증에서 멈춘다.** 그래서 sweep만으로는 본문 깊이의 교차 시도를 증명하지 못한다. 목록은 `sweep-stats.json`의 `changing_routes_not_reached`에 있다. 이 부분은 아래 두 가지로 덮는다.
-    1. **DB가 교차 논문 참조를 거부한다**(`schema.int.test.ts`). 논문 범위 표 사이의 외래 키 113개 중 88개는 양쪽에 `paper_id`가 있다. 그래서 어떤 route나 worker로도 한 논문의 기록이 다른 논문의 기록을 가리킬 수 없다(리뷰 원본에서 FK 위반이 500으로 드러난 경우가 이것이다). 나머지 25개는 이유가 검토된 예외 목록에 있고, 목록은 정확해야 한다(새 키나 사라진 예외는 실패).
+    1. **DB가 교차 논문 참조를 거부한다**(`schema.int.test.ts`). 논문 범위 표 사이의 외래 키 113개 중 88개는 양쪽에 `paper_id`가 있다. 이 키들로는 어떤 route나 worker도 한 논문의 기록이 다른 논문의 기록을 가리키게 할 수 없다(리뷰 원본에서 FK 위반이 500으로 드러난 경우가 이것이다). 외래 키가 없는 참조는 아래 3·4가 맡는다. 나머지 25개는 이유가 검토된 예외 목록에 있고, 목록은 정확해야 한다(새 키나 사라진 예외는 실패).
        - job이 쓰는 것
        - 같은 행의 다른 복합 키가 논문을 고정하는 것
        - 요청이 주는 것: 표적 시험이 있다.
-    2. **요청이 주는 비복합 참조 6종의 표적 시험**: 과학 검사, 리뷰, story 대안, Writer, 초안 요청, curation.
+    2. **요청이 주는 비복합 참조 8종의 표적 시험**: 과학 검사, 리뷰, story 대안, Writer, 초안 요청, curation, 개요 노드의 주장 id·근거 id.
        - 다른 사용자의 id로는 4xx로 거부된다.
        - 자기 id로는 받아들여지거나, 그 id를 읽은 gate가 409로 멈춘다(대조군).
        - 상대 id는 남지 않는다.
+    3. **외래 키 없는 id 배열**(재리뷰 M1'): 배열 열은 모두 `schema.int.test.ts`에 분류되어 있다(새 열은 실패).
+       - id 배열 7개: 누가 쓰는지, 어디서 논문을 확인하는지, 어떤 시험이 보이는지가 적혀 있다.
+       - 그 밖의 13개는 id가 아니다(메시지 코드, 공급자 이름, 사용자 글 등).
+       - 이 점검에서 **F-05**를 찾았다. 개요 노드의 `claim_ids`·`evidence_ids`가 형식만 확인되어 다른 논문의 근거로 "근거 필요"를 채울 수 있었다. 수정했고, 표적 시험 2종(주장 id, 근거 id)을 추가했다.
+    4. **원고 안의 id**(인용 `referenceId`, 그림 참조 `targetId`): 사용자의 수동 편집이므로 저장은 막지 않는다(제품 불변조건). 대신 논문 안에서만 풀린다.
+       - 다른 논문의 문헌·그림은 내보내기에서 `unresolved_citation`·`unresolved_figure` 오류가 된다. 이 오류는 제출판 freeze를 막는다.
+       - 그 내용(제목 등)은 보고서에도 파일에도 나오지 않는다(표적 시험).
+       - JSON 문서 안의 다른 id(스냅샷 manifest 등)는 서버가 만든다.
 
 ## Findings
 | ID | 심각도 | 상태 | 내용 | 근거 |
@@ -65,6 +73,7 @@
 | F-01 | high | fixed | AI 실행 로그인 프로필이 개발자 CLI 상태일 수 있었다. 리뷰 n2: 옮겨 둔 상태 포함. | `credentials.test.ts`, RED `red-F01.log` |
 | F-03 | high | fixed | 전송 정책을 실제 전송 지점(`runProviderTurn`)에서 확인하지 않았다. 선택 수정·curation worker는 자체 확인도 없었다. 지금은 mock만 연결되어 있어 잠재 위험이다. | `send-policy.int.test.ts`, RED `red-F03.log` |
 | F-04 | low | fixed | sandbox 가용성 확인이 worker 환경 전체를 받았다. | `static.test.ts` |
+| F-05 | medium | fixed | 개요 노드의 주장·근거 id가 형식만 확인되어, 다른 논문의 근거로 "근거 필요"를 채울 수 있었다(내용 유출은 없음: 읽는 쪽이 논문으로 거른다). 재리뷰 M1'. | `sweep.int.test.ts` 표적 2종, `schema.int.test.ts`, RED `red-F05.log` |
 | F-02 | low | open | 웹 앱 CSP·frame-ancestors·Referrer-Policy가 없다. | PW-061 배포에서 다룬다. |
 
 ## spec 09 대조(리뷰 m5 반영)

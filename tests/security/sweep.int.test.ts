@@ -263,6 +263,12 @@ describe('TST-059A: IDOR — another owner\'s paper and ids', () => {
     const story = async (w: World) => one("SELECT id FROM story_revisions WHERE paper_id = $1 AND status = 'APPROVED'", w);
     const outline = async (w: World) => one("SELECT o.id, n.node_id FROM outline_revisions o JOIN outline_nodes n ON n.outline_revision_id = o.id WHERE o.paper_id = $1 AND o.status = 'APPROVED' LIMIT 1", w);
     const search = async (w: World) => one('SELECT id FROM literature_searches WHERE paper_id = $1', w);
+    // re-review M1': an outline node's claim and evidence ids (an id array, no foreign key)
+    const records = async (w: World) => one('SELECT (SELECT id FROM claims WHERE paper_id = $1 LIMIT 1) AS claim, (SELECT id FROM evidence_records WHERE paper_id = $1 LIMIT 1) AS evidence', w);
+    const outlineSave = async (claim: string, evidence: string) => ({
+      parent_revision_id: (await one('SELECT id FROM outline_revisions WHERE paper_id = $1 ORDER BY created_at DESC LIMIT 1', B)).id, story_revision_id: (await story(B)).id,
+      nodes: [{ node_id: crypto.randomUUID(), parent_node_id: null, section: 'Results', role: 'result', paragraph_goal: 'audit', claim_ids: [claim], evidence_ids: [evidence], requires_evidence: true }],
+    });
     const cases: [string, (v: World) => Promise<Record<string, unknown>>, string][] = [
       ['/documents/:doc/scientific-checks', async (v) => ({ revision_id: (await rev(v)).rev, block_id: (await rev(v)).block }), 'scientific check'],
       ['/reviews', async (v) => ({ document_id: B.documentId, revision_id: (await rev(v)).rev, block_id: (await rev(v)).block, idempotency_key: crypto.randomUUID() }), 'review'],
@@ -270,6 +276,8 @@ describe('TST-059A: IDOR — another owner\'s paper and ids', () => {
       ['/writer/requests', async (v) => ({ mode: 'draft', outline_revision_id: (await outline(v)).id, node_id: (await outline(v)).node_id, document_id: B.documentId, base_revision_id: (await rev(B)).rev, idempotency_key: crypto.randomUUID() }), 'writer'],
       ['/ai/draft-requests', async (v) => ({ outline_revision_id: (await outline(v)).id, node_id: (await outline(v)).node_id, instruction: 'write this paragraph' }), 'draft request'],
       ['/curation/runs', async (v) => ({ search_ids: [(await search(v)).id], idempotency_key: crypto.randomUUID() }), 'curation'],
+      ['/outline/revisions', async (v) => outlineSave((await records(v)).claim!, (await records(B)).evidence!), 'outline node claim ids'],
+      ['/outline/revisions', async (v) => outlineSave((await records(B)).claim!, (await records(v)).evidence!), 'outline node evidence ids'],
     ];
     const before = await rowsOf(A);
     const theirs = new Set([...[...before.values()].join('|').matchAll(UUID)].map((m) => m[0]));
@@ -286,6 +294,30 @@ describe('TST-059A: IDOR — another owner\'s paper and ids', () => {
     expect(await rowsOf(A)).toEqual(before);
     const kept = [...(await rowsOf(B)).entries()].filter(([, v]) => [...v.matchAll(UUID)].some((m) => theirs.has(m[0]))).map(([t]) => t);
     expect(kept, 'the other owner\'s ids kept in one\'s own records').toEqual([]);
+  });
+
+  // re-review M1': ids inside a manuscript (citations, figure references) are the owner's own text — a manual
+  // edit is never refused — and they are resolved only within the paper: another paper's reference or figure
+  // is an unresolved error in the export (which blocks a submission), and nothing of it is shown.
+  test('another paper\'s ids written into one\'s manuscript resolve to nothing: an export error, none of its content', async () => {
+    const one = async (q: string, w: World) => (await pool.query(q, [w.paperId])).rows[0] as Record<string, string>;
+    const theirRef = (await one('SELECT reference_id AS id FROM project_references WHERE paper_id = $1 LIMIT 1', A)).id!;
+    const theirFig = (await one('SELECT id FROM figure_objects WHERE paper_id = $1 LIMIT 1', A)).id!;
+    const P = `/api/papers/${B.paperId}`;
+    const head = (await app.inject({ method: 'GET', url: `${P}/documents/${B.documentId}`, headers: H.bob! })).json().head;
+    const content = head.content_json as { content: unknown[] };
+    content.content.push({ type: 'paragraph', attrs: { id: crypto.randomUUID() }, content: [{ type: 'text', text: 'As shown before ' }, { type: 'citation', attrs: { referenceId: theirRef, locator: null } }, { type: 'text', text: ' (' }, { type: 'figure_ref', attrs: { targetId: theirFig } }, { type: 'text', text: ').' }] });
+    const saved = await app.inject({ method: 'POST', url: `${P}/documents/${B.documentId}/saves`, headers: H.bob!, payload: { schema_version: 1, reason: 'manual', expected_head_revision_id: head.id, content_json: content } });
+    expect(saved.statusCode, saved.body).toBe(201);
+    const ex = await app.inject({ method: 'POST', url: `${P}/exports`, headers: H.bob!, payload: { document_id: B.documentId, format: 'docx' } });
+    expect(ex.statusCode, ex.body).toBe(201);
+    const kinds = JSON.stringify(ex.json());
+    expect(kinds).toContain('unresolved_citation');
+    expect(kinds).toContain('unresolved_figure');
+    expect(kinds).not.toContain(A.canary);
+    const file = await app.inject({ method: 'GET', url: `${P}/exports/${ex.json().id}/file`, headers: H.bob! });
+    expect(file.statusCode).toBe(200);
+    expect(seen(file)).not.toContain(A.canary);
   });
 
   // review M1: what the sweep really reaches. The owner's own well-formed path (their own ids of the right

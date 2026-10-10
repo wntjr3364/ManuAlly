@@ -15,6 +15,8 @@ export interface Decision { decision: 'allowed' | 'pending_manual' | 'refused'; 
 
 const SEVERE: readonly Severity[] = ['critical', 'high'];
 export const REQUIRED_AREAS = ['SEC-IDOR-AUTH', 'SEC-INJECTION', 'SEC-EGRESS', 'SEC-SEND-POLICY', 'SEC-CREDENTIAL', 'SEC-PARSER', 'SEC-AUTH', 'SEC-REDACTION', 'SEC-SUPPLY'] as const;
+// the manual checks a release needs (re-review m1): taking one out of manual-checks.json does not skip it
+export const REQUIRED_MANUAL = ['MAN-LIVE-SANDBOX', 'MAN-DEPLOY-TLS'] as const;
 
 export function evaluateGate(a: Audit): Decision {
   const refuse: string[] = [];
@@ -24,6 +26,7 @@ export function evaluateGate(a: Audit): Decision {
   // an audit is of a commit: results of a working tree with uncommitted changes name no release (review n1)
   if (a.dirty !== false) refuse.push(a.dirty ? 'the audit ran on uncommitted changes (commit first)' : 'the audit does not say whether the tree was clean');
   for (const id of REQUIRED_AREAS) if (!a.suites.some((s) => s.id === id && s.required && s.kind === 'automated')) refuse.push(`${id}: the required suite is missing from the audit`);
+  for (const id of REQUIRED_MANUAL) if (!a.suites.some((s) => s.id === id && s.required && s.kind === 'manual')) refuse.push(`${id}: the required manual check is missing from the audit`);
   for (const s of a.suites) {
     if (!s.required) continue;
     if (s.kind === 'automated') {

@@ -10,6 +10,31 @@ import { migrate } from '../../apps/api/src/db/migrate.ts';
 
 const JOB = 'written only by the worker for the job it runs (the job carries its paper; nothing in the request names it)';
 const SIBLING = 'the same row also references the parent with paper_id (composite key), which fixes the paper';
+// array columns holding ids of other records: who writes them, and where the paper is checked
+const ID_ARRAYS: Record<string, string> = {
+  'outline_nodes.claim_ids': 'request (outline save): a record id must be a claim of this paper — createOutlineRevision (F-05); sweep.int.test.ts "outline node claim ids"',
+  'outline_nodes.evidence_ids': 'request (outline save): a record id must be an evidence record of this paper — createOutlineRevision (F-05); sweep.int.test.ts "outline node evidence ids"',
+  'agent_run_tokens.handle_ids': 'worker (run token issue): every handle must be a selection handle of the token\'s paper and document — issueRunToken (PW-027)',
+  'curation_runs.search_ids': 'request → job payload: the worker stores the run only when every search is this paper\'s — curation loadInput; sweep.int.test.ts "curation runs"',
+  'paragraph_proposals.claim_ids': 'worker: only ids in the paragraph contract (contracts/writing "claim_not_in_contract"), which is read with the paper filter (nodeScope)',
+  'paragraph_proposals.fact_ids': 'worker: only ids in the paragraph contract (contracts/writing), read with the paper filter (nodeScope)',
+  'review_repairs.finding_ids': 'server: the accepted findings of this paper\'s review run (the repair request names no finding) — scientific-review requestRepair',
+};
+const NOT_IDS: Record<string, string> = {
+  'agent_run_tokens.tools': 'gateway tool names',
+  'curation_assessments.warnings': 'message codes',
+  'figure_review_flags.reasons': 'reason codes',
+  'outline_nodes.exclusions': 'the owner\'s text (prohibited inferences)',
+  'paper_projects.allowed_providers': 'provider names',
+  'paragraph_proposals.warnings': 'message codes',
+  'pdf_pages.flags': 'parser flags',
+  'pdf_pages.view_box': 'page geometry (numbers)',
+  'reference_import_items.warnings': 'message codes',
+  'review_findings.warnings': 'message codes',
+  'story_alternatives.blocked_reasons': 'reason codes',
+  'story_alternatives.warnings': 'message codes',
+  'usage_events.unknown_fields': 'names of fields the provider did not report',
+};
 const EXCEPTIONS: Record<string, string> = {
   'agent_run_tokens(job_id)->jobs(id)': `${JOB}; tool calls are scoped by the token's paper (PW-027, tests/security/injection.int.test.ts)`,
   'curation_runs(job_id)->jobs(id)': JOB,
@@ -67,4 +92,16 @@ describe('TST-059A: the database refuses cross-paper references', () => {
     expect(unscoped.filter((k) => !EXCEPTIONS[k]), 'a new key without paper_id: add paper_id, or review it here').toEqual([]);
     expect(Object.keys(EXCEPTIONS).filter((k) => !unscoped.includes(k)).sort(), 'an exception that no longer exists: remove it').toEqual([]);
   });
+
+  // re-review M1': ids kept in array columns have no foreign key; each is listed with who writes it and where
+  // the paper is checked (and the test that shows it). Arrays that hold no record ids are listed as such.
+  test('every array column is a reviewed id list (with its paper check) or holds no record ids', async () => {
+    const { rows } = await pool.query<{ k: string }>(`SELECT c.table_name || '.' || c.column_name AS k FROM information_schema.columns c JOIN information_schema.tables t USING (table_schema, table_name)
+      WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE' AND c.data_type = 'ARRAY' ORDER BY 1`);
+    const cols = rows.map((r) => r.k);
+    const classified = { ...ID_ARRAYS, ...NOT_IDS };
+    expect(cols.filter((k) => !classified[k]), 'a new array column: list it in ID_ARRAYS (with its paper check) or NOT_IDS').toEqual([]);
+    expect(Object.keys(classified).filter((k) => !cols.includes(k)).sort(), 'a listed column that no longer exists: remove it').toEqual([]);
+  });
 });
+

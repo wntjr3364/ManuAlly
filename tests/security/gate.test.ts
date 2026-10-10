@@ -1,10 +1,11 @@
 // PW-059 — TST-059B: the security release gate refuses a critical/high leak, IDOR or host-access finding
 // left open, any required test not run or skipped (never hidden), and a risk accepted by anyone but the user.
 import { describe, expect, test } from 'vitest';
-import { evaluateGate, REQUIRED_AREAS, type Audit, type Suite } from './gate.ts';
+import { evaluateGate, REQUIRED_AREAS, REQUIRED_MANUAL, type Audit, type Suite } from './gate.ts';
 
 const auto = (id: string, over: Partial<Suite> = {}): Suite => ({ id, title: id, kind: 'automated', required: true, status: 'passed', counts: { passed: 3, failed: 0, skipped: 0 }, evidence: 'tests/x', ...over });
-const base = (): Audit => ({ audited_at: '2026-10-10T00:00:00Z', commit: 'abc', dirty: false, suites: [...REQUIRED_AREAS.map((id) => auto(id)), { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: 'reports/x.md', checked_by: 'user', checked_at: '2026-10-10' }], findings: [] });
+const man = (id: string, over: Partial<Suite> = {}): Suite => ({ id, title: 'live', kind: 'manual', required: true, status: 'passed', evidence: 'reports/x.md', checked_by: 'user', checked_at: '2026-10-10', ...over });
+const base = (): Audit => ({ audited_at: '2026-10-10T00:00:00Z', commit: 'abc', dirty: false, suites: [...REQUIRED_AREAS.map((id) => auto(id)), ...REQUIRED_MANUAL.map((id) => man(id))], findings: [] });
 const with_ = (f: (a: Audit) => void) => { const a = base(); f(a); return a; };
 
 describe('TST-059B: the release gate', () => {
@@ -39,16 +40,25 @@ describe('TST-059B: the release gate', () => {
     expect(evaluateGate(with_((a) => { a.suites = a.suites.map((x) => (x.id === 'SEC-AUTH' ? { ...x, required: false } : x)); })).decision).toBe('refused');
   });
   test('a manual check without evidence is pending, never allowed; a failed one refuses', () => {
-    expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'pending', evidence: '' }; }))).toMatchObject({ decision: 'pending_manual' });
-    expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: '', checked_by: 'user', checked_at: '2026-10-10' }; })).decision).toBe('pending_manual');
-    expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'failed', evidence: 'x' }; })).decision).toBe('refused');
+    expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-DEPLOY-TLS', title: 'live', kind: 'manual', required: true, status: 'pending', evidence: '' }; }))).toMatchObject({ decision: 'pending_manual' });
+    expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-DEPLOY-TLS', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: '', checked_by: 'user', checked_at: '2026-10-10' }; })).decision).toBe('pending_manual');
+    expect(evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-DEPLOY-TLS', title: 'live', kind: 'manual', required: true, status: 'failed', evidence: 'x' }; })).decision).toBe('refused');
   });
   test('review m3: a manual check counts only when the user recorded it with a date and evidence', () => {
-    const manual = (o: Partial<Suite>) => evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-1', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: 'x', checked_by: 'user', checked_at: '2026-10-10', ...o }; })).decision;
+    const manual = (o: Partial<Suite>) => evaluateGate(with_((a) => { a.suites[a.suites.length - 1] = { id: 'MAN-DEPLOY-TLS', title: 'live', kind: 'manual', required: true, status: 'passed', evidence: 'x', checked_by: 'user', checked_at: '2026-10-10', ...o }; })).decision;
     expect(manual({})).toBe('allowed');
     expect(manual({ checked_by: 'claude' })).toBe('pending_manual');
     expect(manual({ checked_by: null })).toBe('pending_manual');
     expect(manual({ checked_at: null })).toBe('pending_manual');
+  });
+  test('re-review m1: a required manual check left out of the record refuses (removing it is not passing it)', () => {
+    for (const id of REQUIRED_MANUAL) {
+      const d = evaluateGate(with_((a) => { a.suites = a.suites.filter((s) => s.id !== id); }));
+      expect(d.decision).toBe('refused');
+      expect(d.reasons.join()).toContain(`${id}: the required manual check is missing`);
+      expect(evaluateGate(with_((a) => { a.suites.find((s) => s.id === id)!.required = false; })).decision).toBe('refused');
+    }
+    expect(evaluateGate(with_((a) => { a.suites = a.suites.filter((s) => s.kind !== 'manual'); })).decision).toBe('refused');
   });
   test('review n1: an audit of uncommitted changes, or one that does not say, refuses', () => {
     expect(evaluateGate(with_((a) => { a.dirty = true; })).decision).toBe('refused');

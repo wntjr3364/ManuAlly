@@ -1,0 +1,33 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/security/sweep.int.test.ts (9 tests | 1 failed | 8 skipped) 4267ms
+   ❯ TST-059A: IDOR — another owner's paper and ids (4)
+     × targeted cross-paper references: refused with the other owner's id, accepted with one's own, never kept 252ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/security/sweep.int.test.ts > TST-059A: IDOR — another owner's paper and ids > targeted cross-paper references: refused with the other owner's id, accepted with one's own, never kept
+AssertionError: outline node claim ids with the other owner's id: 201 {"id":"ee95b604-3607-4aad-aabb-a9310dcc9202","paper_id":"5ad21a9c-d2ac-4b58-9ed2-fa75322aed23","story_revision_id":"46d63ad7-f2c8-40c1-8bbb-b65438accac0","parent_revision_id":"d13c0f09-cb5c-4aaf-b1e2-0b1f82ccb2f8","content_hash":"7f847aacb862d3dfccbad7e0c7259406d810a1d323314eec635f9b0ce9148d36","status":"DRAFT","created_by":"d3e9ac72-065e-4db8-ad0f-eb156b689520","created_at":"2026-10-10T11:05:15.382Z","approved_by":null,"approved_at":null,"superseded_at":null,"impact_review_required":false,"nodes":[{"node_id":"4fb77932-09ca-410a-aa2e-98be47b96f97","parent_node_id":null,"position":0,"section":"Results","role":"result","paragraph_goal":"audit","claim_ids":["1bb163ad-7a80-4f97-b114-f1af944e3222"],"evidence_ids":["a0bb5f88-be99-4204-afdd-50e37eacc871"],"requires_evidence":true,"allowed_interpretation":"","exclusions":[],"transition":"","word_budget_min":null,"word_budget_max":null,"approved_by":null,"approved_at":null,"status":"IMPACT_REVIEW_REQUIRED"}]}: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/security/sweep.int.test.ts:291:141
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 8 skipped (9)
+   Start at  11:05:08
+   Duration  7.33s (tests 60%, transform 32%, import 7%)
+
+  Transform  transforming modules took 2.29s · 32% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

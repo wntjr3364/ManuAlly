@@ -26,5 +26,12 @@
     "severity": "low",
     "status": "fixed",
     "evidence": "tests/security/static.test.ts (every spawn names its environment); fix: infra/sandbox/sandbox.ts gives the probes PATH only"
+  },
+  {
+    "id": "F-05",
+    "title": "An outline node's claim_ids and evidence_ids were checked for form only; a node could name another paper's claim or evidence, and another paper's evidence id satisfied 'requires evidence' for approval (no content leaked: readers filter by paper)",
+    "severity": "medium",
+    "status": "fixed",
+    "evidence": "tests/security/sweep.int.test.ts targeted cases 'outline node claim ids' / 'outline node evidence ids' (RED: reports/tasks/PW-059/red-F05.log); tests/security/schema.int.test.ts classifies every array column; fix: packages/domain/src/outlines/index.ts createOutlineRevision requires a record id to be a claim / evidence record of the paper (RFC-014 appendix PW-059)"
   }
 ]

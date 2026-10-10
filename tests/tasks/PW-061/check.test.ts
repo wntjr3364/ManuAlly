@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { checkDeployment, fsTypeOf, lockfileSha, type DeployConfig, type Pins, type Probe, type UpgradeRecord } from '../../../infra/deploy/check.ts';
 import { RotatingLog } from '../../../infra/deploy/logs.ts';
+import { ADDS_FILES } from '../../../infra/deploy/serve.ts';
 import { childEnv, loadVersions } from '../../../infra/deploy/pwctl.ts';
 
 const tmp: string[] = [];
@@ -39,6 +40,8 @@ describe('TST-061B: the deployment check', () => {
 
   test('storage: a container layer or memory, no cap, a tiny cap, or unbounded logs are refused', () => {
     for (const t of ['overlay', 'tmpfs', 'ramfs', 'aufs']) refused(run(cfg(), probe({ fsType: () => t })), new RegExp(`on ${t}: not a durable volume`));
+    refused(run(cfg(), probe({ fsType: () => 'unknown' })), /could not be determined .* refused rather than assumed durable/);
+    expect(run(cfg({ max_data_bytes: 2 ** 52 })).warnings.join()).toMatch(/less than max_data_bytes .* the disk fills before the cap/);
     refused(run(cfg({ max_data_bytes: undefined as never })), /max_data_bytes must be set/);
     refused(run(cfg({ max_data_bytes: 100 * 1024 * 1024 })), /max_data_bytes must be set/);
     refused(run(cfg({ log: { max_bytes: 0, keep: 5 } })), /log\.max_bytes/);
@@ -80,6 +83,12 @@ describe('TST-061B: the deployment check', () => {
     refused(run(cfg(), env('postgres://pw:x@db.lab.example:5432/papers')), /sslmode=verify-full/);
     refused(run(cfg(), env('postgres://pw:x@db.lab.example:5432/papers?sslmode=require')), /sslmode=verify-full/);
     expect(run(cfg(), env('postgres://pw@db.lab.example:5432/papers?sslmode=verify-full')).ok).toBe(true);
+    // the same database however the URL spells it (review n2)
+    for (const test of ['postgres://pw@127.0.0.1/papers', 'postgres://pw@[::1]:5432/papers', 'postgres://other@localhost:5432/papers']) {
+      refused(run(cfg(), probe({ env: { PW_DATABASE_URL: 'postgres://pw@localhost/papers', PW_TEST_DATABASE_URL: test } })), /is the test database/);
+    }
+    refused(run(cfg(), probe({ env: { PW_DATABASE_URL: 'postgres://pw@x/papers?host=/run/pw/', PW_TEST_DATABASE_URL: 'postgres://pw@y/papers?host=/run/pw' } })), /is the test database/);
+    expect(run(cfg(), probe({ env: { PW_DATABASE_URL: 'postgres://pw@localhost:5433/papers', PW_TEST_DATABASE_URL: 'postgres://pw@localhost:5432/papers' } })).ok).toBe(true);
     refused(run(cfg(), probe({ env: {} })), /PW_DATABASE_URL is not set/);
     refused(run(cfg({ database_url_env: 'pw url' })), /database_url_env/);
   });
@@ -114,6 +123,9 @@ describe('TST-061B: the deployment check', () => {
     expect(fsTypeOf('/run/user/1000/pw', mounts)).toBe('tmpfs');
     expect(fsTypeOf('/home/u/pw', mounts)).toBe('ext4');
     expect(fsTypeOf('/datax/pw', mounts)).toBe('ext4');
+    // mount points with spaces or tabs are escaped octal in /proc/mounts (review n2)
+    expect(fsTypeOf('/mnt/my disk/pw', `${mounts}/dev/vdc /mnt/my\\040disk tmpfs rw 0 0\n`)).toBe('tmpfs');
+    expect(fsTypeOf('/mnt/a\tb/pw', `${mounts}/dev/vdc /mnt/a\\011b overlay rw 0 0\n`)).toBe('overlay');
   });
 });
 
@@ -145,6 +157,25 @@ describe('TST-061B: the supervisor gives its children a built environment, not i
     const named = childEnv(cfg({ database_url_env: 'PW_PROD_URL' }), { ...operator, PW_PROD_URL: 'postgres://pw@localhost/prod' }, '/x.json');
     expect(named.PW_PROD_URL).toBe('postgres://pw@localhost/prod');
     expect(named.PW_DATABASE_URL).toBe('postgres://pw@localhost/prod');
+  });
+});
+
+describe('TST-061B: over the size cap, every route that adds a file is refused', () => {
+  test('the routes that write into the data root are all caught; editing is not', () => {
+    const P = '/api/papers/00000000-0000-4000-8000-000000000000';
+    // every route that stores a file (asset store or export row): reviewed list (review m3)
+    const writes: [string, string][] = [
+      [`${P}/assets?license=cc-by`, 'application/pdf'],
+      [`${P}/assets/fetch`, 'application/json'],
+      [`${P}/figures/f/files?name=a.png`, 'image/png'],
+      [`${P}/imports`, 'application/json'],
+      [`${P}/imports?name=a.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      [`${P}/exports`, 'application/json'],
+      [`${P}/submissions`, 'application/json'],
+    ];
+    for (const [url, type] of writes) expect(ADDS_FILES('POST', url, type), url).toBe(true);
+    for (const url of [`${P}/documents/d/saves`, `${P}/story/revisions`, `${P}/assets/a/anchors`, `${P}/snapshots`]) expect(ADDS_FILES('POST', url, 'application/json; charset=utf-8'), url).toBe(false);
+    expect(ADDS_FILES('GET', `${P}/exports`, 'application/json')).toBe(false);
   });
 });
 

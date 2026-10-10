@@ -17,17 +17,22 @@
 2. **AI 일시 중지**: `pwctl pause-ai --reason "upgrade <구성요소>"`.
 3. 새 버전을 설치한다(사용자 권한). 앱 코드 업데이트라면 `git pull`, `pnpm install --frozen-lockfile`, 웹 빌드.
 4. **확인**: `pwctl verify-upgrade <구성요소> <설치된 정확한 버전>`
+   - 지금 설치된 버전만 확인할 수 있다. 다른 버전을 적으면 거부한다.
    - `versions.json`의 `verify_commands`(typecheck, unit, contract 시험)를 실행한다.
    - 결과는 `<data_root>/run/upgrades.json`에 기록된다.
    - 실패하면 pin을 바꾸지 않는다. 이전 버전으로 돌아가거나, 깨진 공급자만 끈다(수동 편집은 계속 쓸 수 있다).
 5. **pin 변경**: 통과한 버전으로 `versions.json`을 고쳐 커밋한다. 앱 코드 변경이면 저장소 쪽에서 `pnpm test` 전체를 통과한 커밋이어야 한다.
-6. **migration**: `pwctl migrate`. 데이터가 있는 DB는 먼저 PW-060 백업을 만들고(실패하면 멈춤) 그 다음 적용한다. 서버는 schema가 현재가 아니면 시작하지 않는다.
-7. `pwctl stop`, 그 다음 `pwctl run`(또는 `systemctl --user restart paper-workspace`). `pwctl status`를 확인한다.
+6. **중지**: `pwctl stop`(또는 `systemctl --user stop paper-workspace`).
+   - `migrate`는 앱이 돌고 있으면 거부한다. 그래야 백업이 마지막 상태이고, 옛 프로세스가 새 schema에서 돌지 않는다.
+7. **migration**: `pwctl migrate`.
+   - 데이터가 있는 DB는 먼저 PW-060 백업을 만든다. 백업이 실패하면 멈춘다.
+   - 그 다음 migration을 적용한다. 서버는 schema가 현재가 아니면 시작하지 않는다.
+   - 그 다음 `pwctl run`(또는 `systemctl --user start paper-workspace`)으로 시작하고 `pwctl status`를 확인한다.
 8. `pwctl resume-ai --reason "upgrade checked"`.
 
 ## 되돌리기
 - 데이터를 지우는 down migration은 쓰지 않는다.
-- 문제가 있으면 6의 백업을 새 DB와 asset 폴더에 복원한다(PW-060 `restore`). 설정의 DB와 data root를 그쪽으로 바꾼다.
+- 문제가 있으면 7의 백업을 새 DB와 asset 폴더에 복원한다(PW-060 `restore`). 설정의 DB와 data root를 그쪽으로 바꾼다.
 - 또는 앞으로 고치는 migration(forward fix)을 만든다.
 
 ## AI CLI(Claude Code, Codex)

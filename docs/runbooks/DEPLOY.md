@@ -32,6 +32,7 @@ df -h /data/paper-workspace              # 용량 확인
   createdb -h /data/paper-workspace-pg/socket -p 54330 -U pw paper_workspace
   ```
   - 클러스터 폴더는 data root 밖에 둔다. data root 상한은 파일 저장소를 위한 것이다.
+  - **PostgreSQL 자신의 데이터와 로그는 이 상한에 들지 않는다.** 그 크기는 PostgreSQL 설정과 디스크 용량으로 따로 관리한다. `pwctl status`의 `logs_bytes`도 앱 로그만 센다.
   - 같은 디스크라면 둘 다 디스크 용량에 함께 넣어 계산한다.
 - 연결 URL은 환경 파일에 둔다. `~/.config/paper-workspace/env`, 0600, git 밖이다.
   ```

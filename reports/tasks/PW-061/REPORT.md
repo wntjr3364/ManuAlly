@@ -1,5 +1,5 @@
 # PW-061 — 배포·storage·upgrade runbook — REPORT
-상태: in_review (2026-10-10)
+상태: in_review (2026-10-10) — 독립 리뷰 approve(MINOR 5·NIT 4 반영)
 
 ## 무엇을 했나
 sudo 없이 사용자 계정으로 돌리는 개인 설치 하나를 위한 배포 도구와 runbook이다(사용자 결정: 개인 PC와 연구실 서버, 자기 계정).
@@ -112,6 +112,31 @@ TST-061B가 보이는 것
 - 실행 중인 AI 호출은 멈춤 때 즉시 끊지 않는다. 결과를 버리고 나중에 다시 한다. 실제 공급자에서는 그 호출만큼 사용량이 든다.
 - `verify-upgrade`의 기본 확인은 typecheck, unit, contract다. 통합 시험은 DB가 있는 개발 환경에서 따로 돌려야 한다.
 - 컨테이너(Docker) 배포는 다루지 않는다(사용자 결정: sudo 없음). Docker socket은 쓰지 않는다.
+
+## 독립 리뷰(approve) — 반영
+- **m1** `migrate`가 앱 실행 중에도 돌아, 백업이 마지막 상태가 아니고 옛 프로세스가 새 schema에서 돌 수 있었다.
+  - 실행 중이면 거부한다.
+  - runbook 순서를 중지 → migrate(백업 포함) → 시작으로 바꿨다.
+- **m2** `state.json`을 그대로 믿어 재부팅 뒤 다른 프로세스에 신호를 보낼 수 있었고, 두 번째 supervisor도 막지 않았다.
+  - pid와 함께 시작 시각(`/proc/<pid>/stat`)과 명령(`pwctl.ts run`)이 맞을 때만 실행 중으로 본다.
+  - 남은 파일은 `stop`이 지우고 신호를 보내지 않는다(시험: 같은 사용자의 `sleep` 프로세스는 살아 있다).
+  - 실행 중이면 `run`은 거부한다.
+- **m3** 디스크 상한 507이 공개 PDF 가져오기(`assets/fetch`, JSON 본문)를 놓쳤다. 추가했고, 파일을 쓰는 route 목록 전체를 시험한다.
+- **m4** 설치되지 않은 버전의 `verify-upgrade` 기록이 가능했다. 지금 설치된 버전과 같아야 한다.
+- **m5** CSP 브라우저 확인이 로그인만 덮었다.
+  - PDF 보기(pdf.js와 그 worker), worker의 텍스트 추출, 편집기 입력·저장까지 넓혔다.
+  - 그러자 **실제 위반**이 나왔다. 편집기 Tiptap이 inline `<style>`을 넣었고 `style-src 'self'`가 막았다.
+  - `injectCSS: false`로 끄고 같은 CSS를 stylesheet로 낸다(`apps/web/src/editor/prosemirror-base.css`, Tiptap 3.31.3와 바이트 대조).
+  - CSP에 `unsafe-inline`은 넣지 않았다. RFC-014 부록에 기록했다.
+- **n1** 멈춤 확인과 결과 저장 사이의 짧은 틈을 코드 주석과 OPERATIONS에 적었다. 버린 실행도 실행 횟수에 든다는 점도 적었다.
+- **n2**
+  - 알 수 없는 파일시스템은 거부한다.
+  - `/proc/mounts`의 8진 escape를 모두 푼다.
+  - 같은 DB 판단에서 localhost·127.0.0.1·::1과 기본 포트 5432를 같게 본다.
+  - 디스크 여유가 상한보다 작으면 경고한다.
+  - 헤더 주석의 없는 규칙을 고쳤다.
+- **n3** 잘못된 URL escape는 router가 400으로 거부한다(500 아님, 시험). 처리기에도 대비를 넣었다.
+- **n4** DEPLOY에 PostgreSQL 데이터·로그는 data root 상한 밖이라고 적었다.
 
 ## 다음
 PW-062(최종 pilot gate)

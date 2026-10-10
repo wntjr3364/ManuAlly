@@ -3,6 +3,8 @@
 // running when the pause came is let finish its call, but its result is not applied: the job waits and runs
 // again after the pause is lifted (nothing an AI produced during a pause reaches a paper). Manual editing
 // and non-AI jobs (PDF parsing) are never affected: only the handlers wrapped here wait.
+// The pause is read again right after the call returns; a pause set between that read and the commit of the
+// result (completeJob) does not stop that one result (documented in docs/runbooks/OPERATIONS.md).
 import type { TxPool } from '@pw/domain/shared/db.ts';
 import { JobDeferred, type JobHandler } from '../queue/index.ts';
 

@@ -125,6 +125,14 @@ describe('TST-061A: a private deployment that reports its state and stops safely
     expect(await (await fetch(`${origin}/papers/x`)).text()).toBe(html);
     expect(await (await fetch(`${origin}/..%2f..%2f..%2fetc%2fpasswd`)).text()).toBe(html);
     expect((await fetch(`${origin}/api/no-such-route`)).status).toBe(404);
+    expect((await fetch(`${origin}/%E0%A4%A`)).status).toBe(400); // a malformed escape: refused by the router, never a 500
+    // while it runs: no second supervisor, no migration (review m1, m2)
+    const second = ctl(['run'], env);
+    expect(second.code).toBe(1);
+    expect(second.stderr).toMatch(/a supervisor is already running \(pid \d+\)/);
+    const mig = ctl(['migrate'], env);
+    expect(mig.code).toBe(1);
+    expect(mig.json.refused).toMatch(/the app is running .* `pwctl stop` first, then migrate, then run/);
     // nothing listens beyond loopback
     const outward = os.networkInterfaces();
     const lan = Object.values(outward).flat().find((i) => i && i.family === 'IPv4' && !i.internal)?.address;
@@ -143,6 +151,26 @@ describe('TST-061A: a private deployment that reports its state and stops safely
       await p.getByLabel('비밀번호').fill('correct horse battery');
       await p.getByRole('button', { name: '로그인' }).click();
       await p.getByRole('button', { name: '로그아웃' }).waitFor({ timeout: 15_000 });
+      // the PDF viewer (pdf.js and its worker), text extraction by the worker, and the editor (review m5)
+      await p.getByLabel('새 논문 제목').fill('CSP paper');
+      await p.getByRole('button', { name: '새 논문' }).click();
+      await p.getByRole('link', { name: 'CSP paper' }).click();
+      await p.getByRole('tab', { name: '원문' }).click();
+      await p.getByLabel('PDF 파일').setInputFiles({ name: 'synthetic-kim-2021.pdf', mimeType: 'application/pdf', buffer: PAPER_V1() });
+      await p.getByLabel('라이선스').selectOption('cc-by');
+      await p.getByRole('button', { name: '올리기' }).click();
+      const item = p.getByTestId('asset').filter({ hasText: 'synthetic-kim-2021.pdf' });
+      await item.getByRole('button', { name: '열기' }).click();
+      await until(() => `pdf.js drew the page (${violations.join(' | ')})`, async () => Number(await p.getByTestId('page-canvas').getAttribute('width').catch(() => '0')) > 100, 20_000);
+      await p.getByRole('button', { name: '텍스트 추출' }).click();
+      const extracted = async () => { await p.getByRole('button', { name: '새로 고침' }).click(); return p.getByTestId('extraction-status').textContent(); };
+      await until('the worker extracted the text', async () => (await extracted()) === '텍스트 추출됨', 30_000);
+      await p.getByRole('tab', { name: '원고' }).click();
+      await p.getByRole('button', { name: '원고 만들기' }).click();
+      await p.getByTestId('editor').locator('.ProseMirror').click();
+      await p.keyboard.type('Typed under the production CSP.');
+      await p.getByRole('button', { name: '저장' }).click();
+      await p.getByTestId('save-status').filter({ hasText: '저장됨' }).waitFor({ timeout: 15_000 });
       expect(violations).toEqual([]);
     } finally { await browser.close(); }
   }, 180_000);
@@ -221,10 +249,27 @@ describe('TST-061A: a private deployment that reports its state and stops safely
     expect(after.json.processes).toBe('not running');
     expect(after.json.health.ok).toBe(false);
     expect(ctl(['stop'], env).json).toEqual({ stopped: true, note: 'was not running' });
+    // a state file left by a crash whose pid now belongs to another process: not running, and not signalled (review m2)
+    const other = spawn('sleep', ['60'], { stdio: 'ignore' });
+    await new Promise((r) => setTimeout(r, 200));
+    fs.writeFileSync(path.join(root, 'run', 'state.json'), JSON.stringify({ pid: other.pid, pid_start: null, api_pid: null, worker_pid: null, started_at: '2026-01-01T00:00:00Z' }));
+    expect(ctl(['status'], env).json.processes).toBe('not running');
+    expect(ctl(['stop'], env).json).toEqual({ stopped: true, note: 'was not running' });
+    expect(other.exitCode).toBeNull();
+    expect(() => process.kill(other.pid!, 0)).not.toThrow();
+    other.kill('SIGKILL');
   }, 300_000);
 });
 
 describe('TST-061B: refused before anything starts, backups before migrations, the size cap', () => {
+  test('an upgrade check is recorded only for the version that is installed (review m4)', () => {
+    const r = ctl(['verify-upgrade', 'node', '99.0.0'], env);
+    expect(r.code).toBe(1);
+    expect(r.stderr).toMatch(/node 99\.0\.0 is not what is installed \(\d+\.\d+\.\d+\)/);
+    expect(fs.existsSync(path.join(root, 'run', 'upgrades.json'))).toBe(false);
+    expect(ctl(['verify-upgrade', 'node', 'latest'], env).code).toBe(1);
+  });
+
   test('a config the check refuses starts nothing', async () => {
     const bad = path.join(newDir('pw061-bad-'), 'deploy.json');
     const p2 = await freePort();

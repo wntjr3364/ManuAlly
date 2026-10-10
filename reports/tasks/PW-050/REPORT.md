@@ -83,4 +83,6 @@ PW-051: lease fencing·경합·outbox 복구
 - GREEN: 통합 19
   - 처음 sweep 시험이 정확한 개수(1)를 기대했다. 같은 DB의 다른 시험이 남긴 미정산 예약도 정산하는 것이 맞으므로 "적어도 1"과 이 작업의 상태로 바꿨다.
 - mutation(`mutation.log` 하단): 8종 모두 탐지
-- 회귀: (아래 채움)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 538, contracts 17, 브라우저 95 (`pnpm-test-review.log`)
+
+- 리뷰 결론: approve(MAJOR 없음). 반영분은 작은 수정(통합 19, mutation 8/8, 전체 회귀 통과)이라 재리뷰 없이 닫는다.

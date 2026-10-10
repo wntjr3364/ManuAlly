@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P05 완료(사용자 위임, `reports/p05/P05_GATE.md`), P06 진행**. P04 완료(사용자 위임), RFC-010 approve. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 리뷰 approve. PW-043 리뷰 approve. PW-044 리뷰 approve. PW-045 리뷰 approve. PW-046 리뷰 approve(3차; 제목 판별 MINOR 2건은 남은 위험으로 기록). P05 gate: `reports/p05/P05_GATE.md`(위임). P06 연결 파일은 RFC-013(위임 채택). PW-047 리뷰 approve(재리뷰; NIT 반영). PW-048 리뷰 approve(재리뷰; NIT 반영·기록). PW-049 리뷰 approve(MINOR·NIT 반영·기록). PW-050 in_review(리뷰 대기).
+- 현재 단계: **P05 완료(사용자 위임, `reports/p05/P05_GATE.md`), P06 진행**. P04 완료(사용자 위임), RFC-010 approve. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 리뷰 approve. PW-043 리뷰 approve. PW-044 리뷰 approve. PW-045 리뷰 approve. PW-046 리뷰 approve(3차; 제목 판별 MINOR 2건은 남은 위험으로 기록). P05 gate: `reports/p05/P05_GATE.md`(위임). P06 연결 파일은 RFC-013(위임 채택). PW-047 리뷰 approve(재리뷰; NIT 반영). PW-048 리뷰 approve(재리뷰; NIT 반영·기록). PW-049 리뷰 approve(MINOR·NIT 반영·기록). PW-050 리뷰 approve(MINOR·NIT 반영·기록).
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).
@@ -80,7 +80,7 @@
 | PW-047 | in_review | (P06) | REQ-047 / TST-047A,B | 통합 13(리뷰 반영), mutation 17+12종 탐지(+동등 2), `pnpm test` exit 0(리뷰 반영) | 실제 provider 세션 교체·compact 미실행, checkpoint는 Writer에만 연결, 화면 표시 없음, 예산 예약 UNKNOWN |
 | PW-048 | in_review | (P06) | REQ-048 / TST-048A,B | 통합 21(리뷰 반영), mutation 21+13종 탐지, `pnpm test` exit 0(리뷰 반영) | 대역 세션만(실제 adapter 연결·Codex compaction RPC는 live smoke), 지금 Claude·Codex 모두 새 세션 경로(compaction 미검증), 모델 window 표 없음 |
 | PW-049 | in_review | (P06) | REQ-049 / TST-049A,B | 통합 16(리뷰 반영), mutation 23+6종 탐지(+동등 1), `pnpm test` exit 0(리뷰 반영) | 실제 가용성 probe 없음(worker는 "모름"), 실제 429 연결은 provider run 경로, 허락·대기 화면 없음(API만), quota 재개가 재시도 횟수를 씀 |
-| PW-050 | in_review | (P06) | REQ-050 / TST-050A,B | 통합 13, mutation 30종 탐지, `pnpm test` exit 0 | 실제 공급자 비용 보고 미시험, 구독의 유료 추가 사용 차단은 공급자 설정(live smoke), 예산 화면 없음 |
+| PW-050 | in_review | (P06) | REQ-050 / TST-050A,B | 통합 19(리뷰 반영), mutation 30+8종 탐지, `pnpm test` exit 0(리뷰 반영) | 실제 공급자 비용 보고 미시험, 구독의 유료 추가 사용 차단은 공급자 설정(live smoke), 예산 화면 없음, WAITING_BUDGET 재개 경로 없음, 공급자 쪽 유료 추가 사용 감지 불가 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

@@ -1,0 +1,26 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-048/context.int.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-048/context.int.test.ts [ tests/tasks/PW-048/context.int.test.ts ]
+Error: Cannot find module '../../../apps/worker/src/context/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-048/context.int.test.ts
+ ❯ tests/tasks/PW-048/context.int.test.ts:24:1
+     22| import { jobCheckpoints } from '../../../apps/worker/src/checkpoints/i…
+     23| import { JobOutcomeError } from '../../../apps/worker/src/queue/index.…
+     24| import { canStartTurn, listContextSwitches, readContext, requestBudget…
+       | ^
+     25| import type { ProviderEvent } from '../../../packages/contracts/src/pr…
+     26|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  02:11:26
+   Duration  2.15s (worker 97%, environment 3%)
+
+exit 1

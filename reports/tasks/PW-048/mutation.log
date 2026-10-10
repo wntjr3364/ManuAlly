@@ -1,0 +1,22 @@
+KILLED cumulative totals count as occupancy
+KILLED window from message scope only
+KILLED no estimate fallback
+KILLED unknown window as 0
+KILLED switch only by occupancy
+KILLED switch at 90%
+KILLED no review state
+KILLED tool payload ignored
+KILLED gate ignores open turn
+KILLED gate ignores open tools
+KILLED gate ignores unconfirmed compaction
+KILLED compaction used without verification
+SURVIVED unconfirmed compaction trusted
+KILLED no checkpoint before switching
+KILLED new session not from rehydrated state
+SURVIVED readings kept after switch
+KILLED incomplete turn tolerated
+KILLED switch records not fenced
+# after added tests
+KILLED unconfirmed compaction trusted (2)
+KILLED readings kept after switch (2)
+KILLED no re-check after switch

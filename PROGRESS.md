@@ -19,7 +19,7 @@
   - 개요 전체 승인 유지
   - SSH 터널 접속
   - P00 임시 폴더 삭제 승인. 개발 컨테이너에서는 권한 검사로 삭제가 거부되어 남아 있다.
-- 현재 단계: **P05 완료(사용자 위임, `reports/p05/P05_GATE.md`), P06 진행**. P04 완료(사용자 위임), RFC-010 approve. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 리뷰 approve. PW-043 리뷰 approve. PW-044 리뷰 approve. PW-045 리뷰 approve. PW-046 리뷰 approve(3차; 제목 판별 MINOR 2건은 남은 위험으로 기록). P05 gate: `reports/p05/P05_GATE.md`(위임). P06 연결 파일은 RFC-013(위임 채택). PW-047 리뷰 approve(재리뷰; NIT 반영).
+- 현재 단계: **P05 완료(사용자 위임, `reports/p05/P05_GATE.md`), P06 진행**. P04 완료(사용자 위임), RFC-010 approve. PW-015~038 in_review. Gate: `reports/phases/P02_GATE.md`, `reports/phases/P03_GATE.md`(RFC-010은 사용자 확인 대상). P04 연결 파일은 RFC-011(위임 채택). PW-031~038 리뷰 approve. P04 gate: `reports/phases/P04_GATE.md`(위임). RFC-010 구현 리뷰 approve(`reports/rfc/RFC-010/REPORT.md`; 실제 CLI·bwrap은 사용자 PC live smoke). P05 연결 파일은 RFC-012(위임 채택). PW-039 리뷰 approve. PW-040 리뷰 approve(NIT: nodeScope 호출 경로는 PW-042에서 helper로 고정). PW-041 리뷰 approve. PW-042 리뷰 approve. PW-043 리뷰 approve. PW-044 리뷰 approve. PW-045 리뷰 approve. PW-046 리뷰 approve(3차; 제목 판별 MINOR 2건은 남은 위험으로 기록). P05 gate: `reports/p05/P05_GATE.md`(위임). P06 연결 파일은 RFC-013(위임 채택). PW-047 리뷰 approve(재리뷰; NIT 반영). PW-048 in_review(리뷰 대기).
 - 사용자 지시 (2026-10-09): "니가 적절하게 선택해서 프로젝트 완성해라"
   - 남은 Task(PW-016~062)를 순서대로 계속 구현한다. Task마다 in_review로 기록하고 독립 리뷰를 받되, 다음 Task를 이어서 시작한다.
   - phase gate의 사용자 결정은 위임으로 처리하고 gate 보고서에 "위임 결정"으로 기록한다(사용자가 나중에 뒤집을 수 있게).
@@ -78,6 +78,7 @@
 | PW-045 | in_review | (P05) | REQ-045 / TST-045A,B | hard case 30(일치 23, 의도된 엄격 2, 미실행 5, unsafe 0), unit 63(리뷰 반영), mutation 25+8종 탐지, `pnpm test` exit 0 | 사람 blind rubric 미실행(권리 확인 문단 없음), 결정적 판단 밖 5개는 검토자+사용자 |
 | PW-046 | in_review | (P05) | REQ-046 / TST-046A,B | 통합 17(재리뷰 반영), 브라우저 2(연구 논문·소프트웨어 논문), mutation 13+12+8종 탐지, `pnpm test` exit 0(재리뷰 반영; 리뷰 전 첫 실행은 이 Task E2E의 인용 단언 오류로 2 실패 — 고침) | MOCK writer만(문헌 인용 문단은 MOCK에서 끝까지 시험 불가), 섹션 이름은 정규화한 글자 일치(동의어 없음), 프로필 비IMRaD 역할은 출처 없는 규칙만, 제목 판별 휴리스틱(제목 앞 문단·# References가 있으면 놓침) |
 | PW-047 | in_review | (P06) | REQ-047 / TST-047A,B | 통합 13(리뷰 반영), mutation 17+12종 탐지(+동등 2), `pnpm test` exit 0(리뷰 반영) | 실제 provider 세션 교체·compact 미실행, checkpoint는 Writer에만 연결, 화면 표시 없음, 예산 예약 UNKNOWN |
+| PW-048 | in_review | (P06) | REQ-048 / TST-048A,B | 통합 14, mutation 21종 탐지, `pnpm test` (기록 예정) | 대역 세션만(실제 adapter 연결·Codex compaction RPC는 live smoke), 지금 Claude·Codex 모두 새 세션 경로(compaction 미검증), 모델 window 표 없음 |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

@@ -1565,7 +1565,7 @@
       "id": "PW-048",
       "phase": "P06",
       "title": "Context budget·compact 전환",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-047"
       ],

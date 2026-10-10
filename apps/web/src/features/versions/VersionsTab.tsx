@@ -36,6 +36,8 @@ const CHANGE: Record<BlockChange['kind'], string> = { same: '같음', changed: '
 export function VersionsTab({ paperId, visible, editor, onHeadChanged }: { paperId: string; visible: boolean; editor: EditorState | null; onHeadChanged: () => void }) {
   const [doc, setDoc] = useState<Doc | null | undefined>(undefined);
   const [revs, setRevs] = useState<Rev[]>([]);
+  // a new snapshot reaches the export panel's snapshot list (PW-057)
+  const [snapshotsChanged, setSnapshotsChanged] = useState(0);
   const [edits, setEdits] = useState<AppliedEdit[]>([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -165,11 +167,11 @@ export function VersionsTab({ paperId, visible, editor, onHeadChanged }: { paper
       )}
 
       {doc !== undefined && <ImportPanel paperId={paperId} doc={doc} canChange={!busy && !blockedReason} act={act} />}
-      {/* PW-056: exports of the saved manuscript (Word, CSL-JSON) with their check */}
-      {doc && <ExportPanel paperId={paperId} documentId={doc.document.id} canChange={!busy} />}
+      {/* PW-056/057: exports of the saved manuscript (Word, PDF, CSL-JSON) with their check; source archives of snapshots */}
+      {doc && <ExportPanel paperId={paperId} documentId={doc.document.id} canChange={!busy} snapshotsChanged={snapshotsChanged} />}
       {/* PW-055: Word import (preview, losses, tracked-change choice, original kept) */}
       {doc !== undefined && <DocxImport paperId={paperId} doc={doc} canChange={!busy && !blockedReason} act={act} />}
-      <SnapshotsTab paperId={paperId} visible={visible} />
+      <SnapshotsTab paperId={paperId} visible={visible} onCreated={() => setSnapshotsChanged((n) => n + 1)} />
     </>
   );
 }

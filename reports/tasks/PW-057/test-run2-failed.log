@@ -1,0 +1,69 @@
+
+> paper-workspace@ test /home/user/ManuAlly
+> pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:integration && pnpm run test:contracts && pnpm run test:e2e && pnpm run test:spikes && pnpm run test:evals && pnpm run pack-check
+
+
+> paper-workspace@ typecheck /home/user/ManuAlly
+> tsc --noEmit -p packages/config/tsconfig.check.json
+
+
+> paper-workspace@ lint /home/user/ManuAlly
+> eslint .
+
+
+> paper-workspace@ test:unit /home/user/ManuAlly
+> vitest run --config packages/config/vitest.unit.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+
+ Test Files  39 passed (39)
+      Tests  531 passed (531)
+   Start at  08:40:25
+   Duration  19.88s (tests 86%, transform 7%, import 6%)
+
+    Isolate  39 workers spawned · ~177ms startup each (spawn + environment, per file)
+             at least ~2.12s faster with isolate: false — reuses workers across files instead of one per file
+
+
+> paper-workspace@ test:integration /home/user/ManuAlly
+> vitest run --config packages/config/vitest.integration.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-056/export.int.test.ts (5 tests | 1 failed) 4981ms
+   ❯ TST-056A: an export of a stored revision, stored and downloadable as made (4)
+     × refusals: unknown format, another paper's document, another owner 2319ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-056/export.int.test.ts > TST-056A: an export of a stored revision, stored and downloadable as made > refusals: unknown format, another paper's document, another owner
+AssertionError: expected 201 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 201
+
+ ❯ tests/tasks/PW-056/export.int.test.ts:105:127
+    103|   test('refusals: unknown format, another paper\'s document, another o…
+    104|     const w = await paper();
+    105|     expect((await call('POST', `/api/papers/${w.paperId}/exports`, { d…
+       |                                                                                                                               ^
+    106|     const other = await paper();
+    107|     expect((await call('POST', `/api/papers/${w.paperId}/exports`, { d…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 52 passed (53)
+      Tests  1 failed | 610 passed (611)
+   Start at  08:40:46
+   Duration  91.49s (tests 89%, import 8%, transform 3%)
+
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Test failed. See above for more details.
+exit 1

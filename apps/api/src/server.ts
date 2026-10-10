@@ -139,7 +139,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerManuscriptStructureRoutes(app, db);
   registerQuotaWaitRoutes(app, db);
   registerRunControlRoutes(app, db);
-  registerExportRoutes(app, db);
+  registerExportRoutes(app, db, opts.assets);
   registerBudgetRoutes(app, db);
   registerOutlineImpactRoutes(app, db);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });

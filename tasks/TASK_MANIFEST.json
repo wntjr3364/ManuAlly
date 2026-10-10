@@ -1851,7 +1851,7 @@
       "id": "PW-057",
       "phase": "P07",
       "title": "PDF·재현 source archive",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-056"
       ],

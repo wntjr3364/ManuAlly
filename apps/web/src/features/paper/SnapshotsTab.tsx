@@ -4,7 +4,7 @@ import { api, errorText } from '../../app/api.ts';
 
 interface Snapshot { id: string; label: string; created_at: string; story_revision_id: string | null; outline_revision_id: string | null }
 
-export function SnapshotsTab({ paperId, visible }: { paperId: string; visible: boolean }) {
+export function SnapshotsTab({ paperId, visible, onCreated }: { paperId: string; visible: boolean; onCreated?: () => void }) {
   const [list, setList] = useState<Snapshot[]>([]);
   const [label, setLabel] = useState('');
   const [error, setError] = useState('');
@@ -16,6 +16,7 @@ export function SnapshotsTab({ paperId, visible }: { paperId: string; visible: b
       await api('POST', `/api/papers/${paperId}/snapshots`, { label });
       setLabel('');
       await load();
+      onCreated?.();
     } catch (e) {
       setError(errorText(e));
     }

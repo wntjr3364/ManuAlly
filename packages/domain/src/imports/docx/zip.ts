@@ -19,7 +19,8 @@ interface Entry { name: string; method: number; crc: number; packed: number; unp
 
 export interface Zip { names: string[]; read(name: string): Buffer | null }
 
-export function openZip(buf: Buffer): Zip {
+// `limits`: the DOCX import's by default; the source archive reader (PW-057) passes its own
+export function openZip(buf: Buffer, limits: typeof ZIP_LIMITS = ZIP_LIMITS): Zip {
   // the end of central directory record: within the last 64 KiB + 22 bytes
   let eocd = -1;
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 22 - 0xffff); i--) {
@@ -30,7 +31,7 @@ export function openZip(buf: Buffer): Zip {
   const cdSize = buf.readUInt32LE(eocd + 12);
   const cdOffset = buf.readUInt32LE(eocd + 16);
   if (count === 0xffff || cdOffset === 0xffffffff) throw new ZipError('ZIP64 archives are not supported', 'CORRUPT');
-  if (count > ZIP_LIMITS.entries) throw new ZipError(`more than ${ZIP_LIMITS.entries} parts`, 'TOO_LARGE');
+  if (count > limits.entries) throw new ZipError(`more than ${limits.entries} parts`, 'TOO_LARGE');
   if (cdOffset + cdSize > eocd) throw new ZipError('the central directory is outside the file', 'CORRUPT');
   const entries = new Map<string, Entry>();
   let total = 0;
@@ -47,7 +48,7 @@ export function openZip(buf: Buffer): Zip {
     if (flags & 1) throw new ZipError('the file is password-protected (encrypted); save it without a password and import again', 'ENCRYPTED');
     if (e.packed === 0xffffffff || e.unpacked === 0xffffffff || e.offset === 0xffffffff) throw new ZipError('ZIP64 parts are not supported', 'CORRUPT');
     total += e.unpacked;
-    if (total > ZIP_LIMITS.totalUnpacked) throw new ZipError(`unpacked, the file would be larger than ${ZIP_LIMITS.totalUnpacked} bytes`, 'TOO_LARGE');
+    if (total > limits.totalUnpacked) throw new ZipError(`unpacked, the file would be larger than ${limits.totalUnpacked} bytes`, 'TOO_LARGE');
     entries.set(e.name, e);
     at += 46 + nameLen + buf.readUInt16LE(at + 30) + buf.readUInt16LE(at + 32);
   }
@@ -56,7 +57,7 @@ export function openZip(buf: Buffer): Zip {
     read(name) {
       const e = entries.get(name);
       if (!e) return null;
-      if (e.unpacked > ZIP_LIMITS.part) throw new ZipError(`${name} is larger than ${ZIP_LIMITS.part} bytes unpacked`, 'TOO_LARGE');
+      if (e.unpacked > limits.part) throw new ZipError(`${name} is larger than ${limits.part} bytes unpacked`, 'TOO_LARGE');
       if (e.offset + 30 > buf.length || buf.readUInt32LE(e.offset) !== 0x04034b50) throw new ZipError(`a damaged part: ${name}`, 'CORRUPT');
       const start = e.offset + 30 + buf.readUInt16LE(e.offset + 26) + buf.readUInt16LE(e.offset + 28);
       const packed = buf.subarray(start, start + e.packed);

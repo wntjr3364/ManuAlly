@@ -48,3 +48,31 @@ User decision / reviewer:
     - 화면과 같은 고정 렌더러를 쓴다(번호·참고문헌 일치).
     - 결정적 바이트다.
     - 학술지 CSL 양식 적용은 citeproc 버전 고정 RFC가 있을 때까지 하지 않는다. CSL-JSON 내보내기로 대신한다.
+- PW-057
+  - `packages/exports/src/docx/service.ts`
+    - PDF와 원본 묶음이 같은 경로를 쓰도록 `manuscriptHead`·`retractedOf`·`headDocx`로 나눴다. DOCX·CSL-JSON 동작은 같다(PW-056 시험 그대로 통과).
+    - 기록에 `snapshot_id`·`purpose`를 더했다.
+    - `exportFile`은 원본 묶음의 바이트를 asset 저장소에서 기록된 SHA-256으로 확인해 읽는다. 없거나 손상되면 내주지 않는다.
+  - `packages/domain/src/imports/docx/zip.ts`: `openZip(buf, limits = ZIP_LIMITS)`. 원본 묶음 검증기가 자기 상한을 넘긴다. DOCX 가져오기의 상한과 동작은 같다.
+  - `apps/api/src/exports/index.ts`
+    - `format: pdf`와 `format: source_archive`(`snapshot_id`, `purpose`)를 받는다.
+    - 파일 형식과 이름을 정한다.
+    - 저장소에서 사라진 묶음에는 410을 준다.
+  - `apps/api/src/server.ts`: 내보내기 route에 asset 저장소 설정을 넘긴다.
+  - `apps/web/src/features/exports/ExportPanel.tsx`: PDF 버튼, 스냅샷 선택, 공유용·보관용 묶음 버튼을 단다. 넣지 않은 원본과 빠진 원본, 자체 검증 결과도 보여 준다.
+  - `apps/web/src/features/versions/VersionsTab.tsx`, `apps/web/src/features/paper/SnapshotsTab.tsx`: 새 스냅샷이 내보내기 패널 목록에 바로 나타난다.
+  - `tests/tasks/PW-056/export.int.test.ts:105`: "모르는 형식" 거부의 예를 `pdf`(이제 형식)에서 `odt`로 바꿨다. 거부 규칙은 그대로다.
+  - 공유 표 변경(migration `pw_057_0001`)
+    - `exports.format`에 `pdf`와 `source_archive`를 더했다.
+    - `status`에 `incomplete`를 더했다(원본 묶음 전용).
+    - `snapshot_id`·`purpose`·`in_asset_store` 열을 더했다.
+    - 원본 묶음은 바이트를 asset 저장소에 두고 행에는 해시만 둔다. 모양은 `exports_archive_shape` CHECK가 강제한다.
+    - 표는 여전히 불변이다.
+  - **결정(위임)**
+    - PDF는 서버 컴퓨터에 설치된 LibreOffice(`soffice`)로 앱의 DOCX를 변환한다.
+      - 변환마다 임시 프로필과 HOME, 최소 환경, 시간 상한(120초, 프로세스 그룹 종료)을 쓴다.
+      - LibreOffice가 없으면 409로 알리고 아무것도 저장하지 않는다.
+      - PDF는 바이트 재현을 약속하지 않으므로 원본 묶음에 넣지 않는다. 묶음에는 다시 만들 수 있는 DOCX가 들어간다.
+    - 공유용 묶음은 CC BY·CC BY-SA·CC0·퍼블릭 도메인·자기 작업 원본만 자동으로 넣는다.
+      - NC·ND·출판사 TDM·권리 보유·미확인 원본은 해시와 이유만 적는다.
+      - 그림 파일은 정책이 'unknown'이고 지금은 바꿀 경로가 없다(PW-036). 그래서 공유용에서는 빠지고 보관용에만 들어간다. 남은 위험으로 기록한다.

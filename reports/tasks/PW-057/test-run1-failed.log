@@ -1,0 +1,56 @@
+
+> paper-workspace@ test /home/user/ManuAlly
+> pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:integration && pnpm run test:contracts && pnpm run test:e2e && pnpm run test:spikes && pnpm run test:evals && pnpm run pack-check
+
+
+> paper-workspace@ typecheck /home/user/ManuAlly
+> tsc --noEmit -p packages/config/tsconfig.check.json
+
+
+> paper-workspace@ lint /home/user/ManuAlly
+> eslint .
+
+
+> paper-workspace@ test:unit /home/user/ManuAlly
+> vitest run --config packages/config/vitest.unit.config.ts
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-007/scaffold.test.ts (9 tests | 1 failed) 19479ms
+   ❯ TST-007B: missing secrets never switch providers or silently skip suites (4)
+     × no test can skip itself conditionally, and no suite passes with no tests 257ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-007/scaffold.test.ts > TST-007B: missing secrets never switch providers or silently skip suites > no test can skip itself conditionally, and no suite passes with no tests
+AssertionError: tests/tasks/PW-057/archive.int.test.ts:243: test.skipIf(!soffice)('made from the head\'s DOCX by the local LibreOffice, stored with the converter version and text check', async () => {: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/tasks/PW-007/scaffold.test.ts:87:77
+     85|       for (const [i, line] of fs.readFileSync(path.join(root, f), 'utf…
+     86|         if (/allowed-skip:/.test(line) || /conditionalSkip =/.test(lin…
+     87|         expect(conditionalSkip.test(line), `${f}:${i + 1}: ${line.trim…
+       |                                                                             ^
+     88|       }
+     89|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 38 passed (39)
+      Tests  1 failed | 530 passed (531)
+   Start at  08:38:13
+   Duration  19.87s (tests 87%, transform 7%, import 6%)
+
+    Isolate  39 workers spawned · ~178ms startup each (spawn + environment, per file)
+             at least ~2.13s faster with isolate: false — reuses workers across files instead of one per file
+
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Test failed. See above for more details.
+exit 1

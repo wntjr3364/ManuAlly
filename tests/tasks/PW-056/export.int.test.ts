@@ -102,7 +102,7 @@ describe('TST-056A: an export of a stored revision, stored and downloadable as m
 
   test('refusals: unknown format, another paper\'s document, another owner', async () => {
     const w = await paper();
-    expect((await call('POST', `/api/papers/${w.paperId}/exports`, { document_id: w.documentId, format: 'pdf' })).statusCode).toBe(422);
+    expect((await call('POST', `/api/papers/${w.paperId}/exports`, { document_id: w.documentId, format: 'odt' })).statusCode).toBe(422); // pdf became a format in PW-057
     const other = await paper();
     expect((await call('POST', `/api/papers/${w.paperId}/exports`, { document_id: other.documentId, format: 'docx' })).statusCode).toBe(404);
     const e = (await call('POST', `/api/papers/${w.paperId}/exports`, { document_id: w.documentId, format: 'docx' })).json();

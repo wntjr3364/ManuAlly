@@ -1,0 +1,25 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-057/archive.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-057/archive.test.ts [ tests/tasks/PW-057/archive.test.ts ]
+Error: Cannot find module '../../../packages/exports/src/archive/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-057/archive.test.ts
+ ❯ tests/tasks/PW-057/archive.test.ts:11:1
+      9| import { describe, expect, test } from 'vitest';
+     10| import { createHash } from 'node:crypto';
+     11| import { buildArchive, verifyArchive, shareable, ARCHIVE_FORMAT, type …
+       | ^
+     12| import { writeZip } from '../../../packages/exports/src/docx/zip.ts';
+     13| import { openZip } from '../../../packages/domain/src/imports/docx/zip…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  08:17:45
+   Duration  369ms (worker 97%, environment 3%)
+

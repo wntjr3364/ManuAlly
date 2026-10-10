@@ -1,0 +1,30 @@
+KILLED shareable allows cc-by-nc
+KILLED share purpose ignores licence
+KILLED missing blob not recorded
+KILLED hash mismatch accepted
+KILLED status complete despite missing
+KILLED verify skips hash check
+KILLED verify allows extra files
+KILLED verify skips duplicate check
+KILLED verify allows unsafe path
+KILLED verify skips excluded presence
+KILLED verify skips reference revisions
+KILLED verify skips re-render compare
+KILLED verify ignores incomplete manifest
+KILLED retracted not passed to render
+KILLED bibtex no escape
+KILLED service reads latest caption ignoring snapshot time
+KILLED service audit includes after-snapshot
+SURVIVED service reads non-shareable for share
+KILLED service damaged as missing
+SURVIVED service ignores verifier
+KILLED pdf env passes everything
+KILLED pdf no magic check
+KILLED pdf no timeout kill
+KILLED pdf override falls back to PATH
+KILLED textCheck passes without text
+KILLED pdf service unavailable as 500
+# after fixes: re-run (the first caption kill was a SQL error from an unused parameter; this one keeps the parameter used)
+KILLED R2 service reads latest caption ignoring snapshot time (semantic)
+KILLED R2 service ignores verifier
+NOTE service reads non-shareable for share: equivalent — buildArchive leaves non-shareable originals out before looking at their bytes; only read time and the size limit differ

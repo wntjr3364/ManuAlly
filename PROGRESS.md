@@ -87,6 +87,7 @@
 | PW-054 | in_review | (P06) | REQ-054 / TST-054A,B | unit 7, 통합 9, 브라우저 1(스크린샷 2), mutation 15+3종 탐지, `pnpm test` exit 0(리뷰 반영) | 실제 공급자 값 미확인(MOCK), 다시 시작은 시도 수를 되돌리지 않음, 문맥 예산 고리 미연결(문맥 줄 늘 unknown), 예산 화면 없음 |
 | PW-055 | in_review | (P07) | REQ-055 / TST-055A,B | unit 45, 통합 6, 브라우저 1(스크린샷 2), mutation 16+22+6+1+5+1종 탐지(+동등 1), `pnpm test` exit 0(최종) | MS Word 원본 파일로 미시험(LibreOffice·pandoc·수작업 fixture), 인용 필드 재연결 없음 |
 | PW-056 | in_review | (P07) | REQ-056 / TST-056A,B | unit 17, 통합 5, 브라우저 1, LibreOffice 확인, mutation 16+12종 탐지, `pnpm test` exit 0(리뷰 전·반영) | MS Word 미확인, 학술지 CSL 양식·OMML 수식·그림 삽입 없음(결정, RFC-014), 인용 모양 검사는 정규식(놓치는 형식 기록), 종명 기울임은 일관성 검사만 |
+| PW-057 | in_review | (P07) | REQ-057 / TST-057A,B | unit 25, 통합 10, 브라우저 1(스크린샷 2), 실제 LibreOffice 24.2.7.2 변환, mutation 24+2종 탐지(+동치 1), `pnpm test` (결과 대기) | MS Word·Acrobat 미확인, PDF 배치는 설치 글꼴에 따름, 그림 파일 라이선스 결정 경로 없음(공유용에서 빠짐), 묶음은 메모리 생성(원본 1 GiB 상한) |
 
 독립 리뷰: 2회 (`reports/phases/P00_REVIEW.md`). Gate: `reports/phases/P00_GATE.md`.
 P01 gate: `reports/phases/P01_GATE.md` — **사용자 승인 대기** (P02는 승인 전 시작하지 않음).

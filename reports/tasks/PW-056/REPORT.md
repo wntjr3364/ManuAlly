@@ -93,3 +93,4 @@ PW-057: PDF·재현 source archive
 - GREEN: unit 17, 통합 5, 브라우저 1, typecheck·lint 통과
 - mutation(`mutation.log` 하단): 12종 모두 탐지
 - 리뷰 결론: approve(MAJOR 없음). 반영분은 검사 규칙과 작은 서비스 변경이라 재리뷰 없이 닫는다(최종 회귀는 아래).
+- 회귀(리뷰 반영): `pnpm test` exit 0 — unit 506, integration 601, contracts 17, 브라우저 99, spike 실패 0 (`pnpm-test-review.log`)

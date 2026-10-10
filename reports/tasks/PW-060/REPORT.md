@@ -1,5 +1,5 @@
 # PW-060 — Backup·restore·migration drill — REPORT
-상태: in_review (2026-10-10)
+상태: in_review (2026-10-10) — 독립 리뷰 approve(NIT 3 반영)
 
 ## 무엇을 했나
 - **`infra/backup/backup.ts`**
@@ -32,7 +32,7 @@
 ## RED → GREEN
 - RED(`red.log`): 서명만 있는 stub에서 두 파일 모두 `not implemented`로 실패.
 - GREEN 중 시험이 실제 결함을 찾았다. 옛 schema(PW-056) 백업이 `in_asset_store` 열이 없어 실패했다. 참조 열이 있는 schema에서만 찾도록 고쳤다.
-- 통합 18개 통과.
+- 통합 18개 통과(리뷰 n1 시험 추가 후 19개).
 - 회귀: `pnpm test` exit 0(`test.log`: unit 618, 통합 658, contracts 17, 브라우저 101, spikes·evals·pack-check).
 
 ## Mutation(`mutation.log`)
@@ -63,6 +63,13 @@
 - 원본은 메모리로 읽는다. 아주 큰 원본에서는 느리다.
 - `pg_dump`는 서버보다 같거나 새 버전이어야 한다. 시험은 PostgreSQL 16에서만 했다.
 - 복원 대상은 같은 major 버전에서만 확인했다.
+
+## 독립 리뷰(approve) — NIT 반영
+- n1: migration 적용 실패를 던지지 않고 보고한다(`failed`, `restored_unverified`, `migration_error`). 실패하는 migration을 넣은 시험을 추가했다.
+- n2: 옛 schema 시험의 "옛 버전"은 **이 버전의 앱 코드가 PW-056까지의 schema를 쓰는 것**이다. PW-056 export 행은 그 시절 형태로 SQL로 직접 넣었다. 옛 버전 앱 자체가 쓴 데이터는 아니다. 검증되는 것은 옛 schema의 묶음 → 앞으로 migration → 이 버전 기능 동작이다.
+- n3
+  - URL의 TLS 인증서 설정(`sslrootcert`, `sslcert`, `sslkey`)도 환경 변수로 넘긴다(시험 보강).
+  - README에 `PW_PG_BIN`으로 서버와 같은 major 도구를 쓰라고 적었다. 새 `pg_dump` 묶음을 옛 서버에 넣으면 안전하게 실패한다.
 
 ## 다음
 PW-061(배포·storage·upgrade runbook)

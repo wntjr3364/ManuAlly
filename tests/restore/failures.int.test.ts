@@ -221,6 +221,18 @@ describe('TST-060B: a backup is complete only with every original the database r
     expect(kinds((await verifyBackup(d3, { migrationsDir: MIGRATIONS })).problems)).toEqual(['schema_gap']);
   });
 
+  test('a forward migration that fails is reported, with the target left restored but not trusted (review n1)', async () => {
+    const dir = newDir('pw060b-migrations-');
+    for (const f of fs.readdirSync(MIGRATIONS)) fs.copyFileSync(path.join(MIGRATIONS, f), path.join(dir, f));
+    fs.writeFileSync(path.join(dir, 'pw_999_0001_broken.sql'), 'ALTER TABLE no_such_table ADD COLUMN x int;');
+    const target = await newDb();
+    const r = await restoreBackup({ dir: good, targetUrl: target.url, assetDir: newDir('pw060b-restore-'), migrationsDir: dir });
+    expect(r.status).toBe('failed');
+    expect(r.target).toBe('restored_unverified');
+    expect(kinds(r.problems)).toEqual(['migration_error']);
+    expect(r.problems[0]!.detail).toMatch(/pw_999_0001_broken\.sql/);
+  });
+
   test('a backup is never written into an existing folder', async () => {
     await expect(createBackup({ databaseUrl: db.url, assetDir: assets, outDir: good })).rejects.toThrow(/EEXIST/);
     expect((await verifyBackup(good, { migrationsDir: MIGRATIONS })).ok).toBe(true);
@@ -272,9 +284,9 @@ describe('TST-060B: what a backup holds and how it connects', () => {
   });
 
   test('the password goes to pg_dump in its environment, never on its command line', () => {
-    const env = pgEnv('postgres://u%40x:s3cr%2Ft@db.example:6543/pw_prod?sslmode=require');
-    expect(env).toMatchObject({ PGHOST: 'db.example', PGPORT: '6543', PGUSER: 'u@x', PGPASSWORD: 's3cr/t', PGDATABASE: 'pw_prod', PGSSLMODE: 'require' });
-    expect(Object.keys(env).sort()).toEqual(['PATH', 'PGAPPNAME', 'PGCONNECT_TIMEOUT', 'PGDATABASE', 'PGHOST', 'PGPASSWORD', 'PGPORT', 'PGSSLMODE', 'PGUSER']);
+    const env = pgEnv('postgres://u%40x:s3cr%2Ft@db.example:6543/pw_prod?sslmode=verify-full&sslrootcert=/etc/pw/ca.pem&sslcert=/etc/pw/c.pem&sslkey=/etc/pw/c.key');
+    expect(env).toMatchObject({ PGHOST: 'db.example', PGPORT: '6543', PGUSER: 'u@x', PGPASSWORD: 's3cr/t', PGDATABASE: 'pw_prod', PGSSLMODE: 'verify-full', PGSSLROOTCERT: '/etc/pw/ca.pem', PGSSLCERT: '/etc/pw/c.pem', PGSSLKEY: '/etc/pw/c.key' });
+    expect(Object.keys(env).sort()).toEqual(['PATH', 'PGAPPNAME', 'PGCONNECT_TIMEOUT', 'PGDATABASE', 'PGHOST', 'PGPASSWORD', 'PGPORT', 'PGSSLCERT', 'PGSSLKEY', 'PGSSLMODE', 'PGSSLROOTCERT', 'PGUSER']);
     expect(pgEnv('postgres://pw@localhost:54329/pw_test?host=/tmp/sock')).toMatchObject({ PGHOST: '/tmp/sock', PGUSER: 'pw' });
     const m = readManifest(good);
     expect(JSON.stringify(m)).not.toContain(db.url);

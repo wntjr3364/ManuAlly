@@ -53,6 +53,13 @@ PW_RESTORE_URL=... node --experimental-strip-types infra/backup/cli.ts restore /
 - 복원한 표가 manifest와 다른 경우
 - DB가 가리키는 원본이 복원된 asset store에 없는 경우
 
+## 도구와 연결
+- `pg_dump`·`pg_restore`는 `PW_PG_BIN`(절대 경로 폴더)에서 찾는다. 없으면 `/usr/lib/postgresql/<가장 새 버전>/bin`을 쓴다.
+  - 서버와 같은 major 버전의 도구를 `PW_PG_BIN`으로 지정하기를 권한다.
+  - 서버보다 새 `pg_dump`의 묶음은 옛 서버에 복원할 때 `restore_error`로 실패할 수 있다. 안전하게 실패할 뿐 잘못 복원되지는 않는다.
+- 원격 DB의 TLS: URL의 `sslmode`, `sslrootcert`, `sslcert`, `sslkey`를 그대로 넘긴다.
+- migration 적용이 실패하면 결과는 `failed`이고 `target`은 `restored_unverified`다. 실패한 migration 앞의 것들은 적용된 상태다. 그 DB는 지운다.
+
 ## 사용자가 정할 것(spec 12)
 - **보관 위치**
   - 같은 디스크의 다른 폴더는 재해복구가 아니다. 묶음이 asset store와 같은 디스크에 있으면 manifest에 `same_disk` 경고가 남는다.

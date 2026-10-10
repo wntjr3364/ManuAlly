@@ -82,8 +82,11 @@ export function pgEnv(url: string): Record<string, string> {
   if (u.port) env.PGPORT = u.port;
   if (u.username) env.PGUSER = decodeURIComponent(u.username);
   if (u.password) env.PGPASSWORD = decodeURIComponent(u.password);
-  const sslmode = u.searchParams.get('sslmode');
-  if (sslmode) env.PGSSLMODE = sslmode;
+  // TLS settings of the URL (review n3): the mode and the certificate files, as libpq reads them
+  for (const [param, name] of [['sslmode', 'PGSSLMODE'], ['sslrootcert', 'PGSSLROOTCERT'], ['sslcert', 'PGSSLCERT'], ['sslkey', 'PGSSLKEY']] as const) {
+    const v = u.searchParams.get(param);
+    if (v) env[name] = v;
+  }
   env.PGDATABASE = decodeURIComponent(u.pathname.replace(/^\//, ''));
   return env;
 }
@@ -337,7 +340,13 @@ export async function restoreBackup(opts: { dir: string; targetUrl: string; asse
     }
     if (out.problems.length) return out; // not migrated: the restored copy is not trusted
 
-    out.migrated = await migrate(c, opts.migrationsDir);
+    try {
+      out.migrated = await migrate(c, opts.migrationsDir);
+    } catch (e) {
+      // each migration is its own transaction: the ones before the failing one stay applied (review n1)
+      out.problems.push({ kind: 'migration_error', detail: (e as Error).message });
+      return out;
+    }
     out.status = 'restored';
     out.target = 'restored';
     return out;

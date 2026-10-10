@@ -79,4 +79,6 @@ PW-050: 비용 예산
 - RED(`red-review.log`): 리뷰 시험 4개(m3, m4, n1, n2)가 144658b에서 실패한다. m2 시험은 처음부터 통과한다(계약을 고정하는 시험).
 - GREEN: 통합 16. 기존 "원고 변경" 시험은 자기 자리를 고치는 경우로 바꿨다(m4).
 - mutation(`mutation.log` 하단): 6종 모두 탐지
-- 회귀: (아래 채움)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 519, contracts 17, 브라우저 95 (`pnpm-test-review.log`)
+
+- 리뷰 결론: approve(MAJOR 없음). 반영한 MINOR·NIT은 위 표와 같고 나머지는 남은 위험이다. 반영분은 작은 수정(통합 16, mutation 6/6, 전체 회귀 통과)이라 재리뷰 없이 닫는다.

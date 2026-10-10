@@ -37,3 +37,10 @@ KILLED no part cap
 KILLED no element cap
 KILLED no depth cap
 KILLED no block cap
+# re-review fixes (R1 notes in notes, m1' text boxes, m2' merged style, n1–n3)
+KILLED R1 notes followed in notes
+KILLED m1' box read flat
+KILLED n2 nested boxes twice
+KILLED n1 any Choice preferred
+KILLED n3 bare text dropped
+KILLED m2' first paragraph's style (two-site mutant: the merged paragraph takes the first paragraph's level)

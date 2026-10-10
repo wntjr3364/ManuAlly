@@ -22,7 +22,7 @@ import { validateDocument } from '@pw/editor-core';
 import { openZip, ZipError, type ZipFailure } from './zip.ts';
 import { child, descendants, elements, parseXml, textOf, XmlError, type XEl } from './xml.ts';
 
-export const DOCX_PARSER_VERSION = 'pw-docx-import-2';
+export const DOCX_PARSER_VERSION = 'pw-docx-import-3';
 export const MAX_BLOCKS = 50_000;
 export type TrackedChoice = 'accept' | 'reject';
 export type DocxLossKind =
@@ -216,12 +216,24 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
   const boxes: string[] = [];
   const anchors = new Map<string, string>(); // comment id → anchored text so far
   const open = new Set<string>();
-  const state = { characters: 0, carry: null as { content: Inline[]; level: number | null } | null };
+  const state = { characters: 0, inNote: 0, carry: null as { content: Inline[] } | null };
   const push = (b: Block) => {
     if (blocks.length >= MAX_BLOCKS) throw new DocxError(`more than ${MAX_BLOCKS} paragraphs and tables`, 'TOO_LARGE');
     blocks.push(b);
   };
   const plain = (xs: Inline[]) => xs.map((i) => i.text).join('');
+  // mc:AlternateContent: mc:Choice when it holds anything this reader uses (text or a reported element),
+  // else mc:Fallback (re-review n1)
+  const branchOf = (c: XEl): XEl | undefined => {
+    const pick = child(c, 'mc:Choice');
+    const useful = !!pick && (textOf(pick).trim() !== '' || ['w:drawing', 'w:pict', 'w:object', 'w:sym', 'm:oMath'].some((n) => descendants(pick, n).length > 0));
+    return useful ? pick : child(c, 'mc:Fallback');
+  };
+  // the outermost elements of this name below e (a text box inside a text box is found while reading the outer one)
+  const outermost = (e: XEl, name: string, found: XEl[] = []): XEl[] => {
+    for (const c of elements(e)) { if (c.name === name) found.push(c); else outermost(c, name, found); }
+    return found;
+  };
 
   // one paragraph's (or cell's, or note's) inline content
   function inlines(p: XEl): Inline[] {
@@ -247,10 +259,11 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
     };
     // a drawing, picture or object: a text box keeps its text (at the end), anything else is reported
     const shape = (c: XEl) => {
-      const tb = descendants(c, 'w:txbxContent');
+      const tb = outermost(c, 'w:txbxContent');
       if (tb.length) {
+        // read like body text (symbols, the tracked-change choice, hidden text, fields: re-review m1')
         for (const t of tb) {
-          const s = elements(t, 'w:p').map((x) => textOf(x)).join(' ').trim();
+          const s = elements(t, 'w:p').map((x) => plain(inlines(x))).filter((x) => x.trim()).join(' ').trim();
           if (s) { boxes.push(s); report.add('textbox', s); }
         }
         return;
@@ -263,8 +276,7 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
     };
     // the branch of mc:AlternateContent this reader understands: mc:Choice when it holds anything, else mc:Fallback
     const alternate = (c: XEl, each: (x: XEl) => void) => {
-      const pick = child(c, 'mc:Choice');
-      const branch = pick && elements(pick).length ? pick : child(c, 'mc:Fallback');
+      const branch = branchOf(c);
       if (branch) each(branch);
     };
     const run = (r: XEl) => {
@@ -308,12 +320,25 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
           case 'w:drawing': case 'w:pict': case 'w:object': shape(c); break;
           case 'mc:AlternateContent': alternate(c, (b) => { for (const x of elements(b)) runChild(x); }); break;
           case 'w:footnoteReference': case 'w:endnoteReference': {
+            // Word has no notes inside notes: a reference there is not followed (it could repeat without end;
+            // re-review R1) — shown as [?] and reported
+            if (state.inNote > 0) {
+              report.add('other', `note reference inside a note: ${c.attrs['w:id'] ?? ''}`);
+              emit('[?]', []);
+              break;
+            }
             const kind = c.name === 'w:footnoteReference' ? 'footnote' : 'endnote';
             const n = notes.length + 1;
             notes.push(''); // the number is taken before the note is read
             const el = noteEl.get(`${kind}:${c.attrs['w:id']}`);
             // read like body text: the tracked-change choice and fields apply inside notes too
-            const t = el ? elements(el, 'w:p').map((x) => plain(inlines(x))).filter((x) => x.trim()).join(' ').trim() : '';
+            state.inNote++;
+            let t: string;
+            try {
+              t = el ? elements(el, 'w:p').map((x) => plain(inlines(x))).filter((x) => x.trim()).join(' ').trim() : '';
+            } finally {
+              state.inNote--;
+            }
             notes[n - 1] = `[${n}] ${t}`.trim();
             report.add('footnote', t);
             emit(`[${n}]`, []);
@@ -341,6 +366,8 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
       for (const c of elements(e)) {
         switch (c.name) {
           case 'w:r': run(c); break;
+          // text directly in a container this reader does not know (re-review n3)
+          case 'w:t': emit(c.children.filter((x): x is string => typeof x === 'string').join(''), []); break;
           case 'w:ins': case 'w:moveTo': if (choice !== 'reject') walk(c); break;
           case 'w:del': case 'w:moveFrom': if (choice === 'reject') walk(c); break;
           case 'w:hyperlink': {
@@ -397,26 +424,25 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
     push(level ? { type: 'heading', attrs: { id: randomUUID(), level }, content } : { type: 'paragraph', attrs: { id: randomUUID() }, content });
   }
   const flushCarry = () => {
-    if (state.carry) flushPara(state.carry.content, state.carry.level);
+    if (state.carry) flushPara(state.carry.content, null);
     state.carry = null;
   };
-  // a paragraph whose mark the choice removes joins the next one (as Word merges them)
+  // a paragraph whose mark the choice removes joins the next one, which keeps its own style (as Word: the
+  // surviving paragraph mark carries the properties; re-review m2')
   function paragraph(p: XEl) {
     const pPr = child(p, 'w:pPr');
     const level = headingLevel(pPr ? child(pPr, 'w:pStyle')?.attrs['w:val'] : undefined);
     let content = inlines(p);
     if (pPr && child(pPr, 'w:numPr') && !level && content.some((i) => i.text.trim())) report.add('list', plain(content));
-    let lvl = level;
     if (state.carry) {
       content = [...state.carry.content, ...content];
-      lvl = state.carry.level;
       state.carry = null;
     }
     if (removed(pPr ? child(pPr, 'w:rPr') : undefined)) {
-      state.carry = { content, level: lvl };
+      state.carry = { content };
       return;
     }
-    flushPara(content, lvl);
+    flushPara(content, level);
   }
 
   function table(t: XEl) {
@@ -459,11 +485,7 @@ function convert(bytes: Buffer, o: { trackedChanges?: TrackedChoice }): { doc: {
         case 'w:customXml': case 'w:sdtContent': walkBody(c); break;
         case 'w:ins': case 'w:moveTo': if (choice !== 'reject') walkBody(c); break;
         case 'w:del': case 'w:moveFrom': if (choice === 'reject') walkBody(c); break;
-        case 'mc:AlternateContent': {
-          const pick = child(c, 'mc:Choice');
-          walkBody(pick && elements(pick).length ? pick : child(c, 'mc:Fallback') ?? EMPTY);
-          break;
-        }
+        case 'mc:AlternateContent': walkBody(branchOf(c) ?? EMPTY); break;
         default:
           if (!SILENT.has(c.name) && textOf(c).trim()) { report.add('other', `${c.name}: ${textOf(c)}`); walkBody(c); }
           break;

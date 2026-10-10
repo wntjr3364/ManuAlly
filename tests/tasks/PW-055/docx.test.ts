@@ -280,3 +280,55 @@ describe('review NITs', () => {
     expect(loss(out.report, 'image')).toBeUndefined();
   });
 });
+
+// PW-055 re-review (changes requested): MAJOR R1, MINOR m1'–m2', NIT n1–n3
+describe('re-review R1: notes that reference notes cannot blow up', () => {
+  test('footnotes that each reference the next twice (2^20 paths) are read once each, quickly; a reference inside a note is reported', () => {
+    const levels = 20;
+    const fns = Array.from({ length: levels }, (_, k) => `<w:footnote w:id="${k + 2}"><w:p>${r(`note ${k}`)}${k + 1 < levels ? `<w:r><w:footnoteReference w:id="${k + 3}"/></w:r><w:r><w:footnoteReference w:id="${k + 3}"/></w:r>` : ''}</w:p></w:footnote>`).join('');
+    const t0 = Date.now();
+    const out = parseDocx(makeDocx(p(`${r('Text')}<w:r><w:footnoteReference w:id="2"/></w:r>`), { footnotes: fns }), {});
+    expect(Date.now() - t0).toBeLessThan(2000);
+    const blocks = out.doc.content as Block[];
+    expect(blocks.length).toBe(2);
+    expect(text(blocks[1]!)).toBe('[1] note 0[?][?]');
+    expect(loss(out.report, 'other')!.examples[0]).toMatch(/note reference inside a note/);
+  });
+});
+
+describe("re-review m1': text boxes are read like body text", () => {
+  test('a symbol, a tracked change and hidden text inside a text box follow the same rules', () => {
+    const box = `<w:r><w:pict><v:shape xmlns:v="v"><v:textbox><w:txbxContent><w:p>${r('10 ')}<w:r><w:sym w:font="Symbol" w:char="F06D"/></w:r>${r('g')}<w:ins w:id="7" w:author="A" w:date="2026-01-01T00:00:00Z">${r(' added')}</w:ins>${r(' secret', '<w:vanish/>')}</w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r>`;
+    const doc = makeDocx(p(`${r('Body.')}${box}`));
+    expect(() => parseDocx(doc, {})).toThrow(expect.objectContaining({ reason: 'TRACKED_CHANGES_CHOICE' }));
+    const blocks = (c: 'accept' | 'reject') => (parseDocx(doc, { trackedChanges: c }).doc.content as Block[]).map(text);
+    expect(blocks('accept')).toEqual(['Body.', '[글상자] 10 μg added']);
+    expect(blocks('reject')).toEqual(['Body.', '[글상자] 10 μg']);
+  });
+  test('n2: a text box inside a text box is not read twice', () => {
+    const inner = '<w:r><w:pict><v:textbox xmlns:v="v"><w:txbxContent><w:p><w:r><w:t>inner</w:t></w:r></w:p></w:txbxContent></v:textbox></w:pict></w:r>';
+    const outer = `<w:r><w:pict><v:textbox xmlns:v="v"><w:txbxContent><w:p><w:r><w:t>outer </w:t></w:r>${inner}</w:p></w:txbxContent></v:textbox></w:pict></w:r>`;
+    const s = JSON.stringify(parseDocx(makeDocx(p(`${r('Body.')}${outer}`)), {}).doc);
+    expect(s.split('inner').length - 1).toBe(1);
+  });
+});
+
+describe("re-review m2': a merged paragraph keeps the following paragraph's style (as Word)", () => {
+  test('a heading whose mark is deleted joins the body paragraph after it as body text', () => {
+    const body = `<w:p><w:pPr><w:pStyle w:val="1"/><w:rPr><w:del w:id="9" w:author="A" w:date="2026-01-01T00:00:00Z"/></w:rPr></w:pPr>${r('Results')}</w:p>${p(r('Body text.'))}`;
+    const blocks = parseDocx(makeDocx(body), { trackedChanges: 'accept' }).doc.content as Block[];
+    expect(blocks.map((b) => [b.type, text(b)])).toEqual([['paragraph', 'ResultsBody text.']]);
+  });
+});
+
+describe('re-review n1 / n3', () => {
+  test('n1: an mc:Choice holding only markup this reader does not know falls back to mc:Fallback\'s text', () => {
+    const out = parseDocx(makeDocx(`<w:p><mc:AlternateContent xmlns:mc="mc"><mc:Choice Requires="w16"><w16:thing xmlns:w16="w16"/></mc:Choice><mc:Fallback>${r('Fallback text')}</mc:Fallback></mc:AlternateContent></w:p>`), {});
+    expect((out.doc.content as Block[]).map(text)).toEqual(['Fallback text']);
+  });
+  test('n3: text directly in an unknown inline element is kept, as the "other" note says', () => {
+    const out = parseDocx(makeDocx(p(`${r('A ')}<x:mystery xmlns:x="x"><w:t>kept text</w:t></x:mystery>`)), {});
+    expect(text((out.doc.content as Block[])[0]!)).toBe('A kept text');
+    expect(loss(out.report, 'other')).toBeDefined();
+  });
+});

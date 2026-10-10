@@ -1,0 +1,135 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-055/docx.test.ts (38 tests | 6 failed) 5203ms
+   ❯ re-review R1: notes that reference notes cannot blow up (1)
+     × footnotes that each reference the next twice (2^20 paths) are read once each, quickly; a reference inside a note is reported 3197ms
+   ❯ re-review m1': text boxes are read like body text (2)
+     × a symbol, a tracked change and hidden text inside a text box follow the same rules 7ms
+     × n2: a text box inside a text box is not read twice 2ms
+   ❯ re-review m2': a merged paragraph keeps the following paragraph's style (as Word) (1)
+     × a heading whose mark is deleted joins the body paragraph after it as body text 3ms
+   ❯ re-review n1 / n3 (2)
+     × n1: an mc:Choice holding only markup this reader does not know falls back to mc:Fallback's text 2ms
+     × n3: text directly in an unknown inline element is kept, as the "other" note says 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > re-review R1: notes that reference notes cannot blow up > footnotes that each reference the next twice (2^20 paths) are read once each, quickly; a reference inside a note is reported
+Error: more than 50000 paragraphs and tables
+ ❯ push packages/domain/src/imports/docx/parse.ts:221:44
+    219|   const state = { characters: 0, carry: null as { content: Inline[]; l…
+    220|   const push = (b: Block) => {
+    221|     if (blocks.length >= MAX_BLOCKS) throw new DocxError(`more than ${…
+       |                                            ^
+    222|     blocks.push(b);
+    223|   };
+ ❯ convert packages/domain/src/imports/docx/parse.ts:475:40
+ ❯ parseDocx packages/domain/src/imports/docx/parse.ts:156:12
+ ❯ tests/tasks/PW-055/docx.test.ts:290:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > re-review m1': text boxes are read like body text > a symbol, a tracked change and hidden text inside a text box follow the same rules
+AssertionError: expected [ 'Body.', '[글상자] 10 g added secret' ] to deeply equal [ 'Body.', '[글상자] 10 μg added' ]
+
+- Expected
++ Received
+
+  [
+    "Body.",
+-   "[글상자] 10 μg added",
++   "[글상자] 10 g added secret",
+  ]
+
+ ❯ tests/tasks/PW-055/docx.test.ts:305:30
+    303|     expect(() => parseDocx(doc, {})).toThrow(expect.objectContaining({…
+    304|     const blocks = (c: 'accept' | 'reject') => (parseDocx(doc, { track…
+    305|     expect(blocks('accept')).toEqual(['Body.', '[글상자] 10 μg added']);
+       |                              ^
+    306|     expect(blocks('reject')).toEqual(['Body.', '[글상자] 10 μg']);
+    307|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > re-review m1': text boxes are read like body text > n2: a text box inside a text box is not read twice
+AssertionError: expected 2 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ tests/tasks/PW-055/docx.test.ts:312:41
+    310|     const outer = `<w:r><w:pict><v:textbox xmlns:v="v"><w:txbxContent>…
+    311|     const s = JSON.stringify(parseDocx(makeDocx(p(`${r('Body.')}${oute…
+    312|     expect(s.split('inner').length - 1).toBe(1);
+       |                                         ^
+    313|   });
+    314| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > re-review m2': a merged paragraph keeps the following paragraph's style (as Word) > a heading whose mark is deleted joins the body paragraph after it as body text
+AssertionError: expected [ [ 'heading', 'ResultsBody text.' ] ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+    [
+-     "paragraph",
++     "heading",
+      "ResultsBody text.",
+    ],
+  ]
+
+ ❯ tests/tasks/PW-055/docx.test.ts:320:50
+    318|     const body = `<w:p><w:pPr><w:pStyle w:val="1"/><w:rPr><w:del w:id=…
+    319|     const blocks = parseDocx(makeDocx(body), { trackedChanges: 'accept…
+    320|     expect(blocks.map((b) => [b.type, text(b)])).toEqual([['paragraph'…
+       |                                                  ^
+    321|   });
+    322| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > re-review n1 / n3 > n1: an mc:Choice holding only markup this reader does not know falls back to mc:Fallback's text
+AssertionError: expected [] to deeply equal [ 'Fallback text' ]
+
+- Expected
++ Received
+
+- [
+-   "Fallback text",
+- ]
++ []
+
+ ❯ tests/tasks/PW-055/docx.test.ts:327:52
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/tasks/PW-055/docx.test.ts > re-review n1 / n3 > n3: text directly in an unknown inline element is kept, as the "other" note says
+AssertionError: expected 'A' to be 'A kept text' // Object.is equality
+
+Expected: "A kept text"
+Received: "A"
+
+ ❯ tests/tasks/PW-055/docx.test.ts:331:52
+    329|   test('n3: text directly in an unknown inline element is kept, as the…
+    330|     const out = parseDocx(makeDocx(p(`${r('A ')}<x:mystery xmlns:x="x"…
+    331|     expect(text((out.doc.content as Block[])[0]!)).toBe('A kept text');
+       |                                                    ^
+    332|     expect(loss(out.report, 'other')).toBeDefined();
+    333|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 32 passed (38)
+   Start at  06:42:18
+   Duration  6.18s (tests 88%, transform 10%, import 2%)
+

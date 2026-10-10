@@ -29,3 +29,4 @@ KILLED M1 the delegated-scope section removed
 KILLED M1 scope acceptance not a blocker
 SURVIVED m2 the PW-004 call denied (the test also matched the honest-record line; scoped to the MOCK statement, R2 below)
 KILLED R2 m2 the PW-004 call denied in the MOCK statement
+KILLED n1 a level capability without a fixed kind

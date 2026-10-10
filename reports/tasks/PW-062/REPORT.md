@@ -1,5 +1,5 @@
 # PW-062 — v1 최종 pilot·추적성 gate — REPORT
-상태: in_review (2026-10-10) — 독립 리뷰 changes requested(MAJOR 1·MINOR 2·NIT 3) → 반영
+상태: in_review (2026-10-10) — 독립 리뷰 changes requested(MAJOR 1·MINOR 2·NIT 3) → 반영 → 재리뷰 **approve**(NIT 1 반영)
 
 ## 무엇을 했나
 - **release 기록** `reports/release/capabilities.json`: 필수 capability 22개.
@@ -75,6 +75,7 @@
 - **n2** 과장 표현 목록을 넓혔다: v1 완성, 완성된 제품, 실제 AI로 검증됨, 출시 준비 완료, release-ready.
 - **n3** 수동 기록은 증명이 아니라 사용자 진술이다. 누구나 쓸 수 있고 AI는 쓰지 않는다. 이를 gate 주석, 보고서, PILOT.md에 적었다.
 - 반영 확인 mutation 7종을 모두 잡았다(MOCK 절 범위 시험 R2 포함).
+- 재리뷰 approve. NIT 1(`KIND_OF`와 `LEVELS`를 묶는 시험 없음): 둘이 정확히 같은 id를 갖고, 기록의 종류가 고정값과 같음을 시험한다.
 
 ## 다음
 - 사용자 결정(P07 gate)

@@ -5,7 +5,7 @@
 import { describe, expect, test } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { evaluateRelease, LEVELS, OVERCLAIM, passes, type Capability, type RegistryEntry } from './release.ts';
+import { evaluateRelease, KIND_OF, LEVELS, OVERCLAIM, passes, type Capability, type RegistryEntry } from './release.ts';
 
 const root = path.resolve('.');
 const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8');
@@ -152,5 +152,11 @@ describe('TST-062B: nothing is presented as more than it is', () => {
     const all = new Set(caps().map((x) => x.id));
     for (const l of LEVELS) for (const n of l.needs) expect(all.has(n), n).toBe(true);
     expect(new Set(LEVELS.flatMap((l) => l.needs)).size).toBe(all.size);
+  });
+
+  test('every capability a level needs has its kind fixed in the gate, and only those (re-review n1)', () => {
+    const needed = [...new Set(LEVELS.flatMap((l) => l.needs))].sort();
+    expect(Object.keys(KIND_OF).sort()).toEqual(needed);
+    for (const c of caps()) expect(c.kind, c.id).toBe(KIND_OF[c.id]!.kind);
   });
 });

@@ -36,7 +36,7 @@ Writer 작업에 장애를 실제로 주입하는 시험 묶음을 만들었다(
 - write scope
   - `tests/faults/inject.ts`: 디스크 포화, commit 붙잡기, 붙잡힘·해제 대기, worker 프로세스
   - `tests/faults/writer-child.ts`
-  - `tests/tasks/PW-053/faults.int.test.ts`(통합 12)
+  - `tests/tasks/PW-053/faults.int.test.ts`(통합 12, 리뷰 반영 뒤 13)
   - `reports/tasks/PW-053/**`
 - 범위 밖(RFC-013 부록)
   - `apps/worker/src/queue/index.ts`: 디스크 포화 = 안전 중단
@@ -48,8 +48,8 @@ Writer 작업에 장애를 실제로 주입하는 시험 묶음을 만들었다(
 ## 요구사항-시험 매핑
 | REQ / TST | 시험 |
 |---|---|
-| REQ-053-A / TST-053A: checkpoint에서 복구하며 중간 응답은 검증된 proposal 상태로만 보존된다 | **호출 중 SIGKILL**: 작업은 RUNNING(token 1)으로 남는다. 제안은 0이고 checkpoint는 호출 전 1개다. lease가 만료되면 회복 sweep이 QUEUED로 돌린다. 재수화는 resumable이고 남은 단계는 `provider_call`, 완료 작업은 없다. 새 실행은 호출 1번으로 끝나고, 제안 1개(PENDING), 마지막 checkpoint `after_proposal`(token 2)를 남긴다. 죽은 실행의 checkpoint에는 완료 작업이 없다. **commit 안 SIGKILL**: 검증 checkpoint는 남지만 제안과 작업 성공은 한 트랜잭션이라 둘 다 없다(RUNNING, result null). 재수화의 남은 단계는 `store_proposal`이다. 다음 실행이 답을 다시 만들어(호출 1번, at-least-once) 제안 1개를 저장한다. 늦게 온 옛 메시지는 duplicate다 |
-| REQ-053-B / TST-053B: 복구 과정이 새 문서를 덮거나 저장 실패를 성공으로 표시하거나 취소 작업을 부활시키지 않는다 | **새 문서**: 작업이 죽어 있는 동안 owner가 저장한다. 회복된 제안의 base는 요청 당시 revision이고, 적용하면 owner revision 위에 붙는다(부모 = owner 저장, owner 문장 유지). 호출 중 초안이 따라 붙을 문단을 owner가 고치면 STALE로 저장되고, 적용은 409, head는 owner 수정이다. **저장 실패**: 제안 저장 시 DB 포화면 FAILED(재시도·재호출 없음, result null, 사유 "disk is full… not stored"), 다시 배달하면 skipped, 제안·`after_proposal` 없음. 호출 전 checkpoint 시 포화면 호출 0, FAILED. worker ENOSPC는 FAILED. 원고 저장 시 포화면 500 `{error: internal}`, head와 revision 수 그대로이고, 공간이 돌아오면 같은 저장이 201이다. **취소**: 호출 중 취소 후 사망하면 회복 sweep, `recoverJobs`, 재배달, 다시 sweep 뒤에도 CANCELLED(token 1)이다. 호출 0, 제안 0, 재수화 `job_cancelled`, 새 token의 checkpoint 없음. commit 중 취소 후 사망하면 취소는 200이고 CANCELLED, 제안 0. **승인 철회**: 죽어 있는 동안 outline이 바뀌면 재수화가 not resumable이고, 재개 실행은 호출 0으로 멈추며 제안 0. 호출 중 바뀌면 답은 STALE(`outline_not_active`)이고 적용 409, 원고 그대로다 |
+| REQ-053-A / TST-053A: checkpoint에서 복구하며 중간 응답은 검증된 proposal 상태로만 보존된다 | **호출 중 SIGKILL**(= 공급자 응답 유실): 작업은 RUNNING(token 1)으로 남는다. 제안은 0이고 checkpoint는 호출 전 1개다. lease가 만료되면 회복 sweep이 QUEUED로 돌린다. 재수화는 resumable이고 남은 단계는 `provider_call`, 완료 작업은 없다. 새 실행은 호출 1번으로 끝나고, 제안 1개(PENDING), 마지막 checkpoint `after_proposal`(token 2)를 남긴다. 죽은 실행의 checkpoint에는 완료 작업이 없다. **commit 안 SIGKILL**: 검증 checkpoint는 남지만 제안과 작업 성공은 한 트랜잭션이라 둘 다 없다(RUNNING, result null). 재수화의 남은 단계는 `store_proposal`이다. 다음 실행이 답을 다시 만들어(호출 1번, at-least-once) 제안 1개를 저장한다. 늦게 온 옛 메시지는 duplicate다 |
+| REQ-053-B / TST-053B: 복구 과정이 새 문서를 덮거나 저장 실패를 성공으로 표시하거나 취소 작업을 부활시키지 않는다 | **새 문서**: 작업이 죽어 있는 동안 owner가 저장한다. 회복된 제안의 base는 요청 당시 revision이고, 적용하면 owner revision 위에 붙는다(부모 = owner 저장, owner 문장 유지). 호출 중 초안이 따라 붙을 문단을 owner가 고치면 STALE로 저장되고, 적용은 409, head는 owner 수정이다. **저장 응답 유실**: 저장은 됐지만 응답을 잃은 client가 같은 요청을 다시 보내면 200 `replayed`이고 revision은 하나다. 옛 head에서 만든 다른 글은 409이고 head는 저장된 것 그대로다. **저장 실패**: 제안 저장 시 DB 포화면 FAILED(재시도·재호출 없음, result null, 사유 "disk is full… not stored"), 다시 배달하면 skipped, 제안·`after_proposal` 없음. 호출 전 checkpoint 시 포화면 호출 0, FAILED. worker ENOSPC는 FAILED. 원고 저장 시 포화면 500 `{error: internal}`, head와 revision 수 그대로이고, 공간이 돌아오면 같은 저장이 201이다. **취소**: 호출 중 취소 후 사망하면 회복 sweep, `recoverJobs`, 재배달, 다시 sweep 뒤에도 CANCELLED(token 1)이다. 호출 0, 제안 0, 재수화 `job_cancelled`, 새 token의 checkpoint 없음. commit 중 취소 후 사망하면 취소는 200이고 CANCELLED, 제안 0. **승인 철회**: 죽어 있는 동안 outline이 바뀌면 재수화가 not resumable이고, 재개 실행은 호출 0으로 멈추며 제안 0. 호출 중 바뀌면 답은 STALE(`outline_not_active`)이고 적용 409, 원고 그대로다 |
 
 ## RED → GREEN
 - RED(`red.log`): 12개 중 1개 실패. 결과 저장 중 DB 포화가 QUEUED(재시도)가 된다(FAILED 기대).
@@ -58,11 +58,11 @@ Writer 작업에 장애를 실제로 주입하는 시험 묶음을 만들었다(
     2. 붙잡힌 commit을 `pg_stat_activity.query`로 찾음 → `wait_event = 'PgSleep'`으로 바꿈
     3. 적용 요청의 `expected_revision_id` 누락
   - "호출 중 승인 변경" 시험의 첫 판은 제안이 있으면 적용 거절만 확인했다. 그래서 PENDING 저장을 잡지 못하고 통과했다. 결과를 드러내는 단언으로 PENDING을 확인한 뒤 STALE을 요구하도록 고쳤다. 이 RED는 로그 대신 mutation("plan change not stale")으로 확인한다.
-- GREEN: 통합 12, typecheck·lint 통과
+- GREEN: 통합 12(리뷰 반영 뒤 13), typecheck·lint 통과
 - 관련 suite: PW-013/042/044/046/047/049/051/052 통합 131, PW-052 unit 31 통과
 - mutation(`mutation.log`): 7종 모두 탐지
   - 처음 살아남은 1종(placeHolds 늦음 검사 생략)은 호출 중 문단 수정 시험을 더한 뒤 탐지했다.
-- 회귀: `pnpm test` (`pnpm-test.log`, 아래)
+- 회귀(리뷰 전): `pnpm test` exit 0 — unit 437, integration 580, contracts 17, 브라우저 96 (`pnpm-test.log`)
 
 ## 보안·과학적 실패 경로
 - 결과는 완료 트랜잭션 하나로만 저장된다. 그 안에서 죽거나 디스크가 차면 반쯤 남는 것이 없다. 성공 표시도 없다.
@@ -79,7 +79,23 @@ Writer 작업에 장애를 실제로 주입하는 시험 묶음을 만들었다(
 - **PostgreSQL 서버 자체의 사망**(재시작, WAL 복구)은 시험하지 않았다. DB는 정본이고, 그 내구성은 PostgreSQL 보증과 백업(spec 12, P07)에 맡긴다.
 - 브라우저 쪽 저장 실패 표시(저장 실패 시 "저장됨"을 보이지 않음, 로컬 저장소가 차면 보고)는 PW-015 시험(`editor.e2e.ts` TST-015B, `recovery.test.ts` "a full storage is reported")이 맡는다. 이 Task에서 다시 만들지 않았다.
 - 실행 중 `failJob` 자체가 DB 포화로 실패하면 작업은 RUNNING으로 남는다. lease 만료 뒤 회복 sweep이 다시 큐에 넣거나 시도를 다 쓰면 FAILED로 둔다(PW-051 경로).
+- **DB 전체가 찼을 때**(WAL 포함, PANIC 포함): 53100 주입은 표 하나의 INSERT 실패만 흉내 낸다(review m1). 그래서 "디스크 포화는 재시도하지 않는다"는 작업 행 UPDATE(`failJob`)가 아직 되는 동안에만 성립한다.
+  - 그 UPDATE도 실패하면 작업은 RUNNING으로 남는다. lease 만료 뒤 회복 sweep이 다시 큐에 넣고, 다시 돌며 공급자를 다시 부른다. 횟수는 MAX_ATTEMPTS 안이다(at-least-once 재생성, 반쯤 저장되는 것은 여전히 없음).
+- 원고 저장이 DB 포화로 실패하면 API는 일반 500(`{error: internal}`)이다. 브라우저는 실패를 "저장됨"으로 보이지 않고 로컬 복구를 둔다(PW-015). 다만 디스크 압박이라는 원인은 전하지 않는다(review n2).
 - MOCK writer만 썼다. 실제 CLI 프로세스를 죽였을 때의 하위 프로세스 정리는 PW-028(`reconcileRunProcesses`)이 맡는다.
 
 ## 다음
 PW-054: Run 상태 UI·운영 reliability gate
+
+## 리뷰 (33ea599): approve — MINOR 2, NIT 4
+| 지적 | 처리 | 시험 |
+|---|---|---|
+| m1: "디스크 포화는 재시도하지 않음"은 작업 행 UPDATE가 될 때만 성립(DB 전체 포화는 lease 회복으로 재생성) | 남은 위험에 범위를 적었다(표 하나 주입, DB 전체·WAL 포화는 at-least-once 재생성) | — |
+| m2: 과제의 "응답 유실"이 매핑에 없음 | 호출 중 SIGKILL이 공급자 응답 유실임을 매핑에 적었다. 저장 응답 유실 시험을 더했다 | 저장 후 응답 유실 → 같은 요청 재전송은 200 replayed, revision 1개. 옛 head에서 다른 글은 409, head 유지 |
+| n1: commit 붙잡기 2초가 짧음 | 5초로 늘렸다 | — |
+| n2: 디스크 포화 저장이 일반 500 | 남은 위험으로 기록 | — |
+| n3: 승인 변경 시험이 FAILED 또는 WAITING_USER를 허용 | 실제 결과(FAILED, draft gate)로 고정했다 | — |
+| n4: 계획 변경 STALE의 RED 로그 없음 | 기록대로 둔다(mutation으로 확인) | — |
+
+- GREEN: 통합 13, typecheck·lint 통과
+- 리뷰 결론: approve(MAJOR 없음). 반영분은 시험·문서의 작은 수정이라 재리뷰 없이 닫는다.

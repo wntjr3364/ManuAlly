@@ -127,7 +127,7 @@ describe('TST-053A: the job resumes from its checkpoint; an answer is kept only 
 
   test('a worker killed inside the commit that stores the validated answer: nothing is half-stored; a later run stores one proposal', async () => {
     const w = await world();
-    const release = await holdInsertsOn(pool, 'paragraph_proposals', 2);
+    const release = await holdInsertsOn(pool, 'paragraph_proposals', 5);
     try {
       const child = writerChild({ dbUrl: db.url, paperId: w.paperId, jobId: w.jobId, mode: 'normal', leaseMs: LEASE_MS });
       await waitForHold(pool);
@@ -271,6 +271,22 @@ describe('TST-053B: no overwrite of a newer document, no failed save shown as su
     expect(again.statusCode, again.body).toBe(201);
   });
 
+  test('a save whose answer is lost after it was stored: the resend is answered as stored, not stored twice; a different text from the old head is a conflict', async () => {
+    const w = await world();
+    const body = { schema_version: 1, reason: 'autosave', expected_head_revision_id: w.headId, content_json: docOf('Stored, but the answer never arrived.') };
+    const first = await call('POST', `/api/papers/${w.paperId}/documents/${w.documentId}/saves`, body);
+    expect(first.statusCode).toBe(201);
+    // the client never saw that answer and sends the identical request again
+    const again = await call('POST', `/api/papers/${w.paperId}/documents/${w.documentId}/saves`, body);
+    expect(again.statusCode, again.body).toBe(200);
+    expect(again.json()).toMatchObject({ id: first.json().id, replayed: true });
+    expect((await pool.query('SELECT count(*)::int AS n FROM document_revisions WHERE document_id = $1', [w.documentId])).rows[0].n).toBe(2);
+    // an edit made meanwhile from the old head does not overwrite the stored one
+    const other = await call('POST', `/api/papers/${w.paperId}/documents/${w.documentId}/saves`, { ...body, content_json: docOf('Another text from the old head.') });
+    expect(other.statusCode).toBe(409);
+    expect(await head(w)).toBe(first.json().id);
+  });
+
   test('a job cancelled while its worker was crashing is not revived by recovery, redelivery or a later sweep', async () => {
     const w = await world();
     const child = writerChild({ dbUrl: db.url, paperId: w.paperId, jobId: w.jobId, mode: 'hang_in_call', leaseMs: LEASE_MS });
@@ -291,7 +307,7 @@ describe('TST-053B: no overwrite of a newer document, no failed save shown as su
 
   test('a cancel that arrives while the worker is inside its commit, then the worker dies: cancelled, nothing stored', async () => {
     const w = await world();
-    const release = await holdInsertsOn(pool, 'paragraph_proposals', 2);
+    const release = await holdInsertsOn(pool, 'paragraph_proposals', 5);
     let cancelled;
     try {
       const child = writerChild({ dbUrl: db.url, paperId: w.paperId, jobId: w.jobId, mode: 'normal', leaseMs: LEASE_MS });
@@ -320,7 +336,7 @@ describe('TST-053B: no overwrite of a newer document, no failed save shown as su
     const calls = { n: 0 };
     expect((await deliver(w, asInMain(counting(calls)))).outcome).toBe('failed');
     expect(calls.n).toBe(0);
-    expect((await job(w)).status).toMatch(/^(FAILED|WAITING_USER)$/);
+    expect((await job(w)).status).toBe('FAILED');
     expect(await proposals(w)).toEqual([]);
   });
 

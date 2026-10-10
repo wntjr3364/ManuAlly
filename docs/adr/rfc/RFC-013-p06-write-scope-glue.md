@@ -44,3 +44,4 @@ User decision / reviewer:
 - PW-051
   - `apps/worker/src/local/index.ts`: 회복 주기에서 `recoverJobs` 대신 `reconcileInflight`를 부른다(상태 사건, 미정산 예약, 기록 포함).
   - `apps/worker/src/main.ts`: PW-050의 별도 정산 sweep을 뺐다(회복 sweep이 한다).
+  - 리뷰 반영: 회복 sweep(`reconcileInflight`)은 지금 local worker 고리에서만 돈다. pg-boss 배치를 쓰면 같은 sweep을 주기적으로 직접 돌려야 한다(review n3).

@@ -21,6 +21,7 @@ import { billingAccount, leaseState } from '../../../packages/domain/src/leases/
 import { processDelivery, relayOutbox, type JobMessage } from '../../../apps/worker/src/queue/index.ts';
 import { writerHandlers, createMockWriter, type Writer } from '../../../apps/worker/src/writer/index.ts';
 import { reconcileInflight, listRecoveryLog } from '../../../apps/worker/src/recovery/index.ts';
+import { initialState, reduce } from '../../../apps/web/src/features/chat/stream-state.ts';
 import { withAdmission } from '../../../apps/worker/src/admission/index.ts';
 import { listReservations } from '../../../packages/domain/src/budget/index.ts';
 
@@ -98,7 +99,9 @@ describe('TST-051A: through a crash, a takeover and duplicates, the manuscript c
     expect(rec.jobs).toContainEqual({ job_id: w.jobId, status: 'QUEUED' });
     // the job's progress says so (what the browser shows)
     const ev = await listJobEvents(pool, w.paperId, w.jobId);
-    expect(ev.at(-1)).toMatchObject({ kind: 'status', data: { status: 'QUEUED', reason: 'lease_expired', previous_owner: 'A' } });
+    // not a 'status' (the browser reads that as a new run); no worker id in what the browser sees
+    expect(ev.at(-1)).toEqual(expect.objectContaining({ kind: 'error', data: { reason: 'lease_expired', status: 'QUEUED' } }));
+    expect((await listRecoveryLog(pool)).at(-1)!.jobs).toContainEqual({ job_id: w.jobId, status: 'QUEUED', previous_owner: 'A' });
     // worker B takes it over and finishes
     expect((await deliver(w, 'B', createMockWriter())).outcome).toBe('completed');
     expect(await leaseState(pool, w.paperId, w.jobId)).toMatchObject({ status: 'SUCCEEDED', fencing_token: 2, lease_owner: null });
@@ -110,7 +113,7 @@ describe('TST-051A: through a crash, a takeover and duplicates, the manuscript c
     expect((await listRecoveryLog(pool)).at(-1)).toMatchObject({ requeued: expect.any(Number), failed: 0 });
   });
 
-  test('a job another worker claimed right after it was re-queued gets no stale "re-queued" event', async () => {
+  test('a job another worker claims right after it was re-queued: exactly one recovery note, and the new run finishes', async () => {
     const w = await world();
     const a = heldWriter();
     const runA = deliver(w, 'A', a.writer);
@@ -118,11 +121,14 @@ describe('TST-051A: through a crash, a takeover and duplicates, the manuscript c
     await expireLease(w);
     const b = heldWriter();
     let runB: Promise<unknown> = Promise.resolve();
-    const rec = await reconcileInflight(pool, { redispatchAfterMs: 60_000, afterRecover: async () => { runB = deliver(w, 'B', b.writer); await b.started; } });
-    expect(rec.jobs.find((j) => j.job_id === w.jobId)).toBeUndefined();
-    expect((await listJobEvents(pool, w.paperId, w.jobId)).filter((e) => e.data.reason === 'lease_expired')).toEqual([]);
+    await reconcileInflight(pool, { redispatchAfterMs: 60_000, afterRecover: async () => { runB = deliver(w, 'B', b.writer); await b.started; } });
     a.release(); b.release();
     await runA; await runB;
+    // the recovery note is written with the recovery itself (one transaction), so it precedes whatever
+    // the next run reports
+    const ev = await listJobEvents(pool, w.paperId, w.jobId);
+    expect(ev.filter((e) => e.data.reason === 'lease_expired')).toHaveLength(1);
+    expect(await leaseState(pool, w.paperId, w.jobId)).toMatchObject({ status: 'SUCCEEDED', fencing_token: 2 });
   });
 
   test('the reservation of a run that lost its lease is settled by the sweep', async () => {
@@ -136,6 +142,27 @@ describe('TST-051A: through a crash, a takeover and duplicates, the manuscript c
     expect((await listReservations(pool, w.paperId, w.jobId)).map((r) => r.state)).toEqual(['settled']);
     a.release();
     await runA;
+  });
+
+  test('two sweeps at once recover a lost run once, with one event', async () => {
+    const w = await world();
+    const a = heldWriter();
+    const runA = deliver(w, 'A', a.writer);
+    await a.started;
+    await expireLease(w);
+    const recs = await Promise.all([reconcileInflight(pool, { redispatchAfterMs: 60_000 }), reconcileInflight(pool, { redispatchAfterMs: 60_000 })]);
+    expect(recs.flatMap((r) => r.jobs).filter((j) => j.job_id === w.jobId)).toHaveLength(1);
+    expect((await listJobEvents(pool, w.paperId, w.jobId)).filter((e) => e.data.reason === 'lease_expired')).toHaveLength(1);
+    a.release();
+    await runA;
+  });
+
+  test('the browser\'s progress does not read the recovery note as a new run', () => {
+    const answering = reduce(reduce(initialState, { event: 'status', id: 1, data: { run: 1, label: 'MOCK', provider: 'mock' } }), { event: 'delta', id: 2, data: { text: 'partial' } });
+    const queued = reduce(answering, { event: 'job', data: { status: 'QUEUED' } });
+    const after = reduce(queued, { event: 'error', id: 3, data: { reason: 'lease_expired', status: 'QUEUED' } });
+    expect(after.phase).toBe('queued');
+    expect(after.label).toBe('MOCK');
   });
 
   test('the same message delivered twice at once runs the job once; a late duplicate is ignored', async () => {
@@ -221,7 +248,7 @@ describe('TST-051B: an expired worker changes nothing; billing is not exactly-on
       await run;
     }
     expect(await leaseState(pool, w.paperId, w.jobId)).toMatchObject({ status: 'FAILED' });
-    expect((await listJobEvents(pool, w.paperId, w.jobId)).at(-1)).toMatchObject({ kind: 'status', data: { status: 'FAILED', reason: 'lease_expired' } });
+    expect((await listJobEvents(pool, w.paperId, w.jobId)).at(-1)).toMatchObject({ kind: 'error', data: { status: 'FAILED', reason: 'lease_expired' } });
   });
 
   test('the usage of a discarded run is counted, and billing is reported as at-least-once', async () => {
@@ -239,7 +266,7 @@ describe('TST-051B: an expired worker changes nothing; billing is not exactly-on
     await runA;
     const acct = await billingAccount(pool, w.paperId, w.jobId);
     // two runs reached the provider, one result was kept
-    expect(acct).toMatchObject({ runs: 2, runs_with_usage: 2, results_kept: 1, billing: 'at_least_once', exactly_once: false });
+    expect(acct).toMatchObject({ runs: 2, sessions_with_usage: 2, results_kept: 1, billing: 'at_least_once', exactly_once: false });
     expect(acct.note).toMatch(/not exactly once/i);
   });
 

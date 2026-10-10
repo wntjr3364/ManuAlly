@@ -17,16 +17,17 @@ export async function leaseState(db: Queryable, paperId: string, jobId: string) 
 export async function billingAccount(db: Queryable, paperId: string, jobId: string) {
   const j = UUID_RE.test(jobId) ? (await db.query<{ runs: number; status: string }>('SELECT fencing_token::int AS runs, status FROM jobs WHERE id = $1 AND paper_id = $2', [jobId, paperId])).rows[0] : undefined;
   if (!j) throw new DomainError('NOT_FOUND', 'job not found');
-  // runs with usage: distinct provider sessions or, for reports without one, the run they name
+  // provider sessions that reported usage (reports without a session count as one): not runs — a run may
+  // replace its session, and a run stopped before the provider has none (review m2)
   const u = (await db.query<{ n: number }>(
     `SELECT count(DISTINCT coalesce(native_session_id, 'job')) ::int AS n FROM usage_events WHERE job_id = $1 AND paper_id = $2`, [jobId, paperId])).rows[0]!;
   return {
     runs: j.runs,
-    runs_with_usage: u.n,
+    sessions_with_usage: u.n,
     // only one run's result is ever kept (the fence); every reported run is counted, kept or not
     results_kept: j.status === 'SUCCEEDED' ? 1 : 0,
     billing: 'at_least_once' as const,
     exactly_once: false as const,
-    note: 'A provider may have been called (and billed) by a run that lost its lease; its usage is counted. Billing is at least once, not exactly once.',
+    note: 'runs are claims of the job (some may have stopped before calling the provider); sessions_with_usage counts provider sessions that reported usage. A provider may have been called (and billed) by a run that lost its lease; its usage is counted. Billing is at least once, not exactly once.',
   };
 }

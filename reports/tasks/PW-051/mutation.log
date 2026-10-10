@@ -10,3 +10,8 @@ KILLED completion not fenced
 # after added tests
 KILLED event for a job taken again (2)
 KILLED no orphan settlement (2)
+# review fixes
+KILLED R: recovery note as a status
+KILLED R: worker id shown to the browser
+KILLED R: no skip-locked (double recovery)
+KILLED R: attempts ignored

@@ -34,7 +34,7 @@
 - mutation(`mutation.log`): 11종 모두 탐지
   - 기존 fence(heartbeat, 완료)를 끄는 mutation도 이 시험이 잡는다.
   - 처음 살아남은 2종은 시험을 더한 뒤 탐지했다: 다시 잡힌 작업에 사건을 남김, 미정산 예약 정산 없음. 첫째에는 시험 hook(`afterRecover`)을 더했다.
-- 회귀: `pnpm test` exit 0 — unit 406, integration 549, contracts 17, 브라우저 95 (`pnpm-test.log`)
+- 회귀(리뷰 전): `pnpm test` exit 0 — unit 406, integration 549, contracts 17, 브라우저 95 (`pnpm-test.log`)
 
 ## 보안·과학적 실패 경로
 - 결과는 현재 fence의 실행만 저장한다. 옛 실행은 무엇도 바꾸지 못한다.
@@ -48,3 +48,17 @@
 
 ## 다음
 PW-052: 오류 분류·bounded retry
+
+## 리뷰 (eef38d2, 06b6bd8): approve — MINOR 2, NIT 4
+| 지적 | 처리 | 시험 |
+|---|---|---|
+| m1: 회복 사건이 `status` 종류라 브라우저가 "새 실행 시작"으로 읽음(다시 큐에 들어간 작업이 "작업 중"으로 보임) | 회복 사건은 `error` 종류 `{reason: lease_expired, status}`다(브라우저 reducer는 이를 실행 시작으로 보지 않는다). worker id는 브라우저가 보는 데이터에서 빼고 회복 기록에만 남긴다 | reducer: 답 중 → job QUEUED → 회복 사건이면 phase는 queued이고 label이 유지된다. 사건 데이터에 worker id가 없다 |
+| m2: `runs_with_usage`가 실행이 아니라 세션을 셈 | `sessions_with_usage`로 이름을 바꾸고 안내에 뜻을 적었다(실행은 claim 수이며, 공급자 전에 멈춘 실행도 포함) | 계정 시험 |
+| n1·n2: 두 sweep이 한 회복에 사건 둘을 붙이거나, 다른 원인에 사건이 붙음 | 만료 실행의 회복과 그 사건을 **한 트랜잭션**(`FOR UPDATE SKIP LOCKED`)에서 한다. 사건은 그 sweep이 실제로 회복한 작업에만, 한 번 붙는다. `recoverJobs`는 잃은 메시지 재발송만 맡는다 | 동시 sweep 둘: 회복 1번, 사건 1개. 회복 직후 다른 worker가 잡아도 사건 1개이고 작업은 끝난다 |
+| n3: 정산 sweep이 local worker 고리에 달림 | RFC-013에 적었다(pg-boss 배치는 `reconcileInflight`를 직접 돌려야 함) | — |
+| n4: 늦은 중복 메시지가 재시도 지연을 건너뛸 수 있음(기존 동작) | 남은 위험으로 기록(결과는 맞음: claim 하나, fence) | — |
+
+- GREEN: 통합 13
+  - 기존 "다시 잡힌 작업에는 사건 없음" 시험은 바뀐 의미(회복과 사건이 한 트랜잭션)에 맞춰 "사건 1개, 새 실행이 끝남"으로 바꿨다.
+- mutation(`mutation.log` 하단): 4종 모두 탐지(사건 종류, worker id 노출, SKIP LOCKED, 시도 횟수)
+- 회귀: (아래 채움)

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, errorText } from '../../app/api.ts';
 import { aiRuns, intentLabel, isActive, statusLabel, type RunRow } from './run-state.ts';
+import { RunControl } from '../run-control/RunControl.tsx';
 
 const when = (t: string) => new Date(t).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'medium' });
 
@@ -13,6 +14,7 @@ export function RunsTab({ paperId, visible }: { paperId: string; visible: boolea
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -67,10 +69,14 @@ export function RunsTab({ paperId, visible }: { paperId: string; visible: boolea
             {r.attempts > 1 && <span className="hint"> · {r.attempts}번째 시도</span>}
             {/* why it stopped or waits, and the owner's next step (PW-052: also for WAITING_* and STALE) */}
             {(r.status === 'FAILED' || r.status === 'STALE' || r.status.startsWith('WAITING_')) && r.last_error && <p className="hint" data-testid="run-reason">사유: {r.last_error.slice(0, 300)}</p>}
-            {isActive(r) && ' '}
-            {isActive(r) && (
+            {isActive(r) && open !== r.id && ' '}
+            {/* while the run's panel is open, its own stop button is the one shown */}
+            {isActive(r) && open !== r.id && (
               <button type="button" disabled={busy === r.id || offline} onClick={() => void stop(r.id)}>중지</button>
             )}
+            {' '}<button type="button" className="link" aria-expanded={open === r.id} data-testid="run-details" onClick={() => setOpen(open === r.id ? null : r.id)}>{open === r.id ? '접기' : '자세히'}</button>
+            {/* PW-054: the run's stored control state; stop, resume and auto-resume */}
+            {open === r.id && <RunControl paperId={paperId} jobId={r.id} status={r.status} onChanged={() => void load()} />}
           </li>
         ))}
       </ul>

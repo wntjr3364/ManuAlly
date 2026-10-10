@@ -60,3 +60,7 @@ User decision / reviewer:
   - `apps/worker/src/writer/index.ts`: 완료 트랜잭션에서 계획의 gate를 다시 읽는다. 호출 중 계획(승인)이 바뀐 답은 STALE로 저장한다(적용은 원래도 거절됨).
   - `packages/domain/src/writer/index.ts`: `gateReasonsIn` export(`gateHoldsIn`을 나눔, 동작 같음)
   - `packages/providers/src/error-normalization/index.ts`: 코드 `53100` → disk_full
+- PW-054
+  - 새 도메인 폴더 `packages/domain/src/run-control/**`: 실행 제어 상태(읽기 전용)와 사용자의 다시 시작(WAITING_* → QUEUED, 열린 한도 대기 닫기). 다시 시작은 사용자 행위라 인증된 API로만 받는다.
+  - 새 route 폴더 `apps/api/src/run-control/**`, `apps/api/src/server.ts`(등록)
+  - `apps/web/src/features/runs/RunsTab.tsx`: 실행마다 "자세히"로 실행 제어 패널(`features/run-control`)을 연다.

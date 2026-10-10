@@ -1,0 +1,161 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-054/format.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-054/format.test.ts [ tests/tasks/PW-054/format.test.ts ]
+Error: Cannot find module '../../../apps/web/src/features/run-control/format.ts' imported from /home/user/ManuAlly/tests/tasks/PW-054/format.test.ts
+ ❯ tests/tasks/PW-054/format.test.ts:6:1
+      4| // TST-054B: unknown usage is never shown as 0 or a precise percentage…
+      5| import { describe, expect, test } from 'vitest';
+      6| import { autoResumeText, checkpointText, contextText, waitText } from …
+       | ^
+      7|
+      8| describe('TST-054B: unknown is unknown, an estimate is an estimate', (…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  05:28:59
+   Duration  303ms (worker 96%, environment 4%)
+
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-054/run-control.int.test.ts (7 tests | 6 failed) 2747ms
+   ❯ TST-054A: the state shown is the database's; the manuscript and the material stay usable while AI waits (5)
+     × a job waiting for its quota: status, reason, checkpoint, provider, unknown reset and context, permissions and actions 263ms
+     × while the job waits the owner edits the manuscript and reads the material 199ms
+     × resume is the owner's act: the waiting job is queued again, its open wait closed; nothing else changes 172ms
+     × a cancelled job is not resumed 156ms
+   ❯ TST-054B: unknown is not 0; auto-resume is not an approval (2)
+     × a measured or estimated context is shown with its source; a reading the provider gave is never mixed with an estimate 130ms
+     × an auto-resumed run only makes a proposal: the manuscript is not changed and nothing is applied 111ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-054/run-control.int.test.ts > TST-054A: the state shown is the database's; the manuscript and the material stay usable while AI waits > a job waiting for its quota: status, reason, checkpoint, provider, unknown reset and context, permissions and actions
+AssertionError: {"message":"Route GET:/api/papers/117fbcb5-73e5-4a6b-a258-39668f938fdd/jobs/fdbb6145-8b80-4346-89a6-a793175a2294/control not found","error":"Not Found","statusCode":404}: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ tests/tasks/PW-054/run-control.int.test.ts:99:34
+     97|     const w = await waiting();
+     98|     const r = await control(w);
+     99|     expect(r.statusCode, r.body).toBe(200);
+       |                                  ^
+    100|     const c = r.json();
+    101|     const row = (await pool.query('SELECT status, attempts, last_error…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/tasks/PW-054/run-control.int.test.ts > TST-054A: the state shown is the database's; the manuscript and the material stay usable while AI waits > while the job waits the owner edits the manuscript and reads the material
+TypeError: Cannot read properties of undefined (reading 'status')
+ ❯ tests/tasks/PW-054/run-control.int.test.ts:122:38
+    120|       expect(r.statusCode, `${url} ${r.body}`).toBe(200);
+    121|     }
+    122|     expect((await control(w)).json().job.status).toBe('WAITING_QUOTA');
+       |                                      ^
+    123|   });
+    124|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/tasks/PW-054/run-control.int.test.ts > TST-054A: the state shown is the database's; the manuscript and the material stay usable while AI waits > resume is the owner's act: the waiting job is queued again, its open wait closed; nothing else changes
+AssertionError: expected 404 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 404
+
+ ❯ tests/tasks/PW-054/run-control.int.test.ts:127:100
+    125|   test('resume is the owner\'s act: the waiting job is queued again, i…
+    126|     const w = await waiting();
+    127|     expect((await call('POST', `/api/papers/${w.paperId}/jobs/${w.jobI…
+       |                                                                                                    ^
+    128|     expect((await call('POST', `/api/papers/${w.paperId}/jobs/${w.jobI…
+    129|     const r = await call('POST', `/api/papers/${w.paperId}/jobs/${w.jo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/tasks/PW-054/run-control.int.test.ts > TST-054A: the state shown is the database's; the manuscript and the material stay usable while AI waits > a cancelled job is not resumed
+AssertionError: expected 404 to be 409 // Object.is equality
+
+- Expected
++ Received
+
+- 409
++ 404
+
+ ❯ tests/tasks/PW-054/run-control.int.test.ts:150:122
+    148|     const w = await waiting();
+    149|     expect((await call('POST', `/api/papers/${w.paperId}/jobs/${w.jobI…
+    150|     expect((await call('POST', `/api/papers/${w.paperId}/jobs/${w.jobI…
+       |                                                                                                                          ^
+    151|     expect((await pool.query('SELECT status FROM jobs WHERE id = $1', …
+    152|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/tasks/PW-054/run-control.int.test.ts > TST-054B: unknown is not 0; auto-resume is not an approval > a measured or estimated context is shown with its source; a reading the provider gave is never mixed with an estimate
+AssertionError: expected undefined to match object { Object (tokens, window, ...) }
+
+- Expected:
+{
+  "observed_at": Any<String>,
+  "source": "estimated",
+  "tokens": 141000,
+  "window": 200000,
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-054/run-control.int.test.ts:168:47
+    166|     await pool.query(`INSERT INTO context_switches (paper_id, job_id, …
+    167|       VALUES ($1, $2, 1, $3, 'checkpoint_review', 's1', 200000, 141000…
+    168|     expect((await control(w)).json().context).toMatchObject({ tokens: …
+       |                                               ^
+    169|   });
+    170|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/tasks/PW-054/run-control.int.test.ts > TST-054B: unknown is not 0; auto-resume is not an approval > an auto-resumed run only makes a proposal: the manuscript is not changed and nothing is applied
+AssertionError: expected undefined to deeply equal { state: 'allowed', …(1) }
+
+- Expected:
+{
+  "expires_at": Any<String>,
+  "state": "allowed",
+}
+
++ Received:
+undefined
+
+ ❯ tests/tasks/PW-054/run-control.int.test.ts:175:51
+    173|     const g = await call('POST', `/api/papers/${w.paperId}/jobs/${w.jo…
+    174|     expect(g.statusCode, g.body).toBe(201);
+    175|     expect((await control(w)).json().auto_resume).toEqual({ state: 'al…
+       |                                                   ^
+    176|     const decisions = await wakeDueWaits(pool, { now: new Date(Date.no…
+    177|     expect(decisions).toContainEqual(expect.objectContaining({ job_id:…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  6 failed | 1 passed (7)
+   Start at  05:29:00
+   Duration  5.06s (tests 56%, transform 34%, import 9%)
+

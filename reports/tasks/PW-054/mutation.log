@@ -1,0 +1,15 @@
+KILLED resume any status
+KILLED resume keeps quota wait open
+KILLED resume without intent
+KILLED resume as system actor
+KILLED unknown context as zero
+KILLED actions ignore status
+KILLED fmt unknown shows 0
+KILLED fmt estimate precise
+KILLED fmt reset unknown hidden
+KILLED fmt auto-resume no apply note
+KILLED ui stale reason shown
+# re-run: same owner's other paper test added; the last UI mutant (interrupted run) run again
+KILLED other paper's job readable
+KILLED other paper's job resumable
+KILLED ui resume always

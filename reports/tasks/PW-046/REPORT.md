@@ -95,6 +95,7 @@ P05 gate 보고(`reports/p05/P05_GATE.md`) → P06(PW-047~054)
     - "섹션 제목 검사 끔" mutation이 살아남았다.
   - 고친 뒤의 시험: 문단 id는 제안 목록에서 읽는다. 셋째 문단은 둘째가 섹션 끝일 때 요청하고, 사용자는 바로 그 둘째 문단을 고친다. 고친 뒤 mutation은 탐지된다.
 - mutation(`mutation.log` 하단): 12종 모두 탐지(1종은 시험 보강 뒤)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 464, contracts 17, 브라우저 95 (`pnpm-test-review.log`)
 - 범위 밖 추가(RFC-012 부록): `apps/worker/src/writer/index.ts`(payload의 섹션 제목, 역할 비교), `apps/worker/src/reviewer/index.ts`(역할 비교), `packages/domain/src/scientific-review/index.ts`(고쳐 쓰기 payload의 빈 섹션 제목). migration은 이 Task 범위다.
 - 남은 위험(추가)
   - 프로필 역할의 **근거 출처**는 여전히 문헌에서 읽은 IMRaD 섹션이다. 역할 섹션과 정확히 같아야 출처로 인정된다(`sectionServes`). 그래서 "Implementation", "Materials and Methods" 같은 역할은 출처 없는 사용자 규칙만 가질 수 있다.

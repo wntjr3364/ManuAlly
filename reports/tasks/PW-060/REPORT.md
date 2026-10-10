@@ -71,5 +71,7 @@
   - URL의 TLS 인증서 설정(`sslrootcert`, `sslcert`, `sslkey`)도 환경 변수로 넘긴다(시험 보강).
   - README에 `PW_PG_BIN`으로 서버와 같은 major 도구를 쓰라고 적었다. 새 `pg_dump` 묶음을 옛 서버에 넣으면 안전하게 실패한다.
 
+- 리뷰 NIT 반영 후 `pnpm test` exit 0(`test.log`: unit 618, 통합 659, contracts 17, 브라우저 101).
+
 ## 다음
 PW-061(배포·storage·upgrade runbook)

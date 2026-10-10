@@ -1,0 +1,25 @@
+KILLED earliest reset instead of latest
+KILLED no jitter
+KILLED unknown reset treated as known
+KILLED no backoff doubling
+KILLED passed reset still blocks
+SURVIVED future observations used
+KILLED enter not fenced
+KILLED cancelled job not closed
+KILLED permission not checked
+KILLED expired treated as not allowed
+KILLED other bucket ignored
+KILLED auth answer ignored
+KILLED rejected answer ignored
+KILLED unknown availability resumes
+KILLED unknown never resumes
+KILLED policy unchecked
+KILLED document unchecked
+KILLED unbounded waits
+SURVIVED no skip-locked
+KILLED grant hours unbounded
+KILLED revocation ignored
+KILLED grant on finished job
+KILLED wrapper swallows enter
+# after added test
+KILLED future observations used (2)

@@ -12,6 +12,7 @@ import { curationHandlers, createMockAssessor } from './curation/index.ts';
 import { pdfHandlers } from './pdf/index.ts';
 import { defaultAssetDir } from '@pw/domain/asset-policy/store.ts';
 import { reconcileRunProcesses } from './lifecycle/index.ts';
+import { wakeDueWaits, withQuotaWaits } from './quota-scheduler/index.ts';
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const url = process.env.PW_DATABASE_URL;
@@ -19,7 +20,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   selectProvider(process.env); // refuses anything but an admitted provider
   const pool = new pg.Pool({ connectionString: url, max: 6 });
   const worker = startLocalWorker(pool, {
-    handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()), ...storyHandlers(pool, createMockStoryGenerator()), ...profileHandlers(pool, createMockProfileGenerator()), ...writerHandlers(pool, createMockWriter()), ...reviewerHandlers(pool, createMockReviewer()), ...pdfHandlers(pool, { assetDir: defaultAssetDir() }) },
+    handlers: { ...selectionHandlers(pool, createMockProvider({ chunkDelayMs: 80 })), ...curationHandlers(pool, createMockAssessor()), ...storyHandlers(pool, createMockStoryGenerator()), ...profileHandlers(pool, createMockProfileGenerator()), ...withQuotaWaits(pool, writerHandlers(pool, createMockWriter())), ...reviewerHandlers(pool, createMockReviewer()), ...pdfHandlers(pool, { assetDir: defaultAssetDir() }) },
     onError: (e) => console.error('worker error:', e instanceof Error ? e.message : e),
   });
   // RFC-010: provider run processes left by a crashed worker (or of cancelled jobs) are ended on start
@@ -27,7 +28,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const reconcile = () => reconcileRunProcesses(pool).catch((e) => console.error('reconcile error:', e instanceof Error ? e.message : e));
   void reconcile();
   const timer = setInterval(() => void reconcile(), 60_000);
-  const stop = async () => { clearInterval(timer); await worker.stop(); await pool.end(); process.exit(0); };
+  // PW-049: quota waits that are due are decided every minute. No provider offers a verified availability
+  // check yet, so the probe cannot tell: a known reset that passed resumes, an unknown one keeps waiting.
+  const wake = () => wakeDueWaits(pool, { now: new Date(), probe: async () => 'unknown' }).catch((e) => console.error('quota scheduler error:', e instanceof Error ? e.message : e));
+  const quotaTimer = setInterval(() => void wake(), 60_000);
+  const stop = async () => { clearInterval(timer); clearInterval(quotaTimer); await worker.stop(); await pool.end(); process.exit(0); };
   process.on('SIGINT', () => void stop());
   process.on('SIGTERM', () => void stop());
   console.log('worker running (provider: mock — answers are labelled MOCK)');

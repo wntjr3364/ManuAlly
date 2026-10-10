@@ -26,6 +26,7 @@ import { registerWriterRoutes } from './writer/index.ts';
 import { registerScientificCheckRoutes } from './scientific-checks/index.ts';
 import { registerScientificReviewRoutes } from './scientific-review/index.ts';
 import { registerManuscriptStructureRoutes } from './manuscript-structure/index.ts';
+import { registerQuotaWaitRoutes } from './quota-waits/index.ts';
 import { registerOutlineImpactRoutes } from './outline-impact/index.ts';
 import type { ZoteroConfig } from '@pw/search/zotero/index.ts';
 import { selectProvider } from '@pw/providers';
@@ -133,6 +134,7 @@ export function buildServer(opts: ServerOptions): FastifyInstance {
   registerScientificCheckRoutes(app, db);
   registerScientificReviewRoutes(app, db);
   registerManuscriptStructureRoutes(app, db);
+  registerQuotaWaitRoutes(app, db);
   registerOutlineImpactRoutes(app, db);
   registerAiRoutes(app, db, { pollMs: opts.eventPollMs, maxMs: opts.eventStreamMaxMs });
   return app;

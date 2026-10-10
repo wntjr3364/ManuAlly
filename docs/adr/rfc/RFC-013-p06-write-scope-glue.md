@@ -31,3 +31,9 @@ User decision / reviewer:
 - PW-047
   - `apps/worker/src/writer/index.ts`: Writer handler의 checkpoint 세 곳(호출 전, 검증 후, 제안 저장 — 마지막은 완료 트랜잭션 안). 두 번째 이후 실행은 마지막 checkpoint를 재검사하고, 바뀐 것이 있으면 WAITING_USER로 보낸다.
   - 리뷰 반영: `job_checkpoints`는 `jobs(paper_id, id)`를 참조하고 바뀌지 않는다(삭제 동작 없음). 지금은 작업·논문 삭제가 없다. 앞으로 보존 기간 정리나 논문 삭제를 만들 때 이 표를 함께 다뤄야 한다(review NIT 3).
+- PW-048: 범위 밖 파일 없음
+- PW-049
+  - 새 도메인 폴더 `packages/domain/src/quota-waits/**`: 사용자의 자동 재개 허락(1–72시간, 철회)과 대기 목록. 허락은 사용자 행위라 인증된 API로만 받는다.
+  - 새 route 폴더 `apps/api/src/quota-waits/**`, `apps/api/src/server.ts`(등록)
+  - `apps/worker/src/main.ts`: Writer handler를 `withQuotaWaits`로 감싼다. 1분마다 `wakeDueWaits`를 돈다. 확인된 공급자 가용성 확인이 아직 없어 probe는 "모름"이다.
+  - 공유 함수 변경(이 Task migration `pw_049_0001`): `pw_job_guard`에 WAITING_QUOTA → WAITING_USER, WAITING_AUTH, STALE 전환을 더했다. 다른 전환은 그대로다.

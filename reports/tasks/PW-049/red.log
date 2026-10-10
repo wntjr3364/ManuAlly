@@ -1,0 +1,26 @@
+
+ RUN  v5.0.1 /home/user/ManuAlly
+
+ ❯ tests/tasks/PW-049/quota.int.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/tasks/PW-049/quota.int.test.ts [ tests/tasks/PW-049/quota.int.test.ts ]
+Error: Cannot find module '../../../packages/domain/src/quota-waits/index.ts' imported from /home/user/ManuAlly/tests/tasks/PW-049/quota.int.test.ts
+ ❯ tests/tasks/PW-049/quota.int.test.ts:23:1
+     21| import { cancelJob } from '../../../packages/domain/src/jobs/index.ts';
+     22| import { recordQuota } from '../../../packages/domain/src/usage/index.…
+     23| import { listQuotaWaits } from '../../../packages/domain/src/quota-wai…
+       | ^
+     24| import { processDelivery } from '../../../apps/worker/src/queue/index.…
+     25| import { writerHandlers, createMockWriter, type Writer } from '../../.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  02:50:02
+   Duration  1.98s (worker 97%, environment 3%)
+
+exit 1

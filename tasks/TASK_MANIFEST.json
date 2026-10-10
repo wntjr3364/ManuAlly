@@ -1596,7 +1596,7 @@
       "id": "PW-049",
       "phase": "P06",
       "title": "Quota 대기·리셋 재검증",
-      "status": "planned",
+      "status": "in_review",
       "depends_on": [
         "PW-048"
       ],

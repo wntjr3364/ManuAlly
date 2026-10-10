@@ -45,7 +45,7 @@
     - 이제 완료한 일은 지속되는 결과만이고, 진행은 `last_event`다.
     - helper 시험을 더한 뒤 탐지했다.
   - "다른 논문의 작업 상태 조회(OR)"는 살아남았다. 다음 checkpoint 조회가 논문으로 다시 거르기 때문에 다른 논문의 작업은 여전히 NOT_FOUND다. 이중 방어로 남긴다(동등).
-- 회귀: (아래 채움)
+- 회귀: `pnpm test` exit 0 — unit 406, integration 476, contracts 17, 브라우저 95 (`pnpm-test.log`)
 
 ## 보안·과학적 실패 경로
 - checkpoint와 재수화는 모델을 부르지 않는다. 요약은 정본이 아니다.

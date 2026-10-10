@@ -8,6 +8,7 @@
 //   are left to them (Web Locks, recovery.ts). A logout in another tab stops copies in this one.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
+import './prosemirror-base.css';
 import type { JSONContent } from '@tiptap/core';
 import { EDITOR_SCHEMA_VERSION, canonicalJson, validateDocument } from '@pw/editor-core';
 import { ApiError, api, setCsrf } from '../app/api.ts';
@@ -90,6 +91,8 @@ export function ManuscriptEditor({ paperId, info, outlineApproved = false, onSta
   const editor = useEditor({
     extensions,
     content: initial,
+    // the base CSS comes from prosemirror-base.css, not an injected inline <style> (production CSP, PW-061)
+    injectCSS: false,
     // the same value the editor has (set by the effect below): @tiptap/react compares these options on
     // every render and re-applies them (view props + state) when they differ — mid-selection that loses
     // the user's Shift+Arrow keystrokes (PW-022)

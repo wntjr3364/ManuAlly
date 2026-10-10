@@ -27,8 +27,9 @@ const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.map': 'application/json', '.txt': 'text/plain; charset=utf-8',
 };
-// requests that add files to the data root: uploads (any non-JSON body), exports and imports
-const ADDS_FILES = (method: string, url: string, type: string) => method === 'POST' && (!/^application\/json\b/.test(type) || /\/(exports|imports|submissions)(\?|$)/.test(url));
+// requests that add files to the data root: uploads (any non-JSON body), exports, imports, submissions (their
+// archive) and the open-access PDF fetch (review m3); tests/tasks/PW-061 lists every route that writes a file
+export const ADDS_FILES = (method: string, url: string, type: string) => method === 'POST' && (!/^application\/json\b/.test(type) || /\/(exports|imports|submissions|assets\/fetch)(\?|$)/.test(url));
 
 export async function schemaState(pool: pg.Pool, dir = MIGRATIONS_DIR): Promise<{ current: boolean; applied: number; expected: number; pending: string[]; unknown: string[] }> {
   const files = orderedMigrations(dir);
@@ -71,7 +72,8 @@ export async function startServer(cfg: DeployConfig, env: Record<string, string 
   const index = path.join(dist, 'index.html');
   if (!fs.existsSync(index)) throw new Error(`web_dist has no index.html (${dist}); build the web app first`);
   const web = async (req: { url: string }, reply: import('fastify').FastifyReply) => {
-    const rel = decodeURIComponent(String(req.url).split('?')[0]!);
+    let rel: string;
+    try { rel = decodeURIComponent(String(req.url).split('?')[0]!); } catch { rel = '/'; } // a malformed escape: the app (review n3)
     if (rel.startsWith('/api/')) return reply.code(404).send({ error: 'not_found' });
     const file = path.resolve(dist, `.${rel}`);
     const target = file.startsWith(`${dist}${path.sep}`) && fs.existsSync(file) && fs.statSync(file).isFile() ? file : index;

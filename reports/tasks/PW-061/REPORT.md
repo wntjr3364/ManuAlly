@@ -43,7 +43,7 @@ sudo 없이 사용자 계정으로 돌리는 개인 설치 하나를 위한 배�
 | REQ/AC | 시험 | 결과 |
 |---|---|---|
 | REQ-061-A / TST-061A(깨끗한 전용 환경에서 private deployment·상태조회·안전중단) | `tests/tasks/PW-061/deploy.int.test.ts` "TST-061A"(실제 `pwctl` CLI, 운영 이름의 새 DB, 실제 웹 빌드, 실제 Chromium) | 통과 |
-| REQ-061-B / TST-061B(root overlay 무제한 저장·공개 agent port·운영/테스트 DB 혼용·latest 무검증 업데이트 불허) | `tests/tasks/PW-061/check.test.ts`(10), `deploy.int.test.ts` "TST-061B"(3), `ai-pause.int.test.ts`(4) | 통과 |
+| REQ-061-B / TST-061B(root overlay 무제한 저장·공개 agent port·운영/테스트 DB 혼용·latest 무검증 업데이트 불허) | `tests/tasks/PW-061/check.test.ts`(12), `deploy.int.test.ts` "TST-061B"(3), `ai-pause.int.test.ts`(4) | 통과 |
 
 TST-061A가 보이는 것
 - `check` 통과, 이주 전 `run` 거부, `migrate`(빈 DB는 백업 없이).
@@ -137,6 +137,9 @@ TST-061B가 보이는 것
   - 헤더 주석의 없는 규칙을 고쳤다.
 - **n3** 잘못된 URL escape는 router가 400으로 거부한다(500 아님, 시험). 처리기에도 대비를 넣었다.
 - **n4** DEPLOY에 PostgreSQL 데이터·로그는 data root 상한 밖이라고 적었다.
+- 반영 확인 mutation 10종 중 9종을 잡았다.
+  - 남은 것: state 파일의 시작 시각 확인. drill에서는 명령 확인이 먼저 걸렀다.
+  - 같은 명령의 다른 프로세스(재사용 pid)로 시험을 더해 잡았다(R2).
 
 ## 다음
 PW-062(최종 pilot gate)

@@ -121,6 +121,21 @@ const alive = (pid: unknown) => {
   try { process.kill(pid, 0); } catch { return false; }
   try { return fs.readFileSync(`/proc/${pid}/stat`, 'utf8').replace(/^.*\) /s, '')[0] !== 'Z'; } catch { return true; }
 };
+// when a process started (clock ticks since boot, /proc/<pid>/stat field 22): with the pid it names one process
+export const startTicks = (pid: number): string | null => {
+  try { return fs.readFileSync(`/proc/${pid}/stat`, 'utf8').replace(/^.*\) /s, '').split(' ')[19] ?? null; } catch { return null; }
+};
+// the supervisor recorded in state.json, if it is still that process (review m2: after a reboot the pid can
+// belong to another process; a recorded pid is trusted only with the same start time and command)
+export function recordedSupervisor(state: Record<string, unknown> | null): number | null {
+  const pid = state?.pid;
+  if (typeof pid !== 'number' || !alive(pid)) return null;
+  if (state!.pid_start !== startTicks(pid)) return null;
+  let cmd: string;
+  try { cmd = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8'); } catch { return null; }
+  return /pwctl\.ts\0run(\0|$)/.test(cmd) ? pid : null;
+}
+const readState = (cfg: DeployConfig) => { try { return JSON.parse(fs.readFileSync(path.join(dirs(cfg).run, 'state.json'), 'utf8')) as Record<string, unknown>; } catch { return null; } };
 function lastBackup(cfg: DeployConfig): { dir: string; created_at: string; age_hours: number } | 'none' | 'UNKNOWN' {
   if (!cfg.backup_dir) return 'UNKNOWN';
   let best: { dir: string; created_at: string } | null = null;
@@ -137,8 +152,9 @@ function lastBackup(cfg: DeployConfig): { dir: string; created_at: string; age_h
   return best ? { ...best, age_hours: Math.round((Date.now() - Date.parse(best.created_at)) / 36e5 * 10) / 10 } : 'none';
 }
 export async function status(cfg: DeployConfig, env: Env) {
-  const state = (() => { try { return JSON.parse(fs.readFileSync(path.join(dirs(cfg).run, 'state.json'), 'utf8')) as Record<string, unknown>; } catch { return null; } })();
-  const processes = state ? { supervisor: alive(state.pid), api: alive(state.api_pid), worker: alive(state.worker_pid), started_at: state.started_at } : 'not running';
+  const state = readState(cfg);
+  const sup = recordedSupervisor(state);
+  const processes = sup ? { supervisor: true, api: alive(state!.api_pid), worker: alive(state!.worker_pid), started_at: state!.started_at } : 'not running';
   const h = await health(cfg);
   const pool = new pg.Pool({ connectionString: env[cfg.database_url_env], max: 1, connectionTimeoutMillis: 5000 });
   let db: Record<string, unknown>;
@@ -175,6 +191,8 @@ export function childEnv(cfg: DeployConfig, env: Env, configFile: string): Recor
 export async function supervise(cfg: DeployConfig, env: Env, configFile: string, o: { measureEveryMs?: number; restartLimit?: number } = {}): Promise<number> {
   const d = dirs(cfg);
   for (const x of Object.values(d)) fs.mkdirSync(x, { recursive: true, mode: 0o700 });
+  const other = recordedSupervisor(readState(cfg));
+  if (other) { process.stderr.write(`a supervisor is already running (pid ${other}); \`pwctl stop\` first\n`); return 1; }
   fs.rmSync(d.tmp, { recursive: true, force: true }); // parser temp files of a previous run
   fs.mkdirSync(d.tmp, { mode: 0o700 });
   const pool = new pg.Pool({ connectionString: env[cfg.database_url_env], max: 2 });
@@ -190,7 +208,7 @@ export async function supervise(cfg: DeployConfig, env: Env, configFile: string,
   const crashes: number[] = [];
   let stopping = false;
   let exitCode = 0;
-  const writeState = () => fs.writeFileSync(path.join(d.run, 'state.json'), JSON.stringify({ pid: process.pid, api_pid: children.api?.pid ?? null, worker_pid: children.worker?.pid ?? null, started_at: new Date().toISOString() }), { mode: 0o600 });
+  const writeState = () => fs.writeFileSync(path.join(d.run, 'state.json'), JSON.stringify({ pid: process.pid, pid_start: startTicks(process.pid), api_pid: children.api?.pid ?? null, worker_pid: children.worker?.pid ?? null, started_at: new Date().toISOString() }), { mode: 0o600 });
   let shutdown: () => Promise<void> = async () => undefined;
   let done!: () => void;
   const finished = new Promise<void>((r) => { done = r; });
@@ -245,10 +263,15 @@ export async function supervise(cfg: DeployConfig, env: Env, configFile: string,
 }
 
 // ---- verify-upgrade ----------------------------------------------------------------------------------
-export function verifyUpgrade(cfg: DeployConfig, component: string, version: string, env: Env): UpgradeRecord {
+export async function verifyUpgrade(cfg: DeployConfig, component: string, version: string, env: Env): Promise<UpgradeRecord> {
   const { pins, verify_commands } = loadVersions();
   if (!(component in pins)) throw new Error(`${component} is not a pinned component`);
   if (!/^\d+(\.\d+){0,3}$|^[0-9a-f]{64}$/.test(version)) throw new Error('give the exact version that is installed (no latest, ranges or tags)');
+  // the check runs on what is installed now, so it can only vouch for that version (review m4)
+  const pool = env[cfg.database_url_env] ? new pg.Pool({ connectionString: env[cfg.database_url_env], max: 1, connectionTimeoutMillis: 5000 }) : null;
+  let have: string | null | undefined;
+  try { have = (await installedVersions({ [component]: 'x' }, env, pool))[component]; } finally { await pool?.end(); }
+  if (have !== version) throw new Error(`${component} ${version} is not what is installed (${have ?? 'nothing found'}); install it first, then verify`);
   const commands = verify_commands.map(([cmd, ...args]) => {
     const r = spawnSync(cmd!, args, { cwd: APP_DIR, env: { PATH: env.PATH ?? '/usr/bin:/bin', HOME: env.HOME ?? '/nonexistent', PW_TEST_DATABASE_URL: env.PW_TEST_DATABASE_URL ?? '' }, stdio: 'inherit', timeout: 30 * 60_000 });
     return { cmd: [cmd, ...args].join(' '), exit: r.status ?? 1 };
@@ -283,7 +306,10 @@ export async function main(argv: string[], env: Env): Promise<number> {
     const r = await check(cfg, env);
     if (!r.ok) { out(r); return 1; }
     if (cmd === 'run') return supervise(cfg, env, configFile);
-    // migrate: a complete backup first (when the database already holds data), then the migrations
+    // migrate: only with the app stopped (review m1: the backup is then the last state, and no old process
+    // runs on the new schema), a complete backup first (when the database holds data), then the migrations
+    const running = recordedSupervisor(readState(cfg));
+    if (running) { out({ refused: `the app is running (supervisor pid ${running}): \`pwctl stop\` first, then migrate, then run` }); return 1; }
     const p = pool();
     try {
       const s = await schemaState(p);
@@ -310,10 +336,14 @@ export async function main(argv: string[], env: Env): Promise<number> {
     return 0;
   }
   if (cmd === 'stop') {
-    let pid: number | null = null;
-    try { pid = (JSON.parse(fs.readFileSync(path.join(dirs(cfg).run, 'state.json'), 'utf8')) as { pid: number }).pid; } catch { /* not running */ }
-    if (!alive(pid)) { out({ stopped: true, note: 'was not running' }); return 0; }
-    process.kill(pid!, 'SIGTERM');
+    const pid = recordedSupervisor(readState(cfg));
+    if (!pid) {
+      // a state file left by a crash names no running supervisor (its pid may be another process now)
+      fs.rmSync(path.join(dirs(cfg).run, 'state.json'), { force: true });
+      out({ stopped: true, note: 'was not running' });
+      return 0;
+    }
+    process.kill(pid, 'SIGTERM');
     const deadline = Date.now() + 5 * 60_000;
     while (alive(pid) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 200));
     out({ stopped: !alive(pid) });
@@ -322,7 +352,8 @@ export async function main(argv: string[], env: Env): Promise<number> {
   if (cmd === 'verify-upgrade') {
     const [component, version] = rest;
     if (!component || !version) { process.stderr.write('verify-upgrade needs the component and the installed version\n'); return 2; }
-    const r = verifyUpgrade(cfg, component, version, env);
+    let r: UpgradeRecord;
+    try { r = await verifyUpgrade(cfg, component, version, env); } catch (e) { process.stderr.write(`${(e as Error).message}\n`); return 1; }
     out(r);
     return r.commands.every((x) => x.exit === 0) ? 0 : 1;
   }

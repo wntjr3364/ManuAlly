@@ -8,8 +8,8 @@
 //  - no size cap (the data root may not grow without bound — on the OS disk least of all);
 //  - a listen address that is not loopback (a reverse proxy in front is the user's choice; the app and the
 //    agent ports are never exposed directly), or a public origin over plain http other than loopback;
-//  - the production database being the test or development database (a pw_test* / pw_dev name, the test URL,
-//    or a URL with the password written in the config), or a remote database without verified TLS;
+//  - the production database being the test or development database (a pw_test* / pw_dev name, or the test
+//    URL), or a remote database without verified TLS (the URL itself stays in the environment, never the config);
 //  - version pins that are not exact (latest, ranges, tags), or installed versions that differ from the
 //    pins without a recorded, passed upgrade check (pwctl verify-upgrade).
 import fs from 'node:fs';
@@ -53,7 +53,7 @@ export function fsTypeOf(p: string, mounts = fs.readFileSync('/proc/mounts', 'ut
   for (const line of mounts.split('\n')) {
     const [, mnt, t] = line.split(' ');
     if (!mnt || !t) continue;
-    const m = mnt.replace(/\\040/g, ' ');
+    const m = mnt.replace(/\\([0-7]{3})/g, (_x, o: string) => String.fromCharCode(parseInt(o, 8))); // /proc/mounts octal escapes
     if (inside(p, m) && m.length >= best.length) { best = m; type = t; }
   }
   return type;
@@ -87,7 +87,13 @@ export function checkDeployment(cfg: DeployConfig, pins: Pins, upgrades: Upgrade
     for (const dev of ['.claude', '.codex', '.config/claude', '.config/codex']) if (inside(real, path.join(probe.home, dev))) no(`data_root must not be inside ~/${dev} (a developer CLI's state)`);
     const t = probe.fsType(real);
     if (VOLATILE_FS.has(t)) no(`data_root is on ${t}: not a durable volume (a container layer or memory) — use a disk folder or a mounted volume`);
-    if (t === 'unknown') warnings.push('the filesystem of data_root could not be determined');
+    if (t === 'unknown') no('the filesystem of data_root could not be determined (/proc/mounts): refused rather than assumed durable');
+    // room for the cap (review n2): a cap larger than the disk can hold is no cap
+    try {
+      const sf = fs.statfsSync(real);
+      const free = sf.bavail * sf.bsize;
+      if (Number.isSafeInteger(cfg.max_data_bytes) && free < cfg.max_data_bytes) warnings.push(`the disk of data_root has ${free} bytes free, less than max_data_bytes (${cfg.max_data_bytes}) — the disk fills before the cap`);
+    } catch { /* reported above when the folder is missing */ }
   }
   if (!Number.isSafeInteger(cfg.max_data_bytes) || cfg.max_data_bytes < 1024 ** 3) no('max_data_bytes must be set: the size cap of the data root (at least 1 GiB) — it may not grow without bound');
   if (!Number.isSafeInteger(cfg.log?.max_bytes) || cfg.log.max_bytes < 1024 || cfg.log.max_bytes > 1024 ** 3 || !Number.isInteger(cfg.log?.keep) || cfg.log.keep < 1 || cfg.log.keep > 50) no('log.max_bytes (1 KiB–1 GiB) and log.keep (1–50) must bound the logs');
@@ -136,12 +142,16 @@ export function checkDeployment(cfg: DeployConfig, pins: Pins, upgrades: Upgrade
   return { ok: problems.length === 0, problems, warnings };
 }
 
+// the same database server and name (review n2: localhost / 127.0.0.1 / ::1 and the default port are one)
 function sameDb(a: string, b: string): boolean {
   try {
-    const x = new URL(a);
-    const y = new URL(b);
-    const key = (u: URL) => `${u.searchParams.get('host') ?? u.hostname}|${u.port}|${u.pathname}`;
-    return key(x) === key(y);
+    const key = (s: string) => {
+      const u = new URL(s);
+      const sock = u.searchParams.get('host');
+      const host = sock ? `socket:${path.resolve(sock)}` : LOOPBACK.has(u.hostname.replace(/^\[|\]$/g, '')) ? 'loopback' : u.hostname.toLowerCase();
+      return `${host}|${u.port || '5432'}|${decodeURIComponent(u.pathname)}`;
+    };
+    return key(a) === key(b);
   } catch { return false; }
 }
 

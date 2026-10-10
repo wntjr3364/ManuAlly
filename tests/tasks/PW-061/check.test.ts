@@ -8,7 +8,8 @@ import path from 'node:path';
 import { checkDeployment, fsTypeOf, lockfileSha, type DeployConfig, type Pins, type Probe, type UpgradeRecord } from '../../../infra/deploy/check.ts';
 import { RotatingLog } from '../../../infra/deploy/logs.ts';
 import { ADDS_FILES } from '../../../infra/deploy/serve.ts';
-import { childEnv, loadVersions } from '../../../infra/deploy/pwctl.ts';
+import { childEnv, loadVersions, recordedSupervisor, startTicks } from '../../../infra/deploy/pwctl.ts';
+import { spawn } from 'node:child_process';
 
 const tmp: string[] = [];
 afterAll(() => { for (const d of tmp) fs.rmSync(d, { recursive: true, force: true }); });
@@ -176,6 +177,23 @@ describe('TST-061B: over the size cap, every route that adds a file is refused',
     for (const [url, type] of writes) expect(ADDS_FILES('POST', url, type), url).toBe(true);
     for (const url of [`${P}/documents/d/saves`, `${P}/story/revisions`, `${P}/assets/a/anchors`, `${P}/snapshots`]) expect(ADDS_FILES('POST', url, 'application/json; charset=utf-8'), url).toBe(false);
     expect(ADDS_FILES('GET', `${P}/exports`, 'application/json')).toBe(false);
+  });
+});
+
+describe('TST-061A: a recorded supervisor is trusted only if it is still that process', () => {
+  test('pid, start time and command must all match', async () => {
+    // a process whose command line looks like a supervisor (another installation, or a reused pid)
+    const p = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)', 'infra/deploy/pwctl.ts', 'run'], { stdio: 'ignore' });
+    try {
+      await new Promise((r) => setTimeout(r, 300));
+      const start = startTicks(p.pid!);
+      expect(start).toMatch(/^\d+$/);
+      expect(recordedSupervisor({ pid: p.pid, pid_start: start })).toBe(p.pid);
+      expect(recordedSupervisor({ pid: p.pid, pid_start: String(Number(start) - 1) })).toBeNull(); // the pid was reused
+      expect(recordedSupervisor({ pid: p.pid })).toBeNull();
+      expect(recordedSupervisor({ pid: process.pid, pid_start: startTicks(process.pid) })).toBeNull(); // not a supervisor
+      expect(recordedSupervisor(null)).toBeNull();
+    } finally { p.kill('SIGKILL'); }
   });
 });
 

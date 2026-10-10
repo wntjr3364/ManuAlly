@@ -29,3 +29,15 @@ KILLED web files outside the build are served
 KILLED a crashed child is not restarted
 KILLED the worker runs AI jobs without the pause
 KILLED R2 the childEnv passes the operator's whole environment
+# review fixes (m1-m5, n2, n3)
+KILLED m3 the PDF fetch not gated
+KILLED n2 localhost and 127.0.0.1 seen as different databases
+KILLED n2 the default port not assumed
+KILLED n2 unknown filesystem only a warning
+KILLED n2 octal escapes not decoded
+KILLED m4 an upgrade check for a version not installed
+KILLED m2 run allows a second supervisor
+KILLED m1 migrate while the app runs
+SURVIVED m2 a stale state file with a live pid is trusted
+KILLED m5 the editor injects its inline style again
+KILLED R2 m2 a stale state file with a live pid is trusted (start time ignored)
